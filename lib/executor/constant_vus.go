@@ -31,7 +31,6 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/stats"
 	"go.k6.io/k6/ui/pb"
 )
@@ -143,9 +142,7 @@ var _ lib.Executor = &ConstantVUs***REMOVED******REMOVED***
 
 // Run constantly loops through as many iterations as possible on a fixed number
 // of VUs for the specified duration.
-func (clv ConstantVUs) Run(
-	parentCtx context.Context, out chan<- stats.SampleContainer, _ *metrics.BuiltinMetrics,
-) (err error) ***REMOVED***
+func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	numVUs := clv.config.GetVUs(clv.executionState.ExecutionTuple)
 	duration := clv.config.Duration.TimeDuration()
 	gracefulStop := clv.config.GetGracefulStop()

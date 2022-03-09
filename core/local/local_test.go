@@ -73,8 +73,10 @@ func newTestExecutionScheduler(
 		logger = logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
 	***REMOVED***
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
-	execScheduler, err = NewExecutionScheduler(runner, logger)
+	execScheduler, err = NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	samples = make(chan stats.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
@@ -99,9 +101,7 @@ func TestExecutionSchedulerRun(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	err := make(chan error, 1)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 	assert.NoError(t, <-err)
 ***REMOVED***
 
@@ -140,7 +140,7 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 				nil, lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, logger)
+			execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -154,7 +154,7 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 					assert.EqualError(t, err, tc.expErr)
 				***REMOVED*** else ***REMOVED***
 					assert.NoError(t, err)
-					assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+					assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 				***REMOVED***
 				close(done)
 			***REMOVED***()
@@ -252,7 +252,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 				nil, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***, builtinMetrics, registry)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, logger)
+			execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -262,7 +262,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			samples := make(chan stats.SampleContainer)
 			go func() ***REMOVED***
 				assert.NoError(t, execScheduler.Init(ctx, samples))
-				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+				assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 				close(done)
 			***REMOVED***()
 			for ***REMOVED***
@@ -323,7 +323,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		SystemTags: &stats.DefaultSystemTagSet,
 	***REMOVED***)))
 
-	execScheduler, err := NewExecutionScheduler(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -334,7 +334,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	go func() ***REMOVED***
 		defer close(done)
 		require.NoError(t, execScheduler.Init(ctx, samples))
-		require.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+		require.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	***REMOVED***()
 
 	expCommonTrailTags := stats.IntoSampleTags(&map[string]string***REMOVED***
@@ -460,7 +460,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 				nil, lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, logger)
+			execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -471,7 +471,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			go func() ***REMOVED***
 				defer close(done)
 				require.NoError(t, execScheduler.Init(ctx, samples))
-				require.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+				require.NoError(t, execScheduler.Run(ctx, ctx, samples))
 			***REMOVED***()
 			var gotTrailTag, gotNetTrailTag bool
 			for ***REMOVED***
@@ -623,7 +623,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		nil, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED******REMOVED***, builtinMetrics, registry)
 	require.NoError(t, err)
 
-	execScheduler, err := NewExecutionScheduler(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -632,7 +632,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	samples := make(chan stats.SampleContainer)
 	go func() ***REMOVED***
 		assert.NoError(t, execScheduler.Init(ctx, samples))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 		close(samples)
 	***REMOVED***()
 
@@ -694,8 +694,6 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 
 func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Parallel()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	t.Run("Normal", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		setupC := make(chan struct***REMOVED******REMOVED***)
@@ -713,7 +711,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
 
 		err := make(chan error, 1)
-		go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+		go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 		defer cancel()
 		<-setupC
 		<-teardownC
@@ -728,7 +726,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics), "setup error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "setup error")
 	***REMOVED***)
 	t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -746,7 +744,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "teardown error")
 	***REMOVED***)
 
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
@@ -765,7 +763,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 		***REMOVED***)
 		defer cancel()
 
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "teardown error")
 	***REMOVED***)
 	t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -783,7 +781,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	***REMOVED***)
 ***REMOVED***
 
@@ -812,8 +810,6 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
 	for name, data := range testdata ***REMOVED***
 		data := data
@@ -830,7 +826,7 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 				Stages: data.Stages,
 			***REMOVED***)
 			defer cancel()
-			assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+			assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 			assert.True(t, execScheduler.GetState().GetCurrentTestRunDuration() >= data.Duration)
 		***REMOVED***)
 	***REMOVED***
@@ -855,9 +851,7 @@ func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -883,10 +877,8 @@ func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	assert.Equal(t, 31*time.Second, endTime) // because of the default 30s gracefulStop
 	assert.True(t, isFinal)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -922,10 +914,8 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	assert.Equal(t, 1*time.Second, endTime) // because of the 0s gracefulStop
 	assert.True(t, isFinal)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -964,14 +954,14 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 
-	execScheduler, err := NewExecutionScheduler(runner, logger)
-	require.NoError(t, err)
-
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
+	require.NoError(t, err)
+
 	samples := make(chan stats.SampleContainer, 300)
 	require.NoError(t, execScheduler.Init(ctx, samples))
-	require.NoError(t, execScheduler.Run(ctx, ctx, samples, builtinMetrics))
+	require.NoError(t, execScheduler.Run(ctx, ctx, samples))
 
 	assert.Equal(t, uint64(100), execScheduler.GetState().GetFullIterationCount())
 	assert.Equal(t, uint64(0), execScheduler.GetState().GetPartialIterationCount())
@@ -996,9 +986,7 @@ func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	state := execScheduler.GetState()
 
 	err := make(chan error)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, nil, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** err <- execScheduler.Run(ctx, ctx, nil) ***REMOVED***()
 	for !state.HasStarted() ***REMOVED***
 		time.Sleep(10 * time.Microsecond)
 	***REMOVED***
@@ -1094,7 +1082,7 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 				defer mr.Unset("myhost")
 
 				errCh := make(chan error, 1)
-				go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+				go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 				select ***REMOVED***
 				case err := <-errCh:
@@ -1172,7 +1160,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.NoError(t, runner.SetOptions(options))
 
-	execScheduler, err := NewExecutionScheduler(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1182,7 +1170,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	sampleContainers := make(chan stats.SampleContainer)
 	go func() ***REMOVED***
 		require.NoError(t, execScheduler.Init(ctx, sampleContainers))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, builtinMetrics))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers))
 		close(done)
 	***REMOVED***()
 
@@ -1193,6 +1181,17 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		for ***REMOVED***
 			select ***REMOVED***
 			case sampleContainer := <-sampleContainers:
+				gotVus := false
+				for _, s := range sampleContainer.GetSamples() ***REMOVED***
+					if s.Metric == builtinMetrics.VUs || s.Metric == builtinMetrics.VUsMax ***REMOVED***
+						gotVus = true
+						break
+					***REMOVED***
+				***REMOVED***
+				if gotVus ***REMOVED***
+					continue
+				***REMOVED***
+
 				now := time.Now()
 				elapsed := now.Sub(start)
 				if elapsed < from ***REMOVED***
@@ -1293,7 +1292,9 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 		logger := logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
-		sched, err := NewExecutionScheduler(runner, logger)
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		sched, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 
@@ -1308,7 +1309,9 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 		logger := logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
-		sched, err := NewExecutionScheduler(runner, logger)
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		sched, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		err = sched.SetPaused(false)
@@ -1321,7 +1324,9 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 		logger := logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
-		sched, err := NewExecutionScheduler(runner, logger)
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		sched, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		require.NoError(t, sched.SetPaused(true))
@@ -1336,7 +1341,9 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 		logger := logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
-		sched, err := NewExecutionScheduler(runner, logger)
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		sched, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 		require.NoError(t, err)
 		expectedErr := errors.New("testing pausable executor error")
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: expectedErr***REMOVED******REMOVED***
@@ -1357,7 +1364,9 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 		logger := logrus.New()
 		logger.SetOutput(testutils.NewTestOutput(t))
-		sched, err := NewExecutionScheduler(runner, logger)
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		sched, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 		require.NoError(t, err)
 		err = sched.SetPaused(true)
 		require.Error(t, err)
@@ -1418,7 +1427,7 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	execScheduler, err := NewExecutionScheduler(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	assert.Len(t, execScheduler.executors, 2)

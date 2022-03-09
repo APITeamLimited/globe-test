@@ -51,11 +51,11 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 		lib.Options***REMOVED***
 			TeardownTimeout: types.NullDurationFrom(time.Second),
 			SetupTimeout:    types.NullDurationFrom(time.Second),
-		***REMOVED***)
+		***REMOVED***, builtinMetrics)
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
@@ -200,7 +200,7 @@ export default function() ***REMOVED***
 ***REMOVED***
 
 func newTestExecutionScheduler(
-	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options,
+	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options, builtinMetrics *metrics.BuiltinMetrics,
 ) (ctx context.Context, cancel func(), execScheduler *local.ExecutionScheduler, samples chan stats.SampleContainer) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
@@ -219,7 +219,7 @@ func newTestExecutionScheduler(
 		logger.SetOutput(testutils.NewTestOutput(t))
 	***REMOVED***
 
-	execScheduler, err = local.NewExecutionScheduler(runner, logger)
+	execScheduler, err = local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
 	samples = make(chan stats.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)

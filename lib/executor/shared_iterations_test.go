@@ -54,7 +54,9 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	var doneIters uint64
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -63,9 +65,7 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	err = executor.Run(ctx, nil, builtinMetrics)
+	err = executor.Run(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(100), doneIters)
 ***REMOVED***
@@ -80,7 +80,9 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	)
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
 		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
@@ -99,9 +101,7 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	err = executor.Run(ctx, nil, builtinMetrics)
+	err = executor.Run(ctx, nil)
 	require.NoError(t, err)
 
 	var totalIters uint64
@@ -130,7 +130,9 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 		MaxDuration: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***
 
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -141,9 +143,7 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	engineOut := make(chan stats.SampleContainer, 1000)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	err = executor.Run(ctx, engineOut, builtinMetrics)
+	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	assert.Empty(t, logHook.Drain())
 	assert.Equal(t, int64(5), count)
@@ -178,7 +178,9 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			et, err := lib.NewExecutionTuple(seg, &ess)
 			require.NoError(t, err)
-			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 5, 5)
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 5, 5)
 
 			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 			ctx, cancel, executor, _ := setupExecutor(t, config, es, runner)
@@ -194,9 +196,7 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			engineOut := make(chan stats.SampleContainer, 100)
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-			err = executor.Run(ctx, engineOut, builtinMetrics)
+			err = executor.Run(ctx, engineOut)
 			require.NoError(t, err)
 			sort.Slice(gotIters, func(i, j int) bool ***REMOVED*** return gotIters[i] < gotIters[j] ***REMOVED***)
 			assert.Equal(t, tc.expIters, gotIters)

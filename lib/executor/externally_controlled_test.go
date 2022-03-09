@@ -50,7 +50,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 
 	doneIters := new(uint64)
 	ctx, cancel, executor, _ := setupExecutor(
@@ -72,7 +72,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	go func() ***REMOVED***
 		defer wg.Done()
 		es.MarkStarted()
-		errCh <- executor.Run(ctx, nil, nil)
+		errCh <- executor.Run(ctx, nil)
 		es.MarkEnded()
 		close(doneCh)
 	***REMOVED***()
