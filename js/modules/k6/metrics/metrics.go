@@ -99,16 +99,22 @@ func (m Metric) add(v goja.Value, addTags ...map[string]string) (bool, error) **
 	***REMOVED***
 
 	// return/throw exception if throw enabled, otherwise just log
-	raiseNan := func() (bool, error) ***REMOVED***
-		err := fmt.Errorf("'%s' is an invalid value for metric '%s', a number or a boolean value is expected",
-			limitValue(v.String()), m.metric.Name)
+	raiseErr := func(err error) (bool, error) ***REMOVED*** //nolint:unparam // we want to just do `return raiseErr(...)`
 		if state.Options.Throw.Bool ***REMOVED***
 			return false, err
 		***REMOVED***
 		state.Logger.Warn(err)
 		return false, nil
 	***REMOVED***
+	raiseNan := func() (bool, error) ***REMOVED***
+		return raiseErr(fmt.Errorf("'%s' is an invalid value for metric '%s', a number or a boolean value is expected",
+			limitValue(v.String()), m.metric.Name))
+	***REMOVED***
 
+	if v == nil ***REMOVED***
+		return raiseErr(fmt.Errorf("no value was provided for metric '%s', a number or a boolean value is expected",
+			m.metric.Name))
+	***REMOVED***
 	if goja.IsNull(v) ***REMOVED***
 		return raiseNan()
 	***REMOVED***
