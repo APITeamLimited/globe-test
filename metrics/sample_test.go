@@ -1,24 +1,4 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
-package stats
+package metrics
 
 import (
 	"encoding/json"
@@ -27,68 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-func TestNewMetric(t *testing.T) ***REMOVED***
-	t.Parallel()
-	testdata := map[string]struct ***REMOVED***
-		Type     MetricType
-		SinkType Sink
-	***REMOVED******REMOVED***
-		"Counter": ***REMOVED***Counter, &CounterSink***REMOVED******REMOVED******REMOVED***,
-		"Gauge":   ***REMOVED***Gauge, &GaugeSink***REMOVED******REMOVED******REMOVED***,
-		"Trend":   ***REMOVED***Trend, &TrendSink***REMOVED******REMOVED******REMOVED***,
-		"Rate":    ***REMOVED***Rate, &RateSink***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***
-
-	for name, data := range testdata ***REMOVED***
-		name, data := name, data
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			t.Parallel()
-			m := newMetric("my_metric", data.Type)
-			assert.Equal(t, "my_metric", m.Name)
-			assert.IsType(t, data.SinkType, m.Sink)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
-func TestAddSubmetric(t *testing.T) ***REMOVED***
-	t.Parallel()
-	testdata := map[string]struct ***REMOVED***
-		err  bool
-		tags map[string]string
-	***REMOVED******REMOVED***
-		"":                        ***REMOVED***true, nil***REMOVED***,
-		"  ":                      ***REMOVED***true, nil***REMOVED***,
-		"a":                       ***REMOVED***false, map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
-		"a:1":                     ***REMOVED***false, map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		" a : 1 ":                 ***REMOVED***false, map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		"a,b":                     ***REMOVED***false, map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
-		` a:"",b: ''`:             ***REMOVED***false, map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
-		`a:1,b:2`:                 ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-		` a : 1, b : 2 `:          ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-		`a : '1' , b : "2"`:       ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-		`" a" : ' 1' , b : "2 " `: ***REMOVED***false, map[string]string***REMOVED***" a": " 1", "b": "2 "***REMOVED******REMOVED***, //nolint:gocritic
-	***REMOVED***
-
-	for name, expected := range testdata ***REMOVED***
-		name, expected := name, expected
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			t.Parallel()
-
-			m := newMetric("metric", Trend)
-			sm, err := m.AddSubmetric(name)
-			if expected.err ***REMOVED***
-				require.Error(t, err)
-				return
-			***REMOVED***
-			require.NoError(t, err)
-			require.NotNil(t, sm)
-			assert.EqualValues(t, expected.tags, sm.Tags.tags)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
 
 func TestSampleTags(t *testing.T) ***REMOVED***
 	t.Parallel()
@@ -208,17 +127,9 @@ func TestGetResolversForTrendColumnsValidation(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func createTestTrendSink(count int) *TrendSink ***REMOVED***
-	sink := TrendSink***REMOVED******REMOVED***
+func TestGetResolversForTrendColumnsCalculation(t *testing.T) ***REMOVED***
+	t.Parallel()
 
-	for i := 0; i < count; i++ ***REMOVED***
-		sink.Add(Sample***REMOVED***Value: float64(i)***REMOVED***)
-	***REMOVED***
-
-	return &sink
-***REMOVED***
-
-func TestResolversForTrendColumnsCalculation(t *testing.T) ***REMOVED***
 	customResolversTests := []struct ***REMOVED***
 		stats      string
 		percentile float64
@@ -230,11 +141,12 @@ func TestResolversForTrendColumnsCalculation(t *testing.T) ***REMOVED***
 		***REMOVED***"p(99.999)", 0.99999***REMOVED***,
 	***REMOVED***
 
-	sink := createTestTrendSink(100)
-
 	for _, tc := range customResolversTests ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("%v", tc.stats), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			sink := createTestTrendSink(100)
+
 			res, err := GetResolversForTrendColumns([]string***REMOVED***tc.stats***REMOVED***)
 			assert.NoError(t, err)
 			assert.Len(t, res, 1)
@@ -243,4 +155,14 @@ func TestResolversForTrendColumnsCalculation(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func createTestTrendSink(count int) *TrendSink ***REMOVED***
+	sink := TrendSink***REMOVED******REMOVED***
+
+	for i := 0; i < count; i++ ***REMOVED***
+		sink.Add(Sample***REMOVED***Value: float64(i)***REMOVED***)
+	***REMOVED***
+
+	return &sink
 ***REMOVED***

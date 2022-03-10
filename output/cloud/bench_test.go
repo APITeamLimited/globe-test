@@ -42,8 +42,8 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/lib/types"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
@@ -52,7 +52,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 		JSONConfig: json.RawMessage(`***REMOVED***"noCompress": true, "aggregationCalcInterval": "200ms","aggregationPeriod": "200ms"***REMOVED***`),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
@@ -67,7 +67,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 			b.ResetTimer()
 			for s := 0; s < b.N; s++ ***REMOVED***
 				b.StopTimer()
-				container := make([]stats.SampleContainer, containersCount)
+				container := make([]metrics.SampleContainer, containersCount)
 				for i := 1; i <= containersCount; i++ ***REMOVED***
 					status := "200"
 					if i%tagCount%7 == 6 ***REMOVED***
@@ -88,7 +88,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func generateTags(i, tagCount int, additionals ...map[string]string) *stats.SampleTags ***REMOVED***
+func generateTags(i, tagCount int, additionals ...map[string]string) *metrics.SampleTags ***REMOVED***
 	res := map[string]string***REMOVED***
 		"test": "mest", "a": "b",
 		"custom": fmt.Sprintf("group%d", i%tagCount%9),
@@ -102,7 +102,7 @@ func generateTags(i, tagCount int, additionals ...map[string]string) *stats.Samp
 		***REMOVED***
 	***REMOVED***
 
-	return stats.IntoSampleTags(&res)
+	return metrics.IntoSampleTags(&res)
 ***REMOVED***
 
 func BenchmarkMetricMarshal(b *testing.B) ***REMOVED***
@@ -241,7 +241,7 @@ func generateSamples(count int) []*Sample ***REMOVED***
 				Metric: "something",
 				Data: &SampleDataSingle***REMOVED***
 					Time:  toMicroSecond(now),
-					Type:  stats.Counter,
+					Type:  metrics.Counter,
 					Tags:  tags,
 					Value: float64(i),
 				***REMOVED***,
@@ -273,7 +273,7 @@ func generateSamples(count int) []*Sample ***REMOVED***
 	return samples
 ***REMOVED***
 
-func generateHTTPExtTrail(now time.Time, i time.Duration, tags *stats.SampleTags) *httpext.Trail ***REMOVED***
+func generateHTTPExtTrail(now time.Time, i time.Duration, tags *metrics.SampleTags) *httpext.Trail ***REMOVED***
 	return &httpext.Trail***REMOVED***
 		Blocked:        i % 200 * 100 * time.Millisecond,
 		Connecting:     i % 200 * 200 * time.Millisecond,
@@ -313,7 +313,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)

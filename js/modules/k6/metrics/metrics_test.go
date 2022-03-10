@@ -36,7 +36,6 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 type addTestValue struct ***REMOVED***
@@ -50,10 +49,10 @@ type addTest struct ***REMOVED***
 	val          addTestValue
 	rt           *goja.Runtime
 	hook         *testutils.SimpleLogrusHook
-	samples      chan stats.SampleContainer
+	samples      chan metrics.SampleContainer
 	isThrow      bool
-	mtyp         stats.MetricType
-	valueType    stats.ValueType
+	mtyp         metrics.MetricType
+	valueType    metrics.ValueType
 	js           string
 	expectedTags map[string]string
 ***REMOVED***
@@ -73,9 +72,9 @@ func (a addTest) run(t *testing.T) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
-	bufSamples := stats.GetBufferedSamples(a.samples)
+	bufSamples := metrics.GetBufferedSamples(a.samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(stats.Sample)
+		sample, ok := bufSamples[0].(metrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
@@ -89,11 +88,11 @@ func (a addTest) run(t *testing.T) ***REMOVED***
 
 func TestMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
-	types := map[string]stats.MetricType***REMOVED***
-		"Counter": stats.Counter,
-		"Gauge":   stats.Gauge,
-		"Trend":   stats.Trend,
-		"Rate":    stats.Rate,
+	types := map[string]metrics.MetricType***REMOVED***
+		"Counter": metrics.Counter,
+		"Gauge":   metrics.Gauge,
+		"Trend":   metrics.Trend,
+		"Rate":    metrics.Rate,
 	***REMOVED***
 	values := map[string]addTestValue***REMOVED***
 		"Float":                 ***REMOVED***JS: `2.5`, Float: 2.5***REMOVED***,
@@ -113,7 +112,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		fn, mtyp := fn, mtyp
 		t.Run(fn, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			for isTime, valueType := range map[bool]stats.ValueType***REMOVED***false: stats.Default, true: stats.Time***REMOVED*** ***REMOVED***
+			for isTime, valueType := range map[bool]metrics.ValueType***REMOVED***false: metrics.Default, true: metrics.Time***REMOVED*** ***REMOVED***
 				isTime, valueType := isTime, valueType
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
 					t.Parallel()
@@ -131,7 +130,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
 					require.NoError(t, test.rt.Set("metrics", m.Exports().Named))
-					test.samples = make(chan stats.SampleContainer, 1000)
+					test.samples = make(chan metrics.SampleContainer, 1000)
 					state := &lib.State***REMOVED***
 						Options: lib.Options***REMOVED******REMOVED***,
 						Samples: test.samples,

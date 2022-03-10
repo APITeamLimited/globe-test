@@ -38,7 +38,6 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 func TestBadConcurrentWrites(t *testing.T) ***REMOVED***
@@ -109,7 +108,7 @@ func testOutputCycle(t testing.TB, handler http.HandlerFunc, body func(testing.T
 func TestOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	metric, err := metrics.NewRegistry().NewMetric("test_gauge", stats.Gauge)
+	metric, err := metrics.NewRegistry().NewMetric("test_gauge", metrics.Gauge)
 	require.NoError(t, err)
 
 	var samplesRead int
@@ -132,12 +131,12 @@ func TestOutput(t *testing.T) ***REMOVED***
 
 		rw.WriteHeader(204)
 	***REMOVED***, func(tb testing.TB, c *Output) ***REMOVED***
-		samples := make(stats.Samples, 10)
+		samples := make(metrics.Samples, 10)
 		for i := 0; i < len(samples); i++ ***REMOVED***
-			samples[i] = stats.Sample***REMOVED***
+			samples[i] = metrics.Sample***REMOVED***
 				Metric: metric,
 				Time:   time.Now(),
-				Tags: stats.NewSampleTags(map[string]string***REMOVED***
+				Tags: metrics.NewSampleTags(map[string]string***REMOVED***
 					"something": "else",
 					"VU":        "21",
 					"else":      "something",
@@ -145,8 +144,8 @@ func TestOutput(t *testing.T) ***REMOVED***
 				Value: 2.0,
 			***REMOVED***
 		***REMOVED***
-		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
-		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
+		c.AddMetricSamples([]metrics.SampleContainer***REMOVED***samples***REMOVED***)
+		c.AddMetricSamples([]metrics.SampleContainer***REMOVED***samples***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
 
@@ -176,7 +175,7 @@ func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
 		ts.Close()
 	***REMOVED***()
 
-	metric, err := metrics.NewRegistry().NewMetric("test_gauge", stats.Gauge)
+	metric, err := metrics.NewRegistry().NewMetric("test_gauge", metrics.Gauge)
 	require.NoError(t, err)
 
 	o, err := newOutput(output.Params***REMOVED***
@@ -190,8 +189,8 @@ func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
 		case o.semaphoreCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
 			<-o.semaphoreCh
 			wg.Add(1)
-			o.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Samples***REMOVED***
-				stats.Sample***REMOVED***
+			o.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Samples***REMOVED***
+				metrics.Sample***REMOVED***
 					Metric: metric,
 					Value:  2.0,
 				***REMOVED***,

@@ -50,10 +50,9 @@ import (
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
-func tagEqual(expected, got *stats.SampleTags) bool ***REMOVED***
+func tagEqual(expected, got *metrics.SampleTags) bool ***REMOVED***
 	expectedMap := expected.CloneTags()
 	gotMap := got.CloneTags()
 
@@ -185,7 +184,7 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": true***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
@@ -210,10 +209,10 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 
 	now := time.Now()
 	tagMap := map[string]string***REMOVED***"test": "mest", "a": "b", "name": "name", "url": "url"***REMOVED***
-	tags := stats.IntoSampleTags(&tagMap)
+	tags := metrics.IntoSampleTags(&tagMap)
 	expectedTagMap := tags.CloneTags()
 	expectedTagMap["url"], _ = tags.Get("name")
-	expectedTags := stats.IntoSampleTags(&expectedTagMap)
+	expectedTags := metrics.IntoSampleTags(&expectedTagMap)
 
 	expSamples := make(chan []Sample)
 	defer close(expSamples)
@@ -222,7 +221,7 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 		rw.WriteHeader(http.StatusOK) // silence a test warning
 	***REMOVED***)
 
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 		Time:   now,
 		Metric: builtinMetrics.VUs,
 		Tags:   tags,
@@ -252,12 +251,12 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 		Duration:     1500 * time.Millisecond,
 		Tags:         tags,
 	***REMOVED***
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleTrail***REMOVED***)
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***&simpleTrail***REMOVED***)
 	expSamples <- []Sample***REMOVED****NewSampleFromTrail(&simpleTrail)***REMOVED***
 
 	smallSkew := 0.02
 
-	trails := []stats.SampleContainer***REMOVED******REMOVED***
+	trails := []metrics.SampleContainer***REMOVED******REMOVED***
 	durations := make([]time.Duration, len(trails))
 	for i := int64(0); i < out.config.AggregationMinSamples.Int64; i++ ***REMOVED***
 		similarTrail := skewTrail(r, simpleTrail, 1.0, 1.0+smallSkew)
@@ -270,9 +269,9 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 	checkAggrMetric := func(normal time.Duration, aggr AggregatedMetric) ***REMOVED***
 		assert.True(t, aggr.Min <= aggr.Avg)
 		assert.True(t, aggr.Avg <= aggr.Max)
-		assert.InEpsilon(t, normal, stats.ToD(aggr.Min), smallSkew)
-		assert.InEpsilon(t, normal, stats.ToD(aggr.Avg), smallSkew)
-		assert.InEpsilon(t, normal, stats.ToD(aggr.Max), smallSkew)
+		assert.InEpsilon(t, normal, metrics.ToD(aggr.Min), smallSkew)
+		assert.InEpsilon(t, normal, metrics.ToD(aggr.Avg), smallSkew)
+		assert.InEpsilon(t, normal, metrics.ToD(aggr.Max), smallSkew)
 	***REMOVED***
 
 	outlierTrail := skewTrail(r, simpleTrail, 2.0+smallSkew, 3.0+smallSkew)
@@ -330,14 +329,14 @@ func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": true***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
 	require.NoError(t, err)
 	require.NoError(t, err)
 	now := time.Now()
-	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
+	tags := metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
 	gotTheLimit := false
 	var m sync.Mutex
 
@@ -357,14 +356,14 @@ func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 
 	require.NoError(t, out.Start())
 
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 		Time:   now,
 		Metric: builtinMetrics.VUs,
-		Tags:   stats.NewSampleTags(tags.CloneTags()),
+		Tags:   metrics.NewSampleTags(tags.CloneTags()),
 		Value:  1.0,
 	***REMOVED******REMOVED***)
 	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
-		container := make([]stats.SampleContainer, 0, 500)
+		container := make([]metrics.SampleContainer, 0, 500)
 		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
 			container = append(container, &httpext.Trail***REMOVED***
 				Blocked:        i % 200 * 100 * time.Millisecond,
@@ -377,7 +376,7 @@ func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 				EndTime:      now.Add(i * 100),
 				ConnDuration: 500 * time.Millisecond,
 				Duration:     j * i * 1500 * time.Millisecond,
-				Tags:         stats.NewSampleTags(tags.CloneTags()),
+				Tags:         metrics.NewSampleTags(tags.CloneTags()),
 			***REMOVED***)
 		***REMOVED***
 		out.AddMetricSamples(container)
@@ -435,7 +434,7 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 		***REMOVED***`, tb.ServerHTTP.URL, stopOnError)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 			External: map[string]json.RawMessage***REMOVED***
 				"loadimpact": json.RawMessage(`***REMOVED***"name": "my-custom-name"***REMOVED***`),
 			***REMOVED***,
@@ -452,7 +451,7 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 	***REMOVED***
 	require.NoError(t, err)
 	now := time.Now()
-	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
+	tags := metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
 
 	count := 1
 	max := 5
@@ -482,14 +481,14 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 
 	require.NoError(t, out.Start())
 
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 		Time:   now,
 		Metric: builtinMetrics.VUs,
-		Tags:   stats.NewSampleTags(tags.CloneTags()),
+		Tags:   metrics.NewSampleTags(tags.CloneTags()),
 		Value:  1.0,
 	***REMOVED******REMOVED***)
 	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
-		container := make([]stats.SampleContainer, 0, 500)
+		container := make([]metrics.SampleContainer, 0, 500)
 		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
 			container = append(container, &httpext.Trail***REMOVED***
 				Blocked:        i % 200 * 100 * time.Millisecond,
@@ -502,7 +501,7 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 				EndTime:      now.Add(i * 100),
 				ConnDuration: 500 * time.Millisecond,
 				Duration:     j * i * 1500 * time.Millisecond,
-				Tags:         stats.NewSampleTags(tags.CloneTags()),
+				Tags:         metrics.NewSampleTags(tags.CloneTags()),
 			***REMOVED***)
 		***REMOVED***
 		out.AddMetricSamples(container)
@@ -522,10 +521,10 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 
 	nBufferSamples := len(out.bufferSamples)
 	nBufferHTTPTrails := len(out.bufferHTTPTrails)
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 		Time:   now,
 		Metric: builtinMetrics.VUs,
-		Tags:   stats.NewSampleTags(tags.CloneTags()),
+		Tags:   metrics.NewSampleTags(tags.CloneTags()),
 		Value:  1.0,
 	***REMOVED******REMOVED***)
 	if nBufferSamples != len(out.bufferSamples) || nBufferHTTPTrails != len(out.bufferHTTPTrails) ***REMOVED***
@@ -539,7 +538,7 @@ func TestCloudOutputRequireScriptName(t *testing.T) ***REMOVED***
 		Logger: testutils.NewLogger(t),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: ""***REMOVED***,
 	***REMOVED***)
@@ -572,7 +571,7 @@ func TestCloudOutputAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 		***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
@@ -627,7 +626,7 @@ func TestCloudOutputPushRefID(t *testing.T) ***REMOVED***
 		***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
@@ -638,9 +637,9 @@ func TestCloudOutputPushRefID(t *testing.T) ***REMOVED***
 	assert.Equal(t, "333", out.referenceID)
 
 	now := time.Now()
-	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
+	tags := metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
 
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 		Time:   now,
 		Metric: builtinMetrics.HTTPReqDuration,
 		Tags:   tags,
@@ -691,7 +690,7 @@ func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "path/to/script.js"***REMOVED***,
 	***REMOVED***)
@@ -735,7 +734,7 @@ func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		FullIteration: true,
 		StartTime:     now.Add(-time.Minute),
 		EndTime:       now,
-		Samples: []stats.Sample***REMOVED***
+		Samples: []metrics.Sample***REMOVED***
 			***REMOVED***
 				Time:   now,
 				Metric: builtinMetrics.DataSent,
@@ -754,7 +753,7 @@ func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	out.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleNetTrail***REMOVED***)
+	out.AddMetricSamples([]metrics.SampleContainer***REMOVED***&simpleNetTrail***REMOVED***)
 	require.NoError(t, out.Stop())
 	require.True(t, gotIterations)
 ***REMOVED***
@@ -799,7 +798,7 @@ func TestNewName(t *testing.T) ***REMOVED***
 				Logger: testutils.NewLogger(t),
 				ScriptOptions: lib.Options***REMOVED***
 					Duration:   types.NullDurationFrom(1 * time.Second),
-					SystemTags: &stats.DefaultSystemTagSet,
+					SystemTags: &metrics.DefaultSystemTagSet,
 				***REMOVED***,
 				ScriptPath: testCase.url,
 			***REMOVED***)
@@ -838,7 +837,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": false***REMOVED***`, server.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "script.js"***REMOVED***,
 	***REMOVED***)
@@ -872,7 +871,7 @@ func TestNewOutputClientTimeout(t *testing.T) ***REMOVED***
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s",  "timeout": "2ms"***REMOVED***`, ts.URL)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "script.js"***REMOVED***,
 	***REMOVED***)

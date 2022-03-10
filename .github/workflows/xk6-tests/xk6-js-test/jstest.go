@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"go.k6.io/k6/js/modules"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 func init() ***REMOVED***
@@ -19,7 +19,7 @@ type (
 	JSTest struct ***REMOVED***
 		vu modules.VU
 
-		foos *stats.Metric
+		foos *metrics.Metric
 	***REMOVED***
 )
 
@@ -39,7 +39,7 @@ func New() *RootModule ***REMOVED***
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
 	return &JSTest***REMOVED***
 		vu:   vu,
-		foos: vu.InitEnv().Registry.MustNewMetric("foos", stats.Counter),
+		foos: vu.InitEnv().Registry.MustNewMetric("foos", metrics.Counter),
 	***REMOVED***
 ***REMOVED***
 
@@ -60,9 +60,9 @@ func (j *JSTest) Foo(arg float64) (bool, error) ***REMOVED***
 
 	tags := state.CloneTags()
 	tags["foo"] = "bar"
-	stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
+	metrics.PushIfNotDone(ctx, state.Samples, metrics.Sample***REMOVED***
 		Time:   time.Now(),
-		Metric: j.foos, Tags: stats.IntoSampleTags(&tags),
+		Metric: j.foos, Tags: metrics.IntoSampleTags(&tags),
 		Value: arg,
 	***REMOVED***)
 

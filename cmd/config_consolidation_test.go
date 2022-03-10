@@ -33,7 +33,7 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
@@ -350,22 +350,22 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 
 		// Test system tags
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, &stats.DefaultSystemTagSet, c.Options.SystemTags)
+			assert.Equal(t, &metrics.DefaultSystemTagSet, c.Options.SystemTags)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--system-tags", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, stats.SystemTagSet(0), *c.Options.SystemTags)
+			assert.Equal(t, metrics.SystemTagSet(0), *c.Options.SystemTags)
 		***REMOVED******REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
 				runner: &lib.Options***REMOVED***
-					SystemTags: stats.NewSystemTagSet(stats.TagSubproto, stats.TagURL),
+					SystemTags: metrics.NewSystemTagSet(metrics.TagSubproto, metrics.TagURL),
 				***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
 				assert.Equal(
 					t,
-					*stats.NewSystemTagSet(stats.TagSubproto, stats.TagURL),
+					*metrics.NewSystemTagSet(metrics.TagSubproto, metrics.TagURL),
 					*c.Options.SystemTags,
 				)
 			***REMOVED***,

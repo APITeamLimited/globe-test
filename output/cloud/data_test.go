@@ -33,7 +33,6 @@ import (
 
 	"go.k6.io/k6/lib/netext/httpext"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func TestSampleMarshaling(t *testing.T) ***REMOVED***
@@ -54,7 +53,7 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				Data: &SampleDataSingle***REMOVED***
 					Type:  builtinMetrics.VUs.Type,
 					Time:  toMicroSecond(now),
-					Tags:  stats.IntoSampleTags(&map[string]string***REMOVED***"aaa": "bbb", "ccc": "123"***REMOVED***),
+					Tags:  metrics.IntoSampleTags(&map[string]string***REMOVED***"aaa": "bbb", "ccc": "123"***REMOVED***),
 					Value: 999,
 				***REMOVED***,
 			***REMOVED***,
@@ -66,11 +65,11 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				Metric: "iter_li_all",
 				Data: &SampleDataMap***REMOVED***
 					Time: toMicroSecond(now),
-					Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
+					Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
 					Values: map[string]float64***REMOVED***
 						metrics.DataSentName:          1234.5,
 						metrics.DataReceivedName:      6789.1,
-						metrics.IterationDurationName: stats.D(10 * time.Second),
+						metrics.IterationDurationName: metrics.D(10 * time.Second),
 					***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
@@ -108,7 +107,7 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
 					Time: exptoMicroSecond,
 					Type: "aggregated_trend",
-					Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
+					Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
 				***REMOVED***
 				aggrData.Add(
 					&httpext.Trail***REMOVED***
@@ -150,7 +149,7 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
 					Time: exptoMicroSecond,
 					Type: "aggregated_trend",
-					Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
+					Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
 				***REMOVED***
 				aggrData.Add(
 					&httpext.Trail***REMOVED***
@@ -218,9 +217,9 @@ func TestMetricAggregation(t *testing.T) ***REMOVED***
 	m.Add(5 * time.Second)
 	m.Add(10 * time.Second)
 	m.Calc(5)
-	assert.Equal(t, m.Min, stats.D(1*time.Second))
-	assert.Equal(t, m.Max, stats.D(10*time.Second))
-	assert.Equal(t, m.Avg, stats.D(4*time.Second))
+	assert.Equal(t, m.Min, metrics.D(1*time.Second))
+	assert.Equal(t, m.Max, metrics.D(10*time.Second))
+	assert.Equal(t, m.Avg, metrics.D(4*time.Second))
 ***REMOVED***
 
 // For more realistic request time distributions, import

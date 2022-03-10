@@ -23,7 +23,7 @@ package v1
 import (
 	"time"
 
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 // MetricsJSONAPI is JSON API envelop for metrics
@@ -41,13 +41,13 @@ type metricData struct ***REMOVED***
 	Attributes Metric `json:"attributes"`
 ***REMOVED***
 
-func newMetricEnvelope(m *stats.Metric, t time.Duration) metricJSONAPI ***REMOVED***
+func newMetricEnvelope(m *metrics.Metric, t time.Duration) metricJSONAPI ***REMOVED***
 	return metricJSONAPI***REMOVED***
 		Data: newMetricData(m, t),
 	***REMOVED***
 ***REMOVED***
 
-func newMetricsJSONAPI(list map[string]*stats.Metric, t time.Duration) MetricsJSONAPI ***REMOVED***
+func newMetricsJSONAPI(list map[string]*metrics.Metric, t time.Duration) MetricsJSONAPI ***REMOVED***
 	metrics := make([]metricData, 0, len(list))
 
 	for _, m := range list ***REMOVED***
@@ -59,7 +59,7 @@ func newMetricsJSONAPI(list map[string]*stats.Metric, t time.Duration) MetricsJS
 	***REMOVED***
 ***REMOVED***
 
-func newMetricData(m *stats.Metric, t time.Duration) metricData ***REMOVED***
+func newMetricData(m *metrics.Metric, t time.Duration) metricData ***REMOVED***
 	metric := NewMetric(m, t)
 
 	return metricData***REMOVED***

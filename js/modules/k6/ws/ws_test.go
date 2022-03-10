@@ -44,13 +44,11 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
-
-	"go.k6.io/k6/stats"
 )
 
 const statusProtocolSwitch = 101
 
-func assertSessionMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, subprotocol, url string, status int, group string) ***REMOVED***
+func assertSessionMetricsEmitted(t *testing.T, sampleContainers []metrics.SampleContainer, subprotocol, url string, status int, group string) ***REMOVED*** //nolint:unparam
 	seenSessions := false
 	seenSessionDuration := false
 	seenConnecting := false
@@ -79,7 +77,7 @@ func assertSessionMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 	assert.True(t, seenSessionDuration, "url %s didn't emit SessionDuration", url)
 ***REMOVED***
 
-func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers []stats.SampleContainer, url string, count int) ***REMOVED***
+func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers []metrics.SampleContainer, url string, count int) ***REMOVED***
 	t.Helper()
 	actualCount := 0
 
@@ -100,7 +98,7 @@ type testState struct ***REMOVED***
 	rt      *goja.Runtime
 	tb      *httpmultibin.HTTPMultiBin
 	state   *lib.State
-	samples chan stats.SampleContainer
+	samples chan metrics.SampleContainer
 ***REMOVED***
 
 func newTestState(t testing.TB) testState ***REMOVED***
@@ -112,17 +110,17 @@ func newTestState(t testing.TB) testState ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 
 	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: stats.NewSystemTagSet(
-				stats.TagURL,
-				stats.TagProto,
-				stats.TagStatus,
-				stats.TagSubproto,
+			SystemTags: metrics.NewSystemTagSet(
+				metrics.TagURL,
+				metrics.TagProto,
+				metrics.TagStatus,
+				metrics.TagSubproto,
 			),
 			UserAgent: null.StringFrom("TestUserAgent"),
 		***REMOVED***,
@@ -159,16 +157,16 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: stats.NewSystemTagSet(
-				stats.TagURL,
-				stats.TagProto,
-				stats.TagStatus,
-				stats.TagSubproto,
+			SystemTags: metrics.NewSystemTagSet(
+				metrics.TagURL,
+				metrics.TagProto,
+				metrics.TagStatus,
+				metrics.TagSubproto,
 			),
 		***REMOVED***,
 		Samples:        samples,
@@ -194,7 +192,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 
 	t.Run("connect_wss", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
@@ -205,7 +203,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 
 	t.Run("open", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
@@ -220,7 +218,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 
 	t.Run("send_receive", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
@@ -239,7 +237,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***)
 
-	samplesBuf := stats.GetBufferedSamples(samples)
+	samplesBuf := metrics.GetBufferedSamples(samples)
 	assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 	assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
@@ -257,7 +255,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	t.Run("bad interval", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
 		var counter = 0;
@@ -303,7 +301,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "setTimeout requires a >0 timeout parameter, received 0.00 ")
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 
 	t.Run("ping", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
@@ -325,7 +323,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***)
 
-	samplesBuf = stats.GetBufferedSamples(samples)
+	samplesBuf = metrics.GetBufferedSamples(samples)
 	assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	assertMetricEmittedCount(t, metrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 
@@ -359,7 +357,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***)
 
-	samplesBuf = stats.GetBufferedSamples(samples)
+	samplesBuf = metrics.GetBufferedSamples(samples)
 	assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	assertMetricEmittedCount(t, metrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 
@@ -378,7 +376,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 
 	serverCloseTests := []struct ***REMOVED***
 		name     string
@@ -469,7 +467,7 @@ func TestSession(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 		***REMOVED***)
 
-		samplesBuf = stats.GetBufferedSamples(samples)
+		samplesBuf = metrics.GetBufferedSamples(samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
 		assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
 		assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
@@ -501,7 +499,7 @@ func TestSession(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 		***REMOVED***)
 
-		samplesBuf = stats.GetBufferedSamples(samples)
+		samplesBuf = metrics.GetBufferedSamples(samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
 		assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
 		assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
@@ -536,7 +534,7 @@ func TestSession(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 		***REMOVED***)
 
-		samplesBuf = stats.GetBufferedSamples(samples)
+		samplesBuf = metrics.GetBufferedSamples(samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
 		assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
 		assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
@@ -553,16 +551,16 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED*** //nolint: exhaustivestruct
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED*** //nolint: exhaustivestruct
-			SystemTags: stats.NewSystemTagSet(
-				stats.TagURL,
-				stats.TagProto,
-				stats.TagStatus,
-				stats.TagSubproto,
+			SystemTags: metrics.NewSystemTagSet(
+				metrics.TagURL,
+				metrics.TagProto,
+				metrics.TagStatus,
+				metrics.TagSubproto,
 			),
 		***REMOVED***,
 		Samples:        samples,
@@ -651,12 +649,12 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples:        samples,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
@@ -719,7 +717,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo-invalid"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo-invalid"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("error on close", func(t *testing.T) ***REMOVED***
@@ -748,7 +746,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		***REMOVED***);
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-close"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-close"), statusProtocolSwitch, "")
 	***REMOVED***)
 ***REMOVED***
 
@@ -767,11 +765,11 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	// external service demos.kaazing.com (https://github.com/k6io/k6/issues/537)
 	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url", "ip"***REMOVED***
 
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group:          root,
 		Dialer:         tb.Dialer,
-		Options:        lib.Options***REMOVED***SystemTags: stats.ToSystemTagSet(testedSystemTags)***REMOVED***,
+		Options:        lib.Options***REMOVED***SystemTags: metrics.ToSystemTagSet(testedSystemTags)***REMOVED***,
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
@@ -789,7 +787,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	for _, expectedTag := range testedSystemTags ***REMOVED***
 		expectedTag := expectedTag
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
-			state.Options.SystemTags = stats.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
+			state.Options.SystemTags = metrics.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
 			_, err := rt.RunString(sr(`
 			var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
@@ -805,7 +803,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			`))
 			require.NoError(t, err)
 
-			for _, sampleContainer := range stats.GetBufferedSamples(samples) ***REMOVED***
+			for _, sampleContainer := range metrics.GetBufferedSamples(samples) ***REMOVED***
 				for _, sample := range sampleContainer.GetSamples() ***REMOVED***
 					for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
 						assert.Equal(t, expectedTag, emittedTag)
@@ -826,17 +824,17 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: stats.NewSystemTagSet(
-				stats.TagURL,
-				stats.TagProto,
-				stats.TagStatus,
-				stats.TagSubproto,
-				stats.TagIP,
+			SystemTags: metrics.NewSystemTagSet(
+				metrics.TagURL,
+				metrics.TagProto,
+				metrics.TagStatus,
+				metrics.TagSubproto,
+				metrics.TagIP,
 			),
 		***REMOVED***,
 		Samples:        samples,
@@ -865,7 +863,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
 
 	t.Run("custom certificates", func(t *testing.T) ***REMOVED***
 		state.TLSConfig = tb.TLSClientConfig
@@ -880,7 +878,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		`))
 		require.NoError(t, err)
 	***REMOVED***)
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
 ***REMOVED***
 
 func TestReadPump(t *testing.T) ***REMOVED***
@@ -967,16 +965,16 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: stats.NewSystemTagSet(
-				stats.TagURL,
-				stats.TagProto,
-				stats.TagStatus,
-				stats.TagSubproto,
+			SystemTags: metrics.NewSystemTagSet(
+				metrics.TagURL,
+				metrics.TagProto,
+				metrics.TagStatus,
+				metrics.TagSubproto,
 			),
 			UserAgent: null.StringFrom("TestUserAgent"),
 		***REMOVED***,
@@ -1009,7 +1007,7 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 		`))
 	require.NoError(t, err)
 
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo-useragent"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo-useragent"), statusProtocolSwitch, "")
 ***REMOVED***
 
 func TestCompression(t *testing.T) ***REMOVED***
@@ -1072,7 +1070,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 		`))
 
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-compression"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-compression"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("params", func(t *testing.T) ***REMOVED***
@@ -1146,7 +1144,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func clearSamples(tb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer) ***REMOVED***
+func clearSamples(tb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer) ***REMOVED***
 	ctxDone := tb.Context.Done()
 	for ***REMOVED***
 		select ***REMOVED***
@@ -1288,5 +1286,5 @@ func TestCookieJar(t *testing.T) ***REMOVED***
 		`))
 	require.NoError(t, err)
 
-	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
 ***REMOVED***

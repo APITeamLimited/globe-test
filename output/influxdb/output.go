@@ -31,8 +31,8 @@ import (
 	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/sirupsen/logrus"
 
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 // FieldKind defines Enum for tag-to-field type conversion
@@ -124,7 +124,7 @@ func (o *Output) extractTagsToValues(tags map[string]string, values map[string]i
 	return values
 ***REMOVED***
 
-func (o *Output) batchFromSamples(containers []stats.SampleContainer) (client.BatchPoints, error) ***REMOVED***
+func (o *Output) batchFromSamples(containers []metrics.SampleContainer) (client.BatchPoints, error) ***REMOVED***
 	batch, err := client.NewBatchPoints(o.BatchConf)
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("couldn't make a batch: %w", err)
@@ -134,7 +134,7 @@ func (o *Output) batchFromSamples(containers []stats.SampleContainer) (client.Ba
 		tags   map[string]string
 		values map[string]interface***REMOVED******REMOVED***
 	***REMOVED***
-	cache := map[*stats.SampleTags]cacheItem***REMOVED******REMOVED***
+	cache := map[*metrics.SampleTags]cacheItem***REMOVED******REMOVED***
 	for _, container := range containers ***REMOVED***
 		samples := container.GetSamples()
 		for _, sample := range samples ***REMOVED***

@@ -7,7 +7,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	stats "go.k6.io/k6/stats"
+	metrics "go.k6.io/k6/metrics"
 	time "time"
 )
 
@@ -86,9 +86,9 @@ func (v *sampleEnvelope) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
 	easyjson42239ddeDecodeGoK6IoK6OutputJson(l, v)
 ***REMOVED***
 func easyjson42239ddeDecode(in *jlexer.Lexer, out *struct ***REMOVED***
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  *stats.SampleTags `json:"tags"`
+	Time  time.Time           `json:"time"`
+	Value float64             `json:"value"`
+	Tags  *metrics.SampleTags `json:"tags"`
 ***REMOVED***) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
@@ -120,7 +120,7 @@ func easyjson42239ddeDecode(in *jlexer.Lexer, out *struct ***REMOVED***
 				out.Tags = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Tags == nil ***REMOVED***
-					out.Tags = new(stats.SampleTags)
+					out.Tags = new(metrics.SampleTags)
 				***REMOVED***
 				if data := in.Raw(); in.Ok() ***REMOVED***
 					in.AddError((*out.Tags).UnmarshalJSON(data))
@@ -137,9 +137,9 @@ func easyjson42239ddeDecode(in *jlexer.Lexer, out *struct ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func easyjson42239ddeEncode(out *jwriter.Writer, in struct ***REMOVED***
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  *stats.SampleTags `json:"tags"`
+	Time  time.Time           `json:"time"`
+	Value float64             `json:"value"`
+	Tags  *metrics.SampleTags `json:"tags"`
 ***REMOVED***) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
@@ -192,9 +192,9 @@ func easyjson42239ddeDecodeGoK6IoK6OutputJson1(in *jlexer.Lexer, out *metricEnve
 				out.Data = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Data == nil ***REMOVED***
-					out.Data = new(stats.Metric)
+					out.Data = new(metrics.Metric)
 				***REMOVED***
-				easyjson42239ddeDecodeGoK6IoK6Stats(in, out.Data)
+				easyjson42239ddeDecodeGoK6IoK6Metrics(in, out.Data)
 			***REMOVED***
 		case "metric":
 			out.Metric = string(in.String())
@@ -223,7 +223,7 @@ func easyjson42239ddeEncodeGoK6IoK6OutputJson1(out *jwriter.Writer, in metricEnv
 		if in.Data == nil ***REMOVED***
 			out.RawString("null")
 		***REMOVED*** else ***REMOVED***
-			easyjson42239ddeEncodeGoK6IoK6Stats(out, *in.Data)
+			easyjson42239ddeEncodeGoK6IoK6Metrics(out, *in.Data)
 		***REMOVED***
 	***REMOVED***
 	***REMOVED***
@@ -243,7 +243,7 @@ func (v metricEnvelope) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
 func (v *metricEnvelope) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
 	easyjson42239ddeDecodeGoK6IoK6OutputJson1(l, v)
 ***REMOVED***
-func easyjson42239ddeDecodeGoK6IoK6Stats(in *jlexer.Lexer, out *stats.Metric) ***REMOVED***
+func easyjson42239ddeDecodeGoK6IoK6Metrics(in *jlexer.Lexer, out *metrics.Metric) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -288,23 +288,23 @@ func easyjson42239ddeDecodeGoK6IoK6Stats(in *jlexer.Lexer, out *stats.Metric) **
 				in.Delim('[')
 				if out.Submetrics == nil ***REMOVED***
 					if !in.IsDelim(']') ***REMOVED***
-						out.Submetrics = make([]*stats.Submetric, 0, 8)
+						out.Submetrics = make([]*metrics.Submetric, 0, 8)
 					***REMOVED*** else ***REMOVED***
-						out.Submetrics = []*stats.Submetric***REMOVED******REMOVED***
+						out.Submetrics = []*metrics.Submetric***REMOVED******REMOVED***
 					***REMOVED***
 				***REMOVED*** else ***REMOVED***
 					out.Submetrics = (out.Submetrics)[:0]
 				***REMOVED***
 				for !in.IsDelim(']') ***REMOVED***
-					var v1 *stats.Submetric
+					var v1 *metrics.Submetric
 					if in.IsNull() ***REMOVED***
 						in.Skip()
 						v1 = nil
 					***REMOVED*** else ***REMOVED***
 						if v1 == nil ***REMOVED***
-							v1 = new(stats.Submetric)
+							v1 = new(metrics.Submetric)
 						***REMOVED***
-						easyjson42239ddeDecodeGoK6IoK6Stats1(in, v1)
+						easyjson42239ddeDecodeGoK6IoK6Metrics1(in, v1)
 					***REMOVED***
 					out.Submetrics = append(out.Submetrics, v1)
 					in.WantComma()
@@ -321,7 +321,7 @@ func easyjson42239ddeDecodeGoK6IoK6Stats(in *jlexer.Lexer, out *stats.Metric) **
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjson42239ddeEncodeGoK6IoK6Stats(out *jwriter.Writer, in stats.Metric) ***REMOVED***
+func easyjson42239ddeEncodeGoK6IoK6Metrics(out *jwriter.Writer, in metrics.Metric) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -364,7 +364,7 @@ func easyjson42239ddeEncodeGoK6IoK6Stats(out *jwriter.Writer, in stats.Metric) *
 				if v3 == nil ***REMOVED***
 					out.RawString("null")
 				***REMOVED*** else ***REMOVED***
-					easyjson42239ddeEncodeGoK6IoK6Stats1(out, *v3)
+					easyjson42239ddeEncodeGoK6IoK6Metrics1(out, *v3)
 				***REMOVED***
 			***REMOVED***
 			out.RawByte(']')
@@ -372,7 +372,7 @@ func easyjson42239ddeEncodeGoK6IoK6Stats(out *jwriter.Writer, in stats.Metric) *
 	***REMOVED***
 	out.RawByte('***REMOVED***')
 ***REMOVED***
-func easyjson42239ddeDecodeGoK6IoK6Stats1(in *jlexer.Lexer, out *stats.Submetric) ***REMOVED***
+func easyjson42239ddeDecodeGoK6IoK6Metrics1(in *jlexer.Lexer, out *metrics.Submetric) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -401,7 +401,7 @@ func easyjson42239ddeDecodeGoK6IoK6Stats1(in *jlexer.Lexer, out *stats.Submetric
 				out.Tags = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Tags == nil ***REMOVED***
-					out.Tags = new(stats.SampleTags)
+					out.Tags = new(metrics.SampleTags)
 				***REMOVED***
 				if data := in.Raw(); in.Ok() ***REMOVED***
 					in.AddError((*out.Tags).UnmarshalJSON(data))
@@ -417,7 +417,7 @@ func easyjson42239ddeDecodeGoK6IoK6Stats1(in *jlexer.Lexer, out *stats.Submetric
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjson42239ddeEncodeGoK6IoK6Stats1(out *jwriter.Writer, in stats.Submetric) ***REMOVED***
+func easyjson42239ddeEncodeGoK6IoK6Metrics1(out *jwriter.Writer, in metrics.Submetric) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first

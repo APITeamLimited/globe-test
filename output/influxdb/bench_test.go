@@ -29,11 +29,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
-	metric, err := metrics.NewRegistry().NewMetric("test_gauge", stats.Gauge)
+	metric, err := metrics.NewRegistry().NewMetric("test_gauge", metrics.Gauge)
 	require.NoError(b, err)
 
 	testOutputCycle(b, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -49,12 +48,12 @@ func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
 		b = tb.(*testing.B)
 		b.ResetTimer()
 
-		samples := make(stats.Samples, 10)
+		samples := make(metrics.Samples, 10)
 		for i := 0; i < len(samples); i++ ***REMOVED***
-			samples[i] = stats.Sample***REMOVED***
+			samples[i] = metrics.Sample***REMOVED***
 				Metric: metric,
 				Time:   time.Now(),
-				Tags: stats.NewSampleTags(map[string]string***REMOVED***
+				Tags: metrics.NewSampleTags(map[string]string***REMOVED***
 					"something": "else",
 					"VU":        "21",
 					"else":      "something",
@@ -65,7 +64,7 @@ func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ ***REMOVED***
-			c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
+			c.AddMetricSamples([]metrics.SampleContainer***REMOVED***samples***REMOVED***)
 			time.Sleep(time.Nanosecond * 20)
 		***REMOVED***
 	***REMOVED***)

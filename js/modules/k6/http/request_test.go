@@ -53,11 +53,10 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 // TODO replace this with the Single version
-func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, method, url, name string, status int, group string) ***REMOVED***
+func assertRequestMetricsEmitted(t *testing.T, sampleContainers []metrics.SampleContainer, method, url, name string, status int, group string) ***REMOVED***
 	if name == "" ***REMOVED***
 		name = url
 	***REMOVED***
@@ -106,7 +105,7 @@ func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 	assert.True(t, seenReceiving, "url %s didn't emit Receiving", url)
 ***REMOVED***
 
-func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer stats.SampleContainer, expectedTags map[string]string, metrics []string, callback func(sample stats.Sample)) ***REMOVED***
+func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer metrics.SampleContainer, expectedTags map[string]string, metrics []string, callback func(sample metrics.Sample)) ***REMOVED***
 	t.Helper()
 
 	metricMap := make(map[string]bool, len(metrics))
@@ -130,7 +129,7 @@ func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer stats.Sampl
 ***REMOVED***
 
 func newRuntime(t testing.TB) (
-	*httpmultibin.HTTPMultiBin, *lib.State, chan stats.SampleContainer, *goja.Runtime, *ModuleInstance,
+	*httpmultibin.HTTPMultiBin, *lib.State, chan metrics.SampleContainer, *goja.Runtime, *ModuleInstance,
 ) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
@@ -145,12 +144,12 @@ func newRuntime(t testing.TB) (
 		MaxRedirects: null.IntFrom(10),
 		UserAgent:    null.StringFrom("TestUserAgent"),
 		Throw:        null.BoolFrom(true),
-		SystemTags:   &stats.DefaultSystemTagSet,
+		SystemTags:   &metrics.DefaultSystemTagSet,
 		Batch:        null.IntFrom(20),
 		BatchPerHost: null.IntFrom(20),
 		// HTTPDebug:    null.StringFrom("full"),
 	***REMOVED***
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 
 	state := &lib.State***REMOVED***
 		Options:   options,
@@ -186,7 +185,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			var res = http.get("HTTPBIN_URL/redirect/9");
 			`))
 			assert.NoError(t, err)
-			bufSamples := stats.GetBufferedSamples(samples)
+			bufSamples := metrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
 			for _, container := range bufSamples ***REMOVED***
@@ -479,7 +478,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("HTTP/2", func(t *testing.T) ***REMOVED***
-		stats.GetBufferedSamples(samples) // Clean up buffered samples from previous tests
+		metrics.GetBufferedSamples(samples) // Clean up buffered samples from previous tests
 		_, err := rt.RunString(sr(`
 		var res = http.request("GET", "HTTP2BIN_URL/get");
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
@@ -487,7 +486,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		`))
 		assert.NoError(t, err)
 
-		bufSamples := stats.GetBufferedSamples(samples)
+		bufSamples := metrics.GetBufferedSamples(samples)
 		assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTP2BIN_URL/get"), "", 200, "")
 		for _, sampleC := range bufSamples ***REMOVED***
 			for _, sample := range sampleC.GetSamples() ***REMOVED***
@@ -616,7 +615,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`), literal))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 		***REMOVED***
 
@@ -640,7 +639,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies/set?key=value"), "", 302, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies/set?key=value"), "", 302, "")
 			***REMOVED***)
 
 			t.Run("vuJar", func(t *testing.T) ***REMOVED***
@@ -658,7 +657,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (jarCookies.key2 != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("requestScope", func(t *testing.T) ***REMOVED***
@@ -673,7 +672,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (jarCookies.key != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("requestScopeReplace", func(t *testing.T) ***REMOVED***
@@ -689,7 +688,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (jarCookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value in jar"); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("redirect", func(t *testing.T) ***REMOVED***
@@ -723,7 +722,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 					assertRequestMetricsEmitted(
 						t,
-						stats.GetBufferedSamples(samples),
+						metrics.GetBufferedSamples(samples),
 						"GET",
 						sr("HTTPSBIN_URL/set-cookie-without-redirect"),
 						sr("HTTPSBIN_URL/set-cookie-without-redirect"),
@@ -750,7 +749,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 					assertRequestMetricsEmitted(
 						t,
-						stats.GetBufferedSamples(samples),
+						metrics.GetBufferedSamples(samples),
 						"GET",
 						sr("HTTPSBIN_URL/cookies"),
 						sr("HTTPSBIN_URL/cookies"),
@@ -797,7 +796,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 					assertRequestMetricsEmitted(
 						t,
-						stats.GetBufferedSamples(samples),
+						metrics.GetBufferedSamples(samples),
 						"GET",
 						sr("HTTPBIN_IP_URL/get"),
 						sr("HTTPBIN_IP_URL/get"),
@@ -828,7 +827,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("path", func(t *testing.T) ***REMOVED***
@@ -852,7 +851,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("expires", func(t *testing.T) ***REMOVED***
@@ -873,7 +872,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("secure", func(t *testing.T) ***REMOVED***
@@ -889,7 +888,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPSBIN_IP_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPSBIN_IP_URL/cookies"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("localJar", func(t *testing.T) ***REMOVED***
@@ -907,7 +906,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (jarCookies.key2 != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
 		***REMOVED***)
 
@@ -921,7 +920,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`, url))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", urlExpected, urlExpected, 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", urlExpected, urlExpected, 200, "")
 			***REMOVED***)
 			t.Run("digest", func(t *testing.T) ***REMOVED***
 				t.Run("success", func(t *testing.T) ***REMOVED***
@@ -935,7 +934,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					`, url))
 					assert.NoError(t, err)
 
-					sampleContainers := stats.GetBufferedSamples(samples)
+					sampleContainers := metrics.GetBufferedSamples(samples)
 					assertRequestMetricsEmitted(t, sampleContainers[0:1], "GET",
 						urlRaw, urlRaw, 401, "")
 					assertRequestMetricsEmitted(t, sampleContainers[1:2], "GET",
@@ -960,7 +959,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`), literal))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+					assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 				***REMOVED***)
 			***REMOVED***
 
@@ -973,7 +972,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.json().headers["X-My-Header"] != "value") ***REMOVED*** throw new Error("wrong X-My-Header: " + res.json().headers["X-My-Header"]); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("Host", func(t *testing.T) ***REMOVED***
@@ -985,7 +984,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.json().headers["Host"] != "HTTPBIN_DOMAIN") ***REMOVED*** throw new Error("wrong Host: " + res.json().headers["Host"]); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("response_request", func(t *testing.T) ***REMOVED***
@@ -997,7 +996,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.request.headers["Host"] != "HTTPBIN_DOMAIN") ***REMOVED*** throw new Error("wrong Host: " + res.request.headers["Host"]); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 
 			t.Run("differentHost", func(t *testing.T) ***REMOVED***
@@ -1010,7 +1009,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.request.headers["Host"] != custHost) ***REMOVED*** throw new Error("wrong Host: " + res.request.headers["Host"]); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 		***REMOVED***)
 
@@ -1022,7 +1021,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`), literal))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+					assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 				***REMOVED***)
 			***REMOVED***
 
@@ -1032,7 +1031,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET",
 					sr("HTTPBIN_URL/headers"), sr("HTTPBIN_URL/headers"), 200, "")
 			***REMOVED***)
 
@@ -1042,7 +1041,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET",
 					sr("HTTPBIN_URL/headers"), "myReq", 200, "")
 			***REMOVED***)
 
@@ -1051,7 +1050,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 				// There's no /anything endpoint in the go-httpbin library we're using, hence the 404,
 				// but it doesn't matter for this test.
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET",
 					sr("HTTPBIN_URL/anything/2"), sr("HTTPBIN_URL/anything/$***REMOVED******REMOVED***"), 404, "")
 			***REMOVED***)
 
@@ -1061,7 +1060,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 				for _, sampleC := range bufSamples ***REMOVED***
 					for _, sample := range sampleC.GetSamples() ***REMOVED***
@@ -1086,7 +1085,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				`))
 				assert.NoError(t, err)
 
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/headers"), "myName", 200, "")
 				for _, sampleC := range bufSamples ***REMOVED***
 					for _, sample := range sampleC.GetSamples() ***REMOVED***
@@ -1120,7 +1119,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
+		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 
 		t.Run("Tagged", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
@@ -1132,7 +1131,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			if (res.json().args.b != b) ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
 			`)
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), sr("HTTPBIN_URL/get?a=$***REMOVED******REMOVED***&b=$***REMOVED******REMOVED***"), 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), sr("HTTPBIN_URL/get?a=$***REMOVED******REMOVED***&b=$***REMOVED******REMOVED***"), 200, "")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("HEAD", func(t *testing.T) ***REMOVED***
@@ -1144,7 +1143,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "HEAD", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
+		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "HEAD", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 	***REMOVED***)
 
 	t.Run("OPTIONS", func(t *testing.T) ***REMOVED***
@@ -1155,7 +1154,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "OPTIONS", sr("HTTPBIN_URL/?a=1&b=2"), "", 200, "")
+		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "OPTIONS", sr("HTTPBIN_URL/?a=1&b=2"), "", 200, "")
 	***REMOVED***)
 
 	// DELETE HTTP requests shouldn't usually send a request body, they should use url parameters instead; references:
@@ -1170,7 +1169,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "DELETE", sr("HTTPBIN_URL/delete?test=mest"), "", 200, "")
+		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "DELETE", sr("HTTPBIN_URL/delete?test=mest"), "", 200, "")
 	***REMOVED***)
 
 	postMethods := map[string]string***REMOVED***
@@ -1188,7 +1187,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 				`), fn, strings.ToLower(method)))
 			require.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
 
 			t.Run("object", func(t *testing.T) ***REMOVED***
 				_, err := rt.RunString(fmt.Sprintf(sr(`
@@ -1203,7 +1202,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res.json().headers["Content-Type"] != "application/x-www-form-urlencoded") ***REMOVED*** throw new Error("wrong content type: " + res.json().headers["Content-Type"]); ***REMOVED***
 				`), fn, strings.ToLower(method)))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
 				t.Run("Content-Type", func(t *testing.T) ***REMOVED***
 					_, err := rt.RunString(fmt.Sprintf(sr(`
 						var res = http.%s("HTTPBIN_URL/%s", ***REMOVED***a: "a", b: 2***REMOVED***, ***REMOVED***headers: ***REMOVED***"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"***REMOVED******REMOVED***);
@@ -1213,7 +1212,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 						if (res.json().headers["Content-Type"] != "application/x-www-form-urlencoded; charset=utf-8") ***REMOVED*** throw new Error("wrong content type: " + res.json().headers["Content-Type"]); ***REMOVED***
 						`), fn, strings.ToLower(method)))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
+					assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED***)
@@ -1374,7 +1373,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***`))
 			require.NoError(t, err)
-			bufSamples := stats.GetBufferedSamples(samples)
+			bufSamples := metrics.GetBufferedSamples(samples)
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
@@ -1393,7 +1392,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get"), sr("HTTPBIN_URL/$***REMOVED******REMOVED***"), 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 			***REMOVED***)
@@ -1412,7 +1411,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
@@ -1431,7 +1430,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					***REMOVED***
 				***REMOVED***`))
 					assert.NoError(t, err)
-					bufSamples := stats.GetBufferedSamples(samples)
+					bufSamples := metrics.GetBufferedSamples(samples)
 					assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get"), sr("HTTPBIN_URL/$***REMOVED******REMOVED***"), 200, "")
 					assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 				***REMOVED***)
@@ -1451,7 +1450,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 			***REMOVED***)
@@ -1470,7 +1469,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res[key].json().args.r != key) ***REMOVED*** throw new Error("wrong request id: " + key); ***REMOVED***
 				***REMOVED***`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get?r=shorthand"), "", 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get?r=arr"), "arr", 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get?r=obj1"), "", 200, "")
@@ -1515,7 +1514,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 						if (res[key].json().data != "testbody" && res[key].json().form.hello != "world!") ***REMOVED*** throw new Error("wrong response for " + key + ": " + res[key].body); ***REMOVED***
 					***REMOVED***`))
 				assert.NoError(t, err)
-				bufSamples := stats.GetBufferedSamples(samples)
+				bufSamples := metrics.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 				assertRequestMetricsEmitted(t, bufSamples, "POST", sr("HTTPBIN_IP_URL/post"), "myname", 200, "")
 			***REMOVED***)
@@ -1528,7 +1527,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + key + ": " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 		***REMOVED***)
 		t.Run("PUT", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`
@@ -1538,7 +1537,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + key + ": " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "PUT", sr("HTTPBIN_URL/put"), "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "PUT", sr("HTTPBIN_URL/put"), "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 
@@ -1963,7 +1962,7 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
-func checkErrorCode(t testing.TB, tags *stats.SampleTags, code int, msg string) ***REMOVED***
+func checkErrorCode(t testing.TB, tags *metrics.SampleTags, code int, msg string) ***REMOVED***
 	errorMsg, ok := tags.Get("error")
 	if msg == "" ***REMOVED***
 		assert.False(t, ok)
@@ -2065,7 +2064,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		// clear the Samples
-		stats.GetBufferedSamples(samples)
+		metrics.GetBufferedSamples(samples)
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(testCase.script + "\n" + fmt.Sprintf(`
 			if (res.status != %d) ***REMOVED*** throw new Error("wrong status: "+ res.status);***REMOVED***
@@ -2078,7 +2077,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 				require.Error(t, err)
 				require.Equal(t, err.Error(), testCase.expectedScriptError)
 			***REMOVED***
-			cs := stats.GetBufferedSamples(samples)
+			cs := metrics.GetBufferedSamples(samples)
 			assert.Len(t, cs, 1+testCase.moreSamples)
 			for _, c := range cs[len(cs)-1:] ***REMOVED***
 				assert.NotZero(t, len(c.GetSamples()))
@@ -2198,7 +2197,7 @@ func TestRedirectMetricTags(t *testing.T) ***REMOVED***
 
 	require.Len(t, samples, 2)
 
-	checkTags := func(sc stats.SampleContainer, expTags map[string]string) ***REMOVED***
+	checkTags := func(sc metrics.SampleContainer, expTags map[string]string) ***REMOVED***
 		allSamples := sc.GetSamples()
 		assert.Len(t, allSamples, 9)
 		for _, s := range allSamples ***REMOVED***
@@ -2347,7 +2346,7 @@ func TestRequestAndBatchTLS(t *testing.T) ***REMOVED***
 					if (res.tls_version != %s) ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
 				`, versionTest.URL, versionTest.Version))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", versionTest.URL, "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", versionTest.URL, "", 200, "")
 		***REMOVED***)
 	***REMOVED***
 	tlsCipherSuiteTests := []struct ***REMOVED***
@@ -2364,7 +2363,7 @@ func TestRequestAndBatchTLS(t *testing.T) ***REMOVED***
 					if (res.tls_cipher_suite != "%s") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
 				`, cipherSuiteTest.URL, cipherSuiteTest.CipherSuite))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", cipherSuiteTest.URL, "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", cipherSuiteTest.URL, "", 200, "")
 		***REMOVED***)
 	***REMOVED***
 	t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
@@ -2374,7 +2373,7 @@ func TestRequestAndBatchTLS(t *testing.T) ***REMOVED***
 			if (res.ocsp.status != http.OCSP_STATUS_GOOD) ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.status); ***REMOVED***
 			`, website))
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", website, "", 200, "")
+		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", website, "", 200, "")
 	***REMOVED***)
 ***REMOVED***
 
@@ -2407,7 +2406,7 @@ func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
 	urlRaw := tb.Replacer.Replace(
 		"http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd")
 
-	sampleContainers := stats.GetBufferedSamples(samples)
+	sampleContainers := metrics.GetBufferedSamples(samples)
 	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", urlRaw, urlRaw, 401, "")
 	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", urlRaw, urlRaw, 200, "")
 ***REMOVED***

@@ -47,7 +47,6 @@ import (
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -117,7 +116,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		t.Parallel()
 		done := make(chan struct***REMOVED******REMOVED***)
 		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
+			Fn: func(ctx context.Context, _ *lib.State, _ chan<- metrics.SampleContainer) error ***REMOVED***
 				<-ctx.Done()
 				close(done)
 				return nil
@@ -151,17 +150,17 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		registry := metrics.NewRegistry()
-		testMetric, err := registry.NewMetric("test_metric", stats.Trend)
+		testMetric, err := registry.NewMetric("test_metric", metrics.Trend)
 		require.NoError(t, err)
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 
 		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
-				stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+				metrics.PushIfNotDone(ctx, out, metrics.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 				close(signalChan)
 				<-ctx.Done()
-				stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+				metrics.PushIfNotDone(ctx, out, metrics.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 				return nil
 			***REMOVED***,
 		***REMOVED***
@@ -226,12 +225,12 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	registry := metrics.NewRegistry()
-	testMetric, err := registry.NewMetric("test_metric", stats.Trend)
+	testMetric, err := registry.NewMetric("test_metric", metrics.Trend)
 	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
-			out <- stats.Sample***REMOVED***Metric: testMetric***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+			out <- metrics.Sample***REMOVED***Metric: testMetric***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***
@@ -245,7 +244,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	assert.NoError(t, run())
 	wait()
 
-	cSamples := []stats.Sample***REMOVED******REMOVED***
+	cSamples := []metrics.Sample***REMOVED******REMOVED***
 	for _, sample := range mockOutput.Samples ***REMOVED***
 		if sample.Metric == testMetric ***REMOVED***
 			cSamples = append(cSamples, sample)
@@ -253,7 +252,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	***REMOVED***
 	metric := e.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) ***REMOVED***
-		sink := metric.Sink.(*stats.TrendSink)
+		sink := metric.Sink.(*metrics.TrendSink) // nolint: forcetypeassert
 		if assert.NotNil(t, sink) ***REMOVED***
 			numOutputSamples := len(cSamples)
 			numEngineSamples := len(sink.Values)
@@ -269,39 +268,39 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		registry := metrics.NewRegistry()
-		metric, err := registry.NewMetric("my_metric", stats.Gauge)
+		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
 		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
 
 		e.OutputManager.AddMetricSamples(
-			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
+			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		e.Stop()
 		wait()
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		registry := metrics.NewRegistry()
-		metric, err := registry.NewMetric("my_metric", stats.Gauge)
+		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
-		ths := stats.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
+		ths := metrics.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
 		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***
-			Thresholds: map[string]stats.Thresholds***REMOVED***
+			Thresholds: map[string]metrics.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***, registry)
 
 		e.OutputManager.AddMetricSamples(
-			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
+			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		e.Stop()
@@ -311,8 +310,8 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		sms := e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
 		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
 
@@ -320,23 +319,23 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", stats.Gauge)
+	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 	require.NoError(t, err)
 
 	// The incoming samples for the metric set it to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
-	ths := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	ths := metrics.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
+	thresholds := map[string]metrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
 	e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
 
 	e.OutputManager.AddMetricSamples(
-		[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
+		[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 	)
 	e.Stop()
 	wait()
@@ -347,24 +346,24 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", stats.Gauge)
+	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 	require.NoError(t, err)
 
 	// The MiniRunner sets the value of the metric to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
 	// **N.B**: a threshold returning an error, won't trigger an abort.
-	ths := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	ths := metrics.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
+	thresholds := map[string]metrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
 	done := make(chan struct***REMOVED******REMOVED***)
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
-			out <- stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+			out <- metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
 			<-ctx.Done()
 			close(done)
 			return nil
@@ -422,16 +421,16 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			registry := metrics.NewRegistry()
-			gaugeMetric, err := registry.NewMetric("my_metric", stats.Gauge)
+			gaugeMetric, err := registry.NewMetric("my_metric", metrics.Gauge)
 			require.NoError(t, err)
-			counterMetric, err := registry.NewMetric("used_counter", stats.Counter)
+			counterMetric, err := registry.NewMetric("used_counter", metrics.Counter)
 			require.NoError(t, err)
-			_, err = registry.NewMetric("unused_counter", stats.Counter)
+			_, err = registry.NewMetric("unused_counter", metrics.Counter)
 			require.NoError(t, err)
 
-			thresholds := make(map[string]stats.Thresholds, len(data.ths))
+			thresholds := make(map[string]metrics.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
-				ths := stats.NewThresholds(srcs)
+				ths := metrics.NewThresholds(srcs)
 				gotParseErr := ths.Parse()
 				require.NoError(t, gotParseErr)
 				thresholds[m] = ths
@@ -444,9 +443,9 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			)
 
 			e.OutputManager.AddMetricSamples(
-				[]stats.SampleContainer***REMOVED***
-					stats.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
-					stats.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
+				[]metrics.SampleContainer***REMOVED***
+					metrics.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+					metrics.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
 				***REMOVED***,
 			)
 
@@ -635,7 +634,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	runTagsMap := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
-	runTags := stats.NewSampleTags(runTagsMap)
+	runTags := metrics.NewSampleTags(runTagsMap)
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
@@ -706,7 +705,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
 		RunTags:               runTags,
-		SystemTags:            &stats.DefaultSystemTagSet,
+		SystemTags:            &metrics.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***)
 
@@ -796,7 +795,7 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	engine, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
-		SystemTags:      &stats.DefaultSystemTagSet,
+		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
@@ -849,7 +848,7 @@ func TestSetupException(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	_, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
-		SystemTags:      &stats.DefaultSystemTagSet,
+		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
@@ -1192,18 +1191,18 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	registry := metrics.NewRegistry()
-	testMetric, err := registry.NewMetric("teardown_metric", stats.Counter)
+	testMetric, err := registry.NewMetric("teardown_metric", metrics.Counter)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			cancel() // we cancel the runCtx immediately after the test starts
 			return nil
 		***REMOVED***,
-		TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-			out <- stats.Sample***REMOVED***Metric: testMetric, Value: 1***REMOVED***
+		TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
+			out <- metrics.Sample***REMOVED***Metric: testMetric, Value: 1***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***

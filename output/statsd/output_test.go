@@ -33,8 +33,8 @@ import (
 
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 func getOutput(
@@ -55,14 +55,14 @@ func getOutput(
 func TestStatsdOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 	baseTest(t, getOutput,
-		func(t *testing.T, _ []stats.SampleContainer, expectedOutput, output string) ***REMOVED***
+		func(t *testing.T, _ []metrics.SampleContainer, expectedOutput, output string) ***REMOVED***
 			assert.Equal(t, expectedOutput, output)
 		***REMOVED***)
 ***REMOVED***
 
 func TestStatsdEnabledTags(t *testing.T) ***REMOVED***
 	t.Parallel()
-	tagMap := stats.TagSet***REMOVED***"tag1": true, "tag2": true***REMOVED***
+	tagMap := metrics.TagSet***REMOVED***"tag1": true, "tag2": true***REMOVED***
 
 	baseTest(t, func(
 		logger logrus.FieldLogger, addr, namespace null.String, bufferSize null.Int, pushInterval types.NullDuration,
@@ -79,7 +79,7 @@ func TestStatsdEnabledTags(t *testing.T) ***REMOVED***
 			"enableTags": true
 		***REMOVED***`, addr.String, namespace.String, bufferSize.Int64, pushInterval.Duration.String())),
 			***REMOVED***)
-	***REMOVED***, func(t *testing.T, containers []stats.SampleContainer, expectedOutput, output string) ***REMOVED***
+	***REMOVED***, func(t *testing.T, containers []metrics.SampleContainer, expectedOutput, output string) ***REMOVED***
 		outputLines := strings.Split(output, "\n")
 		expectedOutputLines := strings.Split(expectedOutput, "\n")
 		var lines int

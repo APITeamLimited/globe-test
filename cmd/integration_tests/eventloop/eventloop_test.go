@@ -20,7 +20,6 @@ import (
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -201,7 +200,7 @@ export default function() ***REMOVED***
 
 func newTestExecutionScheduler(
 	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options, builtinMetrics *metrics.BuiltinMetrics,
-) (ctx context.Context, cancel func(), execScheduler *local.ExecutionScheduler, samples chan stats.SampleContainer) ***REMOVED***
+) (ctx context.Context, cancel func(), execScheduler *local.ExecutionScheduler, samples chan metrics.SampleContainer) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
@@ -222,7 +221,7 @@ func newTestExecutionScheduler(
 	execScheduler, err = local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
-	samples = make(chan stats.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
+	samples = make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
 	go func() ***REMOVED***
 		for ***REMOVED***
 			select ***REMOVED***

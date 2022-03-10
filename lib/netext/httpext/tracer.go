@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -56,43 +55,43 @@ type Trail struct ***REMOVED***
 
 	Failed null.Bool
 	// Populated by SaveSamples()
-	Tags    *stats.SampleTags
-	Samples []stats.Sample
+	Tags    *metrics.SampleTags
+	Samples []metrics.Sample
 ***REMOVED***
 
 // SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
-func (tr *Trail) SaveSamples(builtinMetrics *metrics.BuiltinMetrics, tags *stats.SampleTags) ***REMOVED***
+func (tr *Trail) SaveSamples(builtinMetrics *metrics.BuiltinMetrics, tags *metrics.SampleTags) ***REMOVED***
 	tr.Tags = tags
-	tr.Samples = make([]stats.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
-	tr.Samples = append(tr.Samples, []stats.Sample***REMOVED***
+	tr.Samples = make([]metrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
+	tr.Samples = append(tr.Samples, []metrics.Sample***REMOVED***
 		***REMOVED***Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.TLSHandshaking)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Receiving)***REMOVED***,
 	***REMOVED***...)
 ***REMOVED***
 
-// GetSamples implements the stats.SampleContainer interface.
-func (tr *Trail) GetSamples() []stats.Sample ***REMOVED***
+// GetSamples implements the metrics.SampleContainer interface.
+func (tr *Trail) GetSamples() []metrics.Sample ***REMOVED***
 	return tr.Samples
 ***REMOVED***
 
-// GetTags implements the stats.ConnectedSampleContainer interface.
-func (tr *Trail) GetTags() *stats.SampleTags ***REMOVED***
+// GetTags implements the metrics.ConnectedSampleContainer interface.
+func (tr *Trail) GetTags() *metrics.SampleTags ***REMOVED***
 	return tr.Tags
 ***REMOVED***
 
-// GetTime implements the stats.ConnectedSampleContainer interface.
+// GetTime implements the metrics.ConnectedSampleContainer interface.
 func (tr *Trail) GetTime() time.Time ***REMOVED***
 	return tr.EndTime
 ***REMOVED***
 
 // Ensure that interfaces are implemented correctly
-var _ stats.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
+var _ metrics.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
 
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to

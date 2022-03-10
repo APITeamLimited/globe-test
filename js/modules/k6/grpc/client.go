@@ -55,7 +55,7 @@ import (
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 )
 
@@ -482,19 +482,19 @@ func (c *Client) Invoke(
 		tags[k] = v
 	***REMOVED***
 
-	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
+	if state.Options.SystemTags.Has(metrics.TagURL) ***REMOVED***
 		tags["url"] = fmt.Sprintf("%s%s", c.conn.Target(), method)
 	***REMOVED***
 	parts := strings.Split(method[1:], "/")
-	if state.Options.SystemTags.Has(stats.TagService) ***REMOVED***
+	if state.Options.SystemTags.Has(metrics.TagService) ***REMOVED***
 		tags["service"] = parts[0]
 	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagMethod) ***REMOVED***
+	if state.Options.SystemTags.Has(metrics.TagMethod) ***REMOVED***
 		tags["method"] = parts[1]
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(stats.TagName) ***REMOVED***
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(metrics.TagName) ***REMOVED***
 		tags["name"] = method
 	***REMOVED***
 
@@ -574,47 +574,47 @@ func (c *Client) Close() error ***REMOVED***
 	return err
 ***REMOVED***
 
-// TagConn implements the stats.Handler interface
+// TagConn implements the metrics.Handler interface
 func (*Client) TagConn(ctx context.Context, _ *grpcstats.ConnTagInfo) context.Context ***REMOVED***
 	// noop
 	return ctx
 ***REMOVED***
 
-// HandleConn implements the stats.Handler interface
+// HandleConn implements the metrics.Handler interface
 func (*Client) HandleConn(context.Context, grpcstats.ConnStats) ***REMOVED***
 	// noop
 ***REMOVED***
 
-// TagRPC implements the stats.Handler interface
+// TagRPC implements the metrics.Handler interface
 func (*Client) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Context ***REMOVED***
 	// noop
 	return ctx
 ***REMOVED***
 
-// HandleRPC implements the stats.Handler interface
+// HandleRPC implements the metrics.Handler interface
 func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
 	state := c.vu.State()
 	tags := getTags(ctx)
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
-		if state.Options.SystemTags.Has(stats.TagIP) && s.RemoteAddr != nil ***REMOVED***
+		if state.Options.SystemTags.Has(metrics.TagIP) && s.RemoteAddr != nil ***REMOVED***
 			if ip, _, err := net.SplitHostPort(s.RemoteAddr.String()); err == nil ***REMOVED***
 				tags["ip"] = ip
 			***REMOVED***
 		***REMOVED***
 	case *grpcstats.End:
-		if state.Options.SystemTags.Has(stats.TagStatus) ***REMOVED***
+		if state.Options.SystemTags.Has(metrics.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(int(status.Code(s.Error)))
 		***REMOVED***
 
 		mTags := map[string]string(tags)
-		sampleTags := stats.IntoSampleTags(&mTags)
-		stats.PushIfNotDone(ctx, state.Samples, stats.ConnectedSamples***REMOVED***
-			Samples: []stats.Sample***REMOVED***
+		sampleTags := metrics.IntoSampleTags(&mTags)
+		metrics.PushIfNotDone(ctx, state.Samples, metrics.ConnectedSamples***REMOVED***
+			Samples: []metrics.Sample***REMOVED***
 				***REMOVED***
 					Metric: state.BuiltinMetrics.GRPCReqDuration,
 					Tags:   sampleTags,
-					Value:  stats.D(s.EndTime.Sub(s.BeginTime)),
+					Value:  metrics.D(s.EndTime.Sub(s.BeginTime)),
 					Time:   s.EndTime,
 				***REMOVED***,
 			***REMOVED***,
