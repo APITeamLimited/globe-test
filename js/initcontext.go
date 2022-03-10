@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -100,7 +99,8 @@ func NewInitContext(
 		logger:            logger,
 		modules:           getJSModules(),
 		moduleVUImpl: &moduleVUImpl***REMOVED***
-			ctxPtr: ctxPtr, runtime: rt,
+			ctx:     *ctxPtr,
+			runtime: rt,
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
@@ -152,7 +152,7 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 ***REMOVED***
 
 type moduleVUImpl struct ***REMOVED***
-	ctxPtr    *context.Context
+	ctx       context.Context
 	initEnv   *common.InitEnvironment
 	state     *lib.State
 	runtime   *goja.Runtime
@@ -161,12 +161,12 @@ type moduleVUImpl struct ***REMOVED***
 
 func newModuleVUImpl() *moduleVUImpl ***REMOVED***
 	return &moduleVUImpl***REMOVED***
-		ctxPtr: new(context.Context),
+		ctx: context.Background(),
 	***REMOVED***
 ***REMOVED***
 
 func (m *moduleVUImpl) Context() context.Context ***REMOVED***
-	return *m.ctxPtr
+	return m.ctx
 ***REMOVED***
 
 func (m *moduleVUImpl) InitEnv() *common.InitEnvironment ***REMOVED***
@@ -227,9 +227,6 @@ func toESModuleExports(exp modules.Exports) interface***REMOVED******REMOVED*** 
 	return result
 ***REMOVED***
 
-// TODO: https://github.com/grafana/k6/issues/2385
-var onceBindWarning sync.Once //nolint: gochecknoglobals
-
 func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED***
 	mod, ok := i.modules[name]
 	if !ok ***REMOVED***
@@ -240,13 +237,7 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 		return i.moduleVUImpl.runtime.ToValue(toESModuleExports(instance.Exports())), nil
 	***REMOVED***
 
-	onceBindWarning.Do(func() ***REMOVED***
-		i.logger.Warnf(`Module '%s' is using deprecated APIs that will be removed in k6 v0.38.0,`+
-			` for more details on how to update it see`+
-			` https://k6.io/docs/extensions/guides/create-an-extension/#advanced-javascript-extension`, name)
-	***REMOVED***)
-
-	return i.moduleVUImpl.runtime.ToValue(common.Bind(i.moduleVUImpl.runtime, mod, i.moduleVUImpl.ctxPtr)), nil
+	return i.moduleVUImpl.runtime.ToValue(mod), nil
 ***REMOVED***
 
 func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***

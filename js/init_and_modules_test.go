@@ -34,7 +34,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js"
-	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
@@ -51,22 +50,16 @@ type CheckModule struct ***REMOVED***
 
 func (cm *CheckModule) InitCtx(ctx context.Context) ***REMOVED***
 	cm.initCtxCalled++
-	assert.NotNil(cm.t, common.GetRuntime(ctx))
-	assert.NotNil(cm.t, common.GetInitEnv(ctx))
-	assert.Nil(cm.t, lib.GetState(ctx))
 ***REMOVED***
 
 func (cm *CheckModule) VuCtx(ctx context.Context) ***REMOVED***
 	cm.vuCtxCalled++
-	assert.NotNil(cm.t, common.GetRuntime(ctx))
-	assert.Nil(cm.t, common.GetInitEnv(ctx))
-	assert.NotNil(cm.t, lib.GetState(ctx))
 ***REMOVED***
-
-var uniqueModuleNumber int64 //nolint:gochecknoglobals
 
 func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	var uniqueModuleNumber int64
 	checkModule := &CheckModule***REMOVED***t: t***REMOVED***
 	moduleName := fmt.Sprintf("k6/x/check-%d", atomic.AddInt64(&uniqueModuleNumber, 1))
 	modules.Register(moduleName, checkModule)
