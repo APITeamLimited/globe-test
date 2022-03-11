@@ -240,7 +240,7 @@ func (c *Client) dial(
 	opts := []grpc.DialOption***REMOVED***
 		grpc.WithBlock(),
 		grpc.FailOnNonTempDialError(true),
-		grpc.WithStatsHandler(c),
+		grpc.WithStatsHandler(statsHandler***REMOVED***vu: c.vu***REMOVED***),
 		grpc.WithReturnConnectionError(),
 	***REMOVED***
 	opts = append(opts, options...)
@@ -552,26 +552,30 @@ func (c *Client) Close() error ***REMOVED***
 	return err
 ***REMOVED***
 
-// TagConn implements the metrics.Handler interface
-func (*Client) TagConn(ctx context.Context, _ *grpcstats.ConnTagInfo) context.Context ***REMOVED***
+type statsHandler struct ***REMOVED***
+	vu modules.VU
+***REMOVED***
+
+// TagConn implements the grpcstats.Handler interface
+func (statsHandler) TagConn(ctx context.Context, _ *grpcstats.ConnTagInfo) context.Context ***REMOVED***
 	// noop
 	return ctx
 ***REMOVED***
 
-// HandleConn implements the metrics.Handler interface
-func (*Client) HandleConn(context.Context, grpcstats.ConnStats) ***REMOVED***
+// HandleConn implements the grpcstats.Handler interface
+func (statsHandler) HandleConn(context.Context, grpcstats.ConnStats) ***REMOVED***
 	// noop
 ***REMOVED***
 
-// TagRPC implements the metrics.Handler interface
-func (*Client) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Context ***REMOVED***
+// TagRPC implements the grpcstats.Handler interface
+func (statsHandler) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Context ***REMOVED***
 	// noop
 	return ctx
 ***REMOVED***
 
-// HandleRPC implements the metrics.Handler interface
-func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
-	state := c.vu.State()
+// HandleRPC implements the grpcstats.Handler interface
+func (h statsHandler) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
+	state := h.vu.State()
 	tags := getTags(ctx)
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
