@@ -90,23 +90,6 @@ type Response struct ***REMOVED***
 	Error    interface***REMOVED******REMOVED***
 ***REMOVED***
 
-func walkFileDescriptors(seen map[string]struct***REMOVED******REMOVED***, fd *desc.FileDescriptor) []*descriptorpb.FileDescriptorProto ***REMOVED***
-	fds := []*descriptorpb.FileDescriptorProto***REMOVED******REMOVED***
-
-	if _, ok := seen[fd.GetName()]; ok ***REMOVED***
-		return fds
-	***REMOVED***
-	seen[fd.GetName()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	fds = append(fds, fd.AsFileDescriptorProto())
-
-	for _, dep := range fd.GetDependencies() ***REMOVED***
-		deps := walkFileDescriptors(seen, dep)
-		fds = append(fds, deps...)
-	***REMOVED***
-
-	return fds
-***REMOVED***
-
 // Load will parse the given proto files and make the file descriptors available to request.
 func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) ***REMOVED***
 	if c.vu.State() != nil ***REMOVED***
@@ -144,50 +127,6 @@ func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, 
 		fdset.File = append(fdset.File, walkFileDescriptors(seen, fd)...)
 	***REMOVED***
 	return c.convertToMethodInfo(fdset)
-***REMOVED***
-
-func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) ***REMOVED***
-	files, err := protodesc.NewFiles(fdset)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	var rtn []MethodInfo
-	if c.mds == nil ***REMOVED***
-		// This allows us to call load() multiple times, without overwriting the
-		// previously loaded definitions.
-		c.mds = make(map[string]protoreflect.MethodDescriptor)
-	***REMOVED***
-	appendMethodInfo := func(
-		fd protoreflect.FileDescriptor,
-		sd protoreflect.ServiceDescriptor,
-		md protoreflect.MethodDescriptor,
-	) ***REMOVED***
-		name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
-		c.mds[name] = md
-		rtn = append(rtn, MethodInfo***REMOVED***
-			MethodInfo: grpc.MethodInfo***REMOVED***
-				Name:           string(md.Name()),
-				IsClientStream: md.IsStreamingClient(),
-				IsServerStream: md.IsStreamingServer(),
-			***REMOVED***,
-			Package:    string(fd.Package()),
-			Service:    string(sd.Name()),
-			FullMethod: name,
-		***REMOVED***)
-	***REMOVED***
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool ***REMOVED***
-		sds := fd.Services()
-		for i := 0; i < sds.Len(); i++ ***REMOVED***
-			sd := sds.Get(i)
-			mds := sd.Methods()
-			for j := 0; j < mds.Len(); j++ ***REMOVED***
-				md := mds.Get(j)
-				appendMethodInfo(fd, sd, md)
-			***REMOVED***
-		***REMOVED***
-		return true
-	***REMOVED***)
-	return rtn, nil
 ***REMOVED***
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
@@ -229,195 +168,6 @@ func (c *Client) Connect(addr string, params map[string]interface***REMOVED*****
 
 	err = c.dial(ctx, addr, p.UseReflectionProtocol, opts...)
 	return err != nil, err
-***REMOVED***
-
-func (c *Client) dial(
-	ctx context.Context,
-	addr string,
-	reflect bool,
-	options ...grpc.DialOption,
-) error ***REMOVED***
-	opts := []grpc.DialOption***REMOVED***
-		grpc.WithBlock(),
-		grpc.FailOnNonTempDialError(true),
-		grpc.WithStatsHandler(statsHandler***REMOVED***vu: c.vu***REMOVED***),
-		grpc.WithReturnConnectionError(),
-	***REMOVED***
-	opts = append(opts, options...)
-
-	var err error
-	c.conn, err = grpc.DialContext(ctx, addr, opts...)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	if !reflect ***REMOVED***
-		return nil
-	***REMOVED***
-
-	return c.reflect(ctx)
-***REMOVED***
-
-// reflect will use the grpc reflection api to make the file descriptors available to request.
-// It is called in the connect function the first time the Client.Connect function is called.
-func (c *Client) reflect(ctx context.Context) error ***REMOVED***
-	client := reflectpb.NewServerReflectionClient(c.conn)
-	methodClient, err := client.ServerReflectionInfo(ctx)
-	if err != nil ***REMOVED***
-		return fmt.Errorf("can't get server info: %w", err)
-	***REMOVED***
-	req := &reflectpb.ServerReflectionRequest***REMOVED***
-		MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED***,
-	***REMOVED***
-	resp, err := sendReceive(methodClient, req)
-	if err != nil ***REMOVED***
-		return fmt.Errorf("can't list services: %w", err)
-	***REMOVED***
-	listResp := resp.GetListServicesResponse()
-	if listResp == nil ***REMOVED***
-		return fmt.Errorf("can't list services, nil response")
-	***REMOVED***
-	fdset, err := resolveServiceFileDescriptors(methodClient, listResp)
-	if err != nil ***REMOVED***
-		return fmt.Errorf("can't resolve services' file descriptors: %w", err)
-	***REMOVED***
-	_, err = c.convertToMethodInfo(fdset)
-	if err != nil ***REMOVED***
-		err = fmt.Errorf("can't convert method info: %w", err)
-	***REMOVED***
-	return err
-***REMOVED***
-
-type fileDescriptorLookupKey struct ***REMOVED***
-	Package string
-	Name    string
-***REMOVED***
-
-func resolveServiceFileDescriptors(
-	client sendReceiver,
-	res *reflectpb.ListServiceResponse,
-) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
-	services := res.GetService()
-	seen := make(map[fileDescriptorLookupKey]bool, len(services))
-	fdset := &descriptorpb.FileDescriptorSet***REMOVED***
-		File: make([]*descriptorpb.FileDescriptorProto, 0, len(services)),
-	***REMOVED***
-
-	for _, service := range services ***REMOVED***
-		req := &reflectpb.ServerReflectionRequest***REMOVED***
-			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
-				FileContainingSymbol: service.GetName(),
-			***REMOVED***,
-		***REMOVED***
-		resp, err := sendReceive(client, req)
-		if err != nil ***REMOVED***
-			return nil, fmt.Errorf("can't get method on service %q: %w", service, err)
-		***REMOVED***
-		fdResp := resp.GetFileDescriptorResponse()
-		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
-			var fdp descriptorpb.FileDescriptorProto
-			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
-				return nil, fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
-			***REMOVED***
-			fdkey := fileDescriptorLookupKey***REMOVED***
-				Package: *fdp.Package,
-				Name:    *fdp.Name,
-			***REMOVED***
-			if seen[fdkey] ***REMOVED***
-				// When a proto file contains declarations for multiple services
-				// then the same proto file is returned multiple times,
-				// this prevents adding the returned proto file as a duplicate.
-				continue
-			***REMOVED***
-			seen[fdkey] = true
-			fdset.File = append(fdset.File, &fdp)
-		***REMOVED***
-	***REMOVED***
-	return fdset, nil
-***REMOVED***
-
-// sendReceiver is a smaller interface for decoupling
-// from `reflectpb.ServerReflection_ServerReflectionInfoClient`,
-// that has the dependency from `grpc.ClientStream`,
-// which is too much in the case the requirement is to just make a reflection's request.
-// It makes the API more restricted and with a controlled surface,
-// in this way the testing should be easier also.
-type sendReceiver interface ***REMOVED***
-	Send(*reflectpb.ServerReflectionRequest) error
-	Recv() (*reflectpb.ServerReflectionResponse, error)
-***REMOVED***
-
-// sendReceive sends a request to a reflection client and,
-// receives a response.
-func sendReceive(
-	client sendReceiver,
-	req *reflectpb.ServerReflectionRequest,
-) (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
-	if err := client.Send(req); err != nil ***REMOVED***
-		return nil, fmt.Errorf("can't send request: %w", err)
-	***REMOVED***
-	resp, err := client.Recv()
-	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("can't receive response: %w", err)
-	***REMOVED***
-	return resp, nil
-***REMOVED***
-
-type params struct ***REMOVED***
-	Metadata map[string]string
-	Tags     map[string]string
-	Timeout  time.Duration
-***REMOVED***
-
-func (c *Client) parseParams(raw map[string]interface***REMOVED******REMOVED***) (params, error) ***REMOVED***
-	p := params***REMOVED***
-		Timeout: 1 * time.Minute,
-	***REMOVED***
-	for k, v := range raw ***REMOVED***
-		switch k ***REMOVED***
-		case "headers":
-			c.vu.State().Logger.Warn("The headers property is deprecated, replace it with the metadata property, please.")
-			fallthrough
-		case "metadata":
-			p.Metadata = make(map[string]string)
-
-			rawHeaders, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
-				return p, errors.New("metadata must be an object with key-value pairs")
-			***REMOVED***
-			for hk, kv := range rawHeaders ***REMOVED***
-				// TODO(rogchap): Should we manage a string slice?
-				strval, ok := kv.(string)
-				if !ok ***REMOVED***
-					return p, fmt.Errorf("metadata %q value must be a string", hk)
-				***REMOVED***
-				p.Metadata[hk] = strval
-			***REMOVED***
-		case "tags":
-			p.Tags = make(map[string]string)
-
-			rawTags, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
-				return p, errors.New("tags must be an object with key-value pairs")
-			***REMOVED***
-			for tk, tv := range rawTags ***REMOVED***
-				strVal, ok := tv.(string)
-				if !ok ***REMOVED***
-					return p, fmt.Errorf("tag %q value must be a string", tk)
-				***REMOVED***
-				p.Tags[tk] = strVal
-			***REMOVED***
-		case "timeout":
-			var err error
-			p.Timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
-				return p, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
-		default:
-			return p, fmt.Errorf("unknown param: %q", k)
-		***REMOVED***
-	***REMOVED***
-	return p, nil
 ***REMOVED***
 
 // Invoke creates and calls a unary RPC by fully qualified method name
@@ -552,6 +302,204 @@ func (c *Client) Close() error ***REMOVED***
 	return err
 ***REMOVED***
 
+func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) ***REMOVED***
+	files, err := protodesc.NewFiles(fdset)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	var rtn []MethodInfo
+	if c.mds == nil ***REMOVED***
+		// This allows us to call load() multiple times, without overwriting the
+		// previously loaded definitions.
+		c.mds = make(map[string]protoreflect.MethodDescriptor)
+	***REMOVED***
+	appendMethodInfo := func(
+		fd protoreflect.FileDescriptor,
+		sd protoreflect.ServiceDescriptor,
+		md protoreflect.MethodDescriptor,
+	) ***REMOVED***
+		name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
+		c.mds[name] = md
+		rtn = append(rtn, MethodInfo***REMOVED***
+			MethodInfo: grpc.MethodInfo***REMOVED***
+				Name:           string(md.Name()),
+				IsClientStream: md.IsStreamingClient(),
+				IsServerStream: md.IsStreamingServer(),
+			***REMOVED***,
+			Package:    string(fd.Package()),
+			Service:    string(sd.Name()),
+			FullMethod: name,
+		***REMOVED***)
+	***REMOVED***
+	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool ***REMOVED***
+		sds := fd.Services()
+		for i := 0; i < sds.Len(); i++ ***REMOVED***
+			sd := sds.Get(i)
+			mds := sd.Methods()
+			for j := 0; j < mds.Len(); j++ ***REMOVED***
+				md := mds.Get(j)
+				appendMethodInfo(fd, sd, md)
+			***REMOVED***
+		***REMOVED***
+		return true
+	***REMOVED***)
+	return rtn, nil
+***REMOVED***
+
+func (c *Client) dial(
+	ctx context.Context,
+	addr string,
+	reflect bool,
+	options ...grpc.DialOption,
+) error ***REMOVED***
+	opts := []grpc.DialOption***REMOVED***
+		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true),
+		grpc.WithStatsHandler(statsHandler***REMOVED***vu: c.vu***REMOVED***),
+		grpc.WithReturnConnectionError(),
+	***REMOVED***
+	opts = append(opts, options...)
+
+	var err error
+	c.conn, err = grpc.DialContext(ctx, addr, opts...)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	if !reflect ***REMOVED***
+		return nil
+	***REMOVED***
+
+	return c.reflect(ctx)
+***REMOVED***
+
+// reflect will use the grpc reflection api to make the file descriptors available to request.
+// It is called in the connect function the first time the Client.Connect function is called.
+func (c *Client) reflect(ctx context.Context) error ***REMOVED***
+	client := reflectpb.NewServerReflectionClient(c.conn)
+	methodClient, err := client.ServerReflectionInfo(ctx)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("can't get server info: %w", err)
+	***REMOVED***
+	req := &reflectpb.ServerReflectionRequest***REMOVED***
+		MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED***,
+	***REMOVED***
+	resp, err := sendReceive(methodClient, req)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("can't list services: %w", err)
+	***REMOVED***
+	listResp := resp.GetListServicesResponse()
+	if listResp == nil ***REMOVED***
+		return fmt.Errorf("can't list services, nil response")
+	***REMOVED***
+	fdset, err := resolveServiceFileDescriptors(methodClient, listResp)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("can't resolve services' file descriptors: %w", err)
+	***REMOVED***
+	_, err = c.convertToMethodInfo(fdset)
+	if err != nil ***REMOVED***
+		err = fmt.Errorf("can't convert method info: %w", err)
+	***REMOVED***
+	return err
+***REMOVED***
+
+type params struct ***REMOVED***
+	Metadata map[string]string
+	Tags     map[string]string
+	Timeout  time.Duration
+***REMOVED***
+
+func (c *Client) parseParams(raw map[string]interface***REMOVED******REMOVED***) (params, error) ***REMOVED***
+	p := params***REMOVED***
+		Timeout: 1 * time.Minute,
+	***REMOVED***
+	for k, v := range raw ***REMOVED***
+		switch k ***REMOVED***
+		case "headers":
+			c.vu.State().Logger.Warn("The headers property is deprecated, replace it with the metadata property, please.")
+			fallthrough
+		case "metadata":
+			p.Metadata = make(map[string]string)
+
+			rawHeaders, ok := v.(map[string]interface***REMOVED******REMOVED***)
+			if !ok ***REMOVED***
+				return p, errors.New("metadata must be an object with key-value pairs")
+			***REMOVED***
+			for hk, kv := range rawHeaders ***REMOVED***
+				// TODO(rogchap): Should we manage a string slice?
+				strval, ok := kv.(string)
+				if !ok ***REMOVED***
+					return p, fmt.Errorf("metadata %q value must be a string", hk)
+				***REMOVED***
+				p.Metadata[hk] = strval
+			***REMOVED***
+		case "tags":
+			p.Tags = make(map[string]string)
+
+			rawTags, ok := v.(map[string]interface***REMOVED******REMOVED***)
+			if !ok ***REMOVED***
+				return p, errors.New("tags must be an object with key-value pairs")
+			***REMOVED***
+			for tk, tv := range rawTags ***REMOVED***
+				strVal, ok := tv.(string)
+				if !ok ***REMOVED***
+					return p, fmt.Errorf("tag %q value must be a string", tk)
+				***REMOVED***
+				p.Tags[tk] = strVal
+			***REMOVED***
+		case "timeout":
+			var err error
+			p.Timeout, err = types.GetDurationValue(v)
+			if err != nil ***REMOVED***
+				return p, fmt.Errorf("invalid timeout value: %w", err)
+			***REMOVED***
+		default:
+			return p, fmt.Errorf("unknown param: %q", k)
+		***REMOVED***
+	***REMOVED***
+	return p, nil
+***REMOVED***
+
+type connectParams struct ***REMOVED***
+	IsPlaintext           bool
+	UseReflectionProtocol bool
+	Timeout               time.Duration
+***REMOVED***
+
+func (c *Client) parseConnectParams(raw map[string]interface***REMOVED******REMOVED***) (connectParams, error) ***REMOVED***
+	params := connectParams***REMOVED***
+		IsPlaintext:           false,
+		UseReflectionProtocol: false,
+		Timeout:               time.Minute,
+	***REMOVED***
+	for k, v := range raw ***REMOVED***
+		switch k ***REMOVED***
+		case "plaintext":
+			var ok bool
+			params.IsPlaintext, ok = v.(bool)
+			if !ok ***REMOVED***
+				return params, fmt.Errorf("invalid plaintext value: '%#v', it needs to be boolean", v)
+			***REMOVED***
+		case "timeout":
+			var err error
+			params.Timeout, err = types.GetDurationValue(v)
+			if err != nil ***REMOVED***
+				return params, fmt.Errorf("invalid timeout value: %w", err)
+			***REMOVED***
+		case "reflect":
+			var ok bool
+			params.UseReflectionProtocol, ok = v.(bool)
+			if !ok ***REMOVED***
+				return params, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
+			***REMOVED***
+
+		default:
+			return params, fmt.Errorf("unknown connect param: %q", k)
+		***REMOVED***
+	***REMOVED***
+	return params, nil
+***REMOVED***
+
 type statsHandler struct ***REMOVED***
 	vu modules.VU
 ***REMOVED***
@@ -611,44 +559,96 @@ func (h statsHandler) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) **
 	***REMOVED***
 ***REMOVED***
 
-type connectParams struct ***REMOVED***
-	IsPlaintext           bool
-	UseReflectionProtocol bool
-	Timeout               time.Duration
+// sendReceiver is a smaller interface for decoupling
+// from `reflectpb.ServerReflection_ServerReflectionInfoClient`,
+// that has the dependency from `grpc.ClientStream`,
+// which is too much in the case the requirement is to just make a reflection's request.
+// It makes the API more restricted and with a controlled surface,
+// in this way the testing should be easier also.
+type sendReceiver interface ***REMOVED***
+	Send(*reflectpb.ServerReflectionRequest) error
+	Recv() (*reflectpb.ServerReflectionResponse, error)
 ***REMOVED***
 
-func (c *Client) parseConnectParams(raw map[string]interface***REMOVED******REMOVED***) (connectParams, error) ***REMOVED***
-	params := connectParams***REMOVED***
-		IsPlaintext:           false,
-		UseReflectionProtocol: false,
-		Timeout:               time.Minute,
+// sendReceive sends a request to a reflection client and,
+// receives a response.
+func sendReceive(
+	client sendReceiver,
+	req *reflectpb.ServerReflectionRequest,
+) (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
+	if err := client.Send(req); err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't send request: %w", err)
 	***REMOVED***
-	for k, v := range raw ***REMOVED***
-		switch k ***REMOVED***
-		case "plaintext":
-			var ok bool
-			params.IsPlaintext, ok = v.(bool)
-			if !ok ***REMOVED***
-				return params, fmt.Errorf("invalid plaintext value: '%#v', it needs to be boolean", v)
-			***REMOVED***
-		case "timeout":
-			var err error
-			params.Timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
-				return params, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
-		case "reflect":
-			var ok bool
-			params.UseReflectionProtocol, ok = v.(bool)
-			if !ok ***REMOVED***
-				return params, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
-			***REMOVED***
+	resp, err := client.Recv()
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't receive response: %w", err)
+	***REMOVED***
+	return resp, nil
+***REMOVED***
 
-		default:
-			return params, fmt.Errorf("unknown connect param: %q", k)
+type fileDescriptorLookupKey struct ***REMOVED***
+	Package string
+	Name    string
+***REMOVED***
+
+func resolveServiceFileDescriptors(
+	client sendReceiver,
+	res *reflectpb.ListServiceResponse,
+) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
+	services := res.GetService()
+	seen := make(map[fileDescriptorLookupKey]bool, len(services))
+	fdset := &descriptorpb.FileDescriptorSet***REMOVED***
+		File: make([]*descriptorpb.FileDescriptorProto, 0, len(services)),
+	***REMOVED***
+
+	for _, service := range services ***REMOVED***
+		req := &reflectpb.ServerReflectionRequest***REMOVED***
+			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
+				FileContainingSymbol: service.GetName(),
+			***REMOVED***,
+		***REMOVED***
+		resp, err := sendReceive(client, req)
+		if err != nil ***REMOVED***
+			return nil, fmt.Errorf("can't get method on service %q: %w", service, err)
+		***REMOVED***
+		fdResp := resp.GetFileDescriptorResponse()
+		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
+			var fdp descriptorpb.FileDescriptorProto
+			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
+				return nil, fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
+			***REMOVED***
+			fdkey := fileDescriptorLookupKey***REMOVED***
+				Package: *fdp.Package,
+				Name:    *fdp.Name,
+			***REMOVED***
+			if seen[fdkey] ***REMOVED***
+				// When a proto file contains declarations for multiple services
+				// then the same proto file is returned multiple times,
+				// this prevents adding the returned proto file as a duplicate.
+				continue
+			***REMOVED***
+			seen[fdkey] = true
+			fdset.File = append(fdset.File, &fdp)
 		***REMOVED***
 	***REMOVED***
-	return params, nil
+	return fdset, nil
+***REMOVED***
+
+func walkFileDescriptors(seen map[string]struct***REMOVED******REMOVED***, fd *desc.FileDescriptor) []*descriptorpb.FileDescriptorProto ***REMOVED***
+	fds := []*descriptorpb.FileDescriptorProto***REMOVED******REMOVED***
+
+	if _, ok := seen[fd.GetName()]; ok ***REMOVED***
+		return fds
+	***REMOVED***
+	seen[fd.GetName()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	fds = append(fds, fd.AsFileDescriptorProto())
+
+	for _, dep := range fd.GetDependencies() ***REMOVED***
+		deps := walkFileDescriptors(seen, dep)
+		fds = append(fds, deps...)
+	***REMOVED***
+
+	return fds
 ***REMOVED***
 
 func debugStat(stat grpcstats.RPCStats, logger logrus.FieldLogger, httpDebugOption string) ***REMOVED***
