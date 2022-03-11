@@ -30,7 +30,7 @@ func BenchmarkFlushMetrics(b *testing.B) ***REMOVED***
 	***REMOVED***
 	samples = samples[:size]
 	o, _ := out.(*Output)
-	o.Start()
+	require.NoError(b, o.Start())
 	o.periodicFlusher.Stop()
 	b.ResetTimer()
 	b.ReportAllocs()
