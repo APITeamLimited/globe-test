@@ -1,23 +1,3 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2020 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package grpc
 
 import (
@@ -25,19 +5,14 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"runtime"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"google.golang.org/grpc/reflection"
-	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -56,6 +31,7 @@ import (
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/fsext"
+	"go.k6.io/k6/lib/netext/grpcext"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
@@ -388,7 +364,7 @@ func TestClient(t *testing.T) ***REMOVED***
 				client.connect("GRPCBIN_ADDR");
 				var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 				if (resp.status !== grpc.StatusOK) ***REMOVED***
-					throw new Error("unexpected error status: " + resp.status)
+					throw new Error("unexpected error: " + JSON.stringify(resp.error) + "or status: " + resp.status)
 				***REMOVED***`,
 				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
 					samplesBuf := metrics.GetBufferedSamples(samples)
@@ -788,7 +764,7 @@ func TestDebugStat(t *testing.T) ***REMOVED***
 			logger := logrus.New()
 			logger.Out = &b
 
-			debugStat(tt.stat, logger.WithField("source", "test"), "full")
+			grpcext.DebugStat(logger.WithField("source", "test"), tt.stat, "full")
 			assert.Contains(t, b.String(), tt.expected)
 		***REMOVED***)
 	***REMOVED***
@@ -822,104 +798,4 @@ func TestClientInvokeHeadersDeprecated(t *testing.T) ***REMOVED***
 	entries := logHook.Drain()
 	require.Len(t, entries, 1)
 	require.Contains(t, entries[0].Message, "headers property is deprecated")
-***REMOVED***
-
-func TestResolveFileDescriptors(t *testing.T) ***REMOVED***
-	t.Parallel()
-
-	tests := []struct ***REMOVED***
-		name                string
-		pkgs                []string
-		services            []string
-		expectedDescriptors int
-	***REMOVED******REMOVED***
-		***REMOVED***
-			name:                "SuccessSamePackage",
-			pkgs:                []string***REMOVED***"mypkg"***REMOVED***,
-			services:            []string***REMOVED***"Service1", "Service2", "Service3"***REMOVED***,
-			expectedDescriptors: 3,
-		***REMOVED***,
-		***REMOVED***
-			name:                "SuccessMultiPackages",
-			pkgs:                []string***REMOVED***"mypkg1", "mypkg2", "mypkg3"***REMOVED***,
-			services:            []string***REMOVED***"Service", "Service", "Service"***REMOVED***,
-			expectedDescriptors: 3,
-		***REMOVED***,
-		***REMOVED***
-			name:                "DeduplicateServices",
-			pkgs:                []string***REMOVED***"mypkg1"***REMOVED***,
-			services:            []string***REMOVED***"Service1", "Service2", "Service1"***REMOVED***,
-			expectedDescriptors: 2,
-		***REMOVED***,
-		***REMOVED***
-			name:                "NoServices",
-			services:            []string***REMOVED******REMOVED***,
-			expectedDescriptors: 0,
-		***REMOVED***,
-	***REMOVED***
-
-	for _, tt := range tests ***REMOVED***
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) ***REMOVED***
-			t.Parallel()
-			var (
-				lsr  = &reflectpb.ListServiceResponse***REMOVED******REMOVED***
-				mock = &getServiceFileDescriptorMock***REMOVED******REMOVED***
-			)
-			for i, service := range tt.services ***REMOVED***
-				// if only one package is defined then
-				// the package is the same for every service
-				pkg := tt.pkgs[0]
-				if len(tt.pkgs) > 1 ***REMOVED***
-					pkg = tt.pkgs[i]
-				***REMOVED***
-
-				lsr.Service = append(lsr.Service, &reflectpb.ServiceResponse***REMOVED***
-					Name: fmt.Sprintf("%s.%s", pkg, service),
-				***REMOVED***)
-				mock.pkgs = append(mock.pkgs, pkg)
-				mock.names = append(mock.names, service)
-			***REMOVED***
-
-			fdset, err := resolveServiceFileDescriptors(mock, lsr)
-			require.NoError(t, err)
-			assert.Len(t, fdset.File, tt.expectedDescriptors)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
-type getServiceFileDescriptorMock struct ***REMOVED***
-	nreqs int64
-	pkgs  []string
-	names []string
-***REMOVED***
-
-func (m *getServiceFileDescriptorMock) Send(req *reflectpb.ServerReflectionRequest) error ***REMOVED***
-	// TODO: check that the sent message is expected,
-	// otherwise return an error
-	return nil
-***REMOVED***
-
-func (m *getServiceFileDescriptorMock) Recv() (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
-	n := atomic.AddInt64(&m.nreqs, 1)
-	ptr := func(s string) (sptr *string) ***REMOVED***
-		return &s
-	***REMOVED***
-	index := n - 1
-	fdp := &descriptorpb.FileDescriptorProto***REMOVED***
-		Package: ptr(m.pkgs[index]),
-		Name:    ptr(m.names[index]),
-	***REMOVED***
-	b, err := proto.Marshal(fdp)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	srr := &reflectpb.ServerReflectionResponse***REMOVED***
-		MessageResponse: &reflectpb.ServerReflectionResponse_FileDescriptorResponse***REMOVED***
-			FileDescriptorResponse: &reflectpb.FileDescriptorResponse***REMOVED***
-				FileDescriptorProto: [][]byte***REMOVED***b***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	return srr, nil
 ***REMOVED***
