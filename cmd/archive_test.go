@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/errext"
 	"go.k6.io/k6/errext/exitcodes"
-	"go.k6.io/k6/lib/testutils"
 )
 
 func TestArchiveThresholds(t *testing.T) ***REMOVED***
@@ -40,20 +41,17 @@ func TestArchiveThresholds(t *testing.T) ***REMOVED***
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
-			tmpPath := filepath.Join(t.TempDir(), "archive.tar")
-
-			cmd := getArchiveCmd(testutils.NewLogger(t), newCommandFlags())
-			filename, err := filepath.Abs(testCase.testFilename)
+			testScript, err := ioutil.ReadFile(testCase.testFilename)
 			require.NoError(t, err)
-			args := []string***REMOVED***filename, "--archive-out", tmpPath***REMOVED***
-			if testCase.noThresholds ***REMOVED***
-				args = append(args, "--no-thresholds")
-			***REMOVED***
-			cmd.SetArgs(args)
-			wantExitCode := exitcodes.InvalidConfig
 
-			var gotErrExt errext.HasExitCode
-			gotErr := cmd.Execute()
+			testState := newGlobalTestState(t)
+			require.NoError(t, afero.WriteFile(testState.fs, filepath.Join(testState.cwd, testCase.testFilename), testScript, 0o644))
+			testState.args = []string***REMOVED***"k6", "archive", testCase.testFilename***REMOVED***
+			if testCase.noThresholds ***REMOVED***
+				testState.args = append(testState.args, "--no-thresholds")
+			***REMOVED***
+
+			gotErr := newRootCommand(testState.globalState).cmd.Execute()
 
 			assert.Equal(t,
 				testCase.wantErr,
@@ -62,9 +60,10 @@ func TestArchiveThresholds(t *testing.T) ***REMOVED***
 			)
 
 			if testCase.wantErr ***REMOVED***
+				var gotErrExt errext.HasExitCode
 				require.ErrorAs(t, gotErr, &gotErrExt)
-				assert.Equalf(t, wantExitCode, gotErrExt.ExitCode(),
-					"status code must be %d", wantExitCode,
+				assert.Equalf(t, exitcodes.InvalidConfig, gotErrExt.ExitCode(),
+					"status code must be %d", exitcodes.InvalidConfig,
 				)
 			***REMOVED***
 		***REMOVED***)
