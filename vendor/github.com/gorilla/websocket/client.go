@@ -48,14 +48,22 @@ func NewClient(netConn net.Conn, u *url.URL, requestHeader http.Header, readBufS
 ***REMOVED***
 
 // A Dialer contains options for connecting to WebSocket server.
+//
+// It is safe to call Dialer's methods concurrently.
 type Dialer struct ***REMOVED***
 	// NetDial specifies the dial function for creating TCP connections. If
 	// NetDial is nil, net.Dial is used.
 	NetDial func(network, addr string) (net.Conn, error)
 
 	// NetDialContext specifies the dial function for creating TCP connections. If
-	// NetDialContext is nil, net.DialContext is used.
+	// NetDialContext is nil, NetDial is used.
 	NetDialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+
+	// NetDialTLSContext specifies the dial function for creating TLS/TCP connections. If
+	// NetDialTLSContext is nil, NetDialContext is used.
+	// If NetDialTLSContext is set, Dial assumes the TLS handshake is done there and
+	// TLSClientConfig is ignored.
+	NetDialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -65,6 +73,8 @@ type Dialer struct ***REMOVED***
 
 	// TLSClientConfig specifies the TLS configuration to use with tls.Client.
 	// If nil, the default configuration is used.
+	// If either NetDialTLS or NetDialTLSContext are set, Dial assumes the TLS handshake
+	// is done there and TLSClientConfig is ignored.
 	TLSClientConfig *tls.Config
 
 	// HandshakeTimeout specifies the duration for the handshake to complete.
@@ -176,7 +186,7 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 	***REMOVED***
 
 	req := &http.Request***REMOVED***
-		Method:     "GET",
+		Method:     http.MethodGet,
 		URL:        u,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
@@ -237,13 +247,32 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 	// Get network dial function.
 	var netDial func(network, add string) (net.Conn, error)
 
-	if d.NetDialContext != nil ***REMOVED***
-		netDial = func(network, addr string) (net.Conn, error) ***REMOVED***
-			return d.NetDialContext(ctx, network, addr)
+	switch u.Scheme ***REMOVED***
+	case "http":
+		if d.NetDialContext != nil ***REMOVED***
+			netDial = func(network, addr string) (net.Conn, error) ***REMOVED***
+				return d.NetDialContext(ctx, network, addr)
+			***REMOVED***
+		***REMOVED*** else if d.NetDial != nil ***REMOVED***
+			netDial = d.NetDial
 		***REMOVED***
-	***REMOVED*** else if d.NetDial != nil ***REMOVED***
-		netDial = d.NetDial
-	***REMOVED*** else ***REMOVED***
+	case "https":
+		if d.NetDialTLSContext != nil ***REMOVED***
+			netDial = func(network, addr string) (net.Conn, error) ***REMOVED***
+				return d.NetDialTLSContext(ctx, network, addr)
+			***REMOVED***
+		***REMOVED*** else if d.NetDialContext != nil ***REMOVED***
+			netDial = func(network, addr string) (net.Conn, error) ***REMOVED***
+				return d.NetDialContext(ctx, network, addr)
+			***REMOVED***
+		***REMOVED*** else if d.NetDial != nil ***REMOVED***
+			netDial = d.NetDial
+		***REMOVED***
+	default:
+		return nil, nil, errMalformedURL
+	***REMOVED***
+
+	if netDial == nil ***REMOVED***
 		netDialer := &net.Dialer***REMOVED******REMOVED***
 		netDial = func(network, addr string) (net.Conn, error) ***REMOVED***
 			return netDialer.DialContext(ctx, network, addr)
@@ -304,7 +333,9 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 		***REMOVED***
 	***REMOVED***()
 
-	if u.Scheme == "https" ***REMOVED***
+	if u.Scheme == "https" && d.NetDialTLSContext == nil ***REMOVED***
+		// If NetDialTLSContext is set, assume that the TLS handshake has already been done
+
 		cfg := cloneTLSConfig(d.TLSClientConfig)
 		if cfg.ServerName == "" ***REMOVED***
 			cfg.ServerName = hostNoPort
@@ -312,11 +343,12 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 		tlsConn := tls.Client(netConn, cfg)
 		netConn = tlsConn
 
-		var err error
-		if trace != nil ***REMOVED***
-			err = doHandshakeWithTrace(trace, tlsConn, cfg)
-		***REMOVED*** else ***REMOVED***
-			err = doHandshake(tlsConn, cfg)
+		if trace != nil && trace.TLSHandshakeStart != nil ***REMOVED***
+			trace.TLSHandshakeStart()
+		***REMOVED***
+		err := doHandshake(ctx, tlsConn, cfg)
+		if trace != nil && trace.TLSHandshakeDone != nil ***REMOVED***
+			trace.TLSHandshakeDone(tlsConn.ConnectionState(), err)
 		***REMOVED***
 
 		if err != nil ***REMOVED***
@@ -348,8 +380,8 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 	***REMOVED***
 
 	if resp.StatusCode != 101 ||
-		!strings.EqualFold(resp.Header.Get("Upgrade"), "websocket") ||
-		!strings.EqualFold(resp.Header.Get("Connection"), "upgrade") ||
+		!tokenListContainsValue(resp.Header, "Upgrade", "websocket") ||
+		!tokenListContainsValue(resp.Header, "Connection", "upgrade") ||
 		resp.Header.Get("Sec-Websocket-Accept") != computeAcceptKey(challengeKey) ***REMOVED***
 		// Before closing the network connection on return from this
 		// function, slurp up some of the response to aid application
@@ -382,14 +414,9 @@ func (d *Dialer) DialContext(ctx context.Context, urlStr string, requestHeader h
 	return conn, resp, nil
 ***REMOVED***
 
-func doHandshake(tlsConn *tls.Conn, cfg *tls.Config) error ***REMOVED***
-	if err := tlsConn.Handshake(); err != nil ***REMOVED***
-		return err
+func cloneTLSConfig(cfg *tls.Config) *tls.Config ***REMOVED***
+	if cfg == nil ***REMOVED***
+		return &tls.Config***REMOVED******REMOVED***
 	***REMOVED***
-	if !cfg.InsecureSkipVerify ***REMOVED***
-		if err := tlsConn.VerifyHostname(cfg.ServerName); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
+	return cfg.Clone()
 ***REMOVED***

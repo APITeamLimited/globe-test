@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -399,6 +400,12 @@ func (c *Conn) write(frameType int, deadline time.Time, buf0, buf1 []byte) error
 		c.writeFatal(ErrCloseSent)
 	***REMOVED***
 	return nil
+***REMOVED***
+
+func (c *Conn) writeBufs(bufs ...[]byte) error ***REMOVED***
+	b := net.Buffers(bufs)
+	_, err := b.WriteTo(c.conn)
+	return err
 ***REMOVED***
 
 // WriteControl writes a control message with the given deadline. The allowed
@@ -794,47 +801,69 @@ func (c *Conn) advanceFrame() (int, error) ***REMOVED***
 	***REMOVED***
 
 	// 2. Read and parse first two bytes of frame header.
+	// To aid debugging, collect and report all errors in the first two bytes
+	// of the header.
+
+	var errors []string
 
 	p, err := c.read(2)
 	if err != nil ***REMOVED***
 		return noFrame, err
 	***REMOVED***
 
-	final := p[0]&finalBit != 0
 	frameType := int(p[0] & 0xf)
+	final := p[0]&finalBit != 0
+	rsv1 := p[0]&rsv1Bit != 0
+	rsv2 := p[0]&rsv2Bit != 0
+	rsv3 := p[0]&rsv3Bit != 0
 	mask := p[1]&maskBit != 0
 	c.setReadRemaining(int64(p[1] & 0x7f))
 
 	c.readDecompress = false
-	if c.newDecompressionReader != nil && (p[0]&rsv1Bit) != 0 ***REMOVED***
-		c.readDecompress = true
-		p[0] &^= rsv1Bit
+	if rsv1 ***REMOVED***
+		if c.newDecompressionReader != nil ***REMOVED***
+			c.readDecompress = true
+		***REMOVED*** else ***REMOVED***
+			errors = append(errors, "RSV1 set")
+		***REMOVED***
 	***REMOVED***
 
-	if rsv := p[0] & (rsv1Bit | rsv2Bit | rsv3Bit); rsv != 0 ***REMOVED***
-		return noFrame, c.handleProtocolError("unexpected reserved bits 0x" + strconv.FormatInt(int64(rsv), 16))
+	if rsv2 ***REMOVED***
+		errors = append(errors, "RSV2 set")
+	***REMOVED***
+
+	if rsv3 ***REMOVED***
+		errors = append(errors, "RSV3 set")
 	***REMOVED***
 
 	switch frameType ***REMOVED***
 	case CloseMessage, PingMessage, PongMessage:
 		if c.readRemaining > maxControlFramePayloadSize ***REMOVED***
-			return noFrame, c.handleProtocolError("control frame length > 125")
+			errors = append(errors, "len > 125 for control")
 		***REMOVED***
 		if !final ***REMOVED***
-			return noFrame, c.handleProtocolError("control frame not final")
+			errors = append(errors, "FIN not set on control")
 		***REMOVED***
 	case TextMessage, BinaryMessage:
 		if !c.readFinal ***REMOVED***
-			return noFrame, c.handleProtocolError("message start before final message frame")
+			errors = append(errors, "data before FIN")
 		***REMOVED***
 		c.readFinal = final
 	case continuationFrame:
 		if c.readFinal ***REMOVED***
-			return noFrame, c.handleProtocolError("continuation after final message frame")
+			errors = append(errors, "continuation after FIN")
 		***REMOVED***
 		c.readFinal = final
 	default:
-		return noFrame, c.handleProtocolError("unknown opcode " + strconv.Itoa(frameType))
+		errors = append(errors, "bad opcode "+strconv.Itoa(frameType))
+	***REMOVED***
+
+	if mask != c.isServer ***REMOVED***
+		errors = append(errors, "bad MASK")
+	***REMOVED***
+
+	if len(errors) > 0 ***REMOVED***
+		return noFrame, c.handleProtocolError(strings.Join(errors, ", "))
 	***REMOVED***
 
 	// 3. Read and parse frame length as per
@@ -871,10 +900,6 @@ func (c *Conn) advanceFrame() (int, error) ***REMOVED***
 	***REMOVED***
 
 	// 4. Handle frame masking.
-
-	if mask != c.isServer ***REMOVED***
-		return noFrame, c.handleProtocolError("incorrect mask flag")
-	***REMOVED***
 
 	if mask ***REMOVED***
 		c.readMaskPos = 0
@@ -935,7 +960,7 @@ func (c *Conn) advanceFrame() (int, error) ***REMOVED***
 		if len(payload) >= 2 ***REMOVED***
 			closeCode = int(binary.BigEndian.Uint16(payload))
 			if !isValidReceivedCloseCode(closeCode) ***REMOVED***
-				return noFrame, c.handleProtocolError("invalid close code")
+				return noFrame, c.handleProtocolError("bad close code " + strconv.Itoa(closeCode))
 			***REMOVED***
 			closeText = string(payload[2:])
 			if !utf8.ValidString(closeText) ***REMOVED***
@@ -952,7 +977,11 @@ func (c *Conn) advanceFrame() (int, error) ***REMOVED***
 ***REMOVED***
 
 func (c *Conn) handleProtocolError(message string) error ***REMOVED***
-	c.WriteControl(CloseMessage, FormatCloseMessage(CloseProtocolError, message), time.Now().Add(writeWait))
+	data := FormatCloseMessage(CloseProtocolError, message)
+	if len(data) > maxControlFramePayloadSize ***REMOVED***
+		data = data[:maxControlFramePayloadSize]
+	***REMOVED***
+	c.WriteControl(CloseMessage, data, time.Now().Add(writeWait))
 	return errors.New("websocket: " + message)
 ***REMOVED***
 
