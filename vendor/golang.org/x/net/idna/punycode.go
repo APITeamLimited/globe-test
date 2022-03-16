@@ -49,6 +49,7 @@ func decode(encoded string) (string, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	i, n, bias := int32(0), initialN, initialBias
+	overflow := false
 	for pos < len(encoded) ***REMOVED***
 		oldI, w := i, int32(1)
 		for k := base; ; k += base ***REMOVED***
@@ -60,29 +61,32 @@ func decode(encoded string) (string, error) ***REMOVED***
 				return "", punyError(encoded)
 			***REMOVED***
 			pos++
-			i += digit * w
-			if i < 0 ***REMOVED***
+			i, overflow = madd(i, digit, w)
+			if overflow ***REMOVED***
 				return "", punyError(encoded)
 			***REMOVED***
 			t := k - bias
-			if t < tmin ***REMOVED***
+			if k <= bias ***REMOVED***
 				t = tmin
-			***REMOVED*** else if t > tmax ***REMOVED***
+			***REMOVED*** else if k >= bias+tmax ***REMOVED***
 				t = tmax
 			***REMOVED***
 			if digit < t ***REMOVED***
 				break
 			***REMOVED***
-			w *= base - t
-			if w >= math.MaxInt32/base ***REMOVED***
+			w, overflow = madd(0, w, base-t)
+			if overflow ***REMOVED***
 				return "", punyError(encoded)
 			***REMOVED***
+		***REMOVED***
+		if len(output) >= 1024 ***REMOVED***
+			return "", punyError(encoded)
 		***REMOVED***
 		x := int32(len(output) + 1)
 		bias = adapt(i-oldI, x, oldI == 0)
 		n += i / x
 		i %= x
-		if n > utf8.MaxRune || len(output) >= 1024 ***REMOVED***
+		if n < 0 || n > utf8.MaxRune ***REMOVED***
 			return "", punyError(encoded)
 		***REMOVED***
 		output = append(output, 0)
@@ -115,6 +119,7 @@ func encode(prefix, s string) (string, error) ***REMOVED***
 	if b > 0 ***REMOVED***
 		output = append(output, '-')
 	***REMOVED***
+	overflow := false
 	for remaining != 0 ***REMOVED***
 		m := int32(0x7fffffff)
 		for _, r := range s ***REMOVED***
@@ -122,8 +127,8 @@ func encode(prefix, s string) (string, error) ***REMOVED***
 				m = r
 			***REMOVED***
 		***REMOVED***
-		delta += (m - n) * (h + 1)
-		if delta < 0 ***REMOVED***
+		delta, overflow = madd(delta, m-n, h+1)
+		if overflow ***REMOVED***
 			return "", punyError(s)
 		***REMOVED***
 		n = m
@@ -141,9 +146,9 @@ func encode(prefix, s string) (string, error) ***REMOVED***
 			q := delta
 			for k := base; ; k += base ***REMOVED***
 				t := k - bias
-				if t < tmin ***REMOVED***
+				if k <= bias ***REMOVED***
 					t = tmin
-				***REMOVED*** else if t > tmax ***REMOVED***
+				***REMOVED*** else if k >= bias+tmax ***REMOVED***
 					t = tmax
 				***REMOVED***
 				if q < t ***REMOVED***
@@ -162,6 +167,15 @@ func encode(prefix, s string) (string, error) ***REMOVED***
 		n++
 	***REMOVED***
 	return string(output), nil
+***REMOVED***
+
+// madd computes a + (b * c), detecting overflow.
+func madd(a, b, c int32) (next int32, overflow bool) ***REMOVED***
+	p := int64(b) * int64(c)
+	if p > math.MaxInt32-int64(a) ***REMOVED***
+		return 0, true
+	***REMOVED***
+	return a + int32(p), false
 ***REMOVED***
 
 func decodeDigit(x byte) (digit int32, ok bool) ***REMOVED***

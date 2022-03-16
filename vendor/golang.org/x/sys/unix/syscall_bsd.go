@@ -163,9 +163,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
 ***REMOVED***
 
@@ -179,9 +177,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
 ***REMOVED***
 
@@ -210,9 +206,7 @@ func (sa *SockaddrDatalink) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMO
 	sa.raw.Nlen = sa.Nlen
 	sa.raw.Alen = sa.Alen
 	sa.raw.Slen = sa.Slen
-	for i := 0; i < len(sa.raw.Data); i++ ***REMOVED***
-		sa.raw.Data[i] = sa.Data[i]
-	***REMOVED***
+	sa.raw.Data = sa.Data
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrDatalink, nil
 ***REMOVED***
 
@@ -228,9 +222,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		sa.Nlen = pp.Nlen
 		sa.Alen = pp.Alen
 		sa.Slen = pp.Slen
-		for i := 0; i < len(sa.Data); i++ ***REMOVED***
-			sa.Data[i] = pp.Data[i]
-		***REMOVED***
+		sa.Data = pp.Data
 		return sa, nil
 
 	case AF_UNIX:
@@ -262,9 +254,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-			sa.Addr[i] = pp.Addr[i]
-		***REMOVED***
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -273,9 +263,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-			sa.Addr[i] = pp.Addr[i]
-		***REMOVED***
+		sa.Addr = pp.Addr
 		return sa, nil
 	***REMOVED***
 	return anyToSockaddrGOOS(fd, rsa)

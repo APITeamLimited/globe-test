@@ -70,9 +70,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 ***REMOVED***
 
@@ -85,9 +83,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 ***REMOVED***
 
@@ -261,9 +257,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-			sa.Addr[i] = pp.Addr[i]
-		***REMOVED***
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -272,9 +266,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-			sa.Addr[i] = pp.Addr[i]
-		***REMOVED***
+		sa.Addr = pp.Addr
 		return sa, nil
 	***REMOVED***
 	return nil, EAFNOSUPPORT
@@ -385,6 +377,11 @@ func (w WaitStatus) TrapCause() int ***REMOVED*** return -1 ***REMOVED***
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
+//sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+func Fsync(fd int) error ***REMOVED***
+	return fsyncRange(fd, O_SYNC, 0, 0)
+***REMOVED***
+
 /*
  * Direct access
  */
@@ -401,7 +398,6 @@ func (w WaitStatus) TrapCause() int ***REMOVED*** return -1 ***REMOVED***
 //sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (err error)
 //sys	Fdatasync(fd int) (err error)
-//sys	Fsync(fd int) (err error)
 // readdir_r
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
@@ -523,8 +519,10 @@ func Pipe(p []int) (err error) ***REMOVED***
 	***REMOVED***
 	var pp [2]_C_int
 	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil ***REMOVED***
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	***REMOVED***
 	return
 ***REMOVED***
 

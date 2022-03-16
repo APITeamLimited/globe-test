@@ -53,6 +53,13 @@ func (e ErrCode) String() string ***REMOVED***
 	return fmt.Sprintf("unknown error code 0x%x", uint32(e))
 ***REMOVED***
 
+func (e ErrCode) stringToken() string ***REMOVED***
+	if s, ok := errCodeName[e]; ok ***REMOVED***
+		return s
+	***REMOVED***
+	return fmt.Sprintf("ERR_UNKNOWN_%d", uint32(e))
+***REMOVED***
+
 // ConnectionError is an error that results in the termination of the
 // entire connection.
 type ConnectionError ErrCode

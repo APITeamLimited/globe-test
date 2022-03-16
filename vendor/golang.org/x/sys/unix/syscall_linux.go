@@ -13,7 +13,6 @@ package unix
 
 import (
 	"encoding/binary"
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -36,6 +35,13 @@ func Chown(path string, uid int, gid int) (err error) ***REMOVED***
 
 func Creat(path string, mode uint32) (fd int, err error) ***REMOVED***
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
+***REMOVED***
+
+func EpollCreate(size int) (fd int, err error) ***REMOVED***
+	if size <= 0 ***REMOVED***
+		return -1, EINVAL
+	***REMOVED***
+	return EpollCreate1(0)
 ***REMOVED***
 
 //sys	FanotifyInit(flags uint, event_f_flags uint) (fd int, err error)
@@ -66,11 +72,22 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) ***REM
 	return fchmodat(dirfd, path, mode)
 ***REMOVED***
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+func InotifyInit() (fd int, err error) ***REMOVED***
+	return InotifyInit1(0)
+***REMOVED***
 
-// ioctl itself should not be exposed directly, but additional get/set
-// functions for specific types are permissible.
-// These are defined in ioctl.go and ioctl_linux.go.
+//sys	ioctl(fd int, req uint, arg uintptr) (err error) = SYS_IOCTL
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
+
+// ioctl itself should not be exposed directly, but additional get/set functions
+// for specific types are permissible. These are defined in ioctl.go and
+// ioctl_linux.go.
+//
+// The third argument to ioctl is often a pointer but sometimes an integer.
+// Callers should use ioctlPtr when the third argument is a pointer and ioctl
+// when the third argument is an integer.
+//
+// TODO: some existing code incorrectly uses ioctl when it should use ioctlPtr.
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
 
@@ -102,6 +119,25 @@ func Openat2(dirfd int, path string, how *OpenHow) (fd int, err error) ***REMOVE
 	return openat2(dirfd, path, how, SizeofOpenHow)
 ***REMOVED***
 
+func Pipe(p []int) error ***REMOVED***
+	return Pipe2(p, 0)
+***REMOVED***
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error ***REMOVED***
+	if len(p) != 2 ***REMOVED***
+		return EINVAL
+	***REMOVED***
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	if err == nil ***REMOVED***
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	***REMOVED***
+	return err
+***REMOVED***
+
 //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 
 func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error) ***REMOVED***
@@ -109,6 +145,15 @@ func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error
 		return ppoll(nil, 0, timeout, sigmask)
 	***REMOVED***
 	return ppoll(&fds[0], len(fds), timeout, sigmask)
+***REMOVED***
+
+func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
+	var ts *Timespec
+	if timeout >= 0 ***REMOVED***
+		ts = new(Timespec)
+		*ts = NsecToTimespec(int64(timeout) * 1e6)
+	***REMOVED***
+	return Ppoll(fds, ts, nil)
 ***REMOVED***
 
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -161,27 +206,7 @@ func Utimes(path string, tv []Timeval) error ***REMOVED***
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 func UtimesNano(path string, ts []Timespec) error ***REMOVED***
-	if ts == nil ***REMOVED***
-		err := utimensat(AT_FDCWD, path, nil, 0)
-		if err != ENOSYS ***REMOVED***
-			return err
-		***REMOVED***
-		return utimes(path, nil)
-	***REMOVED***
-	if len(ts) != 2 ***REMOVED***
-		return EINVAL
-	***REMOVED***
-	err := utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
-	if err != ENOSYS ***REMOVED***
-		return err
-	***REMOVED***
-	// If the utimensat syscall isn't available (utimensat was added to Linux
-	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
-	var tv [2]Timeval
-	for i := 0; i < 2; i++ ***REMOVED***
-		tv[i] = NsecToTimeval(TimespecToNsec(ts[i]))
-	***REMOVED***
-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return UtimesNanoAt(AT_FDCWD, path, ts, 0)
 ***REMOVED***
 
 func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error ***REMOVED***
@@ -349,9 +374,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 ***REMOVED***
 
@@ -364,9 +387,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 ***REMOVED***
 
@@ -415,9 +436,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) ***REM
 	sa.raw.Hatype = sa.Hatype
 	sa.raw.Pkttype = sa.Pkttype
 	sa.raw.Halen = sa.Halen
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 ***REMOVED***
 
@@ -832,12 +851,10 @@ func (sa *SockaddrTIPC) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED*
 	if sa.Addr == nil ***REMOVED***
 		return nil, 0, EINVAL
 	***REMOVED***
-
 	sa.raw.Family = AF_TIPC
 	sa.raw.Scope = int8(sa.Scope)
 	sa.raw.Addrtype = sa.Addr.tipcAddrtype()
 	sa.raw.Addr = sa.Addr.tipcAddr()
-
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrTIPC, nil
 ***REMOVED***
 
@@ -851,9 +868,7 @@ type SockaddrL2TPIP struct ***REMOVED***
 func (sa *SockaddrL2TPIP) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
 	sa.raw.Family = AF_INET
 	sa.raw.Conn_id = sa.ConnId
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrL2TPIP, nil
 ***REMOVED***
 
@@ -869,9 +884,7 @@ func (sa *SockaddrL2TPIP6) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOV
 	sa.raw.Family = AF_INET6
 	sa.raw.Conn_id = sa.ConnId
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-		sa.raw.Addr[i] = sa.Addr[i]
-	***REMOVED***
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrL2TPIP6, nil
 ***REMOVED***
 
@@ -904,6 +917,46 @@ func (sa *SockaddrIUCV) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED*
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrIUCV, nil
 ***REMOVED***
 
+type SockaddrNFC struct ***REMOVED***
+	DeviceIdx   uint32
+	TargetIdx   uint32
+	NFCProtocol uint32
+	raw         RawSockaddrNFC
+***REMOVED***
+
+func (sa *SockaddrNFC) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Sa_family = AF_NFC
+	sa.raw.Dev_idx = sa.DeviceIdx
+	sa.raw.Target_idx = sa.TargetIdx
+	sa.raw.Nfc_protocol = sa.NFCProtocol
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrNFC, nil
+***REMOVED***
+
+type SockaddrNFCLLCP struct ***REMOVED***
+	DeviceIdx      uint32
+	TargetIdx      uint32
+	NFCProtocol    uint32
+	DestinationSAP uint8
+	SourceSAP      uint8
+	ServiceName    string
+	raw            RawSockaddrNFCLLCP
+***REMOVED***
+
+func (sa *SockaddrNFCLLCP) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Sa_family = AF_NFC
+	sa.raw.Dev_idx = sa.DeviceIdx
+	sa.raw.Target_idx = sa.TargetIdx
+	sa.raw.Nfc_protocol = sa.NFCProtocol
+	sa.raw.Dsap = sa.DestinationSAP
+	sa.raw.Ssap = sa.SourceSAP
+	if len(sa.ServiceName) > len(sa.raw.Service_name) ***REMOVED***
+		return nil, 0, EINVAL
+	***REMOVED***
+	copy(sa.raw.Service_name[:], sa.ServiceName)
+	sa.raw.SetServiceNameLen(len(sa.ServiceName))
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrNFCLLCP, nil
+***REMOVED***
+
 var socketProtocol = func(fd int) (int, error) ***REMOVED***
 	return GetsockoptInt(fd, SOL_SOCKET, SO_PROTOCOL)
 ***REMOVED***
@@ -927,9 +980,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		sa.Hatype = pp.Hatype
 		sa.Pkttype = pp.Pkttype
 		sa.Halen = pp.Halen
-		for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-			sa.Addr[i] = pp.Addr[i]
-		***REMOVED***
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_UNIX:
@@ -968,18 +1019,14 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 			pp := (*RawSockaddrL2TPIP)(unsafe.Pointer(rsa))
 			sa := new(SockaddrL2TPIP)
 			sa.ConnId = pp.Conn_id
-			for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-				sa.Addr[i] = pp.Addr[i]
-			***REMOVED***
+			sa.Addr = pp.Addr
 			return sa, nil
 		default:
 			pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
 			sa := new(SockaddrInet4)
 			p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 			sa.Port = int(p[0])<<8 + int(p[1])
-			for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-				sa.Addr[i] = pp.Addr[i]
-			***REMOVED***
+			sa.Addr = pp.Addr
 			return sa, nil
 		***REMOVED***
 
@@ -995,9 +1042,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 			sa := new(SockaddrL2TPIP6)
 			sa.ConnId = pp.Conn_id
 			sa.ZoneId = pp.Scope_id
-			for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-				sa.Addr[i] = pp.Addr[i]
-			***REMOVED***
+			sa.Addr = pp.Addr
 			return sa, nil
 		default:
 			pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa))
@@ -1005,9 +1050,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 			p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 			sa.Port = int(p[0])<<8 + int(p[1])
 			sa.ZoneId = pp.Scope_id
-			for i := 0; i < len(sa.Addr); i++ ***REMOVED***
-				sa.Addr[i] = pp.Addr[i]
-			***REMOVED***
+			sa.Addr = pp.Addr
 			return sa, nil
 		***REMOVED***
 
@@ -1144,6 +1187,37 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 			***REMOVED***
 			return sa, nil
 		***REMOVED***
+	case AF_NFC:
+		proto, err := socketProtocol(fd)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		switch proto ***REMOVED***
+		case NFC_SOCKPROTO_RAW:
+			pp := (*RawSockaddrNFC)(unsafe.Pointer(rsa))
+			sa := &SockaddrNFC***REMOVED***
+				DeviceIdx:   pp.Dev_idx,
+				TargetIdx:   pp.Target_idx,
+				NFCProtocol: pp.Nfc_protocol,
+			***REMOVED***
+			return sa, nil
+		case NFC_SOCKPROTO_LLCP:
+			pp := (*RawSockaddrNFCLLCP)(unsafe.Pointer(rsa))
+			if uint64(pp.Service_name_len) > uint64(len(pp.Service_name)) ***REMOVED***
+				return nil, EINVAL
+			***REMOVED***
+			sa := &SockaddrNFCLLCP***REMOVED***
+				DeviceIdx:      pp.Dev_idx,
+				TargetIdx:      pp.Target_idx,
+				NFCProtocol:    pp.Nfc_protocol,
+				DestinationSAP: pp.Dsap,
+				SourceSAP:      pp.Ssap,
+				ServiceName:    string(pp.Service_name[:pp.Service_name_len]),
+			***REMOVED***
+			return sa, nil
+		default:
+			return nil, EINVAL
+		***REMOVED***
 	***REMOVED***
 	return nil, EAFNOSUPPORT
 ***REMOVED***
@@ -1151,11 +1225,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 func Accept(fd int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
 	nfd, err = accept4(fd, &rsa, &len, 0)
-	if err == ENOSYS ***REMOVED***
-		nfd, err = accept(fd, &rsa, &len)
-	***REMOVED***
 	if err != nil ***REMOVED***
 		return
 	***REMOVED***
@@ -1275,6 +1345,13 @@ func SetsockoptTpacketReq(fd, level, opt int, tp *TpacketReq) error ***REMOVED**
 
 func SetsockoptTpacketReq3(fd, level, opt int, tp *TpacketReq3) error ***REMOVED***
 	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
+***REMOVED***
+
+func SetsockoptTCPRepairOpt(fd, level, opt int, o []TCPRepairOpt) (err error) ***REMOVED***
+	if len(o) == 0 ***REMOVED***
+		return EINVAL
+	***REMOVED***
+	return setsockopt(fd, level, opt, unsafe.Pointer(&o[0]), uintptr(SizeofTCPRepairOpt*len(o)))
 ***REMOVED***
 
 // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
@@ -1700,6 +1777,16 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 	return mount(source, target, fstype, flags, datap)
 ***REMOVED***
 
+//sys	mountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr, size uintptr) (err error) = SYS_MOUNT_SETATTR
+
+// MountSetattr is a wrapper for mount_setattr(2).
+// https://man7.org/linux/man-pages/man2/mount_setattr.2.html
+//
+// Requires kernel >= 5.12.
+func MountSetattr(dirfd int, pathname string, flags uint, attr *MountAttr) error ***REMOVED***
+	return mountSetattr(dirfd, pathname, flags, attr, unsafe.Sizeof(*attr))
+***REMOVED***
+
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) ***REMOVED***
 	if raceenabled ***REMOVED***
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
@@ -1731,11 +1818,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Dup(oldfd int) (fd int, err error)
 
 func Dup2(oldfd, newfd int) error ***REMOVED***
-	// Android O and newer blocks dup2; riscv and arm64 don't implement dup2.
-	if runtime.GOOS == "android" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "arm64" ***REMOVED***
-		return Dup3(oldfd, newfd, 0)
-	***REMOVED***
-	return dup2(oldfd, newfd)
+	return Dup3(oldfd, newfd, 0)
 ***REMOVED***
 
 //sys	Dup3(oldfd int, newfd int, flags int) (err error)
@@ -1788,7 +1871,7 @@ func Getpgrp() (pid int) ***REMOVED***
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
-//sysnb	prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
+//sysnb	Prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
 //sys	read(fd int, p []byte) (n int, err error)
@@ -2223,6 +2306,14 @@ type RemoteIovec struct ***REMOVED***
 //sys	ProcessVMReadv(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_READV
 //sys	ProcessVMWritev(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_WRITEV
 
+//sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
+//sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
+
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
+
 /*
  * Unimplemented
  */
@@ -2304,10 +2395,6 @@ type RemoteIovec struct ***REMOVED***
 // SetRobustList
 // SetThreadArea
 // SetTidAddress
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Sigaltstack
 // Swapoff
 // Swapon

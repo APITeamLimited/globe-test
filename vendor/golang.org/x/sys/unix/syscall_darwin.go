@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"fmt"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -47,6 +48,30 @@ func (sa *SockaddrCtl) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED**
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrCtl, nil
 ***REMOVED***
 
+// SockaddrVM implements the Sockaddr interface for AF_VSOCK type sockets.
+// SockaddrVM provides access to Darwin VM sockets: a mechanism that enables
+// bidirectional communication between a hypervisor and its guest virtual
+// machines.
+type SockaddrVM struct ***REMOVED***
+	// CID and Port specify a context ID and port address for a VM socket.
+	// Guests have a unique CID, and hosts may have a well-known CID of:
+	//  - VMADDR_CID_HYPERVISOR: refers to the hypervisor process.
+	//  - VMADDR_CID_LOCAL: refers to local communication (loopback).
+	//  - VMADDR_CID_HOST: refers to other processes on the host.
+	CID  uint32
+	Port uint32
+	raw  RawSockaddrVM
+***REMOVED***
+
+func (sa *SockaddrVM) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Len = SizeofSockaddrVM
+	sa.raw.Family = AF_VSOCK
+	sa.raw.Port = sa.Port
+	sa.raw.Cid = sa.CID
+
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrVM, nil
+***REMOVED***
+
 func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 	switch rsa.Addr.Family ***REMOVED***
 	case AF_SYSTEM:
@@ -57,6 +82,13 @@ func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED
 			sa.Unit = pp.Sc_unit
 			return sa, nil
 		***REMOVED***
+	case AF_VSOCK:
+		pp := (*RawSockaddrVM)(unsafe.Pointer(rsa))
+		sa := &SockaddrVM***REMOVED***
+			CID:  pp.Cid,
+			Port: pp.Port,
+		***REMOVED***
+		return sa, nil
 	***REMOVED***
 	return nil, EAFNOSUPPORT
 ***REMOVED***
@@ -127,8 +159,10 @@ func Pipe(p []int) (err error) ***REMOVED***
 	***REMOVED***
 	var x [2]int32
 	err = pipe(&x)
-	p[0] = int(x[0])
-	p[1] = int(x[1])
+	if err == nil ***REMOVED***
+		p[0] = int(x[0])
+		p[1] = int(x[1])
+	***REMOVED***
 	return
 ***REMOVED***
 
@@ -398,7 +432,61 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) ***REMOVED***
 	return x, err
 ***REMOVED***
 
+func SysctlKinfoProc(name string, args ...int) (*KinfoProc, error) ***REMOVED***
+	mib, err := sysctlmib(name, args...)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	var kinfo KinfoProc
+	n := uintptr(SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&kinfo)), &n, nil, 0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if n != SizeofKinfoProc ***REMOVED***
+		return nil, EIO
+	***REMOVED***
+	return &kinfo, nil
+***REMOVED***
+
+func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) ***REMOVED***
+	mib, err := sysctlmib(name, args...)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	// Find size.
+	n := uintptr(0)
+	if err := sysctl(mib, nil, &n, nil, 0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if n == 0 ***REMOVED***
+		return nil, nil
+	***REMOVED***
+	if n%SizeofKinfoProc != 0 ***REMOVED***
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	***REMOVED***
+
+	// Read into buffer of that size.
+	buf := make([]KinfoProc, n/SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if n%SizeofKinfoProc != 0 ***REMOVED***
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	***REMOVED***
+
+	// The actual call may return less than the original reported required
+	// size so ensure we deal with that.
+	return buf[:n/SizeofKinfoProc], nil
+***REMOVED***
+
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
 
 /*
  * Exposed directly
@@ -557,10 +645,6 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) ***REMOVED***
 // Msgget
 // Msgsnd
 // Msgrcv
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Shm_open
 // Shm_unlink
 // Sem_open

@@ -251,6 +251,13 @@ func (t Tag) Parent() Tag ***REMOVED***
 
 // ParseExtension parses s as an extension and returns it on success.
 func ParseExtension(s string) (ext string, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			ext = ""
+			err = ErrSyntax
+		***REMOVED***
+	***REMOVED***()
+
 	scan := makeScannerString(s)
 	var end int
 	if n := len(scan.token); n != 1 ***REMOVED***
@@ -461,7 +468,14 @@ func (t Tag) findTypeForKey(key string) (start, sep, end int, hasExt bool) ***RE
 // ParseBase parses a 2- or 3-letter ISO 639 code.
 // It returns a ValueError if s is a well-formed but unknown language identifier
 // or another error if another error occurred.
-func ParseBase(s string) (Language, error) ***REMOVED***
+func ParseBase(s string) (l Language, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			l = 0
+			err = ErrSyntax
+		***REMOVED***
+	***REMOVED***()
+
 	if n := len(s); n < 2 || 3 < n ***REMOVED***
 		return 0, ErrSyntax
 	***REMOVED***
@@ -472,7 +486,14 @@ func ParseBase(s string) (Language, error) ***REMOVED***
 // ParseScript parses a 4-letter ISO 15924 code.
 // It returns a ValueError if s is a well-formed but unknown script identifier
 // or another error if another error occurred.
-func ParseScript(s string) (Script, error) ***REMOVED***
+func ParseScript(s string) (scr Script, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			scr = 0
+			err = ErrSyntax
+		***REMOVED***
+	***REMOVED***()
+
 	if len(s) != 4 ***REMOVED***
 		return 0, ErrSyntax
 	***REMOVED***
@@ -489,7 +510,14 @@ func EncodeM49(r int) (Region, error) ***REMOVED***
 // ParseRegion parses a 2- or 3-letter ISO 3166-1 or a UN M.49 code.
 // It returns a ValueError if s is a well-formed but unknown region identifier
 // or another error if another error occurred.
-func ParseRegion(s string) (Region, error) ***REMOVED***
+func ParseRegion(s string) (r Region, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			r = 0
+			err = ErrSyntax
+		***REMOVED***
+	***REMOVED***()
+
 	if n := len(s); n < 2 || 3 < n ***REMOVED***
 		return 0, ErrSyntax
 	***REMOVED***
@@ -578,7 +606,14 @@ type Variant struct ***REMOVED***
 
 // ParseVariant parses and returns a Variant. An error is returned if s is not
 // a valid variant.
-func ParseVariant(s string) (Variant, error) ***REMOVED***
+func ParseVariant(s string) (v Variant, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			v = Variant***REMOVED******REMOVED***
+			err = ErrSyntax
+		***REMOVED***
+	***REMOVED***()
+
 	s = strings.ToLower(s)
 	if id, ok := variantIndex[s]; ok ***REMOVED***
 		return Variant***REMOVED***id, s***REMOVED***, nil

@@ -8,8 +8,6 @@
 
 package unix
 
-//sys	dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -92,30 +90,6 @@ func setTimespec(sec, nsec int64) Timespec ***REMOVED***
 
 func setTimeval(sec, usec int64) Timeval ***REMOVED***
 	return Timeval***REMOVED***Sec: sec, Usec: usec***REMOVED***
-***REMOVED***
-
-func Pipe(p []int) (err error) ***REMOVED***
-	if len(p) != 2 ***REMOVED***
-		return EINVAL
-	***REMOVED***
-	var pp [2]_C_int
-	err = pipe2(&pp, 0)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-***REMOVED***
-
-//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) ***REMOVED***
-	if len(p) != 2 ***REMOVED***
-		return EINVAL
-	***REMOVED***
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
 ***REMOVED***
 
 func Ioperm(from int, num int, on int) (err error) ***REMOVED***
@@ -217,15 +191,6 @@ func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint64(length)
 ***REMOVED***
 
-func InotifyInit() (fd int, err error) ***REMOVED***
-	return InotifyInit1(0)
-***REMOVED***
-
-//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
-
-func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
-	if len(fds) == 0 ***REMOVED***
-		return poll(nil, 0, timeout)
-	***REMOVED***
-	return poll(&fds[0], len(fds), timeout)
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) ***REMOVED***
+	rsa.Service_name_len = uint64(length)
 ***REMOVED***
