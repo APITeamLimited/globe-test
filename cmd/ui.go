@@ -104,6 +104,18 @@ func getBanner(noColor bool) string ***REMOVED***
 	return c.Sprint(consts.Banner())
 ***REMOVED***
 
+func printBanner(gs *globalState) ***REMOVED***
+	if gs.flags.quiet ***REMOVED***
+		return // do not print banner when --quiet is enabled
+	***REMOVED***
+
+	banner := getBanner(gs.flags.noColor || !gs.stdOut.isTTY)
+	_, err := fmt.Fprintf(gs.stdOut, "\n%s\n\n", banner)
+	if err != nil ***REMOVED***
+		gs.logger.Warnf("could not print k6 banner message to stdout: %s", err.Error())
+	***REMOVED***
+***REMOVED***
+
 func printBar(gs *globalState, bar *pb.ProgressBar) ***REMOVED***
 	if gs.flags.quiet ***REMOVED***
 		return
@@ -124,7 +136,7 @@ func printBar(gs *globalState, bar *pb.ProgressBar) ***REMOVED***
 	***REMOVED***
 	rendered := bar.Render(0, widthDelta)
 	// Only output the left and middle part of the progress bar
-	fprintf(gs.stdOut, "%s%s", rendered.String(), end)
+	printToStdout(gs, rendered.String()+end)
 ***REMOVED***
 
 func modifyAndPrintBar(gs *globalState, bar *pb.ProgressBar, options ...pb.ProgressBarOption) ***REMOVED***
@@ -141,8 +153,9 @@ func printExecutionDescription(
 	noColor := gs.flags.noColor || !gs.stdOut.isTTY
 	valueColor := getColor(noColor, color.FgCyan)
 
-	fprintf(gs.stdOut, "  execution: %s\n", valueColor.Sprint(execution))
-	fprintf(gs.stdOut, "     script: %s\n", valueColor.Sprint(filename))
+	buf := &strings.Builder***REMOVED******REMOVED***
+	fmt.Fprintf(buf, "  execution: %s\n", valueColor.Sprint(execution))
+	fmt.Fprintf(buf, "     script: %s\n", valueColor.Sprint(filename))
 
 	var outputDescriptions []string
 	switch ***REMOVED***
@@ -156,8 +169,8 @@ func printExecutionDescription(
 		***REMOVED***
 	***REMOVED***
 
-	fprintf(gs.stdOut, "     output: %s\n", valueColor.Sprint(strings.Join(outputDescriptions, ", ")))
-	fprintf(gs.stdOut, "\n")
+	fmt.Fprintf(buf, "     output: %s\n", valueColor.Sprint(strings.Join(outputDescriptions, ", ")))
+	fmt.Fprintf(buf, "\n")
 
 	maxDuration, _ := lib.GetEndOffset(execPlan)
 	executorConfigs := conf.Scenarios.GetSortedConfigs()
@@ -167,16 +180,22 @@ func printExecutionDescription(
 		scenarioDesc = fmt.Sprintf("%d scenarios", len(executorConfigs))
 	***REMOVED***
 
-	fprintf(gs.stdOut, "  scenarios: %s\n", valueColor.Sprintf(
+	fmt.Fprintf(buf, "  scenarios: %s\n", valueColor.Sprintf(
 		"(%.2f%%) %s, %d max VUs, %s max duration (incl. graceful stop):",
 		conf.ExecutionSegment.FloatLength()*100, scenarioDesc,
 		lib.GetMaxPossibleVUs(execPlan), maxDuration.Round(100*time.Millisecond)),
 	)
 	for _, ec := range executorConfigs ***REMOVED***
-		fprintf(gs.stdOut, "           * %s: %s\n",
+		fmt.Fprintf(buf, "           * %s: %s\n",
 			ec.GetName(), ec.GetDescription(et))
 	***REMOVED***
-	fprintf(gs.stdOut, "\n")
+	fmt.Fprintf(buf, "\n")
+
+	if gs.flags.quiet ***REMOVED***
+		gs.logger.Debug(buf.String())
+	***REMOVED*** else ***REMOVED***
+		printToStdout(gs, buf.String())
+	***REMOVED***
 ***REMOVED***
 
 //nolint: funlen

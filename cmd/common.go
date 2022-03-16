@@ -24,7 +24,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -107,11 +106,8 @@ func detectType(data []byte) string ***REMOVED***
 	return typeJS
 ***REMOVED***
 
-// fprintf panics when where's an error writing to the supplied io.Writer
-func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED***) (n int) ***REMOVED***
-	n, err := fmt.Fprintf(w, format, a...)
-	if err != nil ***REMOVED***
-		panic(err.Error())
+func printToStdout(gs *globalState, s string) ***REMOVED***
+	if _, err := fmt.Fprint(gs.stdOut, s); err != nil ***REMOVED***
+		gs.logger.Errorf("could not print '%s' to stdout: %s", s, err.Error())
 	***REMOVED***
-	return n
 ***REMOVED***
