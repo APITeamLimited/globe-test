@@ -97,7 +97,7 @@ func (r *stashRefLex) set(v Value) ***REMOVED***
 ***REMOVED***
 
 func (r *stashRefLex) init(v Value) ***REMOVED***
-	r.set(v)
+	(*r.v)[r.idx] = v
 ***REMOVED***
 
 type stashRefConst struct ***REMOVED***
@@ -111,14 +111,11 @@ func (r *stashRefConst) set(v Value) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *stashRefConst) init(v Value) ***REMOVED***
-	r.set(v)
-***REMOVED***
-
 type objRef struct ***REMOVED***
-	base   objectImpl
-	name   unistring.String
-	strict bool
+	base    objectImpl
+	name    unistring.String
+	strict  bool
+	binding bool
 ***REMOVED***
 
 func (r *objRef) get() Value ***REMOVED***
@@ -126,7 +123,7 @@ func (r *objRef) get() Value ***REMOVED***
 ***REMOVED***
 
 func (r *objRef) set(v Value) ***REMOVED***
-	if r.strict && !r.base.hasOwnPropertyStr(r.name) ***REMOVED***
+	if r.strict && r.binding && !r.base.hasOwnPropertyStr(r.name) ***REMOVED***
 		panic(referenceError(fmt.Sprintf("%s is not defined", r.name)))
 	***REMOVED***
 	r.base.setOwnStr(r.name, v, r.strict)
@@ -314,9 +311,10 @@ func (s *stash) getRefByName(name unistring.String, strict bool) ref ***REMOVED*
 	if obj := s.obj; obj != nil ***REMOVED***
 		if stashObjHas(obj, name) ***REMOVED***
 			return &objRef***REMOVED***
-				base:   obj.self,
-				name:   name,
-				strict: strict,
+				base:    obj.self,
+				name:    name,
+				strict:  strict,
+				binding: true,
 			***REMOVED***
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -1943,8 +1941,9 @@ func (s resolveVar1) exec(vm *vm) ***REMOVED***
 	***REMOVED***
 
 	ref = &objRef***REMOVED***
-		base: vm.r.globalObject.self,
-		name: name,
+		base:    vm.r.globalObject.self,
+		name:    name,
+		binding: true,
 	***REMOVED***
 
 end:
@@ -2023,9 +2022,10 @@ func (s resolveVar1Strict) exec(vm *vm) ***REMOVED***
 
 	if vm.r.globalObject.self.hasPropertyStr(name) ***REMOVED***
 		ref = &objRef***REMOVED***
-			base:   vm.r.globalObject.self,
-			name:   name,
-			strict: true,
+			base:    vm.r.globalObject.self,
+			name:    name,
+			binding: true,
+			strict:  true,
 		***REMOVED***
 		goto end
 	***REMOVED***

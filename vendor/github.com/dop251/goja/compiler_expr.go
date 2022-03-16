@@ -395,11 +395,11 @@ func (e *compiledIdentifierExpr) emitGetterAndCallee() ***REMOVED***
 func (e *compiledIdentifierExpr) emitVarSetter1(putOnStack bool, emitRight func(isRef bool)) ***REMOVED***
 	e.addSrcMap()
 	c := e.c
-	if c.scope.strict ***REMOVED***
-		c.checkIdentifierLName(e.name, e.offset)
-	***REMOVED***
 
 	if b, noDynamics := c.scope.lookupName(e.name); noDynamics ***REMOVED***
+		if c.scope.strict ***REMOVED***
+			c.checkIdentifierLName(e.name, e.offset)
+		***REMOVED***
 		emitRight(false)
 		if b != nil ***REMOVED***
 			if putOnStack ***REMOVED***
@@ -418,15 +418,7 @@ func (e *compiledIdentifierExpr) emitVarSetter1(putOnStack bool, emitRight func(
 			***REMOVED***
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if b != nil ***REMOVED***
-			b.emitResolveVar(c.scope.strict)
-		***REMOVED*** else ***REMOVED***
-			if c.scope.strict ***REMOVED***
-				c.emit(resolveVar1Strict(e.name))
-			***REMOVED*** else ***REMOVED***
-				c.emit(resolveVar1(e.name))
-			***REMOVED***
-		***REMOVED***
+		c.emitVarRef(e.name, e.offset, b)
 		emitRight(true)
 		if putOnStack ***REMOVED***
 			c.emit(putValue)
@@ -438,16 +430,15 @@ func (e *compiledIdentifierExpr) emitVarSetter1(putOnStack bool, emitRight func(
 
 func (e *compiledIdentifierExpr) emitVarSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
 	e.emitVarSetter1(putOnStack, func(bool) ***REMOVED***
-		e.c.emitExpr(valueExpr, true)
+		e.c.emitNamedOrConst(valueExpr, e.name)
 	***REMOVED***)
 ***REMOVED***
 
-func (c *compiler) emitVarRef(name unistring.String, offset int) ***REMOVED***
+func (c *compiler) emitVarRef(name unistring.String, offset int, b *binding) ***REMOVED***
 	if c.scope.strict ***REMOVED***
 		c.checkIdentifierLName(name, offset)
 	***REMOVED***
 
-	b, _ := c.scope.lookupName(name)
 	if b != nil ***REMOVED***
 		b.emitResolveVar(c.scope.strict)
 	***REMOVED*** else ***REMOVED***
@@ -460,7 +451,8 @@ func (c *compiler) emitVarRef(name unistring.String, offset int) ***REMOVED***
 ***REMOVED***
 
 func (e *compiledIdentifierExpr) emitRef() ***REMOVED***
-	e.c.emitVarRef(e.name, e.offset)
+	b, _ := e.c.scope.lookupName(e.name)
+	e.c.emitVarRef(e.name, e.offset, b)
 ***REMOVED***
 
 func (e *compiledIdentifierExpr) emitSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
@@ -773,13 +765,6 @@ func (e *deleteGlobalExpr) emitGetter(putOnStack bool) ***REMOVED***
 func (e *compiledAssignExpr) emitGetter(putOnStack bool) ***REMOVED***
 	switch e.operator ***REMOVED***
 	case token.ASSIGN:
-		if fn, ok := e.right.(*compiledFunctionLiteral); ok ***REMOVED***
-			if fn.name == nil ***REMOVED***
-				if id, ok := e.left.(*compiledIdentifierExpr); ok ***REMOVED***
-					fn.lhsName = id.name
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
 		e.left.emitSetter(e.right, putOnStack)
 	case token.PLUS:
 		e.left.emitUnary(nil, func() ***REMOVED***
@@ -1065,14 +1050,14 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 					***REMOVED***
 				***REMOVED***, item.Initializer, item.Target.Idx0()).emitGetter(true)
 				e.c.emitPattern(pattern, func(target, init compiledExpr) ***REMOVED***
-					e.c.emitPatternLexicalAssign(target, init, false)
+					e.c.emitPatternLexicalAssign(target, init)
 				***REMOVED***, false)
 			***REMOVED*** else if item.Initializer != nil ***REMOVED***
 				markGet := len(e.c.p.code)
 				e.c.emit(nil)
 				mark := len(e.c.p.code)
 				e.c.emit(nil)
-				e.c.compileExpression(item.Initializer).emitGetter(true)
+				e.c.emitExpr(e.c.compileExpression(item.Initializer), true)
 				if firstForwardRef == -1 && (s.isDynamic() || s.bindings[i].useCount() > 0) ***REMOVED***
 					firstForwardRef = i
 				***REMOVED***
@@ -1100,7 +1085,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 					e.c.emit(createArgsRestStack(paramsCount))
 				***REMOVED***, rest.Idx0()),
 				func(target, init compiledExpr) ***REMOVED***
-					e.c.emitPatternLexicalAssign(target, init, false)
+					e.c.emitPatternLexicalAssign(target, init)
 				***REMOVED***)
 		***REMOVED***
 		if firstForwardRef != -1 ***REMOVED***
@@ -1471,14 +1456,6 @@ func (c *compiler) emitConst(expr compiledExpr, putOnStack bool) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitExpr(expr compiledExpr, putOnStack bool) ***REMOVED***
-	if expr.constant() ***REMOVED***
-		c.emitConst(expr, putOnStack)
-	***REMOVED*** else ***REMOVED***
-		expr.emitGetter(putOnStack)
-	***REMOVED***
-***REMOVED***
-
 func (c *compiler) evalConst(expr compiledExpr) (Value, *Exception) ***REMOVED***
 	if expr, ok := expr.(*compiledLiteral); ok ***REMOVED***
 		return expr.val, nil
@@ -1825,7 +1802,7 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			***REMOVED***
 			if computed ***REMOVED***
 				e.c.emit(_toPropertyKey***REMOVED******REMOVED***)
-				valueExpr.emitGetter(true)
+				e.c.emitExpr(valueExpr, true)
 				switch prop.Kind ***REMOVED***
 				case ast.PropertyKindValue, ast.PropertyKindMethod:
 					if anonFn != nil ***REMOVED***
@@ -1852,7 +1829,7 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				if anonFn != nil && !isProto ***REMOVED***
 					anonFn.lhsName = key
 				***REMOVED***
-				valueExpr.emitGetter(true)
+				e.c.emitExpr(valueExpr, true)
 				switch prop.Kind ***REMOVED***
 				case ast.PropertyKindValue:
 					if isProto ***REMOVED***
@@ -1912,7 +1889,7 @@ func (e *compiledArrayLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			e.c.emit(pushArraySpread)
 		***REMOVED*** else ***REMOVED***
 			if v != nil ***REMOVED***
-				e.c.compileExpression(v).emitGetter(true)
+				e.c.emitExpr(e.c.compileExpression(v), true)
 			***REMOVED*** else ***REMOVED***
 				e.c.emit(loadNil)
 			***REMOVED***
@@ -2195,6 +2172,14 @@ func (e *compiledArrayAssignmentPattern) emitGetter(putOnStack bool) ***REMOVED*
 	***REMOVED***
 ***REMOVED***
 
+func (c *compiler) emitExpr(expr compiledExpr, putOnStack bool) ***REMOVED***
+	if expr.constant() ***REMOVED***
+		c.emitConst(expr, putOnStack)
+	***REMOVED*** else ***REMOVED***
+		expr.emitGetter(putOnStack)
+	***REMOVED***
+***REMOVED***
+
 func (c *compiler) emitNamed(expr compiledExpr, name unistring.String) ***REMOVED***
 	if en, ok := expr.(interface ***REMOVED***
 		emitNamed(name unistring.String)
@@ -2202,6 +2187,14 @@ func (c *compiler) emitNamed(expr compiledExpr, name unistring.String) ***REMOVE
 		en.emitNamed(name)
 	***REMOVED*** else ***REMOVED***
 		expr.emitGetter(true)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) emitNamedOrConst(expr compiledExpr, name unistring.String) ***REMOVED***
+	if expr.constant() ***REMOVED***
+		c.emitConst(expr, true)
+	***REMOVED*** else ***REMOVED***
+		c.emitNamed(expr, name)
 	***REMOVED***
 ***REMOVED***
 
@@ -2327,7 +2320,7 @@ func (e *compiledPatternInitExpr) emitGetter(putOnStack bool) ***REMOVED***
 	if e.def != nil ***REMOVED***
 		mark := len(e.c.p.code)
 		e.c.emit(nil)
-		e.def.emitGetter(true)
+		e.c.emitExpr(e.def, true)
 		e.c.p.code[mark] = jdef(len(e.c.p.code) - mark)
 	***REMOVED***
 ***REMOVED***
@@ -2337,7 +2330,7 @@ func (e *compiledPatternInitExpr) emitNamed(name unistring.String) ***REMOVED***
 	if e.def != nil ***REMOVED***
 		mark := len(e.c.p.code)
 		e.c.emit(nil)
-		e.c.emitNamed(e.def, name)
+		e.c.emitNamedOrConst(e.def, name)
 		e.c.p.code[mark] = jdef(len(e.c.p.code) - mark)
 	***REMOVED***
 ***REMOVED***

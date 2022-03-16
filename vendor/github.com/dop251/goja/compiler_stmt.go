@@ -9,7 +9,6 @@ import (
 )
 
 func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED***
-	// log.Printf("compileStatement(): %T", v)
 
 	switch v := v.(type) ***REMOVED***
 	case *ast.BlockStatement:
@@ -158,7 +157,7 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement, needResult bool) ***
 			if pattern, ok := v.Catch.Parameter.(ast.Pattern); ok ***REMOVED***
 				c.scope.bindings[0].emitGet()
 				c.emitPattern(pattern, func(target, init compiledExpr) ***REMOVED***
-					c.emitPatternLexicalAssign(target, init, false)
+					c.emitPatternLexicalAssign(target, init)
 				***REMOVED***, false)
 			***REMOVED***
 			for _, decl := range funcs ***REMOVED***
@@ -392,7 +391,7 @@ func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *ent
 			c.createLexicalBinding(target, into.IsConst)
 			c.emit(enumGet)
 			c.emitPattern(target, func(target, init compiledExpr) ***REMOVED***
-				c.emitPatternLexicalAssign(target, init, into.IsConst)
+				c.emitPatternLexicalAssign(target, init)
 			***REMOVED***, false)
 		default:
 			c.throwSyntaxError(int(into.Idx)-1, "Unsupported ForBinding: %T", into.Target)
@@ -725,7 +724,7 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 
 func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 	if v.Argument != nil ***REMOVED***
-		c.compileExpression(v.Argument).emitGetter(true)
+		c.emitExpr(c.compileExpression(v.Argument), true)
 	***REMOVED*** else ***REMOVED***
 		c.emit(loadUndef)
 	***REMOVED***
@@ -754,10 +753,17 @@ func (c *compiler) checkVarConflict(name unistring.String, offset int) ***REMOVE
 func (c *compiler) emitVarAssign(name unistring.String, offset int, init compiledExpr) ***REMOVED***
 	c.checkVarConflict(name, offset)
 	if init != nil ***REMOVED***
-		c.emitVarRef(name, offset)
-		c.emitNamed(init, name)
-		c.p.addSrcMap(offset)
-		c.emit(initValueP)
+		b, noDyn := c.scope.lookupName(name)
+		if noDyn ***REMOVED***
+			c.emitNamedOrConst(init, name)
+			c.p.addSrcMap(offset)
+			b.emitInit()
+		***REMOVED*** else ***REMOVED***
+			c.emitVarRef(name, offset, b)
+			c.emitNamedOrConst(init, name)
+			c.p.addSrcMap(offset)
+			c.emit(initValueP)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -773,16 +779,16 @@ func (c *compiler) compileVarBinding(expr *ast.Binding) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init compiledExpr, isConst bool) ***REMOVED***
+func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init compiledExpr) ***REMOVED***
 	b := c.scope.boundNames[name]
 	if b == nil ***REMOVED***
 		panic("Lexical declaration for an unbound name")
 	***REMOVED***
 	if init != nil ***REMOVED***
-		c.emitNamed(init, name)
+		c.emitNamedOrConst(init, name)
 		c.p.addSrcMap(offset)
 	***REMOVED*** else ***REMOVED***
-		if isConst ***REMOVED***
+		if b.isConst ***REMOVED***
 			c.throwSyntaxError(offset, "Missing initializer in const declaration")
 		***REMOVED***
 		c.emit(loadUndef)
@@ -799,29 +805,37 @@ func (c *compiler) emitPatternVarAssign(target, init compiledExpr) ***REMOVED***
 	c.emitVarAssign(id.name, id.offset, init)
 ***REMOVED***
 
-func (c *compiler) emitPatternLexicalAssign(target, init compiledExpr, isConst bool) ***REMOVED***
+func (c *compiler) emitPatternLexicalAssign(target, init compiledExpr) ***REMOVED***
 	id := target.(*compiledIdentifierExpr)
-	c.emitLexicalAssign(id.name, id.offset, init, isConst)
+	c.emitLexicalAssign(id.name, id.offset, init)
 ***REMOVED***
 
 func (c *compiler) emitPatternAssign(target, init compiledExpr) ***REMOVED***
-	target.emitRef()
 	if id, ok := target.(*compiledIdentifierExpr); ok ***REMOVED***
-		c.emitNamed(init, id.name)
+		b, noDyn := c.scope.lookupName(id.name)
+		if noDyn ***REMOVED***
+			c.emitNamedOrConst(init, id.name)
+			b.emitSetP()
+		***REMOVED*** else ***REMOVED***
+			c.emitVarRef(id.name, id.offset, b)
+			c.emitNamedOrConst(init, id.name)
+			c.emit(putValueP)
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		init.emitGetter(true)
+		target.emitRef()
+		c.emitExpr(init, true)
+		c.emit(putValueP)
 	***REMOVED***
-	c.emit(initValueP)
 ***REMOVED***
 
-func (c *compiler) compileLexicalBinding(expr *ast.Binding, isConst bool) ***REMOVED***
+func (c *compiler) compileLexicalBinding(expr *ast.Binding) ***REMOVED***
 	switch target := expr.Target.(type) ***REMOVED***
 	case *ast.Identifier:
-		c.emitLexicalAssign(target.Name, int(target.Idx)-1, c.compileExpression(expr.Initializer), isConst)
+		c.emitLexicalAssign(target.Name, int(target.Idx)-1, c.compileExpression(expr.Initializer))
 	case ast.Pattern:
 		c.compileExpression(expr.Initializer).emitGetter(true)
 		c.emitPattern(target, func(target, init compiledExpr) ***REMOVED***
-			c.emitPatternLexicalAssign(target, init, isConst)
+			c.emitPatternLexicalAssign(target, init)
 		***REMOVED***, false)
 	default:
 		c.throwSyntaxError(int(target.Idx0()-1), "unsupported lexical binding target: %T", target)
@@ -835,9 +849,8 @@ func (c *compiler) compileVariableStatement(v *ast.VariableStatement) ***REMOVED
 ***REMOVED***
 
 func (c *compiler) compileLexicalDeclaration(v *ast.LexicalDeclaration) ***REMOVED***
-	isConst := v.Token == token.CONST
 	for _, e := range v.List ***REMOVED***
-		c.compileLexicalBinding(e, isConst)
+		c.compileLexicalBinding(e)
 	***REMOVED***
 ***REMOVED***
 
@@ -964,12 +977,7 @@ func (c *compiler) compileBlockStatement(v *ast.BlockStatement, needResult bool)
 ***REMOVED***
 
 func (c *compiler) compileExpressionStatement(v *ast.ExpressionStatement, needResult bool) ***REMOVED***
-	expr := c.compileExpression(v.Expression)
-	if expr.constant() ***REMOVED***
-		c.emitConst(expr, needResult)
-	***REMOVED*** else ***REMOVED***
-		expr.emitGetter(needResult)
-	***REMOVED***
+	c.emitExpr(c.compileExpression(v.Expression), needResult)
 	if needResult ***REMOVED***
 		c.emit(saveResult)
 	***REMOVED***
