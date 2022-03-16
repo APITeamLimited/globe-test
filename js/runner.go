@@ -35,6 +35,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -58,6 +59,12 @@ import (
 
 // Ensure Runner implements the lib.Runner interface
 var _ lib.Runner = &Runner***REMOVED******REMOVED***
+
+// TODO: https://github.com/grafana/k6/issues/2186
+// An advanced TLS support should cover the rid of the warning
+//
+// nolint:gochecknoglobals
+var nameToCertWarning sync.Once
 
 type Runner struct ***REMOVED***
 	Bundle         *Bundle
@@ -170,13 +177,13 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 	certs := make([]tls.Certificate, len(tlsAuth))
 	nameToCert := make(map[string]*tls.Certificate)
 	for i, auth := range tlsAuth ***REMOVED***
+		cert, errC := auth.Certificate()
+		if errC != nil ***REMOVED***
+			return nil, errC
+		***REMOVED***
+		certs[i] = *cert
 		for _, name := range auth.Domains ***REMOVED***
-			cert, err := auth.Certificate()
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			certs[i] = *cert
-			nameToCert[name] = &certs[i]
+			nameToCert[name] = cert
 		***REMOVED***
 	***REMOVED***
 
@@ -201,8 +208,18 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 		MinVersion:         uint16(tlsVersions.Min),
 		MaxVersion:         uint16(tlsVersions.Max),
 		Certificates:       certs,
-		NameToCertificate:  nameToCert,
 		Renegotiation:      tls.RenegotiateFreelyAsClient,
+	***REMOVED***
+	// Follow NameToCertificate in https://pkg.go.dev/crypto/tls@go1.17.6#Config, leave this field nil
+	// when it is empty
+	if len(nameToCert) > 0 ***REMOVED***
+		nameToCertWarning.Do(func() ***REMOVED***
+			r.Logger.Warn("tlsAuth.domains option could be removed in the next releases, it's recommended to leave it empty " +
+				"and let k6 automatically detect from the provided certificate. It follows the Go's NameToCertificate " +
+				"deprecation - https://pkg.go.dev/crypto/tls@go1.17#Config.")
+		***REMOVED***)
+		// nolint:staticcheck // ignore SA1019 we can deprecate it but we have to continue to support the previous code.
+		tlsConfig.NameToCertificate = nameToCert
 	***REMOVED***
 	transport := &http.Transport***REMOVED***
 		Proxy:               http.ProxyFromEnvironment,

@@ -1376,51 +1376,69 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+/*
+CA key:
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIDEm8bxihqYfAsWP39o5DpkAksPBw+3rlDHNX+d69oYGoAoGCCqGSM49
+AwEHoUQDQgAEeeuCFQsdraFJr8JaKbAKfjYpZ2U+p3r/OzcmAsjFO8EckmV9uFZs
+Gq3JurKi9Z3dDKQcwinHQ1malicbwWhamQ==
+-----END EC PRIVATE KEY-----
+*/
 func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	t.Parallel()
 	clientCAPool := x509.NewCertPool()
 	assert.True(t, clientCAPool.AppendCertsFromPEM(
 		[]byte("-----BEGIN CERTIFICATE-----\n"+
-			"MIIBYzCCAQqgAwIBAgIUMYw1pqZ1XhXdFG0S2ITXhfHBsWgwCgYIKoZIzj0EAwIw\n"+
-			"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE1MTYxODAwWhcNMjIwODE0MTYxODAw\n"+
-			"WjAQMQ4wDAYDVQQDEwVNeSBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFWO\n"+
-			"fg4dgL8cdvjoSWDQFLBJxlbQFlZfOSyUR277a4g91BD07KWX+9ny+Q8WuUODog06\n"+
-			"xH1g8fc6zuaejllfzM6jQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTAD\n"+
-			"AQH/MB0GA1UdDgQWBBTeoSFylGCmyqj1X4sWez1r6hkhjDAKBggqhkjOPQQDAgNH\n"+
-			"ADBEAiAfuKi6u/BVXenCkgnU2sfXsYjel6rACuXEcx01yaaWuQIgXAtjrDisdlf4\n"+
-			"0ZdoIoYjNhDAXUtnyRBt+V6+rIklv/8=\n"+
+			"MIIBWzCCAQGgAwIBAgIJAIQMBgLi+DV6MAoGCCqGSM49BAMCMBAxDjAMBgNVBAMM\n"+
+			"BU15IENBMCAXDTIyMDEyMTEyMjkzNloYDzMwMjEwNTI0MTIyOTM2WjAQMQ4wDAYD\n"+
+			"VQQDDAVNeSBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABHnrghULHa2hSa/C\n"+
+			"WimwCn42KWdlPqd6/zs3JgLIxTvBHJJlfbhWbBqtybqyovWd3QykHMIpx0NZmpYn\n"+
+			"G8FoWpmjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud\n"+
+			"DgQWBBSkukBA8lgFvvBJAYKsoSUR+PX71jAKBggqhkjOPQQDAgNIADBFAiEAiFF7\n"+
+			"Y54CMNRSBSVMgd4mQgrzJInRH88KpLsQ7VeOAaQCIEa0vaLln9zxIDZQKocml4Db\n"+
+			"AEJr8tDzMKIds6sRTBT4\n"+
 			"-----END CERTIFICATE-----"),
 	))
 	serverCert, err := tls.X509KeyPair(
 		[]byte("-----BEGIN CERTIFICATE-----\n"+
-			"MIIBxjCCAW2gAwIBAgIUICcYHG1bI28NZm676wHlMPxL+CEwCgYIKoZIzj0EAwIw\n"+
-			"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE3MTQwNjAwWhcNMTgwODE3MTQwNjAw\n"+
-			"WjAZMRcwFQYDVQQDEw4xMjcuMC4wLjE6Njk2OTBZMBMGByqGSM49AgEGCCqGSM49\n"+
-			"AwEHA0IABCdD1IqowucJ5oUjGYCZZnXvgi7EMD4jD1osbOkzOFFnHSLRvdm6fcJu\n"+
-			"vPUcl4g8zUs466sC0AVUNpk21XbA/QajgZswgZgwDgYDVR0PAQH/BAQDAgWgMB0G\n"+
-			"A1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMB0GA1Ud\n"+
-			"DgQWBBTeAc8HY3sgGIV+fu/lY0OKr2Ho0jAfBgNVHSMEGDAWgBTeoSFylGCmyqj1\n"+
-			"X4sWez1r6hkhjDAZBgNVHREEEjAQgg4xMjcuMC4wLjE6Njk2OTAKBggqhkjOPQQD\n"+
-			"AgNHADBEAiAt3gC5FGQfSJXQ5DloXAOeJDFnKIL7d6xhftgPS5O08QIgRuAyysB8\n"+
-			"5JXHvvze5DMN/clHYptos9idVFc+weUZAUQ=\n"+
+			"MIIBcTCCARigAwIBAgIJAIP0njRt16gbMAoGCCqGSM49BAMCMBAxDjAMBgNVBAMM\n"+
+			"BU15IENBMCAXDTIyMDEyMTE1MTA0OVoYDzMwMjEwNTI0MTUxMDQ5WjAZMRcwFQYD\n"+
+			"VQQDDA4xMjcuMC4wLjE6Njk2OTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABH8Y\n"+
+			"exy5LI9r+RNwVpf/5ZX86EigMYHp9YOyiUMmfUfvDig+BGhlwjm7Lh2941Gz4amO\n"+
+			"lpN2YAkcd0wnNLHkVOmjUDBOMA4GA1UdDwEB/wQEAwIBBjAMBgNVHRMBAf8EAjAA\n"+
+			"MB0GA1UdDgQWBBQ9cIYUwwzfzBXPyRGB5tNpAgHWujAPBgNVHREECDAGhwR/AAAB\n"+
+			"MAoGCCqGSM49BAMCA0cAMEQCIDjRZlg+jKgI9K99HOM2wS9+URr6R1/FYLZYBtMc\n"+
+			"pq3hAiB9NQxNqV459fgN0BpbiLrEvJjquRFoUr9BWsG+hHrHtQ==\n"+
 			"-----END CERTIFICATE-----\n"+
 			"-----BEGIN CERTIFICATE-----\n"+
-			"MIIBYzCCAQqgAwIBAgIUMYw1pqZ1XhXdFG0S2ITXhfHBsWgwCgYIKoZIzj0EAwIw\n"+
-			"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE1MTYxODAwWhcNMjIwODE0MTYxODAw\n"+
-			"WjAQMQ4wDAYDVQQDEwVNeSBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFWO\n"+
-			"fg4dgL8cdvjoSWDQFLBJxlbQFlZfOSyUR277a4g91BD07KWX+9ny+Q8WuUODog06\n"+
-			"xH1g8fc6zuaejllfzM6jQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTAD\n"+
-			"AQH/MB0GA1UdDgQWBBTeoSFylGCmyqj1X4sWez1r6hkhjDAKBggqhkjOPQQDAgNH\n"+
-			"ADBEAiAfuKi6u/BVXenCkgnU2sfXsYjel6rACuXEcx01yaaWuQIgXAtjrDisdlf4\n"+
-			"0ZdoIoYjNhDAXUtnyRBt+V6+rIklv/8=\n"+
+			"MIIBWzCCAQGgAwIBAgIJAIQMBgLi+DV6MAoGCCqGSM49BAMCMBAxDjAMBgNVBAMM\n"+
+			"BU15IENBMCAXDTIyMDEyMTEyMjkzNloYDzMwMjEwNTI0MTIyOTM2WjAQMQ4wDAYD\n"+
+			"VQQDDAVNeSBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABHnrghULHa2hSa/C\n"+
+			"WimwCn42KWdlPqd6/zs3JgLIxTvBHJJlfbhWbBqtybqyovWd3QykHMIpx0NZmpYn\n"+
+			"G8FoWpmjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud\n"+
+			"DgQWBBSkukBA8lgFvvBJAYKsoSUR+PX71jAKBggqhkjOPQQDAgNIADBFAiEAiFF7\n"+
+			"Y54CMNRSBSVMgd4mQgrzJInRH88KpLsQ7VeOAaQCIEa0vaLln9zxIDZQKocml4Db\n"+
+			"AEJr8tDzMKIds6sRTBT4\n"+
 			"-----END CERTIFICATE-----"),
 		[]byte("-----BEGIN EC PRIVATE KEY-----\n"+
-			"MHcCAQEEIKYptA4VtQ8UOKL+d1wkhl+51aPpvO+ppY62nLF9Z1w5oAoGCCqGSM49\n"+
-			"AwEHoUQDQgAEJ0PUiqjC5wnmhSMZgJlmde+CLsQwPiMPWixs6TM4UWcdItG92bp9\n"+
-			"wm689RyXiDzNSzjrqwLQBVQ2mTbVdsD9Bg==\n"+
+			"MHcCAQEEIHNpjs0P9/ejoUYF5Agzf9clHR4PwBsVfZ+JgslfuBg1oAoGCCqGSM49\n"+
+			"AwEHoUQDQgAEfxh7HLksj2v5E3BWl//llfzoSKAxgen1g7KJQyZ9R+8OKD4EaGXC\n"+
+			"ObsuHb3jUbPhqY6Wk3ZgCRx3TCc0seRU6Q==\n"+
 			"-----END EC PRIVATE KEY-----"),
 	)
 	require.NoError(t, err)
+
+	testdata := map[string]struct ***REMOVED***
+		withClientCert     bool
+		withDomains        bool
+		insecureSkipVerify bool
+		errMsg             string
+	***REMOVED******REMOVED***
+		"WithoutCert":      ***REMOVED***false, false, true, "remote error: tls: bad certificate"***REMOVED***,
+		"WithCert":         ***REMOVED***true, true, true, ""***REMOVED***,
+		"VerifyServerCert": ***REMOVED***true, false, false, "certificate signed by unknown authority"***REMOVED***,
+		"WithoutDomains":   ***REMOVED***true, false, true, ""***REMOVED***,
+	***REMOVED***
 
 	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config***REMOVED***
 		Certificates: []tls.Certificate***REMOVED***serverCert***REMOVED***,
@@ -1428,7 +1446,6 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 		ClientCAs:    clientCAPool,
 	***REMOVED***)
 	require.NoError(t, err)
-	t.Cleanup(func() ***REMOVED*** _ = listener.Close() ***REMOVED***)
 	srv := &http.Server***REMOVED***
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 			_, _ = fmt.Fprintf(w, "ok")
@@ -1436,98 +1453,86 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 		ErrorLog: stdlog.New(ioutil.Discard, "", 0),
 	***REMOVED***
 	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
+	t.Cleanup(func() ***REMOVED*** _ = listener.Close() ***REMOVED***)
+	for name, data := range testdata ***REMOVED***
+		data := data
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
-		t.Parallel()
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 
-		r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
-			var http = require("k6/http");;
-			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
-		`, listener.Addr().String()))
-		require.NoError(t, err)
-		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-			Throw:                 null.BoolFrom(true),
-			InsecureSkipTLSVerify: null.BoolFrom(true),
-		***REMOVED***))
-		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
-		require.NoError(t, err)
+			r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
+			var http = require("k6/http");
+			var k6 = require("k6");
+			var check = k6.check;
+			exports.default = function() ***REMOVED***
+				const res = http.get("https://%s")
+				check(res, ***REMOVED***
+					'is status 200': (r) => r.status === 200,
+					'verify resp': (r) => r.body.includes('ok'),
+				***REMOVED***)
+			***REMOVED***`, listener.Addr().String()))
+			require.NoError(t, err)
 
-		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-		for name, r := range runners ***REMOVED***
-			r := r
-			t.Run(name, func(t *testing.T) ***REMOVED***
-				t.Parallel()
-				r.Logger, _ = logtest.NewNullLogger()
-				initVU, err := r.NewVU(1, 1, make(chan stats.SampleContainer, 100))
-				if assert.NoError(t, err) ***REMOVED***
-					ctx, cancel := context.WithCancel(context.Background())
-					defer cancel()
-					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-					err := vu.RunOnce()
-					require.Error(t, err)
-					assert.Contains(t, err.Error(), "remote error: tls: bad certificate")
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-
-	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
-		t.Parallel()
-		r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
-			var http = require("k6/http");;
-			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
-		`, listener.Addr().String()))
-		require.NoError(t, err)
-		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-			Throw:                 null.BoolFrom(true),
-			InsecureSkipTLSVerify: null.BoolFrom(true),
-		***REMOVED***))
-
-		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-			TLSAuth: []*lib.TLSAuth***REMOVED***
-				***REMOVED***
-					TLSAuthFields: lib.TLSAuthFields***REMOVED***
-						Domains: []string***REMOVED***"127.0.0.1"***REMOVED***,
-						Cert: "-----BEGIN CERTIFICATE-----\n" +
-							"MIIBoTCCAUigAwIBAgIUd6XedDxP+rGo+kq0APqHElGZzs4wCgYIKoZIzj0EAwIw\n" +
-							"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE3MTUwNjAwWhcNMTgwODE3MTUwNjAw\n" +
-							"WjARMQ8wDQYDVQQDEwZjbGllbnQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATL\n" +
-							"mi/a1RVvk05FyrYmartbo/9cW+53DrQLW1twurII2q5ZfimdMX05A32uB3Ycoy/J\n" +
-							"x+w7Ifyd/YRw0zEc3NHQo38wfTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYI\n" +
-							"KwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFN2SR/TD\n" +
-							"yNW5DQWxZSkoXHQWsLY+MB8GA1UdIwQYMBaAFN6hIXKUYKbKqPVfixZ7PWvqGSGM\n" +
-							"MAoGCCqGSM49BAMCA0cAMEQCICtETmyOmupmg4w3tw59VYJyOBqRTxg6SK+rOQmq\n" +
-							"kE1VAiAUvsflDfmWBZ8EMPu46OhX6RX6MbvJ9NNvRco2G5ek1w==\n" +
-							"-----END CERTIFICATE-----",
-						Key: "-----BEGIN EC PRIVATE KEY-----\n" +
-							"MHcCAQEEIOrnhT05alCeQEX66HgnSHah/m5LazjJHLDawYRnhUtZoAoGCCqGSM49\n" +
-							"AwEHoUQDQgAEy5ov2tUVb5NORcq2Jmq7W6P/XFvudw60C1tbcLqyCNquWX4pnTF9\n" +
-							"OQN9rgd2HKMvycfsOyH8nf2EcNMxHNzR0A==\n" +
-							"-----END EC PRIVATE KEY-----",
+			opt := lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***
+			if data.insecureSkipVerify ***REMOVED***
+				opt.InsecureSkipTLSVerify = null.BoolFrom(true)
+			***REMOVED***
+			if data.withClientCert ***REMOVED***
+				opt.TLSAuth = []*lib.TLSAuth***REMOVED***
+					***REMOVED***
+						TLSAuthFields: lib.TLSAuthFields***REMOVED***
+							Cert: "-----BEGIN CERTIFICATE-----\n" +
+								"MIIBVzCB/6ADAgECAgkAg/SeNG3XqB0wCgYIKoZIzj0EAwIwEDEOMAwGA1UEAwwF\n" +
+								"TXkgQ0EwIBcNMjIwMTIxMTUxMjM0WhgPMzAyMTA1MjQxNTEyMzRaMBExDzANBgNV\n" +
+								"BAMMBmNsaWVudDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABKM7OJQMYG4KLtDA\n" +
+								"gZ8zOg2PimHMmQnjD2HtI4cSwIUJJnvHWLowbFe9fk6XeP9b3dK1ImUI++/EZdVr\n" +
+								"ABAcngejPzA9MA4GA1UdDwEB/wQEAwIBBjAMBgNVHRMBAf8EAjAAMB0GA1UdDgQW\n" +
+								"BBSttJe1mcPEnBOZ6wvKPG4zL0m1CzAKBggqhkjOPQQDAgNHADBEAiBPSLgKA/r9\n" +
+								"u/FW6W+oy6Odm1kdNMGCI472iTn545GwJgIgb3UQPOUTOj0IN4JLJYfmYyXviqsy\n" +
+								"zk9eWNHFXDA9U6U=\n" +
+								"-----END CERTIFICATE-----",
+							Key: "-----BEGIN EC PRIVATE KEY-----\n" +
+								"MHcCAQEEINDaMGkOT3thu1A0LfLJr3Jd011/aEG6OArmEQaujwgpoAoGCCqGSM49\n" +
+								"AwEHoUQDQgAEozs4lAxgbgou0MCBnzM6DY+KYcyZCeMPYe0jhxLAhQkme8dYujBs\n" +
+								"V71+Tpd4/1vd0rUiZQj778Rl1WsAEByeBw==\n" +
+								"-----END EC PRIVATE KEY-----",
+						***REMOVED***,
 					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***))
-		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
-		require.NoError(t, err)
-
-		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-		for name, r := range runners ***REMOVED***
-			r := r
-			t.Run(name, func(t *testing.T) ***REMOVED***
-				initVU, err := r.NewVU(1, 1, make(chan stats.SampleContainer, 100))
-				if assert.NoError(t, err) ***REMOVED***
-					ctx, cancel := context.WithCancel(context.Background())
-					defer cancel()
-					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-					err := vu.RunOnce()
-					assert.NoError(t, err)
 				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
+				if data.withDomains ***REMOVED***
+					opt.TLSAuth[0].TLSAuthFields.Domains = []string***REMOVED***"127.0.0.1"***REMOVED***
+				***REMOVED***
+				_, _ = opt.TLSAuth[0].Certificate()
+			***REMOVED***
+			require.NoError(t, r1.SetOptions(opt))
+			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
+			require.NoError(t, err)
+
+			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+			for name, r := range runners ***REMOVED***
+				r := r
+				t.Run(name, func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					r.Logger, _ = logtest.NewNullLogger()
+					initVU, err := r.NewVU(1, 1, make(chan stats.SampleContainer, 100))
+					if assert.NoError(t, err) ***REMOVED***
+						ctx, cancel := context.WithCancel(context.Background())
+						defer cancel()
+						vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+						err := vu.RunOnce()
+						if len(data.errMsg) > 0 ***REMOVED***
+							require.Error(t, err)
+							assert.Contains(t, err.Error(), data.errMsg)
+						***REMOVED*** else ***REMOVED***
+							assert.NoError(t, err)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
