@@ -70,6 +70,15 @@ func (d *NullHostnameTrie) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// Source return source hostnames that were used diring the construction
+func (d *NullHostnameTrie) Source() []string ***REMOVED***
+	if d.Trie == nil ***REMOVED***
+		return []string***REMOVED******REMOVED***
+	***REMOVED***
+
+	return d.Trie.source
+***REMOVED***
+
 // MarshalJSON implements json.Marshaler interface
 func (d NullHostnameTrie) MarshalJSON() ([]byte, error) ***REMOVED***
 	if !d.Valid ***REMOVED***
@@ -119,7 +128,7 @@ func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
 // Regex description of hostname pattern to enforce blocks by. Global var
 // to avoid compilation penalty at runtime.
 // based on regex from https://stackoverflow.com/a/106223/5427244
-//nolint:gochecknoglobals,lll
+//nolint:lll
 var validHostnamePattern *regexp.Regexp = regexp.MustCompile(`^(\*\.?)?((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))?$`)
 
 func isValidHostnamePattern(s string) error ***REMOVED***
