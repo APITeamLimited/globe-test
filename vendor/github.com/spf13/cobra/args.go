@@ -107,3 +107,15 @@ func RangeArgs(min int, max int) PositionalArgs ***REMOVED***
 		return nil
 	***REMOVED***
 ***REMOVED***
+
+// MatchAll allows combining several PositionalArgs to work in concert.
+func MatchAll(pargs ...PositionalArgs) PositionalArgs ***REMOVED***
+	return func(cmd *Command, args []string) error ***REMOVED***
+		for _, parg := range pargs ***REMOVED***
+			if err := parg(cmd, args); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+		return nil
+	***REMOVED***
+***REMOVED***
