@@ -14,6 +14,10 @@ func validateBasic(res *parseResult, containsErrors bool) ***REMOVED***
 	fd := res.fd
 	isProto3 := fd.GetSyntax() == "proto3"
 
+	if validateImports(res) != nil ***REMOVED***
+		return
+	***REMOVED***
+
 	for _, md := range fd.MessageType ***REMOVED***
 		if validateMessage(res, isProto3, "", md, containsErrors) != nil ***REMOVED***
 			return
@@ -31,6 +35,27 @@ func validateBasic(res *parseResult, containsErrors bool) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func validateImports(res *parseResult) error ***REMOVED***
+	fileNode := res.root
+	if fileNode == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	imports := make(map[string]*ast.SourcePos, len(fileNode.Decls))
+	for _, decl := range fileNode.Decls ***REMOVED***
+		imp, ok := decl.(*ast.ImportNode)
+		if !ok ***REMOVED***
+			continue
+		***REMOVED***
+
+		name := imp.Name.AsString()
+		if imports[name] != nil ***REMOVED***
+			return res.errs.handleErrorWithPos(imp.Start(), `%q was already imported at %v`, name, imports[name])
+		***REMOVED***
+		imports[name] = imp.Start()
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 func validateMessage(res *parseResult, isProto3 bool, prefix string, md *dpb.DescriptorProto, containsErrors bool) error ***REMOVED***

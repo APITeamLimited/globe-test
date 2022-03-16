@@ -19,6 +19,8 @@ const urlPrefix = "type.googleapis.com/"
 
 // AnyMessageName returns the message name contained in an anypb.Any message.
 // Most type assertions should use the Is function instead.
+//
+// Deprecated: Call the any.MessageName method instead.
 func AnyMessageName(any *anypb.Any) (string, error) ***REMOVED***
 	name, err := anyMessageName(any)
 	return string(name), err
@@ -38,6 +40,8 @@ func anyMessageName(any *anypb.Any) (protoreflect.FullName, error) ***REMOVED***
 ***REMOVED***
 
 // MarshalAny marshals the given message m into an anypb.Any message.
+//
+// Deprecated: Call the anypb.New function instead.
 func MarshalAny(m proto.Message) (*anypb.Any, error) ***REMOVED***
 	switch dm := m.(type) ***REMOVED***
 	case DynamicAny:
@@ -58,6 +62,9 @@ func MarshalAny(m proto.Message) (*anypb.Any, error) ***REMOVED***
 // Empty returns a new message of the type specified in an anypb.Any message.
 // It returns protoregistry.NotFound if the corresponding message type could not
 // be resolved in the global registry.
+//
+// Deprecated: Use protoregistry.GlobalTypes.FindMessageByName instead
+// to resolve the message name and create a new instance of it.
 func Empty(any *anypb.Any) (proto.Message, error) ***REMOVED***
 	name, err := anyMessageName(any)
 	if err != nil ***REMOVED***
@@ -76,6 +83,8 @@ func Empty(any *anypb.Any) (proto.Message, error) ***REMOVED***
 //
 // The target message m may be a *DynamicAny message. If the underlying message
 // type could not be resolved, then this returns protoregistry.NotFound.
+//
+// Deprecated: Call the any.UnmarshalTo method instead.
 func UnmarshalAny(any *anypb.Any, m proto.Message) error ***REMOVED***
 	if dm, ok := m.(*DynamicAny); ok ***REMOVED***
 		if dm.Message == nil ***REMOVED***
@@ -100,6 +109,8 @@ func UnmarshalAny(any *anypb.Any, m proto.Message) error ***REMOVED***
 ***REMOVED***
 
 // Is reports whether the Any message contains a message of the specified type.
+//
+// Deprecated: Call the any.MessageIs method instead.
 func Is(any *anypb.Any, m proto.Message) bool ***REMOVED***
 	if any == nil || m == nil ***REMOVED***
 		return false
@@ -119,6 +130,9 @@ func Is(any *anypb.Any, m proto.Message) bool ***REMOVED***
 //   var x ptypes.DynamicAny
 //   if err := ptypes.UnmarshalAny(a, &x); err != nil ***REMOVED*** ... ***REMOVED***
 //   fmt.Printf("unmarshaled message: %v", x.Message)
+//
+// Deprecated: Use the any.UnmarshalNew method instead to unmarshal
+// the any message contents into a new instance of the underlying message.
 type DynamicAny struct***REMOVED*** proto.Message ***REMOVED***
 
 func (m DynamicAny) String() string ***REMOVED***

@@ -32,7 +32,6 @@ type Encoder struct ***REMOVED***
 	encoderState
 
 	indent      string
-	newline     string // set to "\n" if len(indent) > 0
 	delims      [2]byte
 	outputASCII bool
 ***REMOVED***
@@ -61,7 +60,6 @@ func NewEncoder(indent string, delims [2]byte, outputASCII bool) (*Encoder, erro
 			return nil, errors.New("indent may only be composed of space and tab characters")
 		***REMOVED***
 		e.indent = indent
-		e.newline = "\n"
 	***REMOVED***
 	switch delims ***REMOVED***
 	case [2]byte***REMOVED***0, 0***REMOVED***:
@@ -126,7 +124,7 @@ func appendString(out []byte, in string, outputASCII bool) []byte ***REMOVED***
 			// are used to represent both the proto string and bytes type.
 			r = rune(in[0])
 			fallthrough
-		case r < ' ' || r == '"' || r == '\\':
+		case r < ' ' || r == '"' || r == '\\' || r == 0x7f:
 			out = append(out, '\\')
 			switch r ***REMOVED***
 			case '"', '\\':
@@ -143,7 +141,7 @@ func appendString(out []byte, in string, outputASCII bool) []byte ***REMOVED***
 				out = strconv.AppendUint(out, uint64(r), 16)
 			***REMOVED***
 			in = in[n:]
-		case outputASCII && r >= utf8.RuneSelf:
+		case r >= utf8.RuneSelf && (outputASCII || r <= 0x009f):
 			out = append(out, '\\')
 			if r <= math.MaxUint16 ***REMOVED***
 				out = append(out, 'u')
@@ -168,7 +166,7 @@ func appendString(out []byte, in string, outputASCII bool) []byte ***REMOVED***
 // escaping. If no characters need escaping, this returns the input length.
 func indexNeedEscapeInString(s string) int ***REMOVED***
 	for i := 0; i < len(s); i++ ***REMOVED***
-		if c := s[i]; c < ' ' || c == '"' || c == '\'' || c == '\\' || c >= utf8.RuneSelf ***REMOVED***
+		if c := s[i]; c < ' ' || c == '"' || c == '\'' || c == '\\' || c >= 0x7f ***REMOVED***
 			return i
 		***REMOVED***
 	***REMOVED***
