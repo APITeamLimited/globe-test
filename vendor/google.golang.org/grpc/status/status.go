@@ -29,6 +29,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	spb "google.golang.org/genproto/googleapis/rpc/status"
@@ -73,11 +74,16 @@ func FromProto(s *spb.Status) *Status ***REMOVED***
 	return status.FromProto(s)
 ***REMOVED***
 
-// FromError returns a Status representing err if it was produced by this
-// package or has a method `GRPCStatus() *Status`.
-// If err is nil, a Status is returned with codes.OK and no message.
-// Otherwise, ok is false and a Status is returned with codes.Unknown and
-// the original error message.
+// FromError returns a Status representation of err.
+//
+// - If err was produced by this package or implements the method `GRPCStatus()
+//   *Status`, the appropriate Status is returned.
+//
+// - If err is nil, a Status is returned with codes.OK and no message.
+//
+// - Otherwise, err is an error not compatible with this package.  In this
+//   case, a Status is returned with codes.Unknown and err's Error() message,
+//   and ok is false.
 func FromError(err error) (s *Status, ok bool) ***REMOVED***
 	if err == nil ***REMOVED***
 		return nil, true
@@ -112,18 +118,18 @@ func Code(err error) codes.Code ***REMOVED***
 	return codes.Unknown
 ***REMOVED***
 
-// FromContextError converts a context error into a Status.  It returns a
-// Status with codes.OK if err is nil, or a Status with codes.Unknown if err is
-// non-nil and not a context error.
+// FromContextError converts a context error or wrapped context error into a
+// Status.  It returns a Status with codes.OK if err is nil, or a Status with
+// codes.Unknown if err is non-nil and not a context error.
 func FromContextError(err error) *Status ***REMOVED***
-	switch err ***REMOVED***
-	case nil:
+	if err == nil ***REMOVED***
 		return nil
-	case context.DeadlineExceeded:
-		return New(codes.DeadlineExceeded, err.Error())
-	case context.Canceled:
-		return New(codes.Canceled, err.Error())
-	default:
-		return New(codes.Unknown, err.Error())
 	***REMOVED***
+	if errors.Is(err, context.DeadlineExceeded) ***REMOVED***
+		return New(codes.DeadlineExceeded, err.Error())
+	***REMOVED***
+	if errors.Is(err, context.Canceled) ***REMOVED***
+		return New(codes.Canceled, err.Error())
+	***REMOVED***
+	return New(codes.Unknown, err.Error())
 ***REMOVED***

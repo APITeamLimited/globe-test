@@ -115,12 +115,12 @@ type LoggerV2 interface ***REMOVED***
 // Notice: This type is EXPERIMENTAL and may be changed or removed in a
 // later release.
 type DepthLoggerV2 interface ***REMOVED***
-	// InfoDepth logs to INFO log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// InfoDepth logs to INFO log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	InfoDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// WarningDepth logs to WARNING log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// WarningDepth logs to WARNING log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	WarningDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// ErrorDetph logs to ERROR log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// ErrorDepth logs to ERROR log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	ErrorDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// FatalDepth logs to FATAL log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// FatalDepth logs to FATAL log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	FatalDepth(depth int, args ...interface***REMOVED******REMOVED***)
 ***REMOVED***

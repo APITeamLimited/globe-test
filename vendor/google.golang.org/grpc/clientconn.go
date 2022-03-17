@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"reflect"
 	"strings"
 	"sync"
@@ -37,7 +38,6 @@ import (
 	"google.golang.org/grpc/internal/backoff"
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/grpcsync"
-	"google.golang.org/grpc/internal/grpcutil"
 	iresolver "google.golang.org/grpc/internal/resolver"
 	"google.golang.org/grpc/internal/transport"
 	"google.golang.org/grpc/keepalive"
@@ -79,17 +79,17 @@ var (
 	// errNoTransportSecurity indicates that there is no transport security
 	// being set for ClientConn. Users should either set one or explicitly
 	// call WithInsecure DialOption to disable security.
-	errNoTransportSecurity = errors.New("grpc: no transport security set (use grpc.WithInsecure() explicitly or set credentials)")
+	errNoTransportSecurity = errors.New("grpc: no transport security set (use grpc.WithTransportCredentials(insecure.NewCredentials()) explicitly or set credentials)")
 	// errTransportCredsAndBundle indicates that creds bundle is used together
 	// with other individual Transport Credentials.
 	errTransportCredsAndBundle = errors.New("grpc: credentials.Bundle may not be used with individual TransportCredentials")
-	// errTransportCredentialsMissing indicates that users want to transmit security
-	// information (e.g., OAuth2 token) which requires secure connection on an insecure
-	// connection.
+	// errNoTransportCredsInBundle indicated that the configured creds bundle
+	// returned a transport credentials which was nil.
+	errNoTransportCredsInBundle = errors.New("grpc: credentials.Bundle must return non-nil transport credentials")
+	// errTransportCredentialsMissing indicates that users want to transmit
+	// security information (e.g., OAuth2 token) which requires secure
+	// connection on an insecure connection.
 	errTransportCredentialsMissing = errors.New("grpc: the credentials require transport level security (use grpc.WithTransportCredentials() to set)")
-	// errCredentialsConflict indicates that grpc.WithTransportCredentials()
-	// and grpc.WithInsecure() are both called for a connection.
-	errCredentialsConflict = errors.New("grpc: transport credentials are set for an insecure connection (grpc.WithTransportCredentials() and grpc.WithInsecure() are both called)")
 )
 
 const (
@@ -177,17 +177,20 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		cc.csMgr.channelzID = cc.channelzID
 	***REMOVED***
 
-	if !cc.dopts.insecure ***REMOVED***
-		if cc.dopts.copts.TransportCredentials == nil && cc.dopts.copts.CredsBundle == nil ***REMOVED***
-			return nil, errNoTransportSecurity
-		***REMOVED***
-		if cc.dopts.copts.TransportCredentials != nil && cc.dopts.copts.CredsBundle != nil ***REMOVED***
-			return nil, errTransportCredsAndBundle
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		if cc.dopts.copts.TransportCredentials != nil || cc.dopts.copts.CredsBundle != nil ***REMOVED***
-			return nil, errCredentialsConflict
-		***REMOVED***
+	if cc.dopts.copts.TransportCredentials == nil && cc.dopts.copts.CredsBundle == nil ***REMOVED***
+		return nil, errNoTransportSecurity
+	***REMOVED***
+	if cc.dopts.copts.TransportCredentials != nil && cc.dopts.copts.CredsBundle != nil ***REMOVED***
+		return nil, errTransportCredsAndBundle
+	***REMOVED***
+	if cc.dopts.copts.CredsBundle != nil && cc.dopts.copts.CredsBundle.TransportCredentials() == nil ***REMOVED***
+		return nil, errNoTransportCredsInBundle
+	***REMOVED***
+	transportCreds := cc.dopts.copts.TransportCredentials
+	if transportCreds == nil ***REMOVED***
+		transportCreds = cc.dopts.copts.CredsBundle.TransportCredentials()
+	***REMOVED***
+	if transportCreds.Info().SecurityProtocol == "insecure" ***REMOVED***
 		for _, cd := range cc.dopts.copts.PerRPCCredentials ***REMOVED***
 			if cd.RequireTransportSecurity() ***REMOVED***
 				return nil, errTransportCredentialsMissing
@@ -248,38 +251,15 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	***REMOVED***
 
 	// Determine the resolver to use.
-	cc.parsedTarget = grpcutil.ParseTarget(cc.target, cc.dopts.copts.Dialer != nil)
-	channelz.Infof(logger, cc.channelzID, "parsed scheme: %q", cc.parsedTarget.Scheme)
-	resolverBuilder := cc.getResolver(cc.parsedTarget.Scheme)
-	if resolverBuilder == nil ***REMOVED***
-		// If resolver builder is still nil, the parsed target's scheme is
-		// not registered. Fallback to default resolver and set Endpoint to
-		// the original target.
-		channelz.Infof(logger, cc.channelzID, "scheme %q not registered, fallback to default scheme", cc.parsedTarget.Scheme)
-		cc.parsedTarget = resolver.Target***REMOVED***
-			Scheme:   resolver.GetDefaultScheme(),
-			Endpoint: target,
-		***REMOVED***
-		resolverBuilder = cc.getResolver(cc.parsedTarget.Scheme)
-		if resolverBuilder == nil ***REMOVED***
-			return nil, fmt.Errorf("could not get resolver for default scheme: %q", cc.parsedTarget.Scheme)
-		***REMOVED***
+	resolverBuilder, err := cc.parseTargetAndFindResolver()
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-
-	creds := cc.dopts.copts.TransportCredentials
-	if creds != nil && creds.Info().ServerName != "" ***REMOVED***
-		cc.authority = creds.Info().ServerName
-	***REMOVED*** else if cc.dopts.insecure && cc.dopts.authority != "" ***REMOVED***
-		cc.authority = cc.dopts.authority
-	***REMOVED*** else if strings.HasPrefix(cc.target, "unix:") || strings.HasPrefix(cc.target, "unix-abstract:") ***REMOVED***
-		cc.authority = "localhost"
-	***REMOVED*** else if strings.HasPrefix(cc.parsedTarget.Endpoint, ":") ***REMOVED***
-		cc.authority = "localhost" + cc.parsedTarget.Endpoint
-	***REMOVED*** else ***REMOVED***
-		// Use endpoint from "scheme://authority/endpoint" as the default
-		// authority for ClientConn.
-		cc.authority = cc.parsedTarget.Endpoint
+	cc.authority, err = determineAuthority(cc.parsedTarget.Endpoint, cc.target, cc.dopts)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
+	channelz.Infof(logger, cc.channelzID, "Channel authority set to %q", cc.authority)
 
 	if cc.dopts.scChan != nil && !scSet ***REMOVED***
 		// Blocking wait for the initial service config.
@@ -305,6 +285,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		DialCreds:        credsClone,
 		CredsBundle:      cc.dopts.copts.CredsBundle,
 		Dialer:           cc.dopts.copts.Dialer,
+		Authority:        cc.authority,
 		CustomUserAgent:  cc.dopts.copts.UserAgent,
 		ChannelzParentID: cc.channelzID,
 		Target:           cc.parsedTarget,
@@ -652,7 +633,10 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 	***REMOVED***
 
 	var ret error
-	if cc.dopts.disableServiceConfig || s.ServiceConfig == nil ***REMOVED***
+	if cc.dopts.disableServiceConfig ***REMOVED***
+		channelz.Infof(logger, cc.channelzID, "ignoring service config from resolver (%v) and applying the default because service config is disabled", s.ServiceConfig)
+		cc.maybeApplyDefaultServiceConfig(s.Addresses)
+	***REMOVED*** else if s.ServiceConfig == nil ***REMOVED***
 		cc.maybeApplyDefaultServiceConfig(s.Addresses)
 		// TODO: do we need to apply a failing LB policy if there is no
 		// default, per the error handling design?
@@ -902,10 +886,7 @@ func (ac *addrConn) tryUpdateAddrs(addrs []resolver.Address) bool ***REMOVED***
 	// ac.state is Ready, try to find the connected address.
 	var curAddrFound bool
 	for _, a := range addrs ***REMOVED***
-		// a.ServerName takes precedent over ClientConn authority, if present.
-		if a.ServerName == "" ***REMOVED***
-			a.ServerName = ac.cc.authority
-		***REMOVED***
+		a.ServerName = ac.cc.getServerName(a)
 		if reflect.DeepEqual(ac.curAddr, a) ***REMOVED***
 			curAddrFound = true
 			break
@@ -917,6 +898,26 @@ func (ac *addrConn) tryUpdateAddrs(addrs []resolver.Address) bool ***REMOVED***
 	***REMOVED***
 
 	return curAddrFound
+***REMOVED***
+
+// getServerName determines the serverName to be used in the connection
+// handshake. The default value for the serverName is the authority on the
+// ClientConn, which either comes from the user's dial target or through an
+// authority override specified using the WithAuthority dial option. Name
+// resolvers can specify a per-address override for the serverName through the
+// resolver.Address.ServerName field which is used only if the WithAuthority
+// dial option was not used. The rationale is that per-address authority
+// overrides specified by the name resolver can represent a security risk, while
+// an override specified by the user is more dependable since they probably know
+// what they are doing.
+func (cc *ClientConn) getServerName(addr resolver.Address) string ***REMOVED***
+	if cc.dopts.authority != "" ***REMOVED***
+		return cc.dopts.authority
+	***REMOVED***
+	if addr.ServerName != "" ***REMOVED***
+		return addr.ServerName
+	***REMOVED***
+	return cc.authority
 ***REMOVED***
 
 func getMethodConfig(sc *ServiceConfig, method string) MethodConfig ***REMOVED***
@@ -1275,11 +1276,7 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 	prefaceReceived := grpcsync.NewEvent()
 	connClosed := grpcsync.NewEvent()
 
-	// addr.ServerName takes precedent over ClientConn authority, if present.
-	if addr.ServerName == "" ***REMOVED***
-		addr.ServerName = ac.cc.authority
-	***REMOVED***
-
+	addr.ServerName = ac.cc.getServerName(addr)
 	hctx, hcancel := context.WithCancel(ac.ctx)
 	hcStarted := false // protected by ac.mu
 
@@ -1620,4 +1617,115 @@ func (cc *ClientConn) connectionError() error ***REMOVED***
 	cc.lceMu.Lock()
 	defer cc.lceMu.Unlock()
 	return cc.lastConnectionError
+***REMOVED***
+
+func (cc *ClientConn) parseTargetAndFindResolver() (resolver.Builder, error) ***REMOVED***
+	channelz.Infof(logger, cc.channelzID, "original dial target is: %q", cc.target)
+
+	var rb resolver.Builder
+	parsedTarget, err := parseTarget(cc.target)
+	if err != nil ***REMOVED***
+		channelz.Infof(logger, cc.channelzID, "dial target %q parse failed: %v", cc.target, err)
+	***REMOVED*** else ***REMOVED***
+		channelz.Infof(logger, cc.channelzID, "parsed dial target is: %+v", parsedTarget)
+		rb = cc.getResolver(parsedTarget.Scheme)
+		if rb != nil ***REMOVED***
+			cc.parsedTarget = parsedTarget
+			return rb, nil
+		***REMOVED***
+	***REMOVED***
+
+	// We are here because the user's dial target did not contain a scheme or
+	// specified an unregistered scheme. We should fallback to the default
+	// scheme, except when a custom dialer is specified in which case, we should
+	// always use passthrough scheme.
+	defScheme := resolver.GetDefaultScheme()
+	channelz.Infof(logger, cc.channelzID, "fallback to scheme %q", defScheme)
+	canonicalTarget := defScheme + ":///" + cc.target
+
+	parsedTarget, err = parseTarget(canonicalTarget)
+	if err != nil ***REMOVED***
+		channelz.Infof(logger, cc.channelzID, "dial target %q parse failed: %v", canonicalTarget, err)
+		return nil, err
+	***REMOVED***
+	channelz.Infof(logger, cc.channelzID, "parsed dial target is: %+v", parsedTarget)
+	rb = cc.getResolver(parsedTarget.Scheme)
+	if rb == nil ***REMOVED***
+		return nil, fmt.Errorf("could not get resolver for default scheme: %q", parsedTarget.Scheme)
+	***REMOVED***
+	cc.parsedTarget = parsedTarget
+	return rb, nil
+***REMOVED***
+
+// parseTarget uses RFC 3986 semantics to parse the given target into a
+// resolver.Target struct containing scheme, authority and endpoint. Query
+// params are stripped from the endpoint.
+func parseTarget(target string) (resolver.Target, error) ***REMOVED***
+	u, err := url.Parse(target)
+	if err != nil ***REMOVED***
+		return resolver.Target***REMOVED******REMOVED***, err
+	***REMOVED***
+	// For targets of the form "[scheme]://[authority]/endpoint, the endpoint
+	// value returned from url.Parse() contains a leading "/". Although this is
+	// in accordance with RFC 3986, we do not want to break existing resolver
+	// implementations which expect the endpoint without the leading "/". So, we
+	// end up stripping the leading "/" here. But this will result in an
+	// incorrect parsing for something like "unix:///path/to/socket". Since we
+	// own the "unix" resolver, we can workaround in the unix resolver by using
+	// the `URL` field instead of the `Endpoint` field.
+	endpoint := u.Path
+	if endpoint == "" ***REMOVED***
+		endpoint = u.Opaque
+	***REMOVED***
+	endpoint = strings.TrimPrefix(endpoint, "/")
+	return resolver.Target***REMOVED***
+		Scheme:    u.Scheme,
+		Authority: u.Host,
+		Endpoint:  endpoint,
+		URL:       *u,
+	***REMOVED***, nil
+***REMOVED***
+
+// Determine channel authority. The order of precedence is as follows:
+// - user specified authority override using `WithAuthority` dial option
+// - creds' notion of server name for the authentication handshake
+// - endpoint from dial target of the form "scheme://[authority]/endpoint"
+func determineAuthority(endpoint, target string, dopts dialOptions) (string, error) ***REMOVED***
+	// Historically, we had two options for users to specify the serverName or
+	// authority for a channel. One was through the transport credentials
+	// (either in its constructor, or through the OverrideServerName() method).
+	// The other option (for cases where WithInsecure() dial option was used)
+	// was to use the WithAuthority() dial option.
+	//
+	// A few things have changed since:
+	// - `insecure` package with an implementation of the `TransportCredentials`
+	//   interface for the insecure case
+	// - WithAuthority() dial option support for secure credentials
+	authorityFromCreds := ""
+	if creds := dopts.copts.TransportCredentials; creds != nil && creds.Info().ServerName != "" ***REMOVED***
+		authorityFromCreds = creds.Info().ServerName
+	***REMOVED***
+	authorityFromDialOption := dopts.authority
+	if (authorityFromCreds != "" && authorityFromDialOption != "") && authorityFromCreds != authorityFromDialOption ***REMOVED***
+		return "", fmt.Errorf("ClientConn's authority from transport creds %q and dial option %q don't match", authorityFromCreds, authorityFromDialOption)
+	***REMOVED***
+
+	switch ***REMOVED***
+	case authorityFromDialOption != "":
+		return authorityFromDialOption, nil
+	case authorityFromCreds != "":
+		return authorityFromCreds, nil
+	case strings.HasPrefix(target, "unix:") || strings.HasPrefix(target, "unix-abstract:"):
+		// TODO: remove when the unix resolver implements optional interface to
+		// return channel authority.
+		return "localhost", nil
+	case strings.HasPrefix(endpoint, ":"):
+		return "localhost" + endpoint, nil
+	default:
+		// TODO: Define an optional interface on the resolver builder to return
+		// the channel authority given the user's dial target. For resolvers
+		// which don't implement this interface, we will use the endpoint from
+		// "scheme://authority/endpoint" as the default authority.
+		return endpoint, nil
+	***REMOVED***
 ***REMOVED***

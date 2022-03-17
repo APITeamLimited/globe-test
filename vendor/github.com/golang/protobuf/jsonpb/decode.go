@@ -135,12 +135,12 @@ func (u *Unmarshaler) unmarshalMessage(m protoreflect.Message, in []byte) error 
 	md := m.Descriptor()
 	fds := md.Fields()
 
-	if string(in) == "null" && md.FullName() != "google.protobuf.Value" ***REMOVED***
-		return nil
-	***REMOVED***
-
 	if jsu, ok := proto.MessageV1(m.Interface()).(JSONPBUnmarshaler); ok ***REMOVED***
 		return jsu.UnmarshalJSONPB(u, in)
+	***REMOVED***
+
+	if string(in) == "null" && md.FullName() != "google.protobuf.Value" ***REMOVED***
+		return nil
 	***REMOVED***
 
 	switch wellKnownType(md.FullName()) ***REMOVED***
@@ -332,11 +332,12 @@ func (u *Unmarshaler) unmarshalMessage(m protoreflect.Message, in []byte) error 
 			raw = v
 		***REMOVED***
 
+		field := m.NewField(fd)
 		// Unmarshal the field value.
-		if raw == nil || (string(raw) == "null" && !isSingularWellKnownValue(fd)) ***REMOVED***
+		if raw == nil || (string(raw) == "null" && !isSingularWellKnownValue(fd) && !isSingularJSONPBUnmarshaler(field, fd)) ***REMOVED***
 			continue
 		***REMOVED***
-		v, err := u.unmarshalValue(m.NewField(fd), raw, fd)
+		v, err := u.unmarshalValue(field, raw, fd)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -364,11 +365,12 @@ func (u *Unmarshaler) unmarshalMessage(m protoreflect.Message, in []byte) error 
 			return fmt.Errorf("extension field %q does not extend message %q", xname, m.Descriptor().FullName())
 		***REMOVED***
 
+		field := m.NewField(fd)
 		// Unmarshal the field value.
-		if raw == nil || (string(raw) == "null" && !isSingularWellKnownValue(fd)) ***REMOVED***
+		if raw == nil || (string(raw) == "null" && !isSingularWellKnownValue(fd) && !isSingularJSONPBUnmarshaler(field, fd)) ***REMOVED***
 			continue
 		***REMOVED***
-		v, err := u.unmarshalValue(m.NewField(fd), raw, fd)
+		v, err := u.unmarshalValue(field, raw, fd)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -386,6 +388,14 @@ func (u *Unmarshaler) unmarshalMessage(m protoreflect.Message, in []byte) error 
 func isSingularWellKnownValue(fd protoreflect.FieldDescriptor) bool ***REMOVED***
 	if md := fd.Message(); md != nil ***REMOVED***
 		return md.FullName() == "google.protobuf.Value" && fd.Cardinality() != protoreflect.Repeated
+	***REMOVED***
+	return false
+***REMOVED***
+
+func isSingularJSONPBUnmarshaler(v protoreflect.Value, fd protoreflect.FieldDescriptor) bool ***REMOVED***
+	if fd.Message() != nil && fd.Cardinality() != protoreflect.Repeated ***REMOVED***
+		_, ok := proto.MessageV1(v.Interface()).(JSONPBUnmarshaler)
+		return ok
 	***REMOVED***
 	return false
 ***REMOVED***

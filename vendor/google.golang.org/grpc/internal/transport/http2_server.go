@@ -73,7 +73,6 @@ type http2Server struct ***REMOVED***
 	writerDone  chan struct***REMOVED******REMOVED*** // sync point to enable testing.
 	remoteAddr  net.Addr
 	localAddr   net.Addr
-	maxStreamID uint32               // max stream ID ever seen
 	authInfo    credentials.AuthInfo // auth info about the connection
 	inTapHandle tap.ServerInHandle
 	framer      *framer
@@ -123,13 +122,18 @@ type http2Server struct ***REMOVED***
 	bufferPool *bufferPool
 
 	connectionID uint64
+
+	// maxStreamMu guards the maximum stream ID
+	// This lock may not be taken if mu is already held.
+	maxStreamMu sync.Mutex
+	maxStreamID uint32 // max stream ID ever seen
 ***REMOVED***
 
 // NewServerTransport creates a http2 transport with conn and configuration
 // options from config.
 //
 // It returns a non-nil transport and a nil error on success. On failure, it
-// returns a non-nil transport and a nil-error. For a special case where the
+// returns a nil transport and a non-nil error. For a special case where the
 // underlying conn gets closed before the client preface could be read, it
 // returns a nil transport and a nil error.
 func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport, err error) ***REMOVED***
@@ -290,10 +294,11 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 	if _, err := io.ReadFull(t.conn, preface); err != nil ***REMOVED***
 		// In deployments where a gRPC server runs behind a cloud load balancer
 		// which performs regular TCP level health checks, the connection is
-		// closed immediately by the latter. Skipping the error here will help
-		// reduce log clutter.
+		// closed immediately by the latter.  Returning io.EOF here allows the
+		// grpc server implementation to recognize this scenario and suppress
+		// logging to reduce spam.
 		if err == io.EOF ***REMOVED***
-			return nil, nil
+			return nil, io.EOF
 		***REMOVED***
 		return nil, connectionErrorf(false, err, "transport: http2Server.HandleStreams failed to receive the preface from client: %v", err)
 	***REMOVED***
@@ -333,6 +338,10 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 
 // operateHeader takes action on the decoded headers.
 func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(*Stream), traceCtx func(context.Context, string) context.Context) (fatal bool) ***REMOVED***
+	// Acquire max stream ID lock for entire duration
+	t.maxStreamMu.Lock()
+	defer t.maxStreamMu.Unlock()
+
 	streamID := frame.Header().StreamID
 
 	// frame.Truncated is set to true when framer detects that the current header
@@ -347,6 +356,15 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		return false
 	***REMOVED***
 
+	if streamID%2 != 1 || streamID <= t.maxStreamID ***REMOVED***
+		// illegal gRPC stream id.
+		if logger.V(logLevel) ***REMOVED***
+			logger.Errorf("transport: http2Server.HandleStreams received an illegal stream id: %v", streamID)
+		***REMOVED***
+		return true
+	***REMOVED***
+	t.maxStreamID = streamID
+
 	buf := newRecvBuffer()
 	s := &Stream***REMOVED***
 		id:  streamID,
@@ -354,7 +372,6 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		buf: buf,
 		fc:  &inFlow***REMOVED***limit: uint32(t.initialWindowSize)***REMOVED***,
 	***REMOVED***
-
 	var (
 		// If a gRPC Response-Headers has already been received, then it means
 		// that the peer is speaking gRPC and we are in gRPC mode.
@@ -390,6 +407,13 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 			if timeout, err = decodeTimeout(hf.Value); err != nil ***REMOVED***
 				headerError = true
 			***REMOVED***
+		// "Transports must consider requests containing the Connection header
+		// as malformed." - A41
+		case "connection":
+			if logger.V(logLevel) ***REMOVED***
+				logger.Errorf("transport: http2Server.operateHeaders parsed a :connection header which makes a request malformed as per the HTTP/2 spec")
+			***REMOVED***
+			headerError = true
 		default:
 			if isReservedHeader(hf.Name) && !isWhitelistedHeader(hf.Name) ***REMOVED***
 				break
@@ -404,6 +428,25 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		***REMOVED***
 	***REMOVED***
 
+	// "If multiple Host headers or multiple :authority headers are present, the
+	// request must be rejected with an HTTP status code 400 as required by Host
+	// validation in RFC 7230 §5.4, gRPC status code INTERNAL, or RST_STREAM
+	// with HTTP/2 error code PROTOCOL_ERROR." - A41. Since this is a HTTP/2
+	// error, this takes precedence over a client not speaking gRPC.
+	if len(mdata[":authority"]) > 1 || len(mdata["host"]) > 1 ***REMOVED***
+		errMsg := fmt.Sprintf("num values of :authority: %v, num values of host: %v, both must only have 1 value as per HTTP/2 spec", len(mdata[":authority"]), len(mdata["host"]))
+		if logger.V(logLevel) ***REMOVED***
+			logger.Errorf("transport: %v", errMsg)
+		***REMOVED***
+		t.controlBuf.put(&earlyAbortStream***REMOVED***
+			httpStatus:     400,
+			streamID:       streamID,
+			contentSubtype: s.contentSubtype,
+			status:         status.New(codes.Internal, errMsg),
+		***REMOVED***)
+		return false
+	***REMOVED***
+
 	if !isGRPC || headerError ***REMOVED***
 		t.controlBuf.put(&cleanupStream***REMOVED***
 			streamID: streamID,
@@ -412,6 +455,19 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 			onWrite:  func() ***REMOVED******REMOVED***,
 		***REMOVED***)
 		return false
+	***REMOVED***
+
+	// "If :authority is missing, Host must be renamed to :authority." - A41
+	if len(mdata[":authority"]) == 0 ***REMOVED***
+		// No-op if host isn't present, no eventual :authority header is a valid
+		// RPC.
+		if host, ok := mdata["host"]; ok ***REMOVED***
+			mdata[":authority"] = host
+			delete(mdata, "host")
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		// "If :authority is present, Host must be discarded" - A41
+		delete(mdata, "host")
 	***REMOVED***
 
 	if frame.StreamEnded() ***REMOVED***
@@ -458,16 +514,6 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		s.cancel()
 		return false
 	***REMOVED***
-	if streamID%2 != 1 || streamID <= t.maxStreamID ***REMOVED***
-		t.mu.Unlock()
-		// illegal gRPC stream id.
-		if logger.V(logLevel) ***REMOVED***
-			logger.Errorf("transport: http2Server.HandleStreams received an illegal stream id: %v", streamID)
-		***REMOVED***
-		s.cancel()
-		return true
-	***REMOVED***
-	t.maxStreamID = streamID
 	if httpMethod != http.MethodPost ***REMOVED***
 		t.mu.Unlock()
 		if logger.V(logLevel) ***REMOVED***
@@ -494,6 +540,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 				stat = status.New(codes.PermissionDenied, err.Error())
 			***REMOVED***
 			t.controlBuf.put(&earlyAbortStream***REMOVED***
+				httpStatus:     200,
 				streamID:       s.id,
 				contentSubtype: s.contentSubtype,
 				status:         stat,
@@ -734,7 +781,7 @@ func (t *http2Server) handleData(f *http2.DataFrame) ***REMOVED***
 			s.write(recvMsg***REMOVED***buffer: buffer***REMOVED***)
 		***REMOVED***
 	***REMOVED***
-	if f.Header().Flags.Has(http2.FlagDataEndStream) ***REMOVED***
+	if f.StreamEnded() ***REMOVED***
 		// Received the end of stream from the client.
 		s.compareAndSwapState(streamActive, streamReadDone)
 		s.write(recvMsg***REMOVED***err: io.EOF***REMOVED***)
@@ -1252,20 +1299,23 @@ var goAwayPing = &ping***REMOVED***data: [8]byte***REMOVED***1, 6, 1, 8, 0, 3, 3
 // Handles outgoing GoAway and returns true if loopy needs to put itself
 // in draining mode.
 func (t *http2Server) outgoingGoAwayHandler(g *goAway) (bool, error) ***REMOVED***
+	t.maxStreamMu.Lock()
 	t.mu.Lock()
 	if t.state == closing ***REMOVED*** // TODO(mmukhi): This seems unnecessary.
 		t.mu.Unlock()
+		t.maxStreamMu.Unlock()
 		// The transport is closing.
 		return false, ErrConnClosing
 	***REMOVED***
-	sid := t.maxStreamID
 	if !g.headsUp ***REMOVED***
 		// Stop accepting more streams now.
 		t.state = draining
+		sid := t.maxStreamID
 		if len(t.activeStreams) == 0 ***REMOVED***
 			g.closeConn = true
 		***REMOVED***
 		t.mu.Unlock()
+		t.maxStreamMu.Unlock()
 		if err := t.framer.fr.WriteGoAway(sid, g.code, g.debugData); err != nil ***REMOVED***
 			return false, err
 		***REMOVED***
@@ -1278,6 +1328,7 @@ func (t *http2Server) outgoingGoAwayHandler(g *goAway) (bool, error) ***REMOVED*
 		return true, nil
 	***REMOVED***
 	t.mu.Unlock()
+	t.maxStreamMu.Unlock()
 	// For a graceful close, send out a GoAway with stream ID of MaxUInt32,
 	// Follow that with a ping and wait for the ack to come back or a timer
 	// to expire. During this time accept new streams since they might have

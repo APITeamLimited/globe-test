@@ -1,6 +1,6 @@
 /*
  *
- * Copyright 2018 gRPC authors.
+ * Copyright 2021 gRPC authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,16 @@
  *
  */
 
-package grpc
+package grpcutil
 
-// Version is the current grpc version.
-const Version = "1.45.0"
+import "regexp"
+
+// FullMatchWithRegex returns whether the full text matches the regex provided.
+func FullMatchWithRegex(re *regexp.Regexp, text string) bool ***REMOVED***
+	if len(text) == 0 ***REMOVED***
+		return re.MatchString(text)
+	***REMOVED***
+	re.Longest()
+	rem := re.FindString(text)
+	return len(rem) == len(text)
+***REMOVED***
