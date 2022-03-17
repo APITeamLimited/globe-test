@@ -13,6 +13,10 @@ import (
 type parser struct ***REMOVED***
 	s string // the source text
 	i int    // the current position
+
+	// if `false`, parsing a pseudo-element
+	// returns an error.
+	acceptPseudoElements bool
 ***REMOVED***
 
 // parseEscape parses a backslash escape.
@@ -29,10 +33,10 @@ func (p *parser) parseEscape() (result string, err error) ***REMOVED***
 	case hexDigit(c):
 		// unicode escape (hex)
 		var i int
-		for i = start; i < p.i+6 && i < len(p.s) && hexDigit(p.s[i]); i++ ***REMOVED***
+		for i = start; i < start+6 && i < len(p.s) && hexDigit(p.s[i]); i++ ***REMOVED***
 			// empty
 		***REMOVED***
-		v, _ := strconv.ParseUint(p.s[start:i], 16, 21)
+		v, _ := strconv.ParseUint(p.s[start:i], 16, 64)
 		if len(p.s) > i ***REMOVED***
 			switch p.s[i] ***REMOVED***
 			case '\r':
@@ -405,6 +409,19 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) ***REMOVED***
 	if p.i >= len(p.s) ***REMOVED***
 		return attrSelector***REMOVED******REMOVED***, errors.New("unexpected EOF in attribute selector")
 	***REMOVED***
+
+	// check if the attribute contains an ignore case flag
+	ignoreCase := false
+	if p.s[p.i] == 'i' || p.s[p.i] == 'I' ***REMOVED***
+		ignoreCase = true
+		p.i++
+	***REMOVED***
+
+	p.skipWhitespace()
+	if p.i >= len(p.s) ***REMOVED***
+		return attrSelector***REMOVED******REMOVED***, errors.New("unexpected EOF in attribute selector")
+	***REMOVED***
+
 	if p.s[p.i] != ']' ***REMOVED***
 		return attrSelector***REMOVED******REMOVED***, fmt.Errorf("expected ']', found '%c' instead", p.s[p.i])
 	***REMOVED***
@@ -412,27 +429,37 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) ***REMOVED***
 
 	switch op ***REMOVED***
 	case "=", "!=", "~=", "|=", "^=", "$=", "*=", "#=":
-		return attrSelector***REMOVED***key: key, val: val, operation: op, regexp: rx***REMOVED***, nil
+		return attrSelector***REMOVED***key: key, val: val, operation: op, regexp: rx, insensitive: ignoreCase***REMOVED***, nil
 	default:
 		return attrSelector***REMOVED******REMOVED***, fmt.Errorf("attribute operator %q is not supported", op)
 	***REMOVED***
 ***REMOVED***
 
-var errExpectedParenthesis = errors.New("expected '(' but didn't find it")
-var errExpectedClosingParenthesis = errors.New("expected ')' but didn't find it")
-var errUnmatchedParenthesis = errors.New("unmatched '('")
+var (
+	errExpectedParenthesis        = errors.New("expected '(' but didn't find it")
+	errExpectedClosingParenthesis = errors.New("expected ')' but didn't find it")
+	errUnmatchedParenthesis       = errors.New("unmatched '('")
+)
 
-// parsePseudoclassSelector parses a pseudoclass selector like :not(p)
-func (p *parser) parsePseudoclassSelector() (out Sel, err error) ***REMOVED***
+// parsePseudoclassSelector parses a pseudoclass selector like :not(p) or a pseudo-element
+// For backwards compatibility, both ':' and '::' prefix are allowed for pseudo-elements.
+// https://drafts.csswg.org/selectors-3/#pseudo-elements
+// Returning a nil `Sel` (and a nil `error`) means we found a pseudo-element.
+func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err error) ***REMOVED***
 	if p.i >= len(p.s) ***REMOVED***
-		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
+		return nil, "", fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
 	***REMOVED***
 	if p.s[p.i] != ':' ***REMOVED***
-		return nil, fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
+		return nil, "", fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
 	***REMOVED***
 
 	p.i++
+	var mustBePseudoElement bool
+	if p.i >= len(p.s) ***REMOVED***
+		return nil, "", fmt.Errorf("got empty pseudoclass (or pseudoelement)")
+	***REMOVED***
 	if p.s[p.i] == ':' ***REMOVED*** // we found a pseudo-element
+		mustBePseudoElement = true
 		p.i++
 	***REMOVED***
 
@@ -441,27 +468,33 @@ func (p *parser) parsePseudoclassSelector() (out Sel, err error) ***REMOVED***
 		return
 	***REMOVED***
 	name = toLowerASCII(name)
+	if mustBePseudoElement && (name != "after" && name != "backdrop" && name != "before" &&
+		name != "cue" && name != "first-letter" && name != "first-line" && name != "grammar-error" &&
+		name != "marker" && name != "placeholder" && name != "selection" && name != "spelling-error") ***REMOVED***
+		return out, "", fmt.Errorf("unknown pseudoelement :%s", name)
+	***REMOVED***
+
 	switch name ***REMOVED***
 	case "not", "has", "haschild":
 		if !p.consumeParenthesis() ***REMOVED***
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		***REMOVED***
 		sel, parseErr := p.parseSelectorGroup()
 		if parseErr != nil ***REMOVED***
-			return out, parseErr
+			return out, "", parseErr
 		***REMOVED***
 		if !p.consumeClosingParenthesis() ***REMOVED***
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		***REMOVED***
 
 		out = relativePseudoClassSelector***REMOVED***name: name, match: sel***REMOVED***
 
 	case "contains", "containsown":
 		if !p.consumeParenthesis() ***REMOVED***
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		***REMOVED***
 		if p.i == len(p.s) ***REMOVED***
-			return out, errUnmatchedParenthesis
+			return out, "", errUnmatchedParenthesis
 		***REMOVED***
 		var val string
 		switch p.s[p.i] ***REMOVED***
@@ -471,46 +504,46 @@ func (p *parser) parsePseudoclassSelector() (out Sel, err error) ***REMOVED***
 			val, err = p.parseIdentifier()
 		***REMOVED***
 		if err != nil ***REMOVED***
-			return out, err
+			return out, "", err
 		***REMOVED***
 		val = strings.ToLower(val)
 		p.skipWhitespace()
 		if p.i >= len(p.s) ***REMOVED***
-			return out, errors.New("unexpected EOF in pseudo selector")
+			return out, "", errors.New("unexpected EOF in pseudo selector")
 		***REMOVED***
 		if !p.consumeClosingParenthesis() ***REMOVED***
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		***REMOVED***
 
 		out = containsPseudoClassSelector***REMOVED***own: name == "containsown", value: val***REMOVED***
 
 	case "matches", "matchesown":
 		if !p.consumeParenthesis() ***REMOVED***
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		***REMOVED***
 		rx, err := p.parseRegex()
 		if err != nil ***REMOVED***
-			return out, err
+			return out, "", err
 		***REMOVED***
 		if p.i >= len(p.s) ***REMOVED***
-			return out, errors.New("unexpected EOF in pseudo selector")
+			return out, "", errors.New("unexpected EOF in pseudo selector")
 		***REMOVED***
 		if !p.consumeClosingParenthesis() ***REMOVED***
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		***REMOVED***
 
 		out = regexpPseudoClassSelector***REMOVED***own: name == "matchesown", regexp: rx***REMOVED***
 
 	case "nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type":
 		if !p.consumeParenthesis() ***REMOVED***
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		***REMOVED***
 		a, b, err := p.parseNth()
 		if err != nil ***REMOVED***
-			return out, err
+			return out, "", err
 		***REMOVED***
 		if !p.consumeClosingParenthesis() ***REMOVED***
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		***REMOVED***
 		last := name == "nth-last-child" || name == "nth-last-of-type"
 		ofType := name == "nth-of-type" || name == "nth-last-of-type"
@@ -534,10 +567,41 @@ func (p *parser) parsePseudoclassSelector() (out Sel, err error) ***REMOVED***
 		out = emptyElementPseudoClassSelector***REMOVED******REMOVED***
 	case "root":
 		out = rootPseudoClassSelector***REMOVED******REMOVED***
+	case "link":
+		out = linkPseudoClassSelector***REMOVED******REMOVED***
+	case "lang":
+		if !p.consumeParenthesis() ***REMOVED***
+			return out, "", errExpectedParenthesis
+		***REMOVED***
+		if p.i == len(p.s) ***REMOVED***
+			return out, "", errUnmatchedParenthesis
+		***REMOVED***
+		val, err := p.parseIdentifier()
+		if err != nil ***REMOVED***
+			return out, "", err
+		***REMOVED***
+		val = strings.ToLower(val)
+		p.skipWhitespace()
+		if p.i >= len(p.s) ***REMOVED***
+			return out, "", errors.New("unexpected EOF in pseudo selector")
+		***REMOVED***
+		if !p.consumeClosingParenthesis() ***REMOVED***
+			return out, "", errExpectedClosingParenthesis
+		***REMOVED***
+		out = langPseudoClassSelector***REMOVED***lang: val***REMOVED***
+	case "enabled":
+		out = enabledPseudoClassSelector***REMOVED******REMOVED***
+	case "disabled":
+		out = disabledPseudoClassSelector***REMOVED******REMOVED***
+	case "checked":
+		out = checkedPseudoClassSelector***REMOVED******REMOVED***
+	case "visited", "hover", "active", "focus", "target":
+		// Not applicable in a static context: never match.
+		out = neverMatchSelector***REMOVED***value: ":" + name***REMOVED***
 	case "after", "backdrop", "before", "cue", "first-letter", "first-line", "grammar-error", "marker", "placeholder", "selection", "spelling-error":
-		return out, errors.New("pseudo-elements are not yet supported")
+		return nil, name, nil
 	default:
-		return out, fmt.Errorf("unknown pseudoclass or pseudoelement :%s", name)
+		return out, "", fmt.Errorf("unknown pseudoclass or pseudoelement :%s", name)
 	***REMOVED***
 	return
 ***REMOVED***
@@ -696,6 +760,9 @@ func (p *parser) parseSimpleSelectorSequence() (Sel, error) ***REMOVED***
 	case '*':
 		// It's the universal selector. Just skip over it, since it doesn't affect the meaning.
 		p.i++
+		if p.i+2 < len(p.s) && p.s[p.i:p.i+2] == "|*" ***REMOVED*** // other version of universal selector
+			p.i += 2
+		***REMOVED***
 	case '#', '.', '[', ':':
 		// There's no type selector. Wait to process the other till the main loop.
 	default:
@@ -706,11 +773,13 @@ func (p *parser) parseSimpleSelectorSequence() (Sel, error) ***REMOVED***
 		selectors = append(selectors, r)
 	***REMOVED***
 
+	var pseudoElement string
 loop:
 	for p.i < len(p.s) ***REMOVED***
 		var (
-			ns  Sel
-			err error
+			ns               Sel
+			newPseudoElement string
+			err              error
 		)
 		switch p.s[p.i] ***REMOVED***
 		case '#':
@@ -720,20 +789,37 @@ loop:
 		case '[':
 			ns, err = p.parseAttributeSelector()
 		case ':':
-			ns, err = p.parsePseudoclassSelector()
+			ns, newPseudoElement, err = p.parsePseudoclassSelector()
 		default:
 			break loop
 		***REMOVED***
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
+		// From https://drafts.csswg.org/selectors-3/#pseudo-elements :
+		// "Only one pseudo-element may appear per selector, and if present
+		// it must appear after the sequence of simple selectors that
+		// represents the subjects of the selector.""
+		if ns == nil ***REMOVED*** // we found a pseudo-element
+			if pseudoElement != "" ***REMOVED***
+				return nil, fmt.Errorf("only one pseudo-element is accepted per selector, got %s and %s", pseudoElement, newPseudoElement)
+			***REMOVED***
+			if !p.acceptPseudoElements ***REMOVED***
+				return nil, fmt.Errorf("pseudo-element %s found, but pseudo-elements support is disabled", newPseudoElement)
+			***REMOVED***
+			pseudoElement = newPseudoElement
+		***REMOVED*** else ***REMOVED***
+			if pseudoElement != "" ***REMOVED***
+				return nil, fmt.Errorf("pseudo-element %s must be at the end of selector", pseudoElement)
+			***REMOVED***
+			selectors = append(selectors, ns)
+		***REMOVED***
 
-		selectors = append(selectors, ns)
 	***REMOVED***
-	if len(selectors) == 1 ***REMOVED*** // no need wrap the selectors in compoundSelector
+	if len(selectors) == 1 && pseudoElement == "" ***REMOVED*** // no need wrap the selectors in compoundSelector
 		return selectors[0], nil
 	***REMOVED***
-	return compoundSelector***REMOVED***selectors: selectors***REMOVED***, nil
+	return compoundSelector***REMOVED***selectors: selectors, pseudoElement: pseudoElement***REMOVED***, nil
 ***REMOVED***
 
 // parseSelector parses a selector that may include combinators.

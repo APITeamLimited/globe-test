@@ -1,7 +1,6 @@
 package cascadia
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -16,14 +15,19 @@ type Matcher interface ***REMOVED***
 ***REMOVED***
 
 // Sel is the interface for all the functionality provided by selectors.
-// It is currently the same as Matcher, but other methods may be added in the
-// future.
 type Sel interface ***REMOVED***
 	Matcher
 	Specificity() Specificity
+
+	// Returns a CSS input compiling to this selector.
+	String() string
+
+	// Returns a pseudo-element, or an empty string.
+	PseudoElement() string
 ***REMOVED***
 
-// Parse parses a selector.
+// Parse parses a selector. Use `ParseWithPseudoElement`
+// if you need support for pseudo-elements.
 func Parse(sel string) (Sel, error) ***REMOVED***
 	p := &parser***REMOVED***s: sel***REMOVED***
 	compiled, err := p.parseSelector()
@@ -38,9 +42,43 @@ func Parse(sel string) (Sel, error) ***REMOVED***
 	return compiled, nil
 ***REMOVED***
 
+// ParseWithPseudoElement parses a single selector,
+// with support for pseudo-element.
+func ParseWithPseudoElement(sel string) (Sel, error) ***REMOVED***
+	p := &parser***REMOVED***s: sel, acceptPseudoElements: true***REMOVED***
+	compiled, err := p.parseSelector()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if p.i < len(sel) ***REMOVED***
+		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	***REMOVED***
+
+	return compiled, nil
+***REMOVED***
+
 // ParseGroup parses a selector, or a group of selectors separated by commas.
+// Use `ParseGroupWithPseudoElements`
+// if you need support for pseudo-elements.
 func ParseGroup(sel string) (SelectorGroup, error) ***REMOVED***
 	p := &parser***REMOVED***s: sel***REMOVED***
+	compiled, err := p.parseSelectorGroup()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if p.i < len(sel) ***REMOVED***
+		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	***REMOVED***
+
+	return compiled, nil
+***REMOVED***
+
+// ParseGroupWithPseudoElements parses a selector, or a group of selectors separated by commas.
+// It supports pseudo-elements.
+func ParseGroupWithPseudoElements(sel string) (SelectorGroup, error) ***REMOVED***
+	p := &parser***REMOVED***s: sel, acceptPseudoElements: true***REMOVED***
 	compiled, err := p.parseSelectorGroup()
 	if err != nil ***REMOVED***
 		return nil, err
@@ -182,6 +220,10 @@ func (c tagSelector) Specificity() Specificity ***REMOVED***
 	return Specificity***REMOVED***0, 0, 1***REMOVED***
 ***REMOVED***
 
+func (c tagSelector) PseudoElement() string ***REMOVED***
+	return ""
+***REMOVED***
+
 type classSelector struct ***REMOVED***
 	class string
 ***REMOVED***
@@ -189,12 +231,16 @@ type classSelector struct ***REMOVED***
 // Matches elements by class attribute.
 func (t classSelector) Match(n *html.Node) bool ***REMOVED***
 	return matchAttribute(n, "class", func(s string) bool ***REMOVED***
-		return matchInclude(t.class, s)
+		return matchInclude(t.class, s, false)
 	***REMOVED***)
 ***REMOVED***
 
 func (c classSelector) Specificity() Specificity ***REMOVED***
 	return Specificity***REMOVED***0, 1, 0***REMOVED***
+***REMOVED***
+
+func (c classSelector) PseudoElement() string ***REMOVED***
+	return ""
 ***REMOVED***
 
 type idSelector struct ***REMOVED***
@@ -212,9 +258,14 @@ func (c idSelector) Specificity() Specificity ***REMOVED***
 	return Specificity***REMOVED***1, 0, 0***REMOVED***
 ***REMOVED***
 
+func (c idSelector) PseudoElement() string ***REMOVED***
+	return ""
+***REMOVED***
+
 type attrSelector struct ***REMOVED***
 	key, val, operation string
 	regexp              *regexp.Regexp
+	insensitive         bool
 ***REMOVED***
 
 // Matches elements by attribute value.
@@ -223,25 +274,36 @@ func (t attrSelector) Match(n *html.Node) bool ***REMOVED***
 	case "":
 		return matchAttribute(n, t.key, func(string) bool ***REMOVED*** return true ***REMOVED***)
 	case "=":
-		return matchAttribute(n, t.key, func(s string) bool ***REMOVED*** return s == t.val ***REMOVED***)
+		return matchAttribute(n, t.key, func(s string) bool ***REMOVED*** return matchInsensitiveValue(s, t.val, t.insensitive) ***REMOVED***)
 	case "!=":
-		return attributeNotEqualMatch(t.key, t.val, n)
+		return attributeNotEqualMatch(t.key, t.val, n, t.insensitive)
 	case "~=":
 		// matches elements where the attribute named key is a whitespace-separated list that includes val.
-		return matchAttribute(n, t.key, func(s string) bool ***REMOVED*** return matchInclude(t.val, s) ***REMOVED***)
+		return matchAttribute(n, t.key, func(s string) bool ***REMOVED*** return matchInclude(t.val, s, t.insensitive) ***REMOVED***)
 	case "|=":
-		return attributeDashMatch(t.key, t.val, n)
+		return attributeDashMatch(t.key, t.val, n, t.insensitive)
 	case "^=":
-		return attributePrefixMatch(t.key, t.val, n)
+		return attributePrefixMatch(t.key, t.val, n, t.insensitive)
 	case "$=":
-		return attributeSuffixMatch(t.key, t.val, n)
+		return attributeSuffixMatch(t.key, t.val, n, t.insensitive)
 	case "*=":
-		return attributeSubstringMatch(t.key, t.val, n)
+		return attributeSubstringMatch(t.key, t.val, n, t.insensitive)
 	case "#=":
 		return attributeRegexMatch(t.key, t.regexp, n)
 	default:
 		panic(fmt.Sprintf("unsuported operation : %s", t.operation))
 	***REMOVED***
+***REMOVED***
+
+// matches elements where we ignore (or not) the case of the attribute value
+// the user attribute is the value set by the user to match elements
+// the real attribute is the attribute value found in the code parsed
+func matchInsensitiveValue(userAttr string, realAttr string, ignoreCase bool) bool ***REMOVED***
+	if ignoreCase ***REMOVED***
+		return strings.EqualFold(userAttr, realAttr)
+	***REMOVED***
+	return userAttr == realAttr
+
 ***REMOVED***
 
 // matches elements where the attribute named key satisifes the function f.
@@ -259,12 +321,12 @@ func matchAttribute(n *html.Node, key string, f func(string) bool) bool ***REMOV
 
 // attributeNotEqualMatch matches elements where
 // the attribute named key does not have the value val.
-func attributeNotEqualMatch(key, val string, n *html.Node) bool ***REMOVED***
+func attributeNotEqualMatch(key, val string, n *html.Node, ignoreCase bool) bool ***REMOVED***
 	if n.Type != html.ElementNode ***REMOVED***
 		return false
 	***REMOVED***
 	for _, a := range n.Attr ***REMOVED***
-		if a.Key == key && a.Val == val ***REMOVED***
+		if a.Key == key && matchInsensitiveValue(a.Val, val, ignoreCase) ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -272,13 +334,13 @@ func attributeNotEqualMatch(key, val string, n *html.Node) bool ***REMOVED***
 ***REMOVED***
 
 // returns true if s is a whitespace-separated list that includes val.
-func matchInclude(val, s string) bool ***REMOVED***
+func matchInclude(val string, s string, ignoreCase bool) bool ***REMOVED***
 	for s != "" ***REMOVED***
 		i := strings.IndexAny(s, " \t\r\n\f")
 		if i == -1 ***REMOVED***
-			return s == val
+			return matchInsensitiveValue(s, val, ignoreCase)
 		***REMOVED***
-		if s[:i] == val ***REMOVED***
+		if matchInsensitiveValue(s[:i], val, ignoreCase) ***REMOVED***
 			return true
 		***REMOVED***
 		s = s[i+1:]
@@ -287,16 +349,16 @@ func matchInclude(val, s string) bool ***REMOVED***
 ***REMOVED***
 
 //  matches elements where the attribute named key equals val or starts with val plus a hyphen.
-func attributeDashMatch(key, val string, n *html.Node) bool ***REMOVED***
+func attributeDashMatch(key, val string, n *html.Node, ignoreCase bool) bool ***REMOVED***
 	return matchAttribute(n, key,
 		func(s string) bool ***REMOVED***
-			if s == val ***REMOVED***
+			if matchInsensitiveValue(s, val, ignoreCase) ***REMOVED***
 				return true
 			***REMOVED***
 			if len(s) <= len(val) ***REMOVED***
 				return false
 			***REMOVED***
-			if s[:len(val)] == val && s[len(val)] == '-' ***REMOVED***
+			if matchInsensitiveValue(s[:len(val)], val, ignoreCase) && s[len(val)] == '-' ***REMOVED***
 				return true
 			***REMOVED***
 			return false
@@ -305,11 +367,14 @@ func attributeDashMatch(key, val string, n *html.Node) bool ***REMOVED***
 
 // attributePrefixMatch returns a Selector that matches elements where
 // the attribute named key starts with val.
-func attributePrefixMatch(key, val string, n *html.Node) bool ***REMOVED***
+func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool ***REMOVED***
 	return matchAttribute(n, key,
 		func(s string) bool ***REMOVED***
 			if strings.TrimSpace(s) == "" ***REMOVED***
 				return false
+			***REMOVED***
+			if ignoreCase ***REMOVED***
+				return strings.HasPrefix(strings.ToLower(s), strings.ToLower(val))
 			***REMOVED***
 			return strings.HasPrefix(s, val)
 		***REMOVED***)
@@ -317,11 +382,14 @@ func attributePrefixMatch(key, val string, n *html.Node) bool ***REMOVED***
 
 // attributeSuffixMatch matches elements where
 // the attribute named key ends with val.
-func attributeSuffixMatch(key, val string, n *html.Node) bool ***REMOVED***
+func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool ***REMOVED***
 	return matchAttribute(n, key,
 		func(s string) bool ***REMOVED***
 			if strings.TrimSpace(s) == "" ***REMOVED***
 				return false
+			***REMOVED***
+			if ignoreCase ***REMOVED***
+				return strings.HasSuffix(strings.ToLower(s), strings.ToLower(val))
 			***REMOVED***
 			return strings.HasSuffix(s, val)
 		***REMOVED***)
@@ -329,11 +397,14 @@ func attributeSuffixMatch(key, val string, n *html.Node) bool ***REMOVED***
 
 // attributeSubstringMatch matches nodes where
 // the attribute named key contains val.
-func attributeSubstringMatch(key, val string, n *html.Node) bool ***REMOVED***
+func attributeSubstringMatch(key, val string, n *html.Node, ignoreCase bool) bool ***REMOVED***
 	return matchAttribute(n, key,
 		func(s string) bool ***REMOVED***
 			if strings.TrimSpace(s) == "" ***REMOVED***
 				return false
+			***REMOVED***
+			if ignoreCase ***REMOVED***
+				return strings.Contains(strings.ToLower(s), strings.ToLower(val))
 			***REMOVED***
 			return strings.Contains(s, val)
 		***REMOVED***)
@@ -352,367 +423,32 @@ func (c attrSelector) Specificity() Specificity ***REMOVED***
 	return Specificity***REMOVED***0, 1, 0***REMOVED***
 ***REMOVED***
 
-// ---------------- Pseudo class selectors ----------------
-// we use severals concrete types of pseudo-class selectors
-
-type relativePseudoClassSelector struct ***REMOVED***
-	name  string // one of "not", "has", "haschild"
-	match SelectorGroup
+func (c attrSelector) PseudoElement() string ***REMOVED***
+	return ""
 ***REMOVED***
 
-func (s relativePseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-	switch s.name ***REMOVED***
-	case "not":
-		// matches elements that do not match a.
-		return !s.match.Match(n)
-	case "has":
-		//  matches elements with any descendant that matches a.
-		return hasDescendantMatch(n, s.match)
-	case "haschild":
-		// matches elements with a child that matches a.
-		return hasChildMatch(n, s.match)
-	default:
-		panic(fmt.Sprintf("unsupported relative pseudo class selector : %s", s.name))
-	***REMOVED***
-***REMOVED***
+// see pseudo_classes.go for pseudo classes selectors
 
-// hasChildMatch returns whether n has any child that matches a.
-func hasChildMatch(n *html.Node, a Matcher) bool ***REMOVED***
-	for c := n.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if a.Match(c) ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-	return false
-***REMOVED***
-
-// hasDescendantMatch performs a depth-first search of n's descendants,
-// testing whether any of them match a. It returns true as soon as a match is
-// found, or false if no match is found.
-func hasDescendantMatch(n *html.Node, a Matcher) bool ***REMOVED***
-	for c := n.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if a.Match(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-	return false
-***REMOVED***
-
-// Specificity returns the specificity of the most specific selectors
-// in the pseudo-class arguments.
-// See https://www.w3.org/TR/selectors/#specificity-rules
-func (s relativePseudoClassSelector) Specificity() Specificity ***REMOVED***
-	var max Specificity
-	for _, sel := range s.match ***REMOVED***
-		newSpe := sel.Specificity()
-		if max.Less(newSpe) ***REMOVED***
-			max = newSpe
-		***REMOVED***
-	***REMOVED***
-	return max
-***REMOVED***
-
-type containsPseudoClassSelector struct ***REMOVED***
-	own   bool
+// on a static context, some selectors can't match anything
+type neverMatchSelector struct ***REMOVED***
 	value string
 ***REMOVED***
 
-func (s containsPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	var text string
-	if s.own ***REMOVED***
-		// matches nodes that directly contain the given text
-		text = strings.ToLower(nodeOwnText(n))
-	***REMOVED*** else ***REMOVED***
-		// matches nodes that contain the given text.
-		text = strings.ToLower(nodeText(n))
-	***REMOVED***
-	return strings.Contains(text, s.value)
-***REMOVED***
-
-func (s containsPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type regexpPseudoClassSelector struct ***REMOVED***
-	own    bool
-	regexp *regexp.Regexp
-***REMOVED***
-
-func (s regexpPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	var text string
-	if s.own ***REMOVED***
-		// matches nodes whose text directly matches the specified regular expression
-		text = nodeOwnText(n)
-	***REMOVED*** else ***REMOVED***
-		// matches nodes whose text matches the specified regular expression
-		text = nodeText(n)
-	***REMOVED***
-	return s.regexp.MatchString(text)
-***REMOVED***
-
-// writeNodeText writes the text contained in n and its descendants to b.
-func writeNodeText(n *html.Node, b *bytes.Buffer) ***REMOVED***
-	switch n.Type ***REMOVED***
-	case html.TextNode:
-		b.WriteString(n.Data)
-	case html.ElementNode:
-		for c := n.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-			writeNodeText(c, b)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-// nodeText returns the text contained in n and its descendants.
-func nodeText(n *html.Node) string ***REMOVED***
-	var b bytes.Buffer
-	writeNodeText(n, &b)
-	return b.String()
-***REMOVED***
-
-// nodeOwnText returns the contents of the text nodes that are direct
-// children of n.
-func nodeOwnText(n *html.Node) string ***REMOVED***
-	var b bytes.Buffer
-	for c := n.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if c.Type == html.TextNode ***REMOVED***
-			b.WriteString(c.Data)
-		***REMOVED***
-	***REMOVED***
-	return b.String()
-***REMOVED***
-
-func (s regexpPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type nthPseudoClassSelector struct ***REMOVED***
-	a, b         int
-	last, ofType bool
-***REMOVED***
-
-func (s nthPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	if s.a == 0 ***REMOVED***
-		if s.last ***REMOVED***
-			return simpleNthLastChildMatch(s.b, s.ofType, n)
-		***REMOVED*** else ***REMOVED***
-			return simpleNthChildMatch(s.b, s.ofType, n)
-		***REMOVED***
-	***REMOVED***
-	return nthChildMatch(s.a, s.b, s.last, s.ofType, n)
-***REMOVED***
-
-// nthChildMatch implements :nth-child(an+b).
-// If last is true, implements :nth-last-child instead.
-// If ofType is true, implements :nth-of-type instead.
-func nthChildMatch(a, b int, last, ofType bool, n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	parent := n.Parent
-	if parent == nil ***REMOVED***
-		return false
-	***REMOVED***
-
-	if parent.Type == html.DocumentNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	i := -1
-	count := 0
-	for c := parent.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if (c.Type != html.ElementNode) || (ofType && c.Data != n.Data) ***REMOVED***
-			continue
-		***REMOVED***
-		count++
-		if c == n ***REMOVED***
-			i = count
-			if !last ***REMOVED***
-				break
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	if i == -1 ***REMOVED***
-		// This shouldn't happen, since n should always be one of its parent's children.
-		return false
-	***REMOVED***
-
-	if last ***REMOVED***
-		i = count - i + 1
-	***REMOVED***
-
-	i -= b
-	if a == 0 ***REMOVED***
-		return i == 0
-	***REMOVED***
-
-	return i%a == 0 && i/a >= 0
-***REMOVED***
-
-// simpleNthChildMatch implements :nth-child(b).
-// If ofType is true, implements :nth-of-type instead.
-func simpleNthChildMatch(b int, ofType bool, n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	parent := n.Parent
-	if parent == nil ***REMOVED***
-		return false
-	***REMOVED***
-
-	if parent.Type == html.DocumentNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	count := 0
-	for c := parent.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if c.Type != html.ElementNode || (ofType && c.Data != n.Data) ***REMOVED***
-			continue
-		***REMOVED***
-		count++
-		if c == n ***REMOVED***
-			return count == b
-		***REMOVED***
-		if count >= b ***REMOVED***
-			return false
-		***REMOVED***
-	***REMOVED***
+func (s neverMatchSelector) Match(n *html.Node) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// simpleNthLastChildMatch implements :nth-last-child(b).
-// If ofType is true, implements :nth-last-of-type instead.
-func simpleNthLastChildMatch(b int, ofType bool, n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	parent := n.Parent
-	if parent == nil ***REMOVED***
-		return false
-	***REMOVED***
-
-	if parent.Type == html.DocumentNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	count := 0
-	for c := parent.LastChild; c != nil; c = c.PrevSibling ***REMOVED***
-		if c.Type != html.ElementNode || (ofType && c.Data != n.Data) ***REMOVED***
-			continue
-		***REMOVED***
-		count++
-		if c == n ***REMOVED***
-			return count == b
-		***REMOVED***
-		if count >= b ***REMOVED***
-			return false
-		***REMOVED***
-	***REMOVED***
-	return false
+func (s neverMatchSelector) Specificity() Specificity ***REMOVED***
+	return Specificity***REMOVED***0, 0, 0***REMOVED***
 ***REMOVED***
 
-// Specificity for nth-child pseudo-class.
-// Does not support a list of selectors
-func (s nthPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type onlyChildPseudoClassSelector struct ***REMOVED***
-	ofType bool
-***REMOVED***
-
-// Match implements :only-child.
-// If `ofType` is true, it implements :only-of-type instead.
-func (s onlyChildPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	parent := n.Parent
-	if parent == nil ***REMOVED***
-		return false
-	***REMOVED***
-
-	if parent.Type == html.DocumentNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	count := 0
-	for c := parent.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		if (c.Type != html.ElementNode) || (s.ofType && c.Data != n.Data) ***REMOVED***
-			continue
-		***REMOVED***
-		count++
-		if count > 1 ***REMOVED***
-			return false
-		***REMOVED***
-	***REMOVED***
-
-	return count == 1
-***REMOVED***
-
-func (s onlyChildPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type inputPseudoClassSelector struct***REMOVED******REMOVED***
-
-// Matches input, select, textarea and button elements.
-func (s inputPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	return n.Type == html.ElementNode && (n.Data == "input" || n.Data == "select" || n.Data == "textarea" || n.Data == "button")
-***REMOVED***
-
-func (s inputPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type emptyElementPseudoClassSelector struct***REMOVED******REMOVED***
-
-// Matches empty elements.
-func (s emptyElementPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling ***REMOVED***
-		switch c.Type ***REMOVED***
-		case html.ElementNode, html.TextNode:
-			return false
-		***REMOVED***
-	***REMOVED***
-
-	return true
-***REMOVED***
-
-func (s emptyElementPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
-***REMOVED***
-
-type rootPseudoClassSelector struct***REMOVED******REMOVED***
-
-// Match implements :root
-func (s rootPseudoClassSelector) Match(n *html.Node) bool ***REMOVED***
-	if n.Type != html.ElementNode ***REMOVED***
-		return false
-	***REMOVED***
-	if n.Parent == nil ***REMOVED***
-		return false
-	***REMOVED***
-	return n.Parent.Type == html.DocumentNode
-***REMOVED***
-
-func (s rootPseudoClassSelector) Specificity() Specificity ***REMOVED***
-	return Specificity***REMOVED***0, 1, 0***REMOVED***
+func (c neverMatchSelector) PseudoElement() string ***REMOVED***
+	return ""
 ***REMOVED***
 
 type compoundSelector struct ***REMOVED***
-	selectors []Sel
+	selectors     []Sel
+	pseudoElement string
 ***REMOVED***
 
 // Matches elements if each sub-selectors matches.
@@ -734,7 +470,15 @@ func (s compoundSelector) Specificity() Specificity ***REMOVED***
 	for _, sel := range s.selectors ***REMOVED***
 		out = out.Add(sel.Specificity())
 	***REMOVED***
+	if s.pseudoElement != "" ***REMOVED***
+		// https://drafts.csswg.org/selectors-3/#specificity
+		out = out.Add(Specificity***REMOVED***0, 0, 1***REMOVED***)
+	***REMOVED***
 	return out
+***REMOVED***
+
+func (c compoundSelector) PseudoElement() string ***REMOVED***
+	return c.pseudoElement
 ***REMOVED***
 
 type combinedSelector struct ***REMOVED***
@@ -816,6 +560,15 @@ func (s combinedSelector) Specificity() Specificity ***REMOVED***
 		spec = spec.Add(s.second.Specificity())
 	***REMOVED***
 	return spec
+***REMOVED***
+
+// on combinedSelector, a pseudo-element only makes sens on the last
+// selector, although others increase specificity.
+func (c combinedSelector) PseudoElement() string ***REMOVED***
+	if c.second == nil ***REMOVED***
+		return ""
+	***REMOVED***
+	return c.second.PseudoElement()
 ***REMOVED***
 
 // A SelectorGroup is a list of selectors, which matches if any of the
