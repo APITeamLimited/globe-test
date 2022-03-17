@@ -180,8 +180,8 @@ func init() ***REMOVED***
 		var t octetType
 		isCtl := c <= 31 || c == 127
 		isChar := 0 <= c && c <= 127
-		isSeparator := strings.IndexRune(" \t\"(),/:;<=>?@[]\\***REMOVED******REMOVED***", rune(c)) >= 0
-		if strings.IndexRune(" \t\r\n", rune(c)) >= 0 ***REMOVED***
+		isSeparator := strings.ContainsRune(" \t\"(),/:;<=>?@[]\\***REMOVED******REMOVED***", rune(c))
+		if strings.ContainsRune(" \t\r\n", rune(c)) ***REMOVED***
 			t |= isSpace
 		***REMOVED***
 		if isChar && !isCtl && !isSeparator ***REMOVED***

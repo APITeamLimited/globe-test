@@ -61,6 +61,7 @@ func (w *Writer) Reset(dst io.Writer) ***REMOVED***
 		w.params.lgwin = uint(w.options.LGWin)
 	***REMOVED***
 	w.dst = dst
+	w.err = nil
 ***REMOVED***
 
 func (w *Writer) writeChunk(p []byte, op int) (n int, err error) ***REMOVED***

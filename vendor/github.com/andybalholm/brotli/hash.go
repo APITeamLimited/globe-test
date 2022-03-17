@@ -29,8 +29,6 @@ type hasherHandle interface ***REMOVED***
 	Store(data []byte, mask uint, ix uint)
 ***REMOVED***
 
-type score_t uint
-
 const kCutoffTransformsCount uint32 = 10
 
 /*   0,  12,   27,    23,    42,    63,    56,    48,    59,    64 */
