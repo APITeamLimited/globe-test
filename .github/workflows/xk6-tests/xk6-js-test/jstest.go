@@ -1,48 +1,57 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2021 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
 package jstest
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/stats"
-
 	"go.k6.io/k6/js/modules"
+	"go.k6.io/k6/stats"
 )
 
 func init() ***REMOVED***
-	modules.Register("k6/x/jsexttest", new(JSTest))
+	modules.Register("k6/x/jsexttest", New())
 ***REMOVED***
 
-// JSTest is meant to test xk6 and the JS extension sub-system of k6.
-type JSTest struct***REMOVED******REMOVED***
+type (
+	RootModule struct***REMOVED******REMOVED***
+
+	// JSTest is meant to test xk6 and the JS extension sub-system of k6.
+	JSTest struct ***REMOVED***
+		vu modules.VU
+	***REMOVED***
+)
+
+// Ensure the interfaces are implemented correctly.
+var (
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &JSTest***REMOVED******REMOVED***
+)
+
+// New returns a pointer to a new RootModule instance.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED******REMOVED***
+***REMOVED***
+
+// NewModuleInstance implements the modules.Module interface and returns
+// a new instance for each VU.
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	return &JSTest***REMOVED***vu: vu***REMOVED***
+***REMOVED***
+
+// Exports implements the modules.Instance interface and returns the exports
+// of the JS module.
+func (j *JSTest) Exports() modules.Exports ***REMOVED***
+	return modules.Exports***REMOVED***Default: j***REMOVED***
+***REMOVED***
 
 // Foo emits a foo metric
-func (j JSTest) Foo(ctx context.Context, arg float64) (bool, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (j JSTest) Foo(arg float64) (bool, error) ***REMOVED***
+	state := j.vu.State()
 	if state == nil ***REMOVED***
-		return false, fmt.Errorf("called in init context")
+		return false, fmt.Errorf("the VU State is not avaialble in the init context")
 	***REMOVED***
+
+	ctx := j.vu.Context()
 
 	allTheFoos := stats.New("foos", stats.Counter)
 	tags := state.CloneTags()
