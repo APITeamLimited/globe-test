@@ -277,14 +277,6 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestBindToGlobal(t *testing.T) ***REMOVED***
-	rt := goja.New()
-	unbind := BindToGlobal(rt, map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED***)
-	assert.Equal(t, int64(1), rt.Get("a").Export())
-	unbind()
-	assert.Nil(t, rt.Get("a").Export())
-***REMOVED***
-
 func BenchmarkProxy(b *testing.B) ***REMOVED***
 	types := []struct ***REMOVED***
 		Name, FnName string
@@ -411,7 +403,6 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 						b.Run("Call", func(b *testing.B) ***REMOVED***
 							rt := goja.New()
 							rt.SetFieldNameMapper(FieldNameMapper***REMOVED******REMOVED***)
-							// ctx := context.Background()
 							fn := func() ***REMOVED******REMOVED***
 							typ.Fn(b, fn)
 						***REMOVED***)

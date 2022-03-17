@@ -330,10 +330,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	***REMOVED***
 	init.moduleVUImpl.initEnv = initenv
 	init.moduleVUImpl.ctx = context.Background()
-	unbindInit := common.BindToGlobal(rt, map[string]interface***REMOVED******REMOVED******REMOVED***
-		"require": init.Require,
-		"open":    init.Open,
-	***REMOVED***)
+	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.eventLoop = newEventLoop(init.moduleVUImpl)
 	err := init.moduleVUImpl.eventLoop.start(func() error ***REMOVED***
 		_, err := rt.RunProgram(b.Program)
@@ -359,6 +356,20 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	rt.SetRandSource(common.NewRandSource())
 
 	return nil
+***REMOVED***
+
+func (b *Bundle) setInitGlobals(rt *goja.Runtime, init *InitContext) (unset func()) ***REMOVED***
+	mustSet := func(k string, v interface***REMOVED******REMOVED***) ***REMOVED***
+		if err := rt.Set(k, v); err != nil ***REMOVED***
+			panic(fmt.Errorf("failed to set '%s' global object: %w", k, err))
+		***REMOVED***
+	***REMOVED***
+	mustSet("require", init.Require)
+	mustSet("open", init.Open)
+	return func() ***REMOVED***
+		mustSet("require", goja.Undefined())
+		mustSet("open", goja.Undefined())
+	***REMOVED***
 ***REMOVED***
 
 func generateSourceMapLoader(logger logrus.FieldLogger, filesystems map[string]afero.Fs,
