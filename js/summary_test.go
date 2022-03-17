@@ -35,6 +35,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/stats"
 )
 
@@ -98,21 +99,28 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	parentMetric := stats.New("my_parent", stats.Counter)
+	registry := metrics.NewRegistry()
+	parentMetric, err := registry.NewMetric("my_parent", stats.Counter)
+	require.NoError(t, err)
 	parentMetric.Sink.Add(stats.Sample***REMOVED***Value: 11***REMOVED***)
-	parentMetricPost := stats.New("my_parent_post", stats.Counter)
+
+	parentMetricPost, err := registry.NewMetric("my_parent_post", stats.Counter)
+	require.NoError(t, err)
 	parentMetricPost.Sink.Add(stats.Sample***REMOVED***Value: 22***REMOVED***)
 
-	subMetric := stats.New("my_parent***REMOVED***sub:1***REMOVED***", stats.Counter)
-	subMetric.Sink.Add(stats.Sample***REMOVED***Value: 1***REMOVED***)
-	subMetricPost := stats.New("my_parent_post***REMOVED***sub:2***REMOVED***", stats.Counter)
-	subMetricPost.Sink.Add(stats.Sample***REMOVED***Value: 2***REMOVED***)
+	subMetric, err := parentMetric.AddSubmetric("sub:1")
+	require.NoError(t, err)
+	subMetric.Metric.Sink.Add(stats.Sample***REMOVED***Value: 1***REMOVED***)
+
+	subMetricPost, err := parentMetricPost.AddSubmetric("sub:2")
+	require.NoError(t, err)
+	subMetricPost.Metric.Sink.Add(stats.Sample***REMOVED***Value: 2***REMOVED***)
 
 	metrics := map[string]*stats.Metric***REMOVED***
 		parentMetric.Name:     parentMetric,
 		parentMetricPost.Name: parentMetricPost,
-		subMetric.Name:        subMetric,
-		subMetricPost.Name:    subMetricPost,
+		subMetric.Name:        subMetric.Metric,
+		subMetricPost.Name:    subMetricPost.Metric,
 	***REMOVED***
 
 	summary := &lib.Summary***REMOVED***
@@ -147,15 +155,20 @@ func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func createTestMetrics(t *testing.T) (map[string]*stats.Metric, *lib.Group) ***REMOVED***
+	registry := metrics.NewRegistry()
 	metrics := make(map[string]*stats.Metric)
-	gaugeMetric := stats.New("vus", stats.Gauge)
+
+	gaugeMetric, err := registry.NewMetric("vus", stats.Gauge)
+	require.NoError(t, err)
 	gaugeMetric.Sink.Add(stats.Sample***REMOVED***Value: 1***REMOVED***)
 
-	countMetric := stats.New("http_reqs", stats.Counter)
+	countMetric, err := registry.NewMetric("http_reqs", stats.Counter)
+	require.NoError(t, err)
 	countMetric.Tainted = null.BoolFrom(true)
 	countMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate<100", LastFailed: true***REMOVED******REMOVED******REMOVED***
 
-	checksMetric := stats.New("checks", stats.Rate)
+	checksMetric, err := registry.NewMetric("checks", stats.Rate)
+	require.NoError(t, err)
 	checksMetric.Tainted = null.BoolFrom(false)
 	checksMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate>70", LastFailed: false***REMOVED******REMOVED******REMOVED***
 	sink := &stats.TrendSink***REMOVED******REMOVED***

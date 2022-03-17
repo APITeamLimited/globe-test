@@ -37,6 +37,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
 	"go.k6.io/k6/stats"
 )
@@ -65,6 +66,9 @@ func TestMakeHeader(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSampleToRow(t *testing.T) ***REMOVED***
+	testMetric, err := metrics.NewRegistry().NewMetric("my_metric", stats.Gauge)
+	require.NoError(t, err)
+
 	testData := []struct ***REMOVED***
 		testname    string
 		sample      *stats.Sample
@@ -75,7 +79,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			testname: "One res tag, one ignored tag, one extra tag",
 			sample: &stats.Sample***REMOVED***
 				Time:   time.Unix(1562324644, 0),
-				Metric: stats.New("my_metric", stats.Gauge),
+				Metric: testMetric,
 				Value:  1,
 				Tags: stats.NewSampleTags(map[string]string***REMOVED***
 					"tag1": "val1",
@@ -90,7 +94,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			testname: "Two res tags, three extra tags",
 			sample: &stats.Sample***REMOVED***
 				Time:   time.Unix(1562324644, 0),
-				Metric: stats.New("my_metric", stats.Gauge),
+				Metric: testMetric,
 				Value:  1,
 				Tags: stats.NewSampleTags(map[string]string***REMOVED***
 					"tag1": "val1",
@@ -107,7 +111,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			testname: "Two res tags, two ignored",
 			sample: &stats.Sample***REMOVED***
 				Time:   time.Unix(1562324644, 0),
-				Metric: stats.New("my_metric", stats.Gauge),
+				Metric: testMetric,
 				Value:  1,
 				Tags: stats.NewSampleTags(map[string]string***REMOVED***
 					"tag1": "val1",
@@ -214,6 +218,10 @@ func readCompressedFile(fileName string, fs afero.Fs) string ***REMOVED***
 
 func TestRun(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	testMetric, err := metrics.NewRegistry().NewMetric("my_metric", stats.Gauge)
+	require.NoError(t, err)
+
 	testData := []struct ***REMOVED***
 		samples        []stats.SampleContainer
 		fileName       string
@@ -224,7 +232,7 @@ func TestRun(t *testing.T) ***REMOVED***
 			samples: []stats.SampleContainer***REMOVED***
 				stats.Sample***REMOVED***
 					Time:   time.Unix(1562324643, 0),
-					Metric: stats.New("my_metric", stats.Gauge),
+					Metric: testMetric,
 					Value:  1,
 					Tags: stats.NewSampleTags(map[string]string***REMOVED***
 						"check": "val1",
@@ -234,7 +242,7 @@ func TestRun(t *testing.T) ***REMOVED***
 				***REMOVED***,
 				stats.Sample***REMOVED***
 					Time:   time.Unix(1562324644, 0),
-					Metric: stats.New("my_metric", stats.Gauge),
+					Metric: testMetric,
 					Value:  1,
 					Tags: stats.NewSampleTags(map[string]string***REMOVED***
 						"check": "val1",
@@ -252,7 +260,7 @@ func TestRun(t *testing.T) ***REMOVED***
 			samples: []stats.SampleContainer***REMOVED***
 				stats.Sample***REMOVED***
 					Time:   time.Unix(1562324643, 0),
-					Metric: stats.New("my_metric", stats.Gauge),
+					Metric: testMetric,
 					Value:  1,
 					Tags: stats.NewSampleTags(map[string]string***REMOVED***
 						"check": "val1",
@@ -262,7 +270,7 @@ func TestRun(t *testing.T) ***REMOVED***
 				***REMOVED***,
 				stats.Sample***REMOVED***
 					Time:   time.Unix(1562324644, 0),
-					Metric: stats.New("my_metric", stats.Gauge),
+					Metric: testMetric,
 					Value:  1,
 					Tags: stats.NewSampleTags(map[string]string***REMOVED***
 						"check": "val1",
