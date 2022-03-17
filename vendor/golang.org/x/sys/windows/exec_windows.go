@@ -78,6 +78,40 @@ func EscapeArg(s string) string ***REMOVED***
 	return string(qs[:j])
 ***REMOVED***
 
+// ComposeCommandLine escapes and joins the given arguments suitable for use as a Windows command line,
+// in CreateProcess's CommandLine argument, CreateService/ChangeServiceConfig's BinaryPathName argument,
+// or any program that uses CommandLineToArgv.
+func ComposeCommandLine(args []string) string ***REMOVED***
+	var commandLine string
+	for i := range args ***REMOVED***
+		if i > 0 ***REMOVED***
+			commandLine += " "
+		***REMOVED***
+		commandLine += EscapeArg(args[i])
+	***REMOVED***
+	return commandLine
+***REMOVED***
+
+// DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
+// as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
+// command lines are passed around.
+func DecomposeCommandLine(commandLine string) ([]string, error) ***REMOVED***
+	if len(commandLine) == 0 ***REMOVED***
+		return []string***REMOVED******REMOVED***, nil
+	***REMOVED***
+	var argc int32
+	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	defer LocalFree(Handle(unsafe.Pointer(argv)))
+	var args []string
+	for _, v := range (*argv)[:argc] ***REMOVED***
+		args = append(args, UTF16ToString((*v)[:]))
+	***REMOVED***
+	return args, nil
+***REMOVED***
+
 func CloseOnExec(fd Handle) ***REMOVED***
 	SetHandleInformation(Handle(fd), HANDLE_FLAG_INHERIT, 0)
 ***REMOVED***
@@ -101,8 +135,8 @@ func FullPath(name string) (path string, err error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// NewProcThreadAttributeList allocates a new ProcThreadAttributeList, with the requested maximum number of attributes.
-func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeList, error) ***REMOVED***
+// NewProcThreadAttributeList allocates a new ProcThreadAttributeListContainer, with the requested maximum number of attributes.
+func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeListContainer, error) ***REMOVED***
 	var size uintptr
 	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
 	if err != ERROR_INSUFFICIENT_BUFFER ***REMOVED***
@@ -111,10 +145,13 @@ func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeList, 
 		***REMOVED***
 		return nil, err
 	***REMOVED***
-	const psize = unsafe.Sizeof(uintptr(0))
+	alloc, err := LocalAlloc(LMEM_FIXED, uint32(size))
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
-	al := (*ProcThreadAttributeList)(unsafe.Pointer(&make([]unsafe.Pointer, (size+psize-1)/psize)[0]))
-	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
+	al := &ProcThreadAttributeListContainer***REMOVED***data: (*ProcThreadAttributeList)(unsafe.Pointer(alloc))***REMOVED***
+	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -122,11 +159,20 @@ func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeList, 
 ***REMOVED***
 
 // Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
-func (al *ProcThreadAttributeList) Update(attribute uintptr, flags uint32, value unsafe.Pointer, size uintptr, prevValue unsafe.Pointer, returnedSize *uintptr) error ***REMOVED***
-	return updateProcThreadAttribute(al, flags, attribute, value, size, prevValue, returnedSize)
+func (al *ProcThreadAttributeListContainer) Update(attribute uintptr, value unsafe.Pointer, size uintptr) error ***REMOVED***
+	al.pointers = append(al.pointers, value)
+	return updateProcThreadAttribute(al.data, 0, attribute, value, size, nil, nil)
 ***REMOVED***
 
 // Delete frees ProcThreadAttributeList's resources.
-func (al *ProcThreadAttributeList) Delete() ***REMOVED***
-	deleteProcThreadAttributeList(al)
+func (al *ProcThreadAttributeListContainer) Delete() ***REMOVED***
+	deleteProcThreadAttributeList(al.data)
+	LocalFree(Handle(unsafe.Pointer(al.data)))
+	al.data = nil
+	al.pointers = nil
+***REMOVED***
+
+// List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.
+func (al *ProcThreadAttributeListContainer) List() *ProcThreadAttributeList ***REMOVED***
+	return al.data
 ***REMOVED***

@@ -232,6 +232,13 @@ func Parse(s string) (t Tag, err error) ***REMOVED***
 	if s == "" ***REMOVED***
 		return Und, ErrSyntax
 	***REMOVED***
+	defer func() ***REMOVED***
+		if recover() != nil ***REMOVED***
+			t = Und
+			err = ErrSyntax
+			return
+		***REMOVED***
+	***REMOVED***()
 	if len(s) <= maxAltTaglen ***REMOVED***
 		b := [maxAltTaglen]byte***REMOVED******REMOVED***
 		for i, c := range s ***REMOVED***

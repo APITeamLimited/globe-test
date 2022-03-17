@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/textproto"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -129,6 +130,17 @@ type Transport struct ***REMOVED***
 	// if a response to Ping is not received.
 	// Defaults to 15s.
 	PingTimeout time.Duration
+
+	// WriteByteTimeout is the timeout after which the connection will be
+	// closed no data can be written to it. The timeout begins when data is
+	// available to write, and is extended whenever any bytes are written.
+	WriteByteTimeout time.Duration
+
+	// CountError, if non-nil, is called on HTTP/2 transport errors.
+	// It's intended to increment a metric for monitoring, such
+	// as an expvar or Prometheus metric.
+	// The errType consists of only ASCII word characters.
+	CountError func(errType string)
 
 	// t1, if non-nil, is the standard library Transport using
 	// this transport. Its settings are used (but not its
@@ -387,17 +399,31 @@ func (cs *clientStream) abortRequestBodyWrite() ***REMOVED***
 ***REMOVED***
 
 type stickyErrWriter struct ***REMOVED***
-	w   io.Writer
-	err *error
+	conn    net.Conn
+	timeout time.Duration
+	err     *error
 ***REMOVED***
 
 func (sew stickyErrWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	if *sew.err != nil ***REMOVED***
 		return 0, *sew.err
 	***REMOVED***
-	n, err = sew.w.Write(p)
-	*sew.err = err
-	return
+	for ***REMOVED***
+		if sew.timeout != 0 ***REMOVED***
+			sew.conn.SetWriteDeadline(time.Now().Add(sew.timeout))
+		***REMOVED***
+		nn, err := sew.conn.Write(p[n:])
+		n += nn
+		if n < len(p) && nn > 0 && errors.Is(err, os.ErrDeadlineExceeded) ***REMOVED***
+			// Keep extending the deadline so long as we're making progress.
+			continue
+		***REMOVED***
+		if sew.timeout != 0 ***REMOVED***
+			sew.conn.SetWriteDeadline(time.Time***REMOVED******REMOVED***)
+		***REMOVED***
+		*sew.err = err
+		return n, err
+	***REMOVED***
 ***REMOVED***
 
 // noCachedConnError is the concrete type of ErrNoCachedConn, which
@@ -652,9 +678,16 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 
 	// TODO: adjust this writer size to account for frame size +
 	// MTU + crypto/tls record padding.
-	cc.bw = bufio.NewWriter(stickyErrWriter***REMOVED***c, &cc.werr***REMOVED***)
+	cc.bw = bufio.NewWriter(stickyErrWriter***REMOVED***
+		conn:    c,
+		timeout: t.WriteByteTimeout,
+		err:     &cc.werr,
+	***REMOVED***)
 	cc.br = bufio.NewReader(c)
 	cc.fr = NewFramer(cc.bw, cc.br)
+	if t.CountError != nil ***REMOVED***
+		cc.fr.countError = t.CountError
+	***REMOVED***
 	cc.fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
 
@@ -702,7 +735,6 @@ func (cc *ClientConn) healthCheck() ***REMOVED***
 	err := cc.Ping(ctx)
 	if err != nil ***REMOVED***
 		cc.closeForLostPing()
-		cc.t.connPool().MarkDead(cc)
 		return
 	***REMOVED***
 ***REMOVED***
@@ -758,6 +790,61 @@ func (cc *ClientConn) ReserveNewRequest() bool ***REMOVED***
 	***REMOVED***
 	cc.streamsReserved++
 	return true
+***REMOVED***
+
+// ClientConnState describes the state of a ClientConn.
+type ClientConnState struct ***REMOVED***
+	// Closed is whether the connection is closed.
+	Closed bool
+
+	// Closing is whether the connection is in the process of
+	// closing. It may be closing due to shutdown, being a
+	// single-use connection, being marked as DoNotReuse, or
+	// having received a GOAWAY frame.
+	Closing bool
+
+	// StreamsActive is how many streams are active.
+	StreamsActive int
+
+	// StreamsReserved is how many streams have been reserved via
+	// ClientConn.ReserveNewRequest.
+	StreamsReserved int
+
+	// StreamsPending is how many requests have been sent in excess
+	// of the peer's advertised MaxConcurrentStreams setting and
+	// are waiting for other streams to complete.
+	StreamsPending int
+
+	// MaxConcurrentStreams is how many concurrent streams the
+	// peer advertised as acceptable. Zero means no SETTINGS
+	// frame has been received yet.
+	MaxConcurrentStreams uint32
+
+	// LastIdle, if non-zero, is when the connection last
+	// transitioned to idle state.
+	LastIdle time.Time
+***REMOVED***
+
+// State returns a snapshot of cc's state.
+func (cc *ClientConn) State() ClientConnState ***REMOVED***
+	cc.wmu.Lock()
+	maxConcurrent := cc.maxConcurrentStreams
+	if !cc.seenSettings ***REMOVED***
+		maxConcurrent = 0
+	***REMOVED***
+	cc.wmu.Unlock()
+
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return ClientConnState***REMOVED***
+		Closed:               cc.closed,
+		Closing:              cc.closing || cc.singleUse || cc.doNotReuse || cc.goAway != nil,
+		StreamsActive:        len(cc.streams),
+		StreamsReserved:      cc.streamsReserved,
+		StreamsPending:       cc.pendingRequests,
+		LastIdle:             cc.lastIdle,
+		MaxConcurrentStreams: maxConcurrent,
+	***REMOVED***
 ***REMOVED***
 
 // clientConnIdleState describes the suitability of a client
@@ -819,6 +906,24 @@ func (cc *ClientConn) onIdleTimeout() ***REMOVED***
 	cc.closeIfIdle()
 ***REMOVED***
 
+func (cc *ClientConn) closeConn() error ***REMOVED***
+	t := time.AfterFunc(250*time.Millisecond, cc.forceCloseConn)
+	defer t.Stop()
+	return cc.tconn.Close()
+***REMOVED***
+
+// A tls.Conn.Close can hang for a long time if the peer is unresponsive.
+// Try to shut it down more aggressively.
+func (cc *ClientConn) forceCloseConn() ***REMOVED***
+	tc, ok := cc.tconn.(*tls.Conn)
+	if !ok ***REMOVED***
+		return
+	***REMOVED***
+	if nc := tlsUnderlyingConn(tc); nc != nil ***REMOVED***
+		nc.Close()
+	***REMOVED***
+***REMOVED***
+
 func (cc *ClientConn) closeIfIdle() ***REMOVED***
 	cc.mu.Lock()
 	if len(cc.streams) > 0 || cc.streamsReserved > 0 ***REMOVED***
@@ -833,7 +938,7 @@ func (cc *ClientConn) closeIfIdle() ***REMOVED***
 	if VerboseLogs ***REMOVED***
 		cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, nextID-2)
 	***REMOVED***
-	cc.tconn.Close()
+	cc.closeConn()
 ***REMOVED***
 
 func (cc *ClientConn) isDoNotReuseAndIdle() bool ***REMOVED***
@@ -850,7 +955,7 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 	// Wait for all in-flight streams to complete or connection to close
-	done := make(chan error, 1)
+	done := make(chan struct***REMOVED******REMOVED***)
 	cancelled := false // guarded by cc.mu
 	go func() ***REMOVED***
 		cc.mu.Lock()
@@ -858,7 +963,7 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error ***REMOVED***
 		for ***REMOVED***
 			if len(cc.streams) == 0 || cc.closed ***REMOVED***
 				cc.closed = true
-				done <- cc.tconn.Close()
+				close(done)
 				break
 			***REMOVED***
 			if cancelled ***REMOVED***
@@ -869,8 +974,8 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error ***REMOVED***
 	***REMOVED***()
 	shutdownEnterWaitStateHook()
 	select ***REMOVED***
-	case err := <-done:
-		return err
+	case <-done:
+		return cc.closeConn()
 	case <-ctx.Done():
 		cc.mu.Lock()
 		// Free the goroutine above
@@ -913,9 +1018,9 @@ func (cc *ClientConn) closeForError(err error) error ***REMOVED***
 	for _, cs := range cc.streams ***REMOVED***
 		cs.abortStreamLocked(err)
 	***REMOVED***
-	defer cc.cond.Broadcast()
-	defer cc.mu.Unlock()
-	return cc.tconn.Close()
+	cc.cond.Broadcast()
+	cc.mu.Unlock()
+	return cc.closeConn()
 ***REMOVED***
 
 // Close closes the client connection immediately.
@@ -929,6 +1034,9 @@ func (cc *ClientConn) Close() error ***REMOVED***
 // closes the client connection immediately. In-flight requests are interrupted.
 func (cc *ClientConn) closeForLostPing() error ***REMOVED***
 	err := errors.New("http2: client connection lost")
+	if f := cc.t.CountError; f != nil ***REMOVED***
+		f("conn_close_lost_ping")
+	***REMOVED***
 	return cc.closeForError(err)
 ***REMOVED***
 
@@ -1087,7 +1195,7 @@ func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) ***RE
 	***REMOVED***
 ***REMOVED***
 
-// writeRequest runs for the duration of the request lifetime.
+// doRequest runs for the duration of the request lifetime.
 //
 // It sends the request and performs post-request cleanup (closing Request.Body, etc.).
 func (cs *clientStream) doRequest(req *http.Request) ***REMOVED***
@@ -1489,11 +1597,19 @@ func (cs *clientStream) writeRequestBody(req *http.Request) (err error) ***REMOV
 				return err
 			***REMOVED***
 		***REMOVED***
-		if err == io.EOF ***REMOVED***
-			sawEOF = true
-			err = nil
-		***REMOVED*** else if err != nil ***REMOVED***
-			return err
+		if err != nil ***REMOVED***
+			cc.mu.Lock()
+			bodyClosed := cs.reqBodyClosed
+			cc.mu.Unlock()
+			switch ***REMOVED***
+			case bodyClosed:
+				return errStopReqBodyWrite
+			case err == io.EOF:
+				sawEOF = true
+				err = nil
+			default:
+				return err
+			***REMOVED***
 		***REMOVED***
 
 		remain := buf[:n]
@@ -1879,7 +1995,7 @@ func (cc *ClientConn) forgetStreamID(id uint32) ***REMOVED***
 			cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, cc.nextStreamID-2)
 		***REMOVED***
 		cc.closed = true
-		defer cc.tconn.Close()
+		defer cc.closeConn()
 	***REMOVED***
 
 	cc.mu.Unlock()
@@ -1926,8 +2042,8 @@ func isEOFOrNetReadError(err error) bool ***REMOVED***
 
 func (rl *clientConnReadLoop) cleanup() ***REMOVED***
 	cc := rl.cc
-	defer cc.tconn.Close()
-	defer cc.t.connPool().MarkDead(cc)
+	cc.t.connPool().MarkDead(cc)
+	defer cc.closeConn()
 	defer close(cc.readerDone)
 
 	if cc.idleTimer != nil ***REMOVED***
@@ -1962,6 +2078,33 @@ func (rl *clientConnReadLoop) cleanup() ***REMOVED***
 	cc.mu.Unlock()
 ***REMOVED***
 
+// countReadFrameError calls Transport.CountError with a string
+// representing err.
+func (cc *ClientConn) countReadFrameError(err error) ***REMOVED***
+	f := cc.t.CountError
+	if f == nil || err == nil ***REMOVED***
+		return
+	***REMOVED***
+	if ce, ok := err.(ConnectionError); ok ***REMOVED***
+		errCode := ErrCode(ce)
+		f(fmt.Sprintf("read_frame_conn_error_%s", errCode.stringToken()))
+		return
+	***REMOVED***
+	if errors.Is(err, io.EOF) ***REMOVED***
+		f("read_frame_eof")
+		return
+	***REMOVED***
+	if errors.Is(err, io.ErrUnexpectedEOF) ***REMOVED***
+		f("read_frame_unexpected_eof")
+		return
+	***REMOVED***
+	if errors.Is(err, ErrFrameTooLarge) ***REMOVED***
+		f("read_frame_too_large")
+		return
+	***REMOVED***
+	f("read_frame_other")
+***REMOVED***
+
 func (rl *clientConnReadLoop) run() error ***REMOVED***
 	cc := rl.cc
 	gotSettings := false
@@ -1988,6 +2131,7 @@ func (rl *clientConnReadLoop) run() error ***REMOVED***
 			***REMOVED***
 			continue
 		***REMOVED*** else if err != nil ***REMOVED***
+			cc.countReadFrameError(err)
 			return err
 		***REMOVED***
 		if VerboseLogs ***REMOVED***
@@ -2203,7 +2347,7 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 	cs.bytesRemain = res.ContentLength
 	res.Body = transportResponseBody***REMOVED***cs***REMOVED***
 
-	if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" ***REMOVED***
+	if cs.requestedGzip && asciiEqualFold(res.Header.Get("Content-Encoding"), "gzip") ***REMOVED***
 		res.Header.Del("Content-Encoding")
 		res.Header.Del("Content-Length")
 		res.ContentLength = -1
@@ -2342,7 +2486,10 @@ func (b transportResponseBody) Close() error ***REMOVED***
 	select ***REMOVED***
 	case <-cs.donec:
 	case <-cs.ctx.Done():
-		return cs.ctx.Err()
+		// See golang/go#49366: The net/http package can cancel the
+		// request context after the response body is fully read.
+		// Don't treat this as an error.
+		return nil
 	case <-cs.reqCancel:
 		return errRequestCanceled
 	***REMOVED***
@@ -2466,6 +2613,12 @@ func (rl *clientConnReadLoop) endStream(cs *clientStream) ***REMOVED***
 	// server.go's (*stream).endStream method.
 	if !cs.readClosed ***REMOVED***
 		cs.readClosed = true
+		// Close cs.bufPipe and cs.peerClosed with cc.mu held to avoid a
+		// race condition: The caller can read io.EOF from Response.Body
+		// and close the body before we close cs.peerClosed, causing
+		// cleanupWriteRequest to send a RST_STREAM.
+		rl.cc.mu.Lock()
+		defer rl.cc.mu.Unlock()
 		cs.bufPipe.closeWithErrorAndCode(io.EOF, cs.copyTrailers)
 		close(cs.peerClosed)
 	***REMOVED***
@@ -2502,6 +2655,10 @@ func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error ***REMOVED***
 	if f.ErrCode != 0 ***REMOVED***
 		// TODO: deal with GOAWAY more. particularly the error code
 		cc.vlogf("transport got GOAWAY with error code = %v", f.ErrCode)
+		if fn := cc.t.CountError; fn != nil ***REMOVED***
+			fn("recv_goaway_" + f.ErrCode.stringToken())
+		***REMOVED***
+
 	***REMOVED***
 	cc.setGoAway(f)
 	return nil
@@ -2614,13 +2771,16 @@ func (rl *clientConnReadLoop) processWindowUpdate(f *WindowUpdateFrame) error **
 func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error ***REMOVED***
 	cs := rl.streamByID(f.StreamID)
 	if cs == nil ***REMOVED***
-		// TODO: return error if server tries to RST_STEAM an idle stream
+		// TODO: return error if server tries to RST_STREAM an idle stream
 		return nil
 	***REMOVED***
 	serr := streamError(cs.ID, f.ErrCode)
 	serr.Cause = errFromPeer
 	if f.ErrCode == ErrCodeProtocol ***REMOVED***
 		rl.cc.SetDoNotReuse()
+	***REMOVED***
+	if fn := cs.cc.t.CountError; fn != nil ***REMOVED***
+		fn("recv_rststream_" + f.ErrCode.stringToken())
 	***REMOVED***
 	cs.abortStream(serr)
 

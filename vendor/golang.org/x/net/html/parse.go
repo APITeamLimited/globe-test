@@ -663,6 +663,24 @@ func inHeadIM(p *parser) bool ***REMOVED***
 			// Ignore the token.
 			return true
 		case a.Template:
+			// TODO: remove this divergence from the HTML5 spec.
+			//
+			// We don't handle all of the corner cases when mixing foreign
+			// content (i.e. <math> or <svg>) with <template>. Without this
+			// early return, we can get into an infinite loop, possibly because
+			// of the "TODO... further divergence" a little below.
+			//
+			// As a workaround, if we are mixing foreign content and templates,
+			// just ignore the rest of the HTML. Foreign content is rare and a
+			// relatively old HTML feature. Templates are also rare and a
+			// relatively new HTML feature. Their combination is very rare.
+			for _, e := range p.oe ***REMOVED***
+				if e.Namespace != "" ***REMOVED***
+					p.im = ignoreTheRemainingTokens
+					return true
+				***REMOVED***
+			***REMOVED***
+
 			p.addElement()
 			p.afe = append(p.afe, &scopeMarker)
 			p.framesetOK = false
@@ -683,7 +701,7 @@ func inHeadIM(p *parser) bool ***REMOVED***
 			if !p.oe.contains(a.Template) ***REMOVED***
 				return true
 			***REMOVED***
-			// TODO: remove this divergence from the HTML5 spec.
+			// TODO: remove this further divergence from the HTML5 spec.
 			//
 			// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
 			p.generateImpliedEndTags()
@@ -2124,6 +2142,10 @@ func afterAfterFramesetIM(p *parser) bool ***REMOVED***
 	default:
 		// Ignore the token.
 	***REMOVED***
+	return true
+***REMOVED***
+
+func ignoreTheRemainingTokens(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 

@@ -7,8 +7,6 @@
 
 package unix
 
-//sys	dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -21,17 +19,6 @@ package unix
 //sysnb	Getgid() (gid int)
 //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
-//sysnb	inotifyInit() (fd int, err error)
-
-func InotifyInit() (fd int, err error) ***REMOVED***
-	// First try inotify_init1, because Android's seccomp policy blocks the latter.
-	fd, err = InotifyInit1(0)
-	if err == ENOSYS ***REMOVED***
-		fd, err = inotifyInit()
-	***REMOVED***
-	return
-***REMOVED***
-
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
@@ -126,32 +113,6 @@ func setTimeval(sec, usec int64) Timeval ***REMOVED***
 	return Timeval***REMOVED***Sec: sec, Usec: usec***REMOVED***
 ***REMOVED***
 
-//sysnb	pipe(p *[2]_C_int) (err error)
-
-func Pipe(p []int) (err error) ***REMOVED***
-	if len(p) != 2 ***REMOVED***
-		return EINVAL
-	***REMOVED***
-	var pp [2]_C_int
-	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-***REMOVED***
-
-//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) ***REMOVED***
-	if len(p) != 2 ***REMOVED***
-		return EINVAL
-	***REMOVED***
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-***REMOVED***
-
 func (r *PtraceRegs) PC() uint64 ***REMOVED*** return r.Rip ***REMOVED***
 
 func (r *PtraceRegs) SetPC(pc uint64) ***REMOVED*** r.Rip = pc ***REMOVED***
@@ -172,13 +133,8 @@ func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint64(length)
 ***REMOVED***
 
-//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
-
-func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
-	if len(fds) == 0 ***REMOVED***
-		return poll(nil, 0, timeout)
-	***REMOVED***
-	return poll(&fds[0], len(fds), timeout)
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) ***REMOVED***
+	rsa.Service_name_len = uint64(length)
 ***REMOVED***
 
 //sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
