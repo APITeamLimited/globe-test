@@ -27,7 +27,10 @@ loop:
 		***REMOVED***
 		if c1 != 0x1b ***REMOVED***
 			bw[0] = c1
-			w.out.Write(bw[:])
+			_, err = w.out.Write(bw[:])
+			if err != nil ***REMOVED***
+				break loop
+			***REMOVED***
 			continue
 		***REMOVED***
 		c2, err := er.ReadByte()
