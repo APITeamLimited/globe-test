@@ -179,7 +179,7 @@ func (e *fastGen) matchlen(s, t int32, src []byte) int32 ***REMOVED***
 // matchlenLong will return the match length between offsets and t in src.
 // It is assumed that s > t, that t >=0 and s < len(src).
 func (e *fastGen) matchlenLong(s, t int32, src []byte) int32 ***REMOVED***
-	if debugDecode ***REMOVED***
+	if debugDeflate ***REMOVED***
 		if t >= s ***REMOVED***
 			panic(fmt.Sprint("t >=s:", t, s))
 		***REMOVED***
@@ -213,11 +213,9 @@ func (e *fastGen) Reset() ***REMOVED***
 // matchLen returns the maximum length.
 // 'a' must be the shortest of the two.
 func matchLen(a, b []byte) int ***REMOVED***
-	b = b[:len(a)]
 	var checked int
 
 	for len(a) >= 8 ***REMOVED***
-		b = b[:len(a)]
 		if diff := binary.LittleEndian.Uint64(a) ^ binary.LittleEndian.Uint64(b); diff != 0 ***REMOVED***
 			return checked + (bits.TrailingZeros64(diff) >> 3)
 		***REMOVED***

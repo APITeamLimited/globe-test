@@ -13,11 +13,10 @@ import (
 )
 
 const (
-	// From top
-	// 2 bits:   type   0 = literal  1=EOF  2=Match   3=Unused
-	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
-	// 5 bits    offsetcode
-	// 16 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
+	// bits 0-16  	xoffset = offset - MIN_OFFSET_SIZE, or literal - 16 bits
+	// bits 16-22	offsetcode - 5 bits
+	// bits 22-30   xlength = length - MIN_MATCH_LENGTH - 8 bits
+	// bits 30-32   type   0 = literal  1=EOF  2=Match   3=Unused - 2 bits
 	lengthShift         = 22
 	offsetMask          = 1<<lengthShift - 1
 	typeMask            = 3 << 30
@@ -129,11 +128,11 @@ var offsetCodes14 = [256]uint32***REMOVED***
 type token uint32
 
 type tokens struct ***REMOVED***
-	nLits     int
 	extraHist [32]uint16  // codes 256->maxnumlit
 	offHist   [32]uint16  // offset codes
 	litHist   [256]uint16 // codes 0->255
-	n         uint16      // Must be able to contain maxStoreBlockSize
+	nFilled   int
+	n         uint16 // Must be able to contain maxStoreBlockSize
 	tokens    [maxStoreBlockSize + 1]token
 ***REMOVED***
 
@@ -142,7 +141,7 @@ func (t *tokens) Reset() ***REMOVED***
 		return
 	***REMOVED***
 	t.n = 0
-	t.nLits = 0
+	t.nFilled = 0
 	for i := range t.litHist[:] ***REMOVED***
 		t.litHist[i] = 0
 	***REMOVED***
@@ -161,12 +160,12 @@ func (t *tokens) Fill() ***REMOVED***
 	for i, v := range t.litHist[:] ***REMOVED***
 		if v == 0 ***REMOVED***
 			t.litHist[i] = 1
-			t.nLits++
+			t.nFilled++
 		***REMOVED***
 	***REMOVED***
 	for i, v := range t.extraHist[:literalCount-256] ***REMOVED***
 		if v == 0 ***REMOVED***
-			t.nLits++
+			t.nFilled++
 			t.extraHist[i] = 1
 		***REMOVED***
 	***REMOVED***
@@ -196,20 +195,17 @@ func (t *tokens) indexTokens(in []token) ***REMOVED***
 
 // emitLiteral writes a literal chunk and returns the number of bytes written.
 func emitLiteral(dst *tokens, lit []byte) ***REMOVED***
-	ol := int(dst.n)
-	for i, v := range lit ***REMOVED***
-		dst.tokens[(i+ol)&maxStoreBlockSize] = token(v)
+	for _, v := range lit ***REMOVED***
+		dst.tokens[dst.n] = token(v)
 		dst.litHist[v]++
+		dst.n++
 	***REMOVED***
-	dst.n += uint16(len(lit))
-	dst.nLits += len(lit)
 ***REMOVED***
 
 func (t *tokens) AddLiteral(lit byte) ***REMOVED***
 	t.tokens[t.n] = token(lit)
 	t.litHist[lit]++
 	t.n++
-	t.nLits++
 ***REMOVED***
 
 // from https://stackoverflow.com/a/28730362
@@ -230,8 +226,9 @@ func (t *tokens) EstimatedBits() int ***REMOVED***
 	shannon := float32(0)
 	bits := int(0)
 	nMatches := 0
-	if t.nLits > 0 ***REMOVED***
-		invTotal := 1.0 / float32(t.nLits)
+	total := int(t.n) + t.nFilled
+	if total > 0 ***REMOVED***
+		invTotal := 1.0 / float32(total)
 		for _, v := range t.litHist[:] ***REMOVED***
 			if v > 0 ***REMOVED***
 				n := float32(v)
@@ -275,10 +272,9 @@ func (t *tokens) AddMatch(xlength uint32, xoffset uint32) ***REMOVED***
 	***REMOVED***
 	oCode := offsetCode(xoffset)
 	xoffset |= oCode << 16
-	t.nLits++
 
 	t.extraHist[lengthCodes1[uint8(xlength)]]++
-	t.offHist[oCode]++
+	t.offHist[oCode&31]++
 	t.tokens[t.n] = token(matchType | xlength<<lengthShift | xoffset)
 	t.n++
 ***REMOVED***
@@ -297,13 +293,16 @@ func (t *tokens) AddMatchLong(xlength int32, xoffset uint32) ***REMOVED***
 		xl := xlength
 		if xl > 258 ***REMOVED***
 			// We need to have at least baseMatchLength left over for next loop.
-			xl = 258 - baseMatchLength
+			if xl > 258+baseMatchLength ***REMOVED***
+				xl = 258
+			***REMOVED*** else ***REMOVED***
+				xl = 258 - baseMatchLength
+			***REMOVED***
 		***REMOVED***
 		xlength -= xl
 		xl -= baseMatchLength
-		t.nLits++
 		t.extraHist[lengthCodes1[uint8(xl)]]++
-		t.offHist[oc]++
+		t.offHist[oc&31]++
 		t.tokens[t.n] = token(matchType | uint32(xl)<<lengthShift | xoffset)
 		t.n++
 	***REMOVED***
@@ -359,8 +358,8 @@ func (t token) offset() uint32 ***REMOVED*** return uint32(t) & offsetMask ***RE
 
 func (t token) length() uint8 ***REMOVED*** return uint8(t >> lengthShift) ***REMOVED***
 
-// The code is never more than 8 bits, but is returned as uint32 for convenience.
-func lengthCode(len uint8) uint32 ***REMOVED*** return uint32(lengthCodes[len]) ***REMOVED***
+// Convert length to code.
+func lengthCode(len uint8) uint8 ***REMOVED*** return lengthCodes[len] ***REMOVED***
 
 // Returns the offset code corresponding to a specific offset
 func offsetCode(off uint32) uint32 ***REMOVED***

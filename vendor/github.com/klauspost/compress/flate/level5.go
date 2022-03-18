@@ -210,7 +210,15 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) ***REMOVED***
 			l++
 		***REMOVED***
 		if nextEmit < s ***REMOVED***
-			emitLiteral(dst, src[nextEmit:s])
+			if false ***REMOVED***
+				emitLiteral(dst, src[nextEmit:s])
+			***REMOVED*** else ***REMOVED***
+				for _, v := range src[nextEmit:s] ***REMOVED***
+					dst.tokens[dst.n] = token(v)
+					dst.litHist[v]++
+					dst.n++
+				***REMOVED***
+			***REMOVED***
 		***REMOVED***
 		if debugDeflate ***REMOVED***
 			if t >= s ***REMOVED***
