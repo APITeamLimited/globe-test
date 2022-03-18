@@ -423,6 +423,13 @@ func (c *messageConverter) PBValueOf(v reflect.Value) pref.Value ***REMOVED***
 	if v.Type() != c.goType ***REMOVED***
 		panic(fmt.Sprintf("invalid type: got %v, want %v", v.Type(), c.goType))
 	***REMOVED***
+	if c.isNonPointer() ***REMOVED***
+		if v.CanAddr() ***REMOVED***
+			v = v.Addr() // T => *T
+		***REMOVED*** else ***REMOVED***
+			v = reflect.Zero(reflect.PtrTo(v.Type()))
+		***REMOVED***
+	***REMOVED***
 	if m, ok := v.Interface().(pref.ProtoMessage); ok ***REMOVED***
 		return pref.ValueOfMessage(m.ProtoReflect())
 	***REMOVED***
@@ -436,6 +443,16 @@ func (c *messageConverter) GoValueOf(v pref.Value) reflect.Value ***REMOVED***
 		rv = reflect.ValueOf(u.protoUnwrap())
 	***REMOVED*** else ***REMOVED***
 		rv = reflect.ValueOf(m.Interface())
+	***REMOVED***
+	if c.isNonPointer() ***REMOVED***
+		if rv.Type() != reflect.PtrTo(c.goType) ***REMOVED***
+			panic(fmt.Sprintf("invalid type: got %v, want %v", rv.Type(), reflect.PtrTo(c.goType)))
+		***REMOVED***
+		if !rv.IsNil() ***REMOVED***
+			rv = rv.Elem() // *T => T
+		***REMOVED*** else ***REMOVED***
+			rv = reflect.Zero(rv.Type().Elem())
+		***REMOVED***
 	***REMOVED***
 	if rv.Type() != c.goType ***REMOVED***
 		panic(fmt.Sprintf("invalid type: got %v, want %v", rv.Type(), c.goType))
@@ -451,6 +468,9 @@ func (c *messageConverter) IsValidPB(v pref.Value) bool ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		rv = reflect.ValueOf(m.Interface())
 	***REMOVED***
+	if c.isNonPointer() ***REMOVED***
+		return rv.Type() == reflect.PtrTo(c.goType)
+	***REMOVED***
 	return rv.Type() == c.goType
 ***REMOVED***
 
@@ -459,9 +479,18 @@ func (c *messageConverter) IsValidGo(v reflect.Value) bool ***REMOVED***
 ***REMOVED***
 
 func (c *messageConverter) New() pref.Value ***REMOVED***
+	if c.isNonPointer() ***REMOVED***
+		return c.PBValueOf(reflect.New(c.goType).Elem())
+	***REMOVED***
 	return c.PBValueOf(reflect.New(c.goType.Elem()))
 ***REMOVED***
 
 func (c *messageConverter) Zero() pref.Value ***REMOVED***
 	return c.PBValueOf(reflect.Zero(c.goType))
+***REMOVED***
+
+// isNonPointer reports whether the type is a non-pointer type.
+// This never occurs for generated message types.
+func (c *messageConverter) isNonPointer() bool ***REMOVED***
+	return c.goType.Kind() != reflect.Ptr
 ***REMOVED***

@@ -163,21 +163,41 @@ func NewOptionNameNode(parts []*FieldReferenceNode, dots []*RuneNode) *OptionNam
 ***REMOVED***
 
 // FieldReferenceNode is a reference to a field name. It can indicate a regular
-// field (simple unqualified name) or an extension field (possibly-qualified
-// name that is enclosed either in brackets or parentheses).
+// field (simple unqualified name), an extension field (possibly-qualified name
+// that is enclosed either in brackets or parentheses), or an "any" type
+// reference (a type URL in the form "server.host/fully.qualified.Name" that is
+// enclosed in brackets).
 //
-// This is used in options to indicate the names of custom options (which are
+// Extension names are used in options to refer to custom options (which are
 // actually extensions), in which case the name is enclosed in parentheses "("
-// and ")". It is also used in message literals to set extension fields, in
-// which case the name is enclosed in square brackets "[" and "]".
+// and ")". They can also be used to refer to extension fields of options.
 //
-// Example:
+// Extension names are also used in message literals to set extension fields,
+// in which case the name is enclosed in square brackets "[" and "]".
+//
+// "Any" type references can only be used in message literals, and are not
+// allowed in option names. They are always enclosed in square brackets. An
+// "any" type reference is distinguished from an extension name by the presence
+// of a slash, which must be present in an "any" type reference and must be
+// absent in an extension name.
+//
+// Examples:
+//   foobar
 //   (foo.bar)
+//   [foo.bar]
+//   [type.googleapis.com/foo.bar]
+//
 type FieldReferenceNode struct ***REMOVED***
 	compositeNode
-	Open  *RuneNode // only present for extension names
-	Name  IdentValueNode
-	Close *RuneNode // only present for extension names
+	Open *RuneNode // only present for extension names and "any" type references
+
+	// only present for "any" type references
+	UrlPrefix IdentValueNode
+	Slash     *RuneNode
+
+	Name IdentValueNode
+
+	Close *RuneNode // only present for extension names and "any" type references
 ***REMOVED***
 
 // NewFieldReferenceNode creates a new *FieldReferenceNode for a regular field.
@@ -219,14 +239,55 @@ func NewExtensionFieldReferenceNode(openSym *RuneNode, name IdentValueNode, clos
 	***REMOVED***
 ***REMOVED***
 
+// NewAnyTypeReferenceNode creates a new *FieldReferenceNode for an "any"
+// type reference. All args must be non-nil. The openSym and closeSym runes
+// should be "[" and "]". The slashSym run should be "/".
+func NewAnyTypeReferenceNode(openSym *RuneNode, urlPrefix IdentValueNode, slashSym *RuneNode, name IdentValueNode, closeSym *RuneNode) *FieldReferenceNode ***REMOVED***
+	if name == nil ***REMOVED***
+		panic("name is nil")
+	***REMOVED***
+	if openSym == nil ***REMOVED***
+		panic("openSym is nil")
+	***REMOVED***
+	if closeSym == nil ***REMOVED***
+		panic("closeSym is nil")
+	***REMOVED***
+	if urlPrefix == nil ***REMOVED***
+		panic("urlPrefix is nil")
+	***REMOVED***
+	if slashSym == nil ***REMOVED***
+		panic("slashSym is nil")
+	***REMOVED***
+	children := []Node***REMOVED***openSym, urlPrefix, slashSym, name, closeSym***REMOVED***
+	return &FieldReferenceNode***REMOVED***
+		compositeNode: compositeNode***REMOVED***
+			children: children,
+		***REMOVED***,
+		Open:      openSym,
+		UrlPrefix: urlPrefix,
+		Slash:     slashSym,
+		Name:      name,
+		Close:     closeSym,
+	***REMOVED***
+***REMOVED***
+
 // IsExtension reports if this is an extension name or not (e.g. enclosed in
 // punctuation, such as parentheses or brackets).
 func (a *FieldReferenceNode) IsExtension() bool ***REMOVED***
-	return a.Open != nil
+	return a.Open != nil && a.Slash == nil
+***REMOVED***
+
+// IsExtension reports if this is an extension name or not (e.g. enclosed in
+// punctuation, such as parentheses or brackets).
+func (a *FieldReferenceNode) IsAnyTypeReference() bool ***REMOVED***
+	return a.Slash != nil
 ***REMOVED***
 
 func (a *FieldReferenceNode) Value() string ***REMOVED***
 	if a.Open != nil ***REMOVED***
+		if a.Slash != nil ***REMOVED***
+			return string(a.Open.Rune) + string(a.UrlPrefix.AsIdentifier()) + string(a.Slash.Rune) + string(a.Name.AsIdentifier()) + string(a.Close.Rune)
+		***REMOVED***
 		return string(a.Open.Rune) + string(a.Name.AsIdentifier()) + string(a.Close.Rune)
 	***REMOVED*** else ***REMOVED***
 		return string(a.Name.AsIdentifier())

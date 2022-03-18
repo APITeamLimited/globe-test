@@ -218,7 +218,7 @@ type jsonSC struct ***REMOVED***
 ***REMOVED***
 
 func init() ***REMOVED***
-	internal.ParseServiceConfigForTesting = parseServiceConfig
+	internal.ParseServiceConfig = parseServiceConfig
 ***REMOVED***
 func parseServiceConfig(js string) *serviceconfig.ParseResult ***REMOVED***
 	if len(js) == 0 ***REMOVED***

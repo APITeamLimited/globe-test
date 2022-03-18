@@ -37,7 +37,7 @@ var (
 	httpProxyFromEnvironment = http.ProxyFromEnvironment
 )
 
-func mapAddress(ctx context.Context, address string) (*url.URL, error) ***REMOVED***
+func mapAddress(address string) (*url.URL, error) ***REMOVED***
 	req := &http.Request***REMOVED***
 		URL: &url.URL***REMOVED***
 			Scheme: "https",
@@ -114,7 +114,7 @@ func doHTTPConnectHandshake(ctx context.Context, conn net.Conn, backendAddr stri
 // connection.
 func proxyDial(ctx context.Context, addr string, grpcUA string) (conn net.Conn, err error) ***REMOVED***
 	newAddr := addr
-	proxyURL, err := mapAddress(ctx, addr)
+	proxyURL, err := mapAddress(addr)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

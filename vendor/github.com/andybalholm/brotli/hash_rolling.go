@@ -48,7 +48,6 @@ type hashRolling struct ***REMOVED***
 	state         uint32
 	table         []uint32
 	next_ix       uint
-	chunk_len     uint32
 	factor        uint32
 	factor_remove uint32
 ***REMOVED***

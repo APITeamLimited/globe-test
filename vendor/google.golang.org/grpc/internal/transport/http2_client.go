@@ -25,6 +25,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,13 +147,20 @@ func dial(ctx context.Context, fn func(context.Context, string) (net.Conn, error
 	address := addr.Addr
 	networkType, ok := networktype.Get(addr)
 	if fn != nil ***REMOVED***
+		// Special handling for unix scheme with custom dialer. Back in the day,
+		// we did not have a unix resolver and therefore targets with a unix
+		// scheme would end up using the passthrough resolver. So, user's used a
+		// custom dialer in this case and expected the original dial target to
+		// be passed to the custom dialer. Now, we have a unix resolver. But if
+		// a custom dialer is specified, we want to retain the old behavior in
+		// terms of the address being passed to the custom dialer.
 		if networkType == "unix" && !strings.HasPrefix(address, "\x00") ***REMOVED***
-			// For backward compatibility, if the user dialed "unix:///path",
-			// the passthrough resolver would be used and the user's custom
-			// dialer would see "unix:///path". Since the unix resolver is used
-			// and the address is now "/path", prepend "unix://" so the user's
-			// custom dialer sees the same address.
-			return fn(ctx, "unix://"+address)
+			// Supported unix targets are either "unix://absolute-path" or
+			// "unix:relative-path".
+			if filepath.IsAbs(address) ***REMOVED***
+				return fn(ctx, "unix://"+address)
+			***REMOVED***
+			return fn(ctx, "unix:"+address)
 		***REMOVED***
 		return fn(ctx, address)
 	***REMOVED***
@@ -192,6 +200,12 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 			cancel()
 		***REMOVED***
 	***REMOVED***()
+
+	// gRPC, resolver, balancer etc. can specify arbitrary data in the
+	// Attributes field of resolver.Address, which is shoved into connectCtx
+	// and passed to the dialer and credential handshaker. This makes it possible for
+	// address specific arbitrary data to reach custom dialers and credential handshakers.
+	connectCtx = icredentials.NewClientHandshakeInfoContext(connectCtx, credentials.ClientHandshakeInfo***REMOVED***Attributes: addr.Attributes***REMOVED***)
 
 	conn, err := dial(connectCtx, opts.Dialer, addr, opts.UseProxy, opts.UserAgent)
 	if err != nil ***REMOVED***
@@ -237,11 +251,6 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		***REMOVED***
 	***REMOVED***
 	if transportCreds != nil ***REMOVED***
-		// gRPC, resolver, balancer etc. can specify arbitrary data in the
-		// Attributes field of resolver.Address, which is shoved into connectCtx
-		// and passed to the credential handshaker. This makes it possible for
-		// address specific arbitrary data to reach the credential handshaker.
-		connectCtx = icredentials.NewClientHandshakeInfoContext(connectCtx, credentials.ClientHandshakeInfo***REMOVED***Attributes: addr.Attributes***REMOVED***)
 		rawConn := conn
 		// Pull the deadline from the connectCtx, which will be used for
 		// timeouts in the authentication protocol handshake. Can ignore the
@@ -579,7 +588,7 @@ func (t *http2Client) getTrAuthData(ctx context.Context, audience string) (map[s
 				return nil, err
 			***REMOVED***
 
-			return nil, status.Errorf(codes.Unauthenticated, "transport: %v", err)
+			return nil, status.Errorf(codes.Unauthenticated, "transport: per-RPC creds failed due to error: %v", err)
 		***REMOVED***
 		for k, v := range data ***REMOVED***
 			// Capital header names are illegal in HTTP/2.
@@ -1073,7 +1082,7 @@ func (t *http2Client) handleData(f *http2.DataFrame) ***REMOVED***
 	***REMOVED***
 	// The server has closed the stream without sending trailers.  Record that
 	// the read direction is closed, and set the status appropriately.
-	if f.FrameHeader.Flags.Has(http2.FlagDataEndStream) ***REMOVED***
+	if f.StreamEnded() ***REMOVED***
 		t.closeStream(s, io.EOF, false, http2.ErrCodeNo, status.New(codes.Internal, "server closed the stream without sending trailers"), nil, true)
 	***REMOVED***
 ***REMOVED***
@@ -1403,26 +1412,6 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 	***REMOVED***
 
 	isHeader := false
-	defer func() ***REMOVED***
-		if t.statsHandler != nil ***REMOVED***
-			if isHeader ***REMOVED***
-				inHeader := &stats.InHeader***REMOVED***
-					Client:      true,
-					WireLength:  int(frame.Header().Length),
-					Header:      s.header.Copy(),
-					Compression: s.recvCompress,
-				***REMOVED***
-				t.statsHandler.HandleRPC(s.ctx, inHeader)
-			***REMOVED*** else ***REMOVED***
-				inTrailer := &stats.InTrailer***REMOVED***
-					Client:     true,
-					WireLength: int(frame.Header().Length),
-					Trailer:    s.trailer.Copy(),
-				***REMOVED***
-				t.statsHandler.HandleRPC(s.ctx, inTrailer)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
 
 	// If headerChan hasn't been closed yet
 	if atomic.CompareAndSwapUint32(&s.headerChanClosed, 0, 1) ***REMOVED***
@@ -1442,6 +1431,25 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 			s.noHeaders = true
 		***REMOVED***
 		close(s.headerChan)
+	***REMOVED***
+
+	if t.statsHandler != nil ***REMOVED***
+		if isHeader ***REMOVED***
+			inHeader := &stats.InHeader***REMOVED***
+				Client:      true,
+				WireLength:  int(frame.Header().Length),
+				Header:      metadata.MD(mdata).Copy(),
+				Compression: s.recvCompress,
+			***REMOVED***
+			t.statsHandler.HandleRPC(s.ctx, inHeader)
+		***REMOVED*** else ***REMOVED***
+			inTrailer := &stats.InTrailer***REMOVED***
+				Client:     true,
+				WireLength: int(frame.Header().Length),
+				Trailer:    metadata.MD(mdata).Copy(),
+			***REMOVED***
+			t.statsHandler.HandleRPC(s.ctx, inTrailer)
+		***REMOVED***
 	***REMOVED***
 
 	if !endStream ***REMOVED***
@@ -1549,7 +1557,7 @@ func minTime(a, b time.Duration) time.Duration ***REMOVED***
 	return b
 ***REMOVED***
 
-// keepalive running in a separate goroutune makes sure the connection is alive by sending pings.
+// keepalive running in a separate goroutine makes sure the connection is alive by sending pings.
 func (t *http2Client) keepalive() ***REMOVED***
 	p := &ping***REMOVED***data: [8]byte***REMOVED******REMOVED******REMOVED***
 	// True iff a ping has been sent, and no data has been received since then.

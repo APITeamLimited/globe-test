@@ -634,6 +634,12 @@ type parseResult struct ***REMOVED***
 	// a map of uninterpreted option AST nodes to their relative path
 	// in the resulting options message
 	interpretedOptions map[*ast.OptionNode][]int32
+
+	// a map of AST nodes that represent identifiers in ast.FieldReferenceNodes
+	// to their fully-qualified name. The identifiers are for field names in
+	// message literals (in option values) that are extension fields. These names
+	// are resolved during linking and stored here, to be used to interpret options.
+	optionQualifiedNames map[ast.IdentValueNode]string
 ***REMOVED***
 
 func (r *parseResult) getFileNode(f *dpb.FileDescriptorProto) ast.FileDeclNode ***REMOVED***
@@ -704,6 +710,13 @@ func (r *parseResult) getMethodNode(m *dpb.MethodDescriptorProto) ast.RPCDeclNod
 		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
 	return r.nodes[m].(ast.RPCDeclNode)
+***REMOVED***
+
+func (r *parseResult) getNode(m proto.Message) ast.Node ***REMOVED***
+	if r.nodes == nil ***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
+	***REMOVED***
+	return r.nodes[m]
 ***REMOVED***
 
 func (r *parseResult) putFileNode(f *dpb.FileDescriptorProto, n *ast.FileNode) ***REMOVED***
@@ -781,10 +794,11 @@ func parseProto(filename string, r io.Reader, errs *errorHandler, validate, crea
 
 func createParseResult(filename string, file *ast.FileNode, errs *errorHandler, createProtos bool) *parseResult ***REMOVED***
 	res := &parseResult***REMOVED***
-		errs:               errs,
-		root:               file,
-		nodes:              map[proto.Message]ast.Node***REMOVED******REMOVED***,
-		interpretedOptions: map[*ast.OptionNode][]int32***REMOVED******REMOVED***,
+		errs:                 errs,
+		root:                 file,
+		nodes:                map[proto.Message]ast.Node***REMOVED******REMOVED***,
+		interpretedOptions:   map[*ast.OptionNode][]int32***REMOVED******REMOVED***,
+		optionQualifiedNames: map[ast.IdentValueNode]string***REMOVED******REMOVED***,
 	***REMOVED***
 	if createProtos ***REMOVED***
 		res.createFileDescriptor(filename, file)
@@ -800,58 +814,6 @@ func checkTag(pos *SourcePos, v uint64, maxTag int32) error ***REMOVED***
 	***REMOVED*** else if v >= internal.SpecialReservedStart && v <= internal.SpecialReservedEnd ***REMOVED***
 		return errorWithPos(pos, "tag number %d is in disallowed reserved range %d-%d", v, internal.SpecialReservedStart, internal.SpecialReservedEnd)
 	***REMOVED***
-	return nil
-***REMOVED***
-
-func checkExtensionsInFile(fd *desc.FileDescriptor, res *parseResult) error ***REMOVED***
-	for _, fld := range fd.GetExtensions() ***REMOVED***
-		if err := checkExtension(fld, res); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	for _, md := range fd.GetMessageTypes() ***REMOVED***
-		if err := checkExtensionsInMessage(md, res); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-func checkExtensionsInMessage(md *desc.MessageDescriptor, res *parseResult) error ***REMOVED***
-	for _, fld := range md.GetNestedExtensions() ***REMOVED***
-		if err := checkExtension(fld, res); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	for _, nmd := range md.GetNestedMessageTypes() ***REMOVED***
-		if err := checkExtensionsInMessage(nmd, res); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-func checkExtension(fld *desc.FieldDescriptor, res *parseResult) error ***REMOVED***
-	// NB: It's a little gross that we don't enforce these in validateBasic().
-	// But requires some minimal linking to resolve the extendee, so we can
-	// interrogate its descriptor.
-	if fld.GetOwner().GetMessageOptions().GetMessageSetWireFormat() ***REMOVED***
-		// Message set wire format requires that all extensions be messages
-		// themselves (no scalar extensions)
-		if fld.GetType() != dpb.FieldDescriptorProto_TYPE_MESSAGE ***REMOVED***
-			pos := res.getFieldNode(fld.AsFieldDescriptorProto()).FieldType().Start()
-			return errorWithPos(pos, "messages with message-set wire format cannot contain scalar extensions, only messages")
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// In validateBasic() we just made sure these were within bounds for any message. But
-		// now that things are linked, we can check if the extendee is messageset wire format
-		// and, if not, enforce tighter limit.
-		if fld.GetNumber() > internal.MaxNormalTag ***REMOVED***
-			pos := res.getFieldNode(fld.AsFieldDescriptorProto()).FieldTag().Start()
-			return errorWithPos(pos, "tag number %d is higher than max allowed tag number (%d)", fld.GetNumber(), internal.MaxNormalTag)
-		***REMOVED***
-	***REMOVED***
-
 	return nil
 ***REMOVED***
 

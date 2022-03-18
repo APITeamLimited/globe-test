@@ -3,6 +3,7 @@ package assert
 import (
 	"fmt"
 	"reflect"
+	"time"
 )
 
 type CompareType int
@@ -30,6 +31,8 @@ var (
 	float64Type = reflect.TypeOf(float64(1))
 
 	stringType = reflect.TypeOf("")
+
+	timeType = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
 )
 
 func compare(obj1, obj2 interface***REMOVED******REMOVED***, kind reflect.Kind) (CompareType, bool) ***REMOVED***
@@ -299,6 +302,27 @@ func compare(obj1, obj2 interface***REMOVED******REMOVED***, kind reflect.Kind) 
 				return compareLess, true
 			***REMOVED***
 		***REMOVED***
+	// Check for known struct types we can check for compare results.
+	case reflect.Struct:
+		***REMOVED***
+			// All structs enter here. We're not interested in most types.
+			if !canConvert(obj1Value, timeType) ***REMOVED***
+				break
+			***REMOVED***
+
+			// time.Time can compared!
+			timeObj1, ok := obj1.(time.Time)
+			if !ok ***REMOVED***
+				timeObj1 = obj1Value.Convert(timeType).Interface().(time.Time)
+			***REMOVED***
+
+			timeObj2, ok := obj2.(time.Time)
+			if !ok ***REMOVED***
+				timeObj2 = obj2Value.Convert(timeType).Interface().(time.Time)
+			***REMOVED***
+
+			return compare(timeObj1.UnixNano(), timeObj2.UnixNano(), reflect.Int64)
+		***REMOVED***
 	***REMOVED***
 
 	return compareEqual, false
@@ -310,7 +334,10 @@ func compare(obj1, obj2 interface***REMOVED******REMOVED***, kind reflect.Kind) 
 //    assert.Greater(t, float64(2), float64(1))
 //    assert.Greater(t, "b", "a")
 func Greater(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareGreater***REMOVED***, "\"%v\" is not greater than \"%v\"", msgAndArgs)
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareGreater***REMOVED***, "\"%v\" is not greater than \"%v\"", msgAndArgs...)
 ***REMOVED***
 
 // GreaterOrEqual asserts that the first element is greater than or equal to the second
@@ -320,7 +347,10 @@ func Greater(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***
 //    assert.GreaterOrEqual(t, "b", "a")
 //    assert.GreaterOrEqual(t, "b", "b")
 func GreaterOrEqual(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareGreater, compareEqual***REMOVED***, "\"%v\" is not greater than or equal to \"%v\"", msgAndArgs)
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareGreater, compareEqual***REMOVED***, "\"%v\" is not greater than or equal to \"%v\"", msgAndArgs...)
 ***REMOVED***
 
 // Less asserts that the first element is less than the second
@@ -329,7 +359,10 @@ func GreaterOrEqual(t TestingT, e1 interface***REMOVED******REMOVED***, e2 inter
 //    assert.Less(t, float64(1), float64(2))
 //    assert.Less(t, "a", "b")
 func Less(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareLess***REMOVED***, "\"%v\" is not less than \"%v\"", msgAndArgs)
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareLess***REMOVED***, "\"%v\" is not less than \"%v\"", msgAndArgs...)
 ***REMOVED***
 
 // LessOrEqual asserts that the first element is less than or equal to the second
@@ -339,7 +372,10 @@ func Less(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REM
 //    assert.LessOrEqual(t, "a", "b")
 //    assert.LessOrEqual(t, "b", "b")
 func LessOrEqual(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareLess, compareEqual***REMOVED***, "\"%v\" is not less than or equal to \"%v\"", msgAndArgs)
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return compareTwoValues(t, e1, e2, []CompareType***REMOVED***compareLess, compareEqual***REMOVED***, "\"%v\" is not less than or equal to \"%v\"", msgAndArgs...)
 ***REMOVED***
 
 // Positive asserts that the specified element is positive
@@ -347,8 +383,11 @@ func LessOrEqual(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interfac
 //    assert.Positive(t, 1)
 //    assert.Positive(t, 1.23)
 func Positive(t TestingT, e interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	zero := reflect.Zero(reflect.TypeOf(e))
-	return compareTwoValues(t, e, zero.Interface(), []CompareType***REMOVED***compareGreater***REMOVED***, "\"%v\" is not positive", msgAndArgs)
+	return compareTwoValues(t, e, zero.Interface(), []CompareType***REMOVED***compareGreater***REMOVED***, "\"%v\" is not positive", msgAndArgs...)
 ***REMOVED***
 
 // Negative asserts that the specified element is negative
@@ -356,8 +395,11 @@ func Positive(t TestingT, e interface***REMOVED******REMOVED***, msgAndArgs ...i
 //    assert.Negative(t, -1)
 //    assert.Negative(t, -1.23)
 func Negative(t TestingT, e interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	zero := reflect.Zero(reflect.TypeOf(e))
-	return compareTwoValues(t, e, zero.Interface(), []CompareType***REMOVED***compareLess***REMOVED***, "\"%v\" is not negative", msgAndArgs)
+	return compareTwoValues(t, e, zero.Interface(), []CompareType***REMOVED***compareLess***REMOVED***, "\"%v\" is not negative", msgAndArgs...)
 ***REMOVED***
 
 func compareTwoValues(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, allowedComparesResults []CompareType, failMessage string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***

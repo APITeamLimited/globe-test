@@ -28,7 +28,7 @@ type handshakeClusterNameKey struct***REMOVED******REMOVED***
 // SetXDSHandshakeClusterName returns a copy of addr in which the Attributes field
 // is updated with the cluster name.
 func SetXDSHandshakeClusterName(addr resolver.Address, clusterName string) resolver.Address ***REMOVED***
-	addr.Attributes = addr.Attributes.WithValues(handshakeClusterNameKey***REMOVED******REMOVED***, clusterName)
+	addr.Attributes = addr.Attributes.WithValue(handshakeClusterNameKey***REMOVED******REMOVED***, clusterName)
 	return addr
 ***REMOVED***
 

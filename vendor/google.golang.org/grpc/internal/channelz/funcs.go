@@ -24,6 +24,7 @@
 package channelz
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
@@ -49,7 +50,8 @@ var (
 // TurnOn turns on channelz data collection.
 func TurnOn() ***REMOVED***
 	if !IsOn() ***REMOVED***
-		NewChannelzStorage()
+		db.set(newChannelMap())
+		idGen.reset()
 		atomic.StoreInt32(&curState, 1)
 	***REMOVED***
 ***REMOVED***
@@ -94,46 +96,40 @@ func (d *dbWrapper) get() *channelMap ***REMOVED***
 	return d.DB
 ***REMOVED***
 
-// NewChannelzStorage initializes channelz data storage and id generator.
+// NewChannelzStorageForTesting initializes channelz data storage and id
+// generator for testing purposes.
 //
-// This function returns a cleanup function to wait for all channelz state to be reset by the
-// grpc goroutines when those entities get closed. By using this cleanup function, we make sure tests
-// don't mess up each other, i.e. lingering goroutine from previous test doing entity removal happen
-// to remove some entity just register by the new test, since the id space is the same.
-//
-// Note: This function is exported for testing purpose only. User should not call
-// it in most cases.
-func NewChannelzStorage() (cleanup func() error) ***REMOVED***
-	db.set(&channelMap***REMOVED***
-		topLevelChannels: make(map[int64]struct***REMOVED******REMOVED***),
-		channels:         make(map[int64]*channel),
-		listenSockets:    make(map[int64]*listenSocket),
-		normalSockets:    make(map[int64]*normalSocket),
-		servers:          make(map[int64]*server),
-		subChannels:      make(map[int64]*subChannel),
-	***REMOVED***)
+// Returns a cleanup function to be invoked by the test, which waits for up to
+// 10s for all channelz state to be reset by the grpc goroutines when those
+// entities get closed. This cleanup function helps with ensuring that tests
+// don't mess up each other.
+func NewChannelzStorageForTesting() (cleanup func() error) ***REMOVED***
+	db.set(newChannelMap())
 	idGen.reset()
+
 	return func() error ***REMOVED***
-		var err error
 		cm := db.get()
 		if cm == nil ***REMOVED***
 			return nil
 		***REMOVED***
-		for i := 0; i < 1000; i++ ***REMOVED***
-			cm.mu.Lock()
-			if len(cm.topLevelChannels) == 0 && len(cm.servers) == 0 && len(cm.channels) == 0 && len(cm.subChannels) == 0 && len(cm.listenSockets) == 0 && len(cm.normalSockets) == 0 ***REMOVED***
-				cm.mu.Unlock()
-				// all things stored in the channelz map have been cleared.
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for ***REMOVED***
+			cm.mu.RLock()
+			topLevelChannels, servers, channels, subChannels, listenSockets, normalSockets := len(cm.topLevelChannels), len(cm.servers), len(cm.channels), len(cm.subChannels), len(cm.listenSockets), len(cm.normalSockets)
+			cm.mu.RUnlock()
+
+			if err := ctx.Err(); err != nil ***REMOVED***
+				return fmt.Errorf("after 10s the channelz map has not been cleaned up yet, topchannels: %d, servers: %d, channels: %d, subchannels: %d, listen sockets: %d, normal sockets: %d", topLevelChannels, servers, channels, subChannels, listenSockets, normalSockets)
+			***REMOVED***
+			if topLevelChannels == 0 && servers == 0 && channels == 0 && subChannels == 0 && listenSockets == 0 && normalSockets == 0 ***REMOVED***
 				return nil
 			***REMOVED***
-			cm.mu.Unlock()
-			time.Sleep(10 * time.Millisecond)
+			<-ticker.C
 		***REMOVED***
-
-		cm.mu.Lock()
-		err = fmt.Errorf("after 10s the channelz map has not been cleaned up yet, topchannels: %d, servers: %d, channels: %d, subchannels: %d, listen sockets: %d, normal sockets: %d", len(cm.topLevelChannels), len(cm.servers), len(cm.channels), len(cm.subChannels), len(cm.listenSockets), len(cm.normalSockets))
-		cm.mu.Unlock()
-		return err
 	***REMOVED***
 ***REMOVED***
 
@@ -204,9 +200,9 @@ func RegisterChannel(c Channel, pid int64, ref string) int64 ***REMOVED***
 		trace:       &channelTrace***REMOVED***createdTime: time.Now(), events: make([]*TraceEvent, 0, getMaxTraceEntry())***REMOVED***,
 	***REMOVED***
 	if pid == 0 ***REMOVED***
-		db.get().addChannel(id, cn, true, pid, ref)
+		db.get().addChannel(id, cn, true, pid)
 	***REMOVED*** else ***REMOVED***
-		db.get().addChannel(id, cn, false, pid, ref)
+		db.get().addChannel(id, cn, false, pid)
 	***REMOVED***
 	return id
 ***REMOVED***
@@ -228,7 +224,7 @@ func RegisterSubChannel(c Channel, pid int64, ref string) int64 ***REMOVED***
 		pid:     pid,
 		trace:   &channelTrace***REMOVED***createdTime: time.Now(), events: make([]*TraceEvent, 0, getMaxTraceEntry())***REMOVED***,
 	***REMOVED***
-	db.get().addSubChannel(id, sc, pid, ref)
+	db.get().addSubChannel(id, sc, pid)
 	return id
 ***REMOVED***
 
@@ -258,7 +254,7 @@ func RegisterListenSocket(s Socket, pid int64, ref string) int64 ***REMOVED***
 	***REMOVED***
 	id := idGen.genID()
 	ls := &listenSocket***REMOVED***refName: ref, s: s, id: id, pid: pid***REMOVED***
-	db.get().addListenSocket(id, ls, pid, ref)
+	db.get().addListenSocket(id, ls, pid)
 	return id
 ***REMOVED***
 
@@ -273,11 +269,11 @@ func RegisterNormalSocket(s Socket, pid int64, ref string) int64 ***REMOVED***
 	***REMOVED***
 	id := idGen.genID()
 	ns := &normalSocket***REMOVED***refName: ref, s: s, id: id, pid: pid***REMOVED***
-	db.get().addNormalSocket(id, ns, pid, ref)
+	db.get().addNormalSocket(id, ns, pid)
 	return id
 ***REMOVED***
 
-// RemoveEntry removes an entry with unique channelz trakcing id to be id from
+// RemoveEntry removes an entry with unique channelz tracking id to be id from
 // channelz database.
 func RemoveEntry(id int64) ***REMOVED***
 	db.get().removeEntry(id)
@@ -326,6 +322,17 @@ type channelMap struct ***REMOVED***
 	normalSockets    map[int64]*normalSocket
 ***REMOVED***
 
+func newChannelMap() *channelMap ***REMOVED***
+	return &channelMap***REMOVED***
+		topLevelChannels: make(map[int64]struct***REMOVED******REMOVED***),
+		channels:         make(map[int64]*channel),
+		listenSockets:    make(map[int64]*listenSocket),
+		normalSockets:    make(map[int64]*normalSocket),
+		servers:          make(map[int64]*server),
+		subChannels:      make(map[int64]*subChannel),
+	***REMOVED***
+***REMOVED***
+
 func (c *channelMap) addServer(id int64, s *server) ***REMOVED***
 	c.mu.Lock()
 	s.cm = c
@@ -333,7 +340,7 @@ func (c *channelMap) addServer(id int64, s *server) ***REMOVED***
 	c.mu.Unlock()
 ***REMOVED***
 
-func (c *channelMap) addChannel(id int64, cn *channel, isTopChannel bool, pid int64, ref string) ***REMOVED***
+func (c *channelMap) addChannel(id int64, cn *channel, isTopChannel bool, pid int64) ***REMOVED***
 	c.mu.Lock()
 	cn.cm = c
 	cn.trace.cm = c
@@ -346,7 +353,7 @@ func (c *channelMap) addChannel(id int64, cn *channel, isTopChannel bool, pid in
 	c.mu.Unlock()
 ***REMOVED***
 
-func (c *channelMap) addSubChannel(id int64, sc *subChannel, pid int64, ref string) ***REMOVED***
+func (c *channelMap) addSubChannel(id int64, sc *subChannel, pid int64) ***REMOVED***
 	c.mu.Lock()
 	sc.cm = c
 	sc.trace.cm = c
@@ -355,7 +362,7 @@ func (c *channelMap) addSubChannel(id int64, sc *subChannel, pid int64, ref stri
 	c.mu.Unlock()
 ***REMOVED***
 
-func (c *channelMap) addListenSocket(id int64, ls *listenSocket, pid int64, ref string) ***REMOVED***
+func (c *channelMap) addListenSocket(id int64, ls *listenSocket, pid int64) ***REMOVED***
 	c.mu.Lock()
 	ls.cm = c
 	c.listenSockets[id] = ls
@@ -363,7 +370,7 @@ func (c *channelMap) addListenSocket(id int64, ls *listenSocket, pid int64, ref 
 	c.mu.Unlock()
 ***REMOVED***
 
-func (c *channelMap) addNormalSocket(id int64, ns *normalSocket, pid int64, ref string) ***REMOVED***
+func (c *channelMap) addNormalSocket(id int64, ns *normalSocket, pid int64) ***REMOVED***
 	c.mu.Lock()
 	ns.cm = c
 	c.normalSockets[id] = ns

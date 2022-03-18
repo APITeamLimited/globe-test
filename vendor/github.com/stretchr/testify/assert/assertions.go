@@ -718,10 +718,14 @@ func NotEqualValues(t TestingT, expected, actual interface***REMOVED******REMOVE
 // return (false, false) if impossible.
 // return (true, false) if element was not found.
 // return (true, true) if element was found.
-func includeElement(list interface***REMOVED******REMOVED***, element interface***REMOVED******REMOVED***) (ok, found bool) ***REMOVED***
+func containsElement(list interface***REMOVED******REMOVED***, element interface***REMOVED******REMOVED***) (ok, found bool) ***REMOVED***
 
 	listValue := reflect.ValueOf(list)
-	listKind := reflect.TypeOf(list).Kind()
+	listType := reflect.TypeOf(list)
+	if listType == nil ***REMOVED***
+		return false, false
+	***REMOVED***
+	listKind := listType.Kind()
 	defer func() ***REMOVED***
 		if e := recover(); e != nil ***REMOVED***
 			ok = false
@@ -764,7 +768,7 @@ func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAn
 		h.Helper()
 	***REMOVED***
 
-	ok, found := includeElement(s, contains)
+	ok, found := containsElement(s, contains)
 	if !ok ***REMOVED***
 		return Fail(t, fmt.Sprintf("%#v could not be applied builtin len()", s), msgAndArgs...)
 	***REMOVED***
@@ -787,7 +791,7 @@ func NotContains(t TestingT, s, contains interface***REMOVED******REMOVED***, ms
 		h.Helper()
 	***REMOVED***
 
-	ok, found := includeElement(s, contains)
+	ok, found := containsElement(s, contains)
 	if !ok ***REMOVED***
 		return Fail(t, fmt.Sprintf("\"%s\" could not be applied builtin len()", s), msgAndArgs...)
 	***REMOVED***
@@ -831,7 +835,7 @@ func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAnd
 
 	for i := 0; i < subsetValue.Len(); i++ ***REMOVED***
 		element := subsetValue.Index(i).Interface()
-		ok, found := includeElement(list, element)
+		ok, found := containsElement(list, element)
 		if !ok ***REMOVED***
 			return Fail(t, fmt.Sprintf("\"%s\" could not be applied builtin len()", list), msgAndArgs...)
 		***REMOVED***
@@ -852,7 +856,7 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 		h.Helper()
 	***REMOVED***
 	if subset == nil ***REMOVED***
-		return Fail(t, fmt.Sprintf("nil is the empty set which is a subset of every set"), msgAndArgs...)
+		return Fail(t, "nil is the empty set which is a subset of every set", msgAndArgs...)
 	***REMOVED***
 
 	subsetValue := reflect.ValueOf(subset)
@@ -875,7 +879,7 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 
 	for i := 0; i < subsetValue.Len(); i++ ***REMOVED***
 		element := subsetValue.Index(i).Interface()
-		ok, found := includeElement(list, element)
+		ok, found := containsElement(list, element)
 		if !ok ***REMOVED***
 			return Fail(t, fmt.Sprintf("\"%s\" could not be applied builtin len()", list), msgAndArgs...)
 		***REMOVED***
@@ -1000,27 +1004,21 @@ func Condition(t TestingT, comp Comparison, msgAndArgs ...interface***REMOVED***
 type PanicTestFunc func()
 
 // didPanic returns true if the function passed to it panics. Otherwise, it returns false.
-func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***, string) ***REMOVED***
+func didPanic(f PanicTestFunc) (didPanic bool, message interface***REMOVED******REMOVED***, stack string) ***REMOVED***
+	didPanic = true
 
-	didPanic := false
-	var message interface***REMOVED******REMOVED***
-	var stack string
-	func() ***REMOVED***
-
-		defer func() ***REMOVED***
-			if message = recover(); message != nil ***REMOVED***
-				didPanic = true
-				stack = string(debug.Stack())
-			***REMOVED***
-		***REMOVED***()
-
-		// call the target function
-		f()
-
+	defer func() ***REMOVED***
+		message = recover()
+		if didPanic ***REMOVED***
+			stack = string(debug.Stack())
+		***REMOVED***
 	***REMOVED***()
 
-	return didPanic, message, stack
+	// call the target function
+	f()
+	didPanic = false
 
+	return
 ***REMOVED***
 
 // Panics asserts that the code inside the specified PanicTestFunc panics.
@@ -1161,11 +1159,15 @@ func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, d
 	bf, bok := toFloat(actual)
 
 	if !aok || !bok ***REMOVED***
-		return Fail(t, fmt.Sprintf("Parameters must be numerical"), msgAndArgs...)
+		return Fail(t, "Parameters must be numerical", msgAndArgs...)
+	***REMOVED***
+
+	if math.IsNaN(af) && math.IsNaN(bf) ***REMOVED***
+		return true
 	***REMOVED***
 
 	if math.IsNaN(af) ***REMOVED***
-		return Fail(t, fmt.Sprintf("Expected must not be NaN"), msgAndArgs...)
+		return Fail(t, "Expected must not be NaN", msgAndArgs...)
 	***REMOVED***
 
 	if math.IsNaN(bf) ***REMOVED***
@@ -1188,7 +1190,7 @@ func InDeltaSlice(t TestingT, expected, actual interface***REMOVED******REMOVED*
 	if expected == nil || actual == nil ||
 		reflect.TypeOf(actual).Kind() != reflect.Slice ||
 		reflect.TypeOf(expected).Kind() != reflect.Slice ***REMOVED***
-		return Fail(t, fmt.Sprintf("Parameters must be slice"), msgAndArgs...)
+		return Fail(t, "Parameters must be slice", msgAndArgs...)
 	***REMOVED***
 
 	actualSlice := reflect.ValueOf(actual)
@@ -1250,18 +1252,18 @@ func InDeltaMapValues(t TestingT, expected, actual interface***REMOVED******REMO
 
 func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (float64, error) ***REMOVED***
 	af, aok := toFloat(expected)
-	if !aok ***REMOVED***
-		return 0, fmt.Errorf("expected value %q cannot be converted to float", expected)
+	bf, bok := toFloat(actual)
+	if !aok || !bok ***REMOVED***
+		return 0, fmt.Errorf("Parameters must be numerical")
+	***REMOVED***
+	if math.IsNaN(af) && math.IsNaN(bf) ***REMOVED***
+		return 0, nil
 	***REMOVED***
 	if math.IsNaN(af) ***REMOVED***
 		return 0, errors.New("expected value must not be NaN")
 	***REMOVED***
 	if af == 0 ***REMOVED***
 		return 0, fmt.Errorf("expected value must have a value other than zero to calculate the relative error")
-	***REMOVED***
-	bf, bok := toFloat(actual)
-	if !bok ***REMOVED***
-		return 0, fmt.Errorf("actual value %q cannot be converted to float", actual)
 	***REMOVED***
 	if math.IsNaN(bf) ***REMOVED***
 		return 0, errors.New("actual value must not be NaN")
@@ -1298,7 +1300,7 @@ func InEpsilonSlice(t TestingT, expected, actual interface***REMOVED******REMOVE
 	if expected == nil || actual == nil ||
 		reflect.TypeOf(actual).Kind() != reflect.Slice ||
 		reflect.TypeOf(expected).Kind() != reflect.Slice ***REMOVED***
-		return Fail(t, fmt.Sprintf("Parameters must be slice"), msgAndArgs...)
+		return Fail(t, "Parameters must be slice", msgAndArgs...)
 	***REMOVED***
 
 	actualSlice := reflect.ValueOf(actual)
@@ -1372,6 +1374,27 @@ func EqualError(t TestingT, theError error, errString string, msgAndArgs ...inte
 			"expected: %q\n"+
 			"actual  : %q", expected, actual), msgAndArgs...)
 	***REMOVED***
+	return true
+***REMOVED***
+
+// ErrorContains asserts that a function returned an error (i.e. not `nil`)
+// and that the error contains the specified substring.
+//
+//   actualObj, err := SomeFunction()
+//   assert.ErrorContains(t, err,  expectedErrorSubString)
+func ErrorContains(t TestingT, theError error, contains string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if !Error(t, theError, msgAndArgs...) ***REMOVED***
+		return false
+	***REMOVED***
+
+	actual := theError.Error()
+	if !strings.Contains(actual, contains) ***REMOVED***
+		return Fail(t, fmt.Sprintf("Error %#v does not contain %#v", actual, contains), msgAndArgs...)
+	***REMOVED***
+
 	return true
 ***REMOVED***
 
@@ -1588,12 +1611,17 @@ func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOV
 	***REMOVED***
 
 	var e, a string
-	if et != reflect.TypeOf("") ***REMOVED***
-		e = spewConfig.Sdump(expected)
-		a = spewConfig.Sdump(actual)
-	***REMOVED*** else ***REMOVED***
+
+	switch et ***REMOVED***
+	case reflect.TypeOf(""):
 		e = reflect.ValueOf(expected).String()
 		a = reflect.ValueOf(actual).String()
+	case reflect.TypeOf(time.Time***REMOVED******REMOVED***):
+		e = spewConfigStringerEnabled.Sdump(expected)
+		a = spewConfigStringerEnabled.Sdump(actual)
+	default:
+		e = spewConfig.Sdump(expected)
+		a = spewConfig.Sdump(actual)
 	***REMOVED***
 
 	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff***REMOVED***
@@ -1622,6 +1650,14 @@ var spewConfig = spew.ConfigState***REMOVED***
 	DisableCapacities:       true,
 	SortKeys:                true,
 	DisableMethods:          true,
+	MaxDepth:                10,
+***REMOVED***
+
+var spewConfigStringerEnabled = spew.ConfigState***REMOVED***
+	Indent:                  " ",
+	DisablePointerAddresses: true,
+	DisableCapacities:       true,
+	SortKeys:                true,
 	MaxDepth:                10,
 ***REMOVED***
 

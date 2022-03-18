@@ -19,11 +19,14 @@
 package grpclog
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"google.golang.org/grpc/internal/grpclog"
 )
@@ -95,8 +98,9 @@ var severityName = []string***REMOVED***
 
 // loggerT is the default logger used by grpclog.
 type loggerT struct ***REMOVED***
-	m []*log.Logger
-	v int
+	m          []*log.Logger
+	v          int
+	jsonFormat bool
 ***REMOVED***
 
 // NewLoggerV2 creates a loggerV2 with the provided writers.
@@ -105,19 +109,32 @@ type loggerT struct ***REMOVED***
 // Warning logs will be written to warningW and infoW.
 // Info logs will be written to infoW.
 func NewLoggerV2(infoW, warningW, errorW io.Writer) LoggerV2 ***REMOVED***
-	return NewLoggerV2WithVerbosity(infoW, warningW, errorW, 0)
+	return newLoggerV2WithConfig(infoW, warningW, errorW, loggerV2Config***REMOVED******REMOVED***)
 ***REMOVED***
 
 // NewLoggerV2WithVerbosity creates a loggerV2 with the provided writers and
 // verbosity level.
 func NewLoggerV2WithVerbosity(infoW, warningW, errorW io.Writer, v int) LoggerV2 ***REMOVED***
+	return newLoggerV2WithConfig(infoW, warningW, errorW, loggerV2Config***REMOVED***verbose: v***REMOVED***)
+***REMOVED***
+
+type loggerV2Config struct ***REMOVED***
+	verbose    int
+	jsonFormat bool
+***REMOVED***
+
+func newLoggerV2WithConfig(infoW, warningW, errorW io.Writer, c loggerV2Config) LoggerV2 ***REMOVED***
 	var m []*log.Logger
-	m = append(m, log.New(infoW, severityName[infoLog]+": ", log.LstdFlags))
-	m = append(m, log.New(io.MultiWriter(infoW, warningW), severityName[warningLog]+": ", log.LstdFlags))
+	flag := log.LstdFlags
+	if c.jsonFormat ***REMOVED***
+		flag = 0
+	***REMOVED***
+	m = append(m, log.New(infoW, "", flag))
+	m = append(m, log.New(io.MultiWriter(infoW, warningW), "", flag))
 	ew := io.MultiWriter(infoW, warningW, errorW) // ew will be used for error and fatal.
-	m = append(m, log.New(ew, severityName[errorLog]+": ", log.LstdFlags))
-	m = append(m, log.New(ew, severityName[fatalLog]+": ", log.LstdFlags))
-	return &loggerT***REMOVED***m: m, v: v***REMOVED***
+	m = append(m, log.New(ew, "", flag))
+	m = append(m, log.New(ew, "", flag))
+	return &loggerT***REMOVED***m: m, v: c.verbose, jsonFormat: c.jsonFormat***REMOVED***
 ***REMOVED***
 
 // newLoggerV2 creates a loggerV2 to be used as default logger.
@@ -142,58 +159,79 @@ func newLoggerV2() LoggerV2 ***REMOVED***
 	if vl, err := strconv.Atoi(vLevel); err == nil ***REMOVED***
 		v = vl
 	***REMOVED***
-	return NewLoggerV2WithVerbosity(infoW, warningW, errorW, v)
+
+	jsonFormat := strings.EqualFold(os.Getenv("GRPC_GO_LOG_FORMATTER"), "json")
+
+	return newLoggerV2WithConfig(infoW, warningW, errorW, loggerV2Config***REMOVED***
+		verbose:    v,
+		jsonFormat: jsonFormat,
+	***REMOVED***)
+***REMOVED***
+
+func (g *loggerT) output(severity int, s string) ***REMOVED***
+	sevStr := severityName[severity]
+	if !g.jsonFormat ***REMOVED***
+		g.m[severity].Output(2, fmt.Sprintf("%v: %v", sevStr, s))
+		return
+	***REMOVED***
+	// TODO: we can also include the logging component, but that needs more
+	// (API) changes.
+	b, _ := json.Marshal(map[string]string***REMOVED***
+		"severity": sevStr,
+		"message":  s,
+	***REMOVED***)
+	g.m[severity].Output(2, string(b))
 ***REMOVED***
 
 func (g *loggerT) Info(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[infoLog].Print(args...)
+	g.output(infoLog, fmt.Sprint(args...))
 ***REMOVED***
 
 func (g *loggerT) Infoln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[infoLog].Println(args...)
+	g.output(infoLog, fmt.Sprintln(args...))
 ***REMOVED***
 
 func (g *loggerT) Infof(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[infoLog].Printf(format, args...)
+	g.output(infoLog, fmt.Sprintf(format, args...))
 ***REMOVED***
 
 func (g *loggerT) Warning(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[warningLog].Print(args...)
+	g.output(warningLog, fmt.Sprint(args...))
 ***REMOVED***
 
 func (g *loggerT) Warningln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[warningLog].Println(args...)
+	g.output(warningLog, fmt.Sprintln(args...))
 ***REMOVED***
 
 func (g *loggerT) Warningf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[warningLog].Printf(format, args...)
+	g.output(warningLog, fmt.Sprintf(format, args...))
 ***REMOVED***
 
 func (g *loggerT) Error(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[errorLog].Print(args...)
+	g.output(errorLog, fmt.Sprint(args...))
 ***REMOVED***
 
 func (g *loggerT) Errorln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[errorLog].Println(args...)
+	g.output(errorLog, fmt.Sprintln(args...))
 ***REMOVED***
 
 func (g *loggerT) Errorf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[errorLog].Printf(format, args...)
+	g.output(errorLog, fmt.Sprintf(format, args...))
 ***REMOVED***
 
 func (g *loggerT) Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[fatalLog].Fatal(args...)
-	// No need to call os.Exit() again because log.Logger.Fatal() calls os.Exit().
+	g.output(fatalLog, fmt.Sprint(args...))
+	os.Exit(1)
 ***REMOVED***
 
 func (g *loggerT) Fatalln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[fatalLog].Fatalln(args...)
-	// No need to call os.Exit() again because log.Logger.Fatal() calls os.Exit().
+	g.output(fatalLog, fmt.Sprintln(args...))
+	os.Exit(1)
 ***REMOVED***
 
 func (g *loggerT) Fatalf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	g.m[fatalLog].Fatalf(format, args...)
-	// No need to call os.Exit() again because log.Logger.Fatal() calls os.Exit().
+	g.output(fatalLog, fmt.Sprintf(format, args...))
+	os.Exit(1)
 ***REMOVED***
 
 func (g *loggerT) V(l int) bool ***REMOVED***
@@ -210,12 +248,12 @@ func (g *loggerT) V(l int) bool ***REMOVED***
 // later release.
 type DepthLoggerV2 interface ***REMOVED***
 	LoggerV2
-	// InfoDepth logs to INFO log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// InfoDepth logs to INFO log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	InfoDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// WarningDepth logs to WARNING log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// WarningDepth logs to WARNING log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	WarningDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// ErrorDetph logs to ERROR log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// ErrorDepth logs to ERROR log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	ErrorDepth(depth int, args ...interface***REMOVED******REMOVED***)
-	// FatalDepth logs to FATAL log at the specified depth. Arguments are handled in the manner of fmt.Print.
+	// FatalDepth logs to FATAL log at the specified depth. Arguments are handled in the manner of fmt.Println.
 	FatalDepth(depth int, args ...interface***REMOVED******REMOVED***)
 ***REMOVED***

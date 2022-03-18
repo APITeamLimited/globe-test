@@ -50,21 +50,6 @@ const (
 	decoderErrorUnreachable                 = -31
 )
 
-/**
- * The value of the last error code, negative integer.
- *
- * All other error code values are in the range from ::lastErrorCode
- * to @c -1. There are also 4 other possible non-error codes @c 0 .. @c 3 in
- * ::BrotliDecoderErrorCode enumeration.
- */
-const lastErrorCode = decoderErrorUnreachable
-
-/** Options to be used with ::BrotliDecoderSetParameter. */
-const (
-	decoderParamDisableRingBufferReallocation = 0
-	decoderParamLargeWindow                   = 1
-)
-
 const huffmanTableBits = 8
 
 const huffmanTableMask = 0xFF
@@ -80,28 +65,6 @@ var kCodeLengthCodeOrder = [codeLengthCodes]byte***REMOVED***1, 2, 3, 4, 0, 5, 1
 var kCodeLengthPrefixLength = [16]byte***REMOVED***2, 2, 2, 3, 2, 2, 2, 4, 2, 2, 2, 3, 2, 2, 2, 4***REMOVED***
 
 var kCodeLengthPrefixValue = [16]byte***REMOVED***0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5***REMOVED***
-
-func decoderSetParameter(state *Reader, p int, value uint32) bool ***REMOVED***
-	if state.state != stateUninited ***REMOVED***
-		return false
-	***REMOVED***
-	switch p ***REMOVED***
-	case decoderParamDisableRingBufferReallocation:
-		if !(value == 0) ***REMOVED***
-			state.canny_ringbuffer_allocation = 0
-		***REMOVED*** else ***REMOVED***
-			state.canny_ringbuffer_allocation = 1
-		***REMOVED***
-		return true
-
-	case decoderParamLargeWindow:
-		state.large_window = (!(value == 0))
-		return true
-
-	default:
-		return false
-	***REMOVED***
-***REMOVED***
 
 /* Saves error code and converts it to BrotliDecoderResult. */
 func saveErrorCode(s *Reader, e int) int ***REMOVED***
@@ -1125,10 +1088,8 @@ func decodeContextMap(context_map_size uint32, num_htrees *uint32, context_map_a
    Reads 3..54 bits. */
 func decodeBlockTypeAndLength(safe int, s *Reader, tree_type int) bool ***REMOVED***
 	var max_block_type uint32 = s.num_block_types[tree_type]
-	var type_tree []huffmanCode
-	type_tree = s.block_type_trees[tree_type*huffmanMaxSize258:]
-	var len_tree []huffmanCode
-	len_tree = s.block_len_trees[tree_type*huffmanMaxSize26:]
+	type_tree := s.block_type_trees[tree_type*huffmanMaxSize258:]
+	len_tree := s.block_len_trees[tree_type*huffmanMaxSize26:]
 	var br *bitReader = &s.br
 	var ringbuffer []uint32 = s.block_type_rb[tree_type*2:]
 	var block_type uint32
@@ -1280,8 +1241,7 @@ func unwrittenBytes(s *Reader, wrap bool) uint ***REMOVED***
    Returns BROTLI_DECODER_NEEDS_MORE_OUTPUT only if there is more output to push
    and either ring-buffer is as big as window size, or |force| is true. */
 func writeRingBuffer(s *Reader, available_out *uint, next_out *[]byte, total_out *uint, force bool) int ***REMOVED***
-	var start []byte
-	start = s.ringbuffer[s.partial_pos_out&uint(s.ringbuffer_mask):]
+	start := s.ringbuffer[s.partial_pos_out&uint(s.ringbuffer_mask):]
 	var to_write uint = unwrittenBytes(s, true)
 	var num_written uint = *available_out
 	if num_written > to_write ***REMOVED***
@@ -1412,8 +1372,7 @@ func copyUncompressedBlockToOutput(available_out *uint, next_out *[]byte, total_
 
 		case stateUncompressedWrite:
 			***REMOVED***
-				var result int
-				result = writeRingBuffer(s, available_out, next_out, total_out, false)
+				result := writeRingBuffer(s, available_out, next_out, total_out, false)
 				if result != decoderSuccess ***REMOVED***
 					return result
 				***REMOVED***
@@ -1931,8 +1890,7 @@ CommandPostDecodeLiterals:
 			***REMOVED***
 
 			if transform_idx < int(trans.num_transforms) ***REMOVED***
-				var word []byte
-				word = words.data[offset:]
+				word := words.data[offset:]
 				var len int = i
 				if transform_idx == int(trans.cutOffTransforms[0]) ***REMOVED***
 					copy(s.ringbuffer[pos:], word[:uint(len)])
@@ -1954,10 +1912,8 @@ CommandPostDecodeLiterals:
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		var src_start int = (pos - s.distance_code) & s.ringbuffer_mask
-		var copy_dst []byte
-		copy_dst = s.ringbuffer[pos:]
-		var copy_src []byte
-		copy_src = s.ringbuffer[src_start:]
+		copy_dst := s.ringbuffer[pos:]
+		copy_src := s.ringbuffer[src_start:]
 		var dst_end int = pos + i
 		var src_end int = src_start + i
 
@@ -2494,8 +2450,6 @@ func decoderDecompressStream(s *Reader, available_in *uint, next_in *[]byte, ava
 				***REMOVED*** else ***REMOVED***
 					s.state = stateCommandBegin
 				***REMOVED***
-
-				break
 			***REMOVED*** else if s.state == stateCommandPostWrite2 ***REMOVED***
 				s.state = stateCommandPostWrapCopy /* BROTLI_STATE_COMMAND_INNER_WRITE */
 			***REMOVED*** else ***REMOVED***

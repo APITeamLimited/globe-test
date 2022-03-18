@@ -22,6 +22,7 @@ import (
 )
 
 // Unmarshal reads the given []byte into the given proto.Message.
+// The provided message must be mutable (e.g., a non-nil pointer to a message).
 func Unmarshal(b []byte, m proto.Message) error ***REMOVED***
 	return UnmarshalOptions***REMOVED******REMOVED***.Unmarshal(b, m)
 ***REMOVED***
@@ -50,8 +51,9 @@ type UnmarshalOptions struct ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Unmarshal reads the given []byte and populates the given proto.Message using options in
-// UnmarshalOptions object.
+// Unmarshal reads the given []byte and populates the given proto.Message
+// using options in the UnmarshalOptions object.
+// The provided message must be mutable (e.g., a non-nil pointer to a message).
 func (o UnmarshalOptions) Unmarshal(b []byte, m proto.Message) error ***REMOVED***
 	return o.unmarshal(b, m)
 ***REMOVED***

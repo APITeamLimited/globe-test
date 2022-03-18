@@ -105,18 +105,21 @@ func (r *parseResult) generateSourceCodeInfoForOption(sci *sourceCodeInfo, n *as
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForMessage(sci *sourceCodeInfo, n ast.MessageDeclNode, fieldPath []int32, path []int32) ***REMOVED***
-	sci.newLoc(n, path)
-
+	var openBrace ast.Node
 	var decls []ast.MessageElement
 	switch n := n.(type) ***REMOVED***
 	case *ast.MessageNode:
+		openBrace = n.OpenBrace
 		decls = n.Decls
 	case *ast.GroupNode:
+		openBrace = n.OpenBrace
 		decls = n.Decls
 	case *ast.MapFieldNode:
+		sci.newLoc(n, path)
 		// map entry so nothing else to do
 		return
 	***REMOVED***
+	sci.newBlockLoc(n, openBrace, path)
 
 	sci.newLoc(n.MessageName(), append(path, internal.Message_nameTag))
 	// matching protoc, which emits the corresponding field type name (for group fields)
@@ -179,7 +182,7 @@ func (r *parseResult) generateSourceCodeInfoForMessage(sci *sourceCodeInfo, n as
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForEnum(sci *sourceCodeInfo, n *ast.EnumNode, path []int32) ***REMOVED***
-	sci.newLoc(n, path)
+	sci.newBlockLoc(n, n.OpenBrace, path)
 	sci.newLoc(n.Name, append(path, internal.Enum_nameTag))
 
 	var optIndex, valIndex, reservedNameIndex, reservedRangeIndex int32
@@ -238,7 +241,7 @@ func (r *parseResult) generateSourceCodeInfoForReservedRange(sci *sourceCodeInfo
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForExtensions(sci *sourceCodeInfo, n *ast.ExtendNode, extendIndex, msgIndex *int32, extendPath, msgPath []int32) ***REMOVED***
-	sci.newLoc(n, extendPath)
+	sci.newBlockLoc(n, n.OpenBrace, extendPath)
 	for _, decl := range n.Decls ***REMOVED***
 		switch decl := decl.(type) ***REMOVED***
 		case *ast.FieldNode:
@@ -255,7 +258,7 @@ func (r *parseResult) generateSourceCodeInfoForExtensions(sci *sourceCodeInfo, n
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForOneOf(sci *sourceCodeInfo, n *ast.OneOfNode, fieldIndex, nestedMsgIndex *int32, fieldPath, nestedMsgPath, oneOfPath []int32) ***REMOVED***
-	sci.newLoc(n, oneOfPath)
+	sci.newBlockLoc(n, n.OpenBrace, oneOfPath)
 	sci.newLoc(n.Name, append(oneOfPath, internal.OneOf_nameTag))
 
 	var optIndex int32
@@ -351,7 +354,7 @@ func (r *parseResult) generateSourceCodeInfoForExtensionRanges(sci *sourceCodeIn
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForService(sci *sourceCodeInfo, n *ast.ServiceNode, path []int32) ***REMOVED***
-	sci.newLoc(n, path)
+	sci.newBlockLoc(n, n.OpenBrace, path)
 	sci.newLoc(n.Name, append(path, internal.Service_nameTag))
 	var optIndex, rpcIndex int32
 	for _, child := range n.Decls ***REMOVED***
@@ -366,7 +369,11 @@ func (r *parseResult) generateSourceCodeInfoForService(sci *sourceCodeInfo, n *a
 ***REMOVED***
 
 func (r *parseResult) generateSourceCodeInfoForMethod(sci *sourceCodeInfo, n *ast.RPCNode, path []int32) ***REMOVED***
-	sci.newLoc(n, path)
+	if n.OpenBrace != nil ***REMOVED***
+		sci.newBlockLoc(n, n.OpenBrace, path)
+	***REMOVED*** else ***REMOVED***
+		sci.newLoc(n, path)
+	***REMOVED***
 	sci.newLoc(n.Name, append(path, internal.Method_nameTag))
 	if n.Input.Stream != nil ***REMOVED***
 		sci.newLoc(n.Input.Stream, append(path, internal.Method_inputStreamTag))
@@ -400,9 +407,22 @@ func (sci *sourceCodeInfo) newLocWithoutComments(n ast.Node, path []int32) ***RE
 	***REMOVED***)
 ***REMOVED***
 
+func (sci *sourceCodeInfo) newBlockLoc(n, openBrace ast.Node, path []int32) ***REMOVED***
+	// Block definitions use trailing comments after the open brace "***REMOVED***" as the
+	// element's trailing comments. For example:
+	//
+	//    message Foo ***REMOVED*** // this is a trailing comment for a message
+	//
+	//    ***REMOVED***             // not this
+	//
+	sci.newLocWithComments(n, n.LeadingComments(), openBrace.TrailingComments(), path)
+***REMOVED***
+
 func (sci *sourceCodeInfo) newLoc(n ast.Node, path []int32) ***REMOVED***
-	leadingComments := n.LeadingComments()
-	trailingComments := n.TrailingComments()
+	sci.newLocWithComments(n, n.LeadingComments(), n.TrailingComments(), path)
+***REMOVED***
+
+func (sci *sourceCodeInfo) newLocWithComments(n ast.Node, leadingComments, trailingComments []ast.Comment, path []int32) ***REMOVED***
 	if sci.commentUsed(leadingComments) ***REMOVED***
 		leadingComments = nil
 	***REMOVED***

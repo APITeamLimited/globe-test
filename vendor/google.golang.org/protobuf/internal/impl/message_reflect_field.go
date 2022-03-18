@@ -28,6 +28,39 @@ type fieldInfo struct ***REMOVED***
 	newField   func() pref.Value
 ***REMOVED***
 
+func fieldInfoForMissing(fd pref.FieldDescriptor) fieldInfo ***REMOVED***
+	// This never occurs for generated message types.
+	// It implies that a hand-crafted type has missing Go fields
+	// for specific protobuf message fields.
+	return fieldInfo***REMOVED***
+		fieldDesc: fd,
+		has: func(p pointer) bool ***REMOVED***
+			return false
+		***REMOVED***,
+		clear: func(p pointer) ***REMOVED***
+			panic("missing Go struct field for " + string(fd.FullName()))
+		***REMOVED***,
+		get: func(p pointer) pref.Value ***REMOVED***
+			return fd.Default()
+		***REMOVED***,
+		set: func(p pointer, v pref.Value) ***REMOVED***
+			panic("missing Go struct field for " + string(fd.FullName()))
+		***REMOVED***,
+		mutable: func(p pointer) pref.Value ***REMOVED***
+			panic("missing Go struct field for " + string(fd.FullName()))
+		***REMOVED***,
+		newMessage: func() pref.Message ***REMOVED***
+			panic("missing Go struct field for " + string(fd.FullName()))
+		***REMOVED***,
+		newField: func() pref.Value ***REMOVED***
+			if v := fd.Default(); v.IsValid() ***REMOVED***
+				return v
+			***REMOVED***
+			panic("missing Go struct field for " + string(fd.FullName()))
+		***REMOVED***,
+	***REMOVED***
+***REMOVED***
+
 func fieldInfoForOneof(fd pref.FieldDescriptor, fs reflect.StructField, x exporter, ot reflect.Type) fieldInfo ***REMOVED***
 	ft := fs.Type
 	if ft.Kind() != reflect.Interface ***REMOVED***
@@ -97,7 +130,7 @@ func fieldInfoForOneof(fd pref.FieldDescriptor, fs reflect.StructField, x export
 				rv.Set(reflect.New(ot))
 			***REMOVED***
 			rv = rv.Elem().Elem().Field(0)
-			if rv.IsNil() ***REMOVED***
+			if rv.Kind() == reflect.Ptr && rv.IsNil() ***REMOVED***
 				rv.Set(conv.GoValueOf(pref.ValueOfMessage(conv.New().Message())))
 			***REMOVED***
 			return conv.PBValueOf(rv)
@@ -225,7 +258,10 @@ func fieldInfoForScalar(fd pref.FieldDescriptor, fs reflect.StructField, x expor
 	isBytes := ft.Kind() == reflect.Slice && ft.Elem().Kind() == reflect.Uint8
 	if nullable ***REMOVED***
 		if ft.Kind() != reflect.Ptr && ft.Kind() != reflect.Slice ***REMOVED***
-			panic(fmt.Sprintf("field %v has invalid type: got %v, want pointer", fd.FullName(), ft))
+			// This never occurs for generated message types.
+			// Despite the protobuf type system specifying presence,
+			// the Go field type cannot represent it.
+			nullable = false
 		***REMOVED***
 		if ft.Kind() == reflect.Ptr ***REMOVED***
 			ft = ft.Elem()
@@ -388,6 +424,9 @@ func fieldInfoForMessage(fd pref.FieldDescriptor, fs reflect.StructField, x expo
 				return false
 			***REMOVED***
 			rv := p.Apply(fieldOffset).AsValueOf(fs.Type).Elem()
+			if fs.Type.Kind() != reflect.Ptr ***REMOVED***
+				return !isZero(rv)
+			***REMOVED***
 			return !rv.IsNil()
 		***REMOVED***,
 		clear: func(p pointer) ***REMOVED***
@@ -404,13 +443,13 @@ func fieldInfoForMessage(fd pref.FieldDescriptor, fs reflect.StructField, x expo
 		set: func(p pointer, v pref.Value) ***REMOVED***
 			rv := p.Apply(fieldOffset).AsValueOf(fs.Type).Elem()
 			rv.Set(conv.GoValueOf(v))
-			if rv.IsNil() ***REMOVED***
+			if fs.Type.Kind() == reflect.Ptr && rv.IsNil() ***REMOVED***
 				panic(fmt.Sprintf("field %v has invalid nil pointer", fd.FullName()))
 			***REMOVED***
 		***REMOVED***,
 		mutable: func(p pointer) pref.Value ***REMOVED***
 			rv := p.Apply(fieldOffset).AsValueOf(fs.Type).Elem()
-			if rv.IsNil() ***REMOVED***
+			if fs.Type.Kind() == reflect.Ptr && rv.IsNil() ***REMOVED***
 				rv.Set(conv.GoValueOf(conv.New()))
 			***REMOVED***
 			return conv.PBValueOf(rv)
@@ -463,4 +502,42 @@ func makeOneofInfo(od pref.OneofDescriptor, si structInfo, x exporter) *oneofInf
 		***REMOVED***
 	***REMOVED***
 	return oi
+***REMOVED***
+
+// isZero is identical to reflect.Value.IsZero.
+// TODO: Remove this when Go1.13 is the minimally supported Go version.
+func isZero(v reflect.Value) bool ***REMOVED***
+	switch v.Kind() ***REMOVED***
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return math.Float64bits(v.Float()) == 0
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ ***REMOVED***
+			if !isZero(v.Index(i)) ***REMOVED***
+				return false
+			***REMOVED***
+		***REMOVED***
+		return true
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+		return v.IsNil()
+	case reflect.String:
+		return v.Len() == 0
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ ***REMOVED***
+			if !isZero(v.Field(i)) ***REMOVED***
+				return false
+			***REMOVED***
+		***REMOVED***
+		return true
+	default:
+		panic(&reflect.ValueError***REMOVED***"reflect.Value.IsZero", v.Kind()***REMOVED***)
+	***REMOVED***
 ***REMOVED***

@@ -368,7 +368,7 @@ func marshalKnownFieldMapEntryJSON(b *indentBuffer, mk interface***REMOVED******
 	default:
 		return fmt.Errorf("invalid map key value: %v (%v)", mk, rk.Type())
 	***REMOVED***
-	err := writeString(b, strkey)
+	err := writeJsonString(b, strkey)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -674,8 +674,10 @@ func isWellKnownValue(fd *desc.FieldDescriptor) bool ***REMOVED***
 ***REMOVED***
 
 func isWellKnownListValue(fd *desc.FieldDescriptor) bool ***REMOVED***
+	// we look for ListValue; but we also look for Value, which can be assigned a ListValue
 	return !fd.IsRepeated() && fd.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE &&
-		fd.GetMessageType().GetFullyQualifiedName() == "google.protobuf.ListValue"
+		(fd.GetMessageType().GetFullyQualifiedName() == "google.protobuf.ListValue" ||
+			fd.GetMessageType().GetFullyQualifiedName() == "google.protobuf.Value")
 ***REMOVED***
 
 func unmarshalJsField(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory, opts *jsonpb.Unmarshaler) (interface***REMOVED******REMOVED***, error) ***REMOVED***

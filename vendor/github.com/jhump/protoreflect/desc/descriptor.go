@@ -189,6 +189,9 @@ func (fd *FileDescriptor) GetServices() []*ServiceDescriptor ***REMOVED***
 // element with the given fully-qualified symbol name. If no such element
 // exists then this method returns nil.
 func (fd *FileDescriptor) FindSymbol(symbol string) Descriptor ***REMOVED***
+	if len(symbol) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
 	if symbol[0] == '.' ***REMOVED***
 		symbol = symbol[1:]
 	***REMOVED***

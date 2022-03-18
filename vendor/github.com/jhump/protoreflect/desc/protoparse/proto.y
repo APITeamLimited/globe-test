@@ -279,13 +279,7 @@ scalarConstant : stringLit ***REMOVED***
 	***REMOVED***
 	| numLit
 	| name ***REMOVED***
-		if $1.Val == "true" || $1.Val == "false" ***REMOVED***
-			$$ = ast.NewBoolLiteralNode($1.ToKeyword())
-		***REMOVED*** else if $1.Val == "inf" || $1.Val == "nan" ***REMOVED***
-			$$ = ast.NewSpecialFloatLiteralNode($1.ToKeyword())
-		***REMOVED*** else ***REMOVED***
-			$$ = $1
-		***REMOVED***
+        $$ = $1
 	***REMOVED***
 
 numLit : _FLOAT_LIT ***REMOVED***
@@ -388,10 +382,27 @@ aggFieldEntry : aggName ':' scalarConstant ***REMOVED***
 			$$ = nil
 		***REMOVED***
 	***REMOVED***
+	| aggName '[' ']' ***REMOVED***
+		if $1 != nil ***REMOVED***
+			val := ast.NewArrayLiteralNode($2, nil, nil, $3)
+			$$ = ast.NewMessageFieldNode($1, nil, val)
+		***REMOVED*** else ***REMOVED***
+			$$ = nil
+		***REMOVED***
+	***REMOVED***
 	| aggName ':' '[' ']' ***REMOVED***
 		if $1 != nil ***REMOVED***
 			val := ast.NewArrayLiteralNode($3, nil, nil, $4)
 			$$ = ast.NewMessageFieldNode($1, $2, val)
+		***REMOVED*** else ***REMOVED***
+			$$ = nil
+		***REMOVED***
+	***REMOVED***
+	| aggName '[' constantList ']' ***REMOVED***
+		if $1 != nil ***REMOVED***
+			vals, commas := $3.toNodes()
+			val := ast.NewArrayLiteralNode($2, vals, commas, $4)
+			$$ = ast.NewMessageFieldNode($1, nil, val)
 		***REMOVED*** else ***REMOVED***
 			$$ = nil
 		***REMOVED***
@@ -450,8 +461,11 @@ aggFieldEntry : aggName ':' scalarConstant ***REMOVED***
 aggName : name ***REMOVED***
 		$$ = ast.NewFieldReferenceNode($1)
 	***REMOVED***
-	| '[' typeIdent ']' ***REMOVED***
-		$$ = ast.NewExtensionFieldReferenceNode($1, $2, $3)
+	| '[' ident ']' ***REMOVED***
+		$$ = ast.NewExtensionFieldReferenceNode($1, $2.toIdentValueNode(nil), $3)
+	***REMOVED***
+	| '[' ident '/' ident ']' ***REMOVED***
+		$$ = ast.NewAnyTypeReferenceNode($1, $2.toIdentValueNode(nil), $3, $4.toIdentValueNode(nil), $5)
 	***REMOVED***
 	| '[' error ']' ***REMOVED***
 		$$ = nil
