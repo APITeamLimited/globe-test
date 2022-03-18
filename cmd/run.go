@@ -177,11 +177,11 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 		logger.WithField("sig", sig).Debug("Stopping k6 in response to signal...")
 		lingerCancel() // stop the test run, metric processing is cancelled below
 	***REMOVED***
-	hardStop := func(sig os.Signal) ***REMOVED***
+	onHardStop := func(sig os.Signal) ***REMOVED***
 		logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
 		globalCancel() // not that it matters, given the following command...
 	***REMOVED***
-	stopSignalHandling := handleTestAbortSignals(c.gs, gracefulStop, hardStop)
+	stopSignalHandling := handleTestAbortSignals(c.gs, gracefulStop, onHardStop)
 	defer stopSignalHandling()
 
 	// Initialize the engine
