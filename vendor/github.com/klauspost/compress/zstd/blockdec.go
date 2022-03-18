@@ -76,16 +76,24 @@ type blockDec struct ***REMOVED***
 	// Window size of the block.
 	WindowSize uint64
 
-	history     chan *history
-	input       chan struct***REMOVED******REMOVED***
-	result      chan decodeOutput
-	sequenceBuf []seq
-	err         error
-	decWG       sync.WaitGroup
+	err error
+
+	// Check against this crc
+	checkCRC []byte
 
 	// Frame to use for singlethreaded decoding.
 	// Should not be used by the decoder itself since parent may be another frame.
 	localFrame *frameDec
+
+	sequence []seqVals
+
+	async struct ***REMOVED***
+		newHist  *history
+		literals []byte
+		seqData  []byte
+		seqSize  int // Size of uncompressed sequences
+		fcs      uint64
+	***REMOVED***
 
 	// Block is RLE, this is the size.
 	RLESize uint32
@@ -109,13 +117,8 @@ func (b *blockDec) String() string ***REMOVED***
 
 func newBlockDec(lowMem bool) *blockDec ***REMOVED***
 	b := blockDec***REMOVED***
-		lowMem:  lowMem,
-		result:  make(chan decodeOutput, 1),
-		input:   make(chan struct***REMOVED******REMOVED***, 1),
-		history: make(chan *history, 1),
+		lowMem: lowMem,
 	***REMOVED***
-	b.decWG.Add(1)
-	go b.startDecoder()
 	return &b
 ***REMOVED***
 
@@ -138,6 +141,12 @@ func (b *blockDec) reset(br byteBuffer, windowSize uint64) error ***REMOVED***
 	case blockTypeReserved:
 		return ErrReservedBlockType
 	case blockTypeRLE:
+		if cSize > maxCompressedBlockSize || cSize > int(b.WindowSize) ***REMOVED***
+			if debugDecoder ***REMOVED***
+				printf("rle block too big: csize:%d block: %+v\n", uint64(cSize), b)
+			***REMOVED***
+			return ErrWindowSizeExceeded
+		***REMOVED***
 		b.RLESize = uint32(cSize)
 		if b.lowMem ***REMOVED***
 			maxSize = cSize
@@ -158,7 +167,19 @@ func (b *blockDec) reset(br byteBuffer, windowSize uint64) error ***REMOVED***
 			***REMOVED***
 			return ErrCompressedSizeTooBig
 		***REMOVED***
+		// Empty compressed blocks must at least be 2 bytes
+		// for Literals_Block_Type and one for Sequences_Section_Header.
+		if cSize < 2 ***REMOVED***
+			return ErrBlockTooSmall
+		***REMOVED***
 	case blockTypeRaw:
+		if cSize > maxCompressedBlockSize || cSize > int(b.WindowSize) ***REMOVED***
+			if debugDecoder ***REMOVED***
+				printf("rle block too big: csize:%d block: %+v\n", uint64(cSize), b)
+			***REMOVED***
+			return ErrWindowSizeExceeded
+		***REMOVED***
+
 		b.RLESize = 0
 		// We do not need a destination for raw blocks.
 		maxSize = -1
@@ -193,85 +214,14 @@ func (b *blockDec) sendErr(err error) ***REMOVED***
 	b.Last = true
 	b.Type = blockTypeReserved
 	b.err = err
-	b.input <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 ***REMOVED***
 
 // Close will release resources.
 // Closed blockDec cannot be reset.
 func (b *blockDec) Close() ***REMOVED***
-	close(b.input)
-	close(b.history)
-	close(b.result)
-	b.decWG.Wait()
 ***REMOVED***
 
-// decodeAsync will prepare decoding the block when it receives input.
-// This will separate output and history.
-func (b *blockDec) startDecoder() ***REMOVED***
-	defer b.decWG.Done()
-	for range b.input ***REMOVED***
-		//println("blockDec: Got block input")
-		switch b.Type ***REMOVED***
-		case blockTypeRLE:
-			if cap(b.dst) < int(b.RLESize) ***REMOVED***
-				if b.lowMem ***REMOVED***
-					b.dst = make([]byte, b.RLESize)
-				***REMOVED*** else ***REMOVED***
-					b.dst = make([]byte, maxBlockSize)
-				***REMOVED***
-			***REMOVED***
-			o := decodeOutput***REMOVED***
-				d:   b,
-				b:   b.dst[:b.RLESize],
-				err: nil,
-			***REMOVED***
-			v := b.data[0]
-			for i := range o.b ***REMOVED***
-				o.b[i] = v
-			***REMOVED***
-			hist := <-b.history
-			hist.append(o.b)
-			b.result <- o
-		case blockTypeRaw:
-			o := decodeOutput***REMOVED***
-				d:   b,
-				b:   b.data,
-				err: nil,
-			***REMOVED***
-			hist := <-b.history
-			hist.append(o.b)
-			b.result <- o
-		case blockTypeCompressed:
-			b.dst = b.dst[:0]
-			err := b.decodeCompressed(nil)
-			o := decodeOutput***REMOVED***
-				d:   b,
-				b:   b.dst,
-				err: err,
-			***REMOVED***
-			if debugDecoder ***REMOVED***
-				println("Decompressed to", len(b.dst), "bytes, error:", err)
-			***REMOVED***
-			b.result <- o
-		case blockTypeReserved:
-			// Used for returning errors.
-			<-b.history
-			b.result <- decodeOutput***REMOVED***
-				d:   b,
-				b:   nil,
-				err: b.err,
-			***REMOVED***
-		default:
-			panic("Invalid block type")
-		***REMOVED***
-		if debugDecoder ***REMOVED***
-			println("blockDec: Finished block")
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-// decodeAsync will prepare decoding the block when it receives the history.
-// If history is provided, it will not fetch it from the channel.
+// decodeBuf
 func (b *blockDec) decodeBuf(hist *history) error ***REMOVED***
 	switch b.Type ***REMOVED***
 	case blockTypeRLE:
@@ -294,14 +244,23 @@ func (b *blockDec) decodeBuf(hist *history) error ***REMOVED***
 		return nil
 	case blockTypeCompressed:
 		saved := b.dst
-		b.dst = hist.b
-		hist.b = nil
+		// Append directly to history
+		if hist.ignoreBuffer == 0 ***REMOVED***
+			b.dst = hist.b
+			hist.b = nil
+		***REMOVED*** else ***REMOVED***
+			b.dst = b.dst[:0]
+		***REMOVED***
 		err := b.decodeCompressed(hist)
 		if debugDecoder ***REMOVED***
 			println("Decompressed to total", len(b.dst), "bytes, hash:", xxhash.Sum64(b.dst), "error:", err)
 		***REMOVED***
-		hist.b = b.dst
-		b.dst = saved
+		if hist.ignoreBuffer == 0 ***REMOVED***
+			hist.b = b.dst
+			b.dst = saved
+		***REMOVED*** else ***REMOVED***
+			hist.appendKeep(b.dst)
+		***REMOVED***
 		return err
 	case blockTypeReserved:
 		// Used for returning errors.
@@ -311,30 +270,18 @@ func (b *blockDec) decodeBuf(hist *history) error ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// decodeCompressed will start decompressing a block.
-// If no history is supplied the decoder will decodeAsync as much as possible
-// before fetching from blockDec.history
-func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
-	in := b.data
-	delayedHistory := hist == nil
-
-	if delayedHistory ***REMOVED***
-		// We must always grab history.
-		defer func() ***REMOVED***
-			if hist == nil ***REMOVED***
-				<-b.history
-			***REMOVED***
-		***REMOVED***()
-	***REMOVED***
+func (b *blockDec) decodeLiterals(in []byte, hist *history) (remain []byte, err error) ***REMOVED***
 	// There must be at least one byte for Literals_Block_Type and one for Sequences_Section_Header
 	if len(in) < 2 ***REMOVED***
-		return ErrBlockTooSmall
+		return in, ErrBlockTooSmall
 	***REMOVED***
+
 	litType := literalsBlockType(in[0] & 3)
 	var litRegenSize int
 	var litCompSize int
 	sizeFormat := (in[0] >> 2) & 3
 	var fourStreams bool
+	var literals []byte
 	switch litType ***REMOVED***
 	case literalsBlockRaw, literalsBlockRLE:
 		switch sizeFormat ***REMOVED***
@@ -350,7 +297,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 			//  Regenerated_Size uses 20 bits (0-1048575). Literals_Section_Header uses 3 bytes.
 			if len(in) < 3 ***REMOVED***
 				println("too small: litType:", litType, " sizeFormat", sizeFormat, len(in))
-				return ErrBlockTooSmall
+				return in, ErrBlockTooSmall
 			***REMOVED***
 			litRegenSize = int(in[0]>>4) + (int(in[1]) << 4) + (int(in[2]) << 12)
 			in = in[3:]
@@ -361,7 +308,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 			// Both Regenerated_Size and Compressed_Size use 10 bits (0-1023).
 			if len(in) < 3 ***REMOVED***
 				println("too small: litType:", litType, " sizeFormat", sizeFormat, len(in))
-				return ErrBlockTooSmall
+				return in, ErrBlockTooSmall
 			***REMOVED***
 			n := uint64(in[0]>>4) + (uint64(in[1]) << 4) + (uint64(in[2]) << 12)
 			litRegenSize = int(n & 1023)
@@ -372,7 +319,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 			fourStreams = true
 			if len(in) < 4 ***REMOVED***
 				println("too small: litType:", litType, " sizeFormat", sizeFormat, len(in))
-				return ErrBlockTooSmall
+				return in, ErrBlockTooSmall
 			***REMOVED***
 			n := uint64(in[0]>>4) + (uint64(in[1]) << 4) + (uint64(in[2]) << 12) + (uint64(in[3]) << 20)
 			litRegenSize = int(n & 16383)
@@ -382,7 +329,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 			fourStreams = true
 			if len(in) < 5 ***REMOVED***
 				println("too small: litType:", litType, " sizeFormat", sizeFormat, len(in))
-				return ErrBlockTooSmall
+				return in, ErrBlockTooSmall
 			***REMOVED***
 			n := uint64(in[0]>>4) + (uint64(in[1]) << 4) + (uint64(in[2]) << 12) + (uint64(in[3]) << 20) + (uint64(in[4]) << 28)
 			litRegenSize = int(n & 262143)
@@ -393,13 +340,15 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 	if debugDecoder ***REMOVED***
 		println("literals type:", litType, "litRegenSize:", litRegenSize, "litCompSize:", litCompSize, "sizeFormat:", sizeFormat, "4X:", fourStreams)
 	***REMOVED***
-	var literals []byte
-	var huff *huff0.Scratch
+	if litRegenSize > int(b.WindowSize) || litRegenSize > maxCompressedBlockSize ***REMOVED***
+		return in, ErrWindowSizeExceeded
+	***REMOVED***
+
 	switch litType ***REMOVED***
 	case literalsBlockRaw:
 		if len(in) < litRegenSize ***REMOVED***
 			println("too small: litType:", litType, " sizeFormat", sizeFormat, "remain:", len(in), "want:", litRegenSize)
-			return ErrBlockTooSmall
+			return in, ErrBlockTooSmall
 		***REMOVED***
 		literals = in[:litRegenSize]
 		in = in[litRegenSize:]
@@ -407,7 +356,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 	case literalsBlockRLE:
 		if len(in) < 1 ***REMOVED***
 			println("too small: litType:", litType, " sizeFormat", sizeFormat, "remain:", len(in), "want:", 1)
-			return ErrBlockTooSmall
+			return in, ErrBlockTooSmall
 		***REMOVED***
 		if cap(b.literalBuf) < litRegenSize ***REMOVED***
 			if b.lowMem ***REMOVED***
@@ -418,7 +367,6 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 					b.literalBuf = make([]byte, litRegenSize)
 				***REMOVED*** else ***REMOVED***
 					b.literalBuf = make([]byte, litRegenSize, maxCompressedLiteralSize)
-
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -434,7 +382,7 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 	case literalsBlockTreeless:
 		if len(in) < litCompSize ***REMOVED***
 			println("too small: litType:", litType, " sizeFormat", sizeFormat, "remain:", len(in), "want:", litCompSize)
-			return ErrBlockTooSmall
+			return in, ErrBlockTooSmall
 		***REMOVED***
 		// Store compressed literals, so we defer decoding until we get history.
 		literals = in[:litCompSize]
@@ -442,15 +390,10 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 		if debugDecoder ***REMOVED***
 			printf("Found %d compressed literals\n", litCompSize)
 		***REMOVED***
-	case literalsBlockCompressed:
-		if len(in) < litCompSize ***REMOVED***
-			println("too small: litType:", litType, " sizeFormat", sizeFormat, "remain:", len(in), "want:", litCompSize)
-			return ErrBlockTooSmall
+		huff := hist.huffTree
+		if huff == nil ***REMOVED***
+			return in, errors.New("literal block was treeless, but no history was defined")
 		***REMOVED***
-		literals = in[:litCompSize]
-		in = in[litCompSize:]
-		huff = huffDecoderPool.Get().(*huff0.Scratch)
-		var err error
 		// Ensure we have space to store it.
 		if cap(b.literalBuf) < litRegenSize ***REMOVED***
 			if b.lowMem ***REMOVED***
@@ -459,14 +402,53 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 				b.literalBuf = make([]byte, 0, maxCompressedLiteralSize)
 			***REMOVED***
 		***REMOVED***
-		if huff == nil ***REMOVED***
-			huff = &huff0.Scratch***REMOVED******REMOVED***
+		var err error
+		// Use our out buffer.
+		huff.MaxDecodedSize = maxCompressedBlockSize
+		if fourStreams ***REMOVED***
+			literals, err = huff.Decoder().Decompress4X(b.literalBuf[:0:litRegenSize], literals)
+		***REMOVED*** else ***REMOVED***
+			literals, err = huff.Decoder().Decompress1X(b.literalBuf[:0:litRegenSize], literals)
 		***REMOVED***
+		// Make sure we don't leak our literals buffer
+		if err != nil ***REMOVED***
+			println("decompressing literals:", err)
+			return in, err
+		***REMOVED***
+		if len(literals) != litRegenSize ***REMOVED***
+			return in, fmt.Errorf("literal output size mismatch want %d, got %d", litRegenSize, len(literals))
+		***REMOVED***
+
+	case literalsBlockCompressed:
+		if len(in) < litCompSize ***REMOVED***
+			println("too small: litType:", litType, " sizeFormat", sizeFormat, "remain:", len(in), "want:", litCompSize)
+			return in, ErrBlockTooSmall
+		***REMOVED***
+		literals = in[:litCompSize]
+		in = in[litCompSize:]
+		// Ensure we have space to store it.
+		if cap(b.literalBuf) < litRegenSize ***REMOVED***
+			if b.lowMem ***REMOVED***
+				b.literalBuf = make([]byte, 0, litRegenSize)
+			***REMOVED*** else ***REMOVED***
+				b.literalBuf = make([]byte, 0, maxCompressedBlockSize)
+			***REMOVED***
+		***REMOVED***
+		huff := hist.huffTree
+		if huff == nil || (hist.dict != nil && huff == hist.dict.litEnc) ***REMOVED***
+			huff = huffDecoderPool.Get().(*huff0.Scratch)
+			if huff == nil ***REMOVED***
+				huff = &huff0.Scratch***REMOVED******REMOVED***
+			***REMOVED***
+		***REMOVED***
+		var err error
 		huff, literals, err = huff0.ReadTable(literals, huff)
 		if err != nil ***REMOVED***
 			println("reading huffman table:", err)
-			return err
+			return in, err
 		***REMOVED***
+		hist.huffTree = huff
+		huff.MaxDecodedSize = maxCompressedBlockSize
 		// Use our out buffer.
 		if fourStreams ***REMOVED***
 			literals, err = huff.Decoder().Decompress4X(b.literalBuf[:0:litRegenSize], literals)
@@ -475,27 +457,56 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 		***REMOVED***
 		if err != nil ***REMOVED***
 			println("decoding compressed literals:", err)
-			return err
+			return in, err
 		***REMOVED***
 		// Make sure we don't leak our literals buffer
 		if len(literals) != litRegenSize ***REMOVED***
-			return fmt.Errorf("literal output size mismatch want %d, got %d", litRegenSize, len(literals))
+			return in, fmt.Errorf("literal output size mismatch want %d, got %d", litRegenSize, len(literals))
 		***REMOVED***
 		if debugDecoder ***REMOVED***
 			printf("Decompressed %d literals into %d bytes\n", litCompSize, litRegenSize)
 		***REMOVED***
 	***REMOVED***
+	hist.decoders.literals = literals
+	return in, nil
+***REMOVED***
 
+// decodeCompressed will start decompressing a block.
+func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
+	in := b.data
+	in, err := b.decodeLiterals(in, hist)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	err = b.prepareSequences(in, hist)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if hist.decoders.nSeqs == 0 ***REMOVED***
+		b.dst = append(b.dst, hist.decoders.literals...)
+		return nil
+	***REMOVED***
+	err = hist.decoders.decodeSync(hist)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	b.dst = hist.decoders.out
+	hist.recentOffsets = hist.decoders.prevOffset
+	return nil
+***REMOVED***
+
+func (b *blockDec) prepareSequences(in []byte, hist *history) (err error) ***REMOVED***
+	if debugDecoder ***REMOVED***
+		printf("prepareSequences: %d byte(s) input\n", len(in))
+	***REMOVED***
 	// Decode Sequences
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#sequences-section
 	if len(in) < 1 ***REMOVED***
 		return ErrBlockTooSmall
 	***REMOVED***
+	var nSeqs int
 	seqHeader := in[0]
-	nSeqs := 0
 	switch ***REMOVED***
-	case seqHeader == 0:
-		in = in[1:]
 	case seqHeader < 128:
 		nSeqs = int(seqHeader)
 		in = in[1:]
@@ -512,19 +523,16 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 		nSeqs = 0x7f00 + int(in[1]) + (int(in[2]) << 8)
 		in = in[3:]
 	***REMOVED***
-	// Allocate sequences
-	if cap(b.sequenceBuf) < nSeqs ***REMOVED***
-		if b.lowMem ***REMOVED***
-			b.sequenceBuf = make([]seq, nSeqs)
-		***REMOVED*** else ***REMOVED***
-			// Allocate max
-			b.sequenceBuf = make([]seq, nSeqs, maxSequences)
+	if nSeqs == 0 && len(in) != 0 ***REMOVED***
+		// When no sequences, there should not be any more data...
+		if debugDecoder ***REMOVED***
+			printf("prepareSequences: 0 sequences, but %d byte(s) left on stream\n", len(in))
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// Reuse buffer
-		b.sequenceBuf = b.sequenceBuf[:nSeqs]
+		return ErrUnexpectedBlockSize
 	***REMOVED***
-	var seqs = &sequenceDecs***REMOVED******REMOVED***
+
+	var seqs = &hist.decoders
+	seqs.nSeqs = nSeqs
 	if nSeqs > 0 ***REMOVED***
 		if len(in) < 1 ***REMOVED***
 			return ErrBlockTooSmall
@@ -553,6 +561,9 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 			***REMOVED***
 			switch mode ***REMOVED***
 			case compModePredefined:
+				if seq.fse != nil && !seq.fse.preDefined ***REMOVED***
+					fseDecoderPool.Put(seq.fse)
+				***REMOVED***
 				seq.fse = &fsePredef[i]
 			case compModeRLE:
 				if br.remain() < 1 ***REMOVED***
@@ -560,34 +571,36 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 				***REMOVED***
 				v := br.Uint8()
 				br.advance(1)
-				dec := fseDecoderPool.Get().(*fseDecoder)
+				if seq.fse == nil || seq.fse.preDefined ***REMOVED***
+					seq.fse = fseDecoderPool.Get().(*fseDecoder)
+				***REMOVED***
 				symb, err := decSymbolValue(v, symbolTableX[i])
 				if err != nil ***REMOVED***
 					printf("RLE Transform table (%v) error: %v", tableIndex(i), err)
 					return err
 				***REMOVED***
-				dec.setRLE(symb)
-				seq.fse = dec
+				seq.fse.setRLE(symb)
 				if debugDecoder ***REMOVED***
 					printf("RLE set to %+v, code: %v", symb, v)
 				***REMOVED***
 			case compModeFSE:
 				println("Reading table for", tableIndex(i))
-				dec := fseDecoderPool.Get().(*fseDecoder)
-				err := dec.readNCount(&br, uint16(maxTableSymbol[i]))
+				if seq.fse == nil || seq.fse.preDefined ***REMOVED***
+					seq.fse = fseDecoderPool.Get().(*fseDecoder)
+				***REMOVED***
+				err := seq.fse.readNCount(&br, uint16(maxTableSymbol[i]))
 				if err != nil ***REMOVED***
 					println("Read table error:", err)
 					return err
 				***REMOVED***
-				err = dec.transform(symbolTableX[i])
+				err = seq.fse.transform(symbolTableX[i])
 				if err != nil ***REMOVED***
 					println("Transform table error:", err)
 					return err
 				***REMOVED***
 				if debugDecoder ***REMOVED***
-					println("Read table ok", "symbolLen:", dec.symbolLen)
+					println("Read table ok", "symbolLen:", seq.fse.symbolLen)
 				***REMOVED***
-				seq.fse = dec
 			case compModeRepeat:
 				seq.repeat = true
 			***REMOVED***
@@ -597,140 +610,89 @@ func (b *blockDec) decodeCompressed(hist *history) error ***REMOVED***
 		***REMOVED***
 		in = br.unread()
 	***REMOVED***
-
-	// Wait for history.
-	// All time spent after this is critical since it is strictly sequential.
-	if hist == nil ***REMOVED***
-		hist = <-b.history
-		if hist.error ***REMOVED***
-			return ErrDecoderClosed
-		***REMOVED***
-	***REMOVED***
-
-	// Decode treeless literal block.
-	if litType == literalsBlockTreeless ***REMOVED***
-		// TODO: We could send the history early WITHOUT the stream history.
-		//   This would allow decoding treeless literals before the byte history is available.
-		//   Silencia stats: Treeless 4393, with: 32775, total: 37168, 11% treeless.
-		//   So not much obvious gain here.
-
-		if hist.huffTree == nil ***REMOVED***
-			return errors.New("literal block was treeless, but no history was defined")
-		***REMOVED***
-		// Ensure we have space to store it.
-		if cap(b.literalBuf) < litRegenSize ***REMOVED***
-			if b.lowMem ***REMOVED***
-				b.literalBuf = make([]byte, 0, litRegenSize)
-			***REMOVED*** else ***REMOVED***
-				b.literalBuf = make([]byte, 0, maxCompressedLiteralSize)
-			***REMOVED***
-		***REMOVED***
-		var err error
-		// Use our out buffer.
-		huff = hist.huffTree
-		if fourStreams ***REMOVED***
-			literals, err = huff.Decoder().Decompress4X(b.literalBuf[:0:litRegenSize], literals)
-		***REMOVED*** else ***REMOVED***
-			literals, err = huff.Decoder().Decompress1X(b.literalBuf[:0:litRegenSize], literals)
-		***REMOVED***
-		// Make sure we don't leak our literals buffer
-		if err != nil ***REMOVED***
-			println("decompressing literals:", err)
-			return err
-		***REMOVED***
-		if len(literals) != litRegenSize ***REMOVED***
-			return fmt.Errorf("literal output size mismatch want %d, got %d", litRegenSize, len(literals))
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		if hist.huffTree != nil && huff != nil ***REMOVED***
-			if hist.dict == nil || hist.dict.litEnc != hist.huffTree ***REMOVED***
-				huffDecoderPool.Put(hist.huffTree)
-			***REMOVED***
-			hist.huffTree = nil
-		***REMOVED***
-	***REMOVED***
-	if huff != nil ***REMOVED***
-		hist.huffTree = huff
-	***REMOVED***
 	if debugDecoder ***REMOVED***
-		println("Final literals:", len(literals), "hash:", xxhash.Sum64(literals), "and", nSeqs, "sequences.")
+		println("Literals:", len(seqs.literals), "hash:", xxhash.Sum64(seqs.literals), "and", seqs.nSeqs, "sequences.")
 	***REMOVED***
 
 	if nSeqs == 0 ***REMOVED***
-		// Decompressed content is defined entirely as Literals Section content.
-		b.dst = append(b.dst, literals...)
-		if delayedHistory ***REMOVED***
-			hist.append(literals)
+		if len(b.sequence) > 0 ***REMOVED***
+			b.sequence = b.sequence[:0]
 		***REMOVED***
 		return nil
 	***REMOVED***
-
-	seqs, err := seqs.mergeHistory(&hist.decoders)
-	if err != nil ***REMOVED***
-		return err
+	br := seqs.br
+	if br == nil ***REMOVED***
+		br = &bitReader***REMOVED******REMOVED***
 	***REMOVED***
-	if debugDecoder ***REMOVED***
-		println("History merged ok")
-	***REMOVED***
-	br := &bitReader***REMOVED******REMOVED***
 	if err := br.init(in); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	// TODO: Investigate if sending history without decoders are faster.
-	//   This would allow the sequences to be decoded async and only have to construct stream history.
-	//   If only recent offsets were not transferred, this would be an obvious win.
-	// 	 Also, if first 3 sequences don't reference recent offsets, all sequences can be decoded.
+	if err := seqs.initialize(br, hist, b.dst); err != nil ***REMOVED***
+		println("initializing sequences:", err)
+		return err
+	***REMOVED***
+	return nil
+***REMOVED***
 
+func (b *blockDec) decodeSequences(hist *history) error ***REMOVED***
+	if cap(b.sequence) < hist.decoders.nSeqs ***REMOVED***
+		if b.lowMem ***REMOVED***
+			b.sequence = make([]seqVals, 0, hist.decoders.nSeqs)
+		***REMOVED*** else ***REMOVED***
+			b.sequence = make([]seqVals, 0, 0x7F00+0xffff)
+		***REMOVED***
+	***REMOVED***
+	b.sequence = b.sequence[:hist.decoders.nSeqs]
+	if hist.decoders.nSeqs == 0 ***REMOVED***
+		hist.decoders.seqSize = len(hist.decoders.literals)
+		return nil
+	***REMOVED***
+	hist.decoders.windowSize = hist.windowSize
+	hist.decoders.prevOffset = hist.recentOffsets
+	err := hist.decoders.decode(b.sequence)
+	hist.recentOffsets = hist.decoders.prevOffset
+	return err
+***REMOVED***
+
+func (b *blockDec) executeSequences(hist *history) error ***REMOVED***
 	hbytes := hist.b
 	if len(hbytes) > hist.windowSize ***REMOVED***
 		hbytes = hbytes[len(hbytes)-hist.windowSize:]
-		// We do not need history any more.
+		// We do not need history anymore.
 		if hist.dict != nil ***REMOVED***
 			hist.dict.content = nil
 		***REMOVED***
 	***REMOVED***
-
-	if err := seqs.initialize(br, hist, literals, b.dst); err != nil ***REMOVED***
-		println("initializing sequences:", err)
-		return err
-	***REMOVED***
-
-	err = seqs.decode(nSeqs, br, hbytes)
+	hist.decoders.windowSize = hist.windowSize
+	hist.decoders.out = b.dst[:0]
+	err := hist.decoders.execute(b.sequence, hbytes)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	if !br.finished() ***REMOVED***
-		return fmt.Errorf("%d extra bits on block, should be 0", br.remain())
-	***REMOVED***
+	return b.updateHistory(hist)
+***REMOVED***
 
-	err = br.close()
-	if err != nil ***REMOVED***
-		printf("Closing sequences: %v, %+v\n", err, *br)
-	***REMOVED***
+func (b *blockDec) updateHistory(hist *history) error ***REMOVED***
 	if len(b.data) > maxCompressedBlockSize ***REMOVED***
 		return fmt.Errorf("compressed block size too large (%d)", len(b.data))
 	***REMOVED***
 	// Set output and release references.
-	b.dst = seqs.out
-	seqs.out, seqs.literals, seqs.hist = nil, nil, nil
+	b.dst = hist.decoders.out
+	hist.recentOffsets = hist.decoders.prevOffset
 
-	if !delayedHistory ***REMOVED***
-		// If we don't have delayed history, no need to update.
-		hist.recentOffsets = seqs.prevOffset
-		return nil
-	***REMOVED***
 	if b.Last ***REMOVED***
 		// if last block we don't care about history.
 		println("Last block, no history returned")
 		hist.b = hist.b[:0]
 		return nil
+	***REMOVED*** else ***REMOVED***
+		hist.append(b.dst)
+		if debugDecoder ***REMOVED***
+			println("Finished block with ", len(b.sequence), "sequences. Added", len(b.dst), "to history, now length", len(hist.b))
+		***REMOVED***
 	***REMOVED***
-	hist.append(b.dst)
-	hist.recentOffsets = seqs.prevOffset
-	if debugDecoder ***REMOVED***
-		println("Finished block with literals:", len(literals), "and", nSeqs, "sequences.")
-	***REMOVED***
+	hist.decoders.out, hist.decoders.literals = nil, nil
 
 	return nil
 ***REMOVED***

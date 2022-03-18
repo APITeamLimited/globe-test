@@ -113,6 +113,9 @@ func (r *readerWrapper) readBig(n int, dst []byte) ([]byte, error) ***REMOVED***
 func (r *readerWrapper) readByte() (byte, error) ***REMOVED***
 	n2, err := r.r.Read(r.tmp[:1])
 	if err != nil ***REMOVED***
+		if err == io.EOF ***REMOVED***
+			err = io.ErrUnexpectedEOF
+		***REMOVED***
 		return 0, err
 	***REMOVED***
 	if n2 != 1 ***REMOVED***

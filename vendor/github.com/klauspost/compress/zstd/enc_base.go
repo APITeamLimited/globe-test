@@ -108,11 +108,6 @@ func (e *fastBase) UseBlock(enc *blockEnc) ***REMOVED***
 	e.blk = enc
 ***REMOVED***
 
-func (e *fastBase) matchlenNoHist(s, t int32, src []byte) int32 ***REMOVED***
-	// Extend the match to be as long as possible.
-	return int32(matchLen(src[s:], src[t:]))
-***REMOVED***
-
 func (e *fastBase) matchlen(s, t int32, src []byte) int32 ***REMOVED***
 	if debugAsserts ***REMOVED***
 		if s < 0 ***REMOVED***
@@ -131,9 +126,24 @@ func (e *fastBase) matchlen(s, t int32, src []byte) int32 ***REMOVED***
 			panic(fmt.Sprintf("len(src)-s (%d) > maxCompressedBlockSize (%d)", len(src)-int(s), maxCompressedBlockSize))
 		***REMOVED***
 	***REMOVED***
+	a := src[s:]
+	b := src[t:]
+	b = b[:len(a)]
+	end := int32((len(a) >> 3) << 3)
+	for i := int32(0); i < end; i += 8 ***REMOVED***
+		if diff := load6432(a, i) ^ load6432(b, i); diff != 0 ***REMOVED***
+			return i + int32(bits.TrailingZeros64(diff)>>3)
+		***REMOVED***
+	***REMOVED***
 
-	// Extend the match to be as long as possible.
-	return int32(matchLen(src[s:], src[t:]))
+	a = a[end:]
+	b = b[end:]
+	for i := range a ***REMOVED***
+		if a[i] != b[i] ***REMOVED***
+			return int32(i) + end
+		***REMOVED***
+	***REMOVED***
+	return int32(len(a)) + end
 ***REMOVED***
 
 // Reset the encoding table.

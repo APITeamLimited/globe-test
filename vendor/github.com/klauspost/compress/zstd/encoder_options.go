@@ -24,6 +24,7 @@ type encoderOptions struct ***REMOVED***
 	allLitEntropy   bool
 	customWindow    bool
 	customALEntropy bool
+	customBlockSize bool
 	lowMem          bool
 	dict            *dict
 ***REMOVED***
@@ -33,7 +34,7 @@ func (o *encoderOptions) setDefault() ***REMOVED***
 		concurrent:    runtime.GOMAXPROCS(0),
 		crc:           true,
 		single:        nil,
-		blockSize:     1 << 16,
+		blockSize:     maxCompressedBlockSize,
 		windowSize:    8 << 20,
 		level:         SpeedDefault,
 		allLitEntropy: true,
@@ -75,6 +76,7 @@ func WithEncoderCRC(b bool) EOption ***REMOVED***
 // WithEncoderConcurrency will set the concurrency,
 // meaning the maximum number of encoders to run concurrently.
 // The value supplied must be at least 1.
+// For streams, setting a value of 1 will disable async compression.
 // By default this will be set to GOMAXPROCS.
 func WithEncoderConcurrency(n int) EOption ***REMOVED***
 	return func(o *encoderOptions) error ***REMOVED***
@@ -106,6 +108,7 @@ func WithWindowSize(n int) EOption ***REMOVED***
 		o.customWindow = true
 		if o.blockSize > o.windowSize ***REMOVED***
 			o.blockSize = o.windowSize
+			o.customBlockSize = true
 		***REMOVED***
 		return nil
 	***REMOVED***
@@ -188,10 +191,9 @@ func EncoderLevelFromZstd(level int) EncoderLevel ***REMOVED***
 		return SpeedDefault
 	case level >= 6 && level < 10:
 		return SpeedBetterCompression
-	case level >= 10:
+	default:
 		return SpeedBestCompression
 	***REMOVED***
-	return SpeedDefault
 ***REMOVED***
 
 // String provides a string representation of the compression level.
@@ -222,6 +224,9 @@ func WithEncoderLevel(l EncoderLevel) EOption ***REMOVED***
 			switch o.level ***REMOVED***
 			case SpeedFastest:
 				o.windowSize = 4 << 20
+				if !o.customBlockSize ***REMOVED***
+					o.blockSize = 1 << 16
+				***REMOVED***
 			case SpeedDefault:
 				o.windowSize = 8 << 20
 			case SpeedBetterCompression:

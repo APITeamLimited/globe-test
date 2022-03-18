@@ -6,6 +6,7 @@
 package flate
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -37,15 +38,17 @@ const (
 	maxMatchLength   = 258 // The longest match for the compressor
 	minOffsetSize    = 1   // The shortest offset that makes any sense
 
-	// The maximum number of tokens we put into a single flat block, just too
-	// stop things from getting too large.
-	maxFlateBlockTokens = 1 << 14
+	// The maximum number of tokens we will encode at the time.
+	// Smaller sizes usually creates less optimal blocks.
+	// Bigger can make context switching slow.
+	// We use this for levels 7-9, so we make it big.
+	maxFlateBlockTokens = 1 << 15
 	maxStoreBlockSize   = 65535
 	hashBits            = 17 // After 17 performance degrades
 	hashSize            = 1 << hashBits
 	hashMask            = (1 << hashBits) - 1
 	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength
-	maxHashOffset       = 1 << 24
+	maxHashOffset       = 1 << 28
 
 	skipNever = math.MaxInt32
 
@@ -70,9 +73,9 @@ var levels = []compressionLevel***REMOVED***
 	***REMOVED***0, 0, 0, 0, 0, 6***REMOVED***,
 	// Levels 7-9 use increasingly more lazy matching
 	// and increasingly stringent conditions for "good enough".
-	***REMOVED***8, 8, 24, 16, skipNever, 7***REMOVED***,
-	***REMOVED***10, 16, 24, 64, skipNever, 8***REMOVED***,
-	***REMOVED***32, 258, 258, 4096, skipNever, 9***REMOVED***,
+	***REMOVED***8, 12, 16, 24, skipNever, 7***REMOVED***,
+	***REMOVED***16, 30, 40, 64, skipNever, 8***REMOVED***,
+	***REMOVED***32, 258, 258, 1024, skipNever, 9***REMOVED***,
 ***REMOVED***
 
 // advancedState contains state for the advanced levels, with bigger hash tables, etc.
@@ -93,8 +96,9 @@ type advancedState struct ***REMOVED***
 	hashOffset int
 
 	// input window: unprocessed data is window[index:windowEnd]
-	index     int
-	hashMatch [maxMatchLength + minMatchLength]uint32
+	index          int
+	estBitsPerByte int
+	hashMatch      [maxMatchLength + minMatchLength]uint32
 
 	hash uint32
 	ii   uint16 // position of last match, intended to overflow to reset.
@@ -103,6 +107,7 @@ type advancedState struct ***REMOVED***
 type compressor struct ***REMOVED***
 	compressionLevel
 
+	h *huffmanEncoder
 	w *huffmanBitWriter
 
 	// compression algorithm
@@ -170,7 +175,8 @@ func (d *compressor) writeBlock(tok *tokens, index int, eof bool) error ***REMOV
 			window = d.window[d.blockStart:index]
 		***REMOVED***
 		d.blockStart = index
-		d.w.writeBlock(tok, eof, window)
+		//d.w.writeBlock(tok, eof, window)
+		d.w.writeBlockDynamic(tok, eof, window, d.sync)
 		return d.w.err
 	***REMOVED***
 	return nil
@@ -263,7 +269,7 @@ func (d *compressor) fillWindow(b []byte) ***REMOVED***
 // Try to find a match starting at index whose length is greater than prevSize.
 // We only look at chainCount possibilities before giving up.
 // pos = s.index, prevHead = s.chainHead-s.hashOffset, prevLength=minMatchLength-1, lookahead
-func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) ***REMOVED***
+func (d *compressor) findMatch(pos int, prevHead int, lookahead int) (length, offset int, ok bool) ***REMOVED***
 	minMatchLook := maxMatchLength
 	if lookahead < minMatchLook ***REMOVED***
 		minMatchLook = lookahead
@@ -279,36 +285,75 @@ func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead 
 
 	// If we've got a match that's good enough, only look in 1/4 the chain.
 	tries := d.chain
-	length = prevLength
-	if length >= d.good ***REMOVED***
-		tries >>= 2
-	***REMOVED***
+	length = minMatchLength - 1
 
 	wEnd := win[pos+length]
 	wPos := win[pos:]
 	minIndex := pos - windowSize
+	if minIndex < 0 ***REMOVED***
+		minIndex = 0
+	***REMOVED***
+	offset = 0
 
+	cGain := 0
+	if d.chain < 100 ***REMOVED***
+		for i := prevHead; tries > 0; tries-- ***REMOVED***
+			if wEnd == win[i+length] ***REMOVED***
+				n := matchLen(win[i:i+minMatchLook], wPos)
+				if n > length ***REMOVED***
+					length = n
+					offset = pos - i
+					ok = true
+					if n >= nice ***REMOVED***
+						// The match is good enough that we don't try to find a better one.
+						break
+					***REMOVED***
+					wEnd = win[pos+n]
+				***REMOVED***
+			***REMOVED***
+			if i <= minIndex ***REMOVED***
+				// hashPrev[i & windowMask] has already been overwritten, so stop now.
+				break
+			***REMOVED***
+			i = int(d.state.hashPrev[i&windowMask]) - d.state.hashOffset
+			if i < minIndex ***REMOVED***
+				break
+			***REMOVED***
+		***REMOVED***
+		return
+	***REMOVED***
+
+	// Some like it higher (CSV), some like it lower (JSON)
+	const baseCost = 6
+	// Base is 4 bytes at with an additional cost.
+	// Matches must be better than this.
 	for i := prevHead; tries > 0; tries-- ***REMOVED***
 		if wEnd == win[i+length] ***REMOVED***
 			n := matchLen(win[i:i+minMatchLook], wPos)
+			if n > length ***REMOVED***
+				// Calculate gain. Estimate
+				newGain := d.h.bitLengthRaw(wPos[:n]) - int(offsetExtraBits[offsetCode(uint32(pos-i))]) - baseCost - int(lengthExtraBits[lengthCodes[(n-3)&255]])
 
-			if n > length && (n > minMatchLength || pos-i <= 4096) ***REMOVED***
-				length = n
-				offset = pos - i
-				ok = true
-				if n >= nice ***REMOVED***
-					// The match is good enough that we don't try to find a better one.
-					break
+				//fmt.Println(n, "gain:", newGain, "prev:", cGain, "raw:", d.h.bitLengthRaw(wPos[:n]))
+				if newGain > cGain ***REMOVED***
+					length = n
+					offset = pos - i
+					cGain = newGain
+					ok = true
+					if n >= nice ***REMOVED***
+						// The match is good enough that we don't try to find a better one.
+						break
+					***REMOVED***
+					wEnd = win[pos+n]
 				***REMOVED***
-				wEnd = win[pos+n]
 			***REMOVED***
 		***REMOVED***
-		if i == minIndex ***REMOVED***
+		if i <= minIndex ***REMOVED***
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
 			break
 		***REMOVED***
 		i = int(d.state.hashPrev[i&windowMask]) - d.state.hashOffset
-		if i < minIndex || i < 0 ***REMOVED***
+		if i < minIndex ***REMOVED***
 			break
 		***REMOVED***
 	***REMOVED***
@@ -327,8 +372,7 @@ func (d *compressor) writeStoredBlock(buf []byte) error ***REMOVED***
 // of the supplied slice.
 // The caller must ensure that len(b) >= 4.
 func hash4(b []byte) uint32 ***REMOVED***
-	b = b[:4]
-	return hash4u(uint32(b[3])|uint32(b[2])<<8|uint32(b[1])<<16|uint32(b[0])<<24, hashBits)
+	return hash4u(binary.LittleEndian.Uint32(b), hashBits)
 ***REMOVED***
 
 // bulkHash4 will compute hashes using the same
@@ -337,11 +381,12 @@ func bulkHash4(b []byte, dst []uint32) ***REMOVED***
 	if len(b) < 4 ***REMOVED***
 		return
 	***REMOVED***
-	hb := uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	hb := binary.LittleEndian.Uint32(b)
+
 	dst[0] = hash4u(hb, hashBits)
 	end := len(b) - 4 + 1
 	for i := 1; i < end; i++ ***REMOVED***
-		hb = (hb << 8) | uint32(b[i+3])
+		hb = (hb >> 8) | uint32(b[i+3])<<24
 		dst[i] = hash4u(hb, hashBits)
 	***REMOVED***
 ***REMOVED***
@@ -374,10 +419,21 @@ func (d *compressor) deflateLazy() ***REMOVED***
 	if d.windowEnd-s.index < minMatchLength+maxMatchLength && !d.sync ***REMOVED***
 		return
 	***REMOVED***
+	if d.windowEnd != s.index && d.chain > 100 ***REMOVED***
+		// Get literal huffman coder.
+		if d.h == nil ***REMOVED***
+			d.h = newHuffmanEncoder(maxFlateBlockTokens)
+		***REMOVED***
+		var tmp [256]uint16
+		for _, v := range d.window[s.index:d.windowEnd] ***REMOVED***
+			tmp[v]++
+		***REMOVED***
+		d.h.generate(tmp[:], 15)
+	***REMOVED***
 
 	s.maxInsertIndex = d.windowEnd - (minMatchLength - 1)
 	if s.index < s.maxInsertIndex ***REMOVED***
-		s.hash = hash4(d.window[s.index : s.index+minMatchLength])
+		s.hash = hash4(d.window[s.index:])
 	***REMOVED***
 
 	for ***REMOVED***
@@ -410,7 +466,7 @@ func (d *compressor) deflateLazy() ***REMOVED***
 		***REMOVED***
 		if s.index < s.maxInsertIndex ***REMOVED***
 			// Update the hash
-			s.hash = hash4(d.window[s.index : s.index+minMatchLength])
+			s.hash = hash4(d.window[s.index:])
 			ch := s.hashHead[s.hash&hashMask]
 			s.chainHead = int(ch)
 			s.hashPrev[s.index&windowMask] = ch
@@ -426,12 +482,37 @@ func (d *compressor) deflateLazy() ***REMOVED***
 		***REMOVED***
 
 		if s.chainHead-s.hashOffset >= minIndex && lookahead > prevLength && prevLength < d.lazy ***REMOVED***
-			if newLength, newOffset, ok := d.findMatch(s.index, s.chainHead-s.hashOffset, minMatchLength-1, lookahead); ok ***REMOVED***
+			if newLength, newOffset, ok := d.findMatch(s.index, s.chainHead-s.hashOffset, lookahead); ok ***REMOVED***
 				s.length = newLength
 				s.offset = newOffset
 			***REMOVED***
 		***REMOVED***
+
 		if prevLength >= minMatchLength && s.length <= prevLength ***REMOVED***
+			// Check for better match at end...
+			//
+			// checkOff must be >=2 since we otherwise risk checking s.index
+			// Offset of 2 seems to yield best results.
+			const checkOff = 2
+			prevIndex := s.index - 1
+			if prevIndex+prevLength+checkOff < s.maxInsertIndex ***REMOVED***
+				end := lookahead
+				if lookahead > maxMatchLength ***REMOVED***
+					end = maxMatchLength
+				***REMOVED***
+				end += prevIndex
+				idx := prevIndex + prevLength - (4 - checkOff)
+				h := hash4(d.window[idx:])
+				ch2 := int(s.hashHead[h&hashMask]) - s.hashOffset - prevLength + (4 - checkOff)
+				if ch2 > minIndex ***REMOVED***
+					length := matchLen(d.window[prevIndex:end], d.window[ch2:])
+					// It seems like a pure length metric is best.
+					if length > prevLength ***REMOVED***
+						prevLength = length
+						prevOffset = prevIndex - ch2
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			d.tokens.AddMatch(uint32(prevLength-3), uint32(prevOffset-minOffsetSize))
@@ -479,6 +560,7 @@ func (d *compressor) deflateLazy() ***REMOVED***
 				***REMOVED***
 				d.tokens.Reset()
 			***REMOVED***
+			s.ii = 0
 		***REMOVED*** else ***REMOVED***
 			// Reset, if we got a match this run.
 			if s.length >= minMatchLength ***REMOVED***
@@ -498,19 +580,26 @@ func (d *compressor) deflateLazy() ***REMOVED***
 
 				// If we have a long run of no matches, skip additional bytes
 				// Resets when s.ii overflows after 64KB.
-				if s.ii > 31 ***REMOVED***
-					n := int(s.ii >> 5)
+				if n := int(s.ii) - d.chain; n > 0 ***REMOVED***
+					n = 1 + int(n>>6)
 					for j := 0; j < n; j++ ***REMOVED***
 						if s.index >= d.windowEnd-1 ***REMOVED***
 							break
 						***REMOVED***
-
 						d.tokens.AddLiteral(d.window[s.index-1])
 						if d.tokens.n == maxFlateBlockTokens ***REMOVED***
 							if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil ***REMOVED***
 								return
 							***REMOVED***
 							d.tokens.Reset()
+						***REMOVED***
+						// Index...
+						if s.index < s.maxInsertIndex ***REMOVED***
+							h := hash4(d.window[s.index:])
+							ch := s.hashHead[h]
+							s.chainHead = int(ch)
+							s.hashPrev[s.index&windowMask] = ch
+							s.hashHead[h] = uint32(s.index + s.hashOffset)
 						***REMOVED***
 						s.index++
 					***REMOVED***
@@ -611,7 +700,9 @@ func (d *compressor) write(b []byte) (n int, err error) ***REMOVED***
 	***REMOVED***
 	n = len(b)
 	for len(b) > 0 ***REMOVED***
-		d.step(d)
+		if d.windowEnd == len(d.window) || d.sync ***REMOVED***
+			d.step(d)
+		***REMOVED***
 		b = b[d.fill(d, b):]
 		if d.err != nil ***REMOVED***
 			return 0, d.err
@@ -652,13 +743,13 @@ func (d *compressor) init(w io.Writer, level int) (err error) ***REMOVED***
 		level = 5
 		fallthrough
 	case level >= 1 && level <= 6:
-		d.w.logNewTablePenalty = 8
+		d.w.logNewTablePenalty = 7
 		d.fast = newFastEnc(level)
 		d.window = make([]byte, maxStoreBlockSize)
 		d.fill = (*compressor).fillBlock
 		d.step = (*compressor).storeFast
 	case 7 <= level && level <= 9:
-		d.w.logNewTablePenalty = 10
+		d.w.logNewTablePenalty = 8
 		d.state = &advancedState***REMOVED******REMOVED***
 		d.compressionLevel = levels[level]
 		d.initDeflate()

@@ -249,7 +249,15 @@ func statelessEnc(dst *tokens, src []byte, startAt int16) ***REMOVED***
 				l++
 			***REMOVED***
 			if nextEmit < s ***REMOVED***
-				emitLiteral(dst, src[nextEmit:s])
+				if false ***REMOVED***
+					emitLiteral(dst, src[nextEmit:s])
+				***REMOVED*** else ***REMOVED***
+					for _, v := range src[nextEmit:s] ***REMOVED***
+						dst.tokens[dst.n] = token(v)
+						dst.litHist[v]++
+						dst.n++
+					***REMOVED***
+				***REMOVED***
 			***REMOVED***
 
 			// Save the match found

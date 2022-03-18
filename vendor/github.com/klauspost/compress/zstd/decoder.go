@@ -5,9 +5,13 @@
 package zstd
 
 import (
-	"errors"
+	"bytes"
+	"context"
+	"encoding/binary"
 	"io"
 	"sync"
+
+	"github.com/klauspost/compress/zstd/internal/xxhash"
 )
 
 // Decoder provides decoding of zstandard streams.
@@ -22,11 +26,18 @@ type Decoder struct ***REMOVED***
 	// Unreferenced decoders, ready for use.
 	decoders chan *blockDec
 
-	// Streams ready to be decoded.
-	stream chan decodeStream
-
 	// Current read position used for Reader functionality.
 	current decoderState
+
+	// sync stream decoding
+	syncStream struct ***REMOVED***
+		decodedFrame uint64
+		br           readerWrapper
+		enabled      bool
+		inFrame      bool
+	***REMOVED***
+
+	frame *frameDec
 
 	// Custom dictionaries.
 	// Always uses copies.
@@ -46,7 +57,10 @@ type decoderState struct ***REMOVED***
 	output chan decodeOutput
 
 	// cancel remaining output.
-	cancel chan struct***REMOVED******REMOVED***
+	cancel context.CancelFunc
+
+	// crc of current frame
+	crc *xxhash.Digest
 
 	flushed bool
 ***REMOVED***
@@ -81,7 +95,7 @@ func NewReader(r io.Reader, opts ...DOption) (*Decoder, error) ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
-	d.current.output = make(chan decodeOutput, d.o.concurrent)
+	d.current.crc = xxhash.New()
 	d.current.flushed = true
 
 	if r == nil ***REMOVED***
@@ -130,7 +144,7 @@ func (d *Decoder) Read(p []byte) (int, error) ***REMOVED***
 				break
 			***REMOVED***
 			if !d.nextBlock(n == 0) ***REMOVED***
-				return n, nil
+				return n, d.current.err
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -162,6 +176,7 @@ func (d *Decoder) Reset(r io.Reader) error ***REMOVED***
 
 	d.drainOutput()
 
+	d.syncStream.br.r = nil
 	if r == nil ***REMOVED***
 		d.current.err = ErrDecoderNilInput
 		if len(d.current.b) > 0 ***REMOVED***
@@ -195,33 +210,39 @@ func (d *Decoder) Reset(r io.Reader) error ***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***
-
-	if d.stream == nil ***REMOVED***
-		d.stream = make(chan decodeStream, 1)
-		d.streamWg.Add(1)
-		go d.startStreamDecoder(d.stream)
-	***REMOVED***
-
 	// Remove current block.
+	d.stashDecoder()
 	d.current.decodeOutput = decodeOutput***REMOVED******REMOVED***
 	d.current.err = nil
-	d.current.cancel = make(chan struct***REMOVED******REMOVED***)
 	d.current.flushed = false
 	d.current.d = nil
 
-	d.stream <- decodeStream***REMOVED***
-		r:      r,
-		output: d.current.output,
-		cancel: d.current.cancel,
+	// Ensure no-one else is still running...
+	d.streamWg.Wait()
+	if d.frame == nil ***REMOVED***
+		d.frame = newFrameDec(d.o)
 	***REMOVED***
+
+	if d.o.concurrent == 1 ***REMOVED***
+		return d.startSyncDecoder(r)
+	***REMOVED***
+
+	d.current.output = make(chan decodeOutput, d.o.concurrent)
+	ctx, cancel := context.WithCancel(context.Background())
+	d.current.cancel = cancel
+	d.streamWg.Add(1)
+	go d.startStreamDecoder(ctx, r, d.current.output)
+
 	return nil
 ***REMOVED***
 
 // drainOutput will drain the output until errEndOfStream is sent.
 func (d *Decoder) drainOutput() ***REMOVED***
 	if d.current.cancel != nil ***REMOVED***
-		println("cancelling current")
-		close(d.current.cancel)
+		if debugDecoder ***REMOVED***
+			println("cancelling current")
+		***REMOVED***
+		d.current.cancel()
 		d.current.cancel = nil
 	***REMOVED***
 	if d.current.d != nil ***REMOVED***
@@ -243,12 +264,9 @@ func (d *Decoder) drainOutput() ***REMOVED***
 			***REMOVED***
 			d.decoders <- v.d
 		***REMOVED***
-		if v.err == errEndOfStream ***REMOVED***
-			println("current flushed")
-			d.current.flushed = true
-			return
-		***REMOVED***
 	***REMOVED***
+	d.current.output = nil
+	d.current.flushed = true
 ***REMOVED***
 
 // WriteTo writes data to w until there's no more data to write or when an error occurs.
@@ -287,7 +305,7 @@ func (d *Decoder) WriteTo(w io.Writer) (int64, error) ***REMOVED***
 // DecodeAll can be used concurrently.
 // The Decoder concurrency limits will be respected.
 func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
-	if d.current.err == ErrDecoderClosed ***REMOVED***
+	if d.decoders == nil ***REMOVED***
 		return dst, ErrDecoderClosed
 	***REMOVED***
 
@@ -300,6 +318,9 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 		***REMOVED***
 		frame.rawInput = nil
 		frame.bBuf = nil
+		if frame.history.decoders.br != nil ***REMOVED***
+			frame.history.decoders.br.in = nil
+		***REMOVED***
 		d.decoders <- block
 	***REMOVED***()
 	frame.bBuf = input
@@ -307,27 +328,31 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 	for ***REMOVED***
 		frame.history.reset()
 		err := frame.reset(&frame.bBuf)
-		if err == io.EOF ***REMOVED***
-			if debugDecoder ***REMOVED***
-				println("frame reset return EOF")
+		if err != nil ***REMOVED***
+			if err == io.EOF ***REMOVED***
+				if debugDecoder ***REMOVED***
+					println("frame reset return EOF")
+				***REMOVED***
+				return dst, nil
 			***REMOVED***
-			return dst, nil
+			return dst, err
 		***REMOVED***
 		if frame.DictionaryID != nil ***REMOVED***
 			dict, ok := d.dicts[*frame.DictionaryID]
 			if !ok ***REMOVED***
 				return nil, ErrUnknownDictionary
 			***REMOVED***
+			if debugDecoder ***REMOVED***
+				println("setting dict", frame.DictionaryID)
+			***REMOVED***
 			frame.history.setDict(&dict)
 		***REMOVED***
-		if err != nil ***REMOVED***
-			return dst, err
-		***REMOVED***
-		if frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) ***REMOVED***
+
+		if frame.FrameContentSize != fcsUnknown && frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) ***REMOVED***
 			return dst, ErrDecoderSizeExceeded
 		***REMOVED***
-		if frame.FrameContentSize > 0 && frame.FrameContentSize < 1<<30 ***REMOVED***
-			// Never preallocate moe than 1 GB up front.
+		if frame.FrameContentSize < 1<<30 ***REMOVED***
+			// Never preallocate more than 1 GB up front.
 			if cap(dst)-len(dst) < int(frame.FrameContentSize) ***REMOVED***
 				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize))
 				copy(dst2, dst)
@@ -368,6 +393,161 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 // If non-blocking mode is used the returned boolean will be false
 // if no data was available without blocking.
 func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
+	if d.current.err != nil ***REMOVED***
+		// Keep error state.
+		return false
+	***REMOVED***
+	d.current.b = d.current.b[:0]
+
+	// SYNC:
+	if d.syncStream.enabled ***REMOVED***
+		if !blocking ***REMOVED***
+			return false
+		***REMOVED***
+		ok = d.nextBlockSync()
+		if !ok ***REMOVED***
+			d.stashDecoder()
+		***REMOVED***
+		return ok
+	***REMOVED***
+
+	//ASYNC:
+	d.stashDecoder()
+	if blocking ***REMOVED***
+		d.current.decodeOutput, ok = <-d.current.output
+	***REMOVED*** else ***REMOVED***
+		select ***REMOVED***
+		case d.current.decodeOutput, ok = <-d.current.output:
+		default:
+			return false
+		***REMOVED***
+	***REMOVED***
+	if !ok ***REMOVED***
+		// This should not happen, so signal error state...
+		d.current.err = io.ErrUnexpectedEOF
+		return false
+	***REMOVED***
+	next := d.current.decodeOutput
+	if next.d != nil && next.d.async.newHist != nil ***REMOVED***
+		d.current.crc.Reset()
+	***REMOVED***
+	if debugDecoder ***REMOVED***
+		var tmp [4]byte
+		binary.LittleEndian.PutUint32(tmp[:], uint32(xxhash.Sum64(next.b)))
+		println("got", len(d.current.b), "bytes, error:", d.current.err, "data crc:", tmp)
+	***REMOVED***
+
+	if len(next.b) > 0 ***REMOVED***
+		n, err := d.current.crc.Write(next.b)
+		if err == nil ***REMOVED***
+			if n != len(next.b) ***REMOVED***
+				d.current.err = io.ErrShortWrite
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	if next.err == nil && next.d != nil && len(next.d.checkCRC) != 0 ***REMOVED***
+		got := d.current.crc.Sum64()
+		var tmp [4]byte
+		binary.LittleEndian.PutUint32(tmp[:], uint32(got))
+		if !bytes.Equal(tmp[:], next.d.checkCRC) && !ignoreCRC ***REMOVED***
+			if debugDecoder ***REMOVED***
+				println("CRC Check Failed:", tmp[:], " (got) !=", next.d.checkCRC, "(on stream)")
+			***REMOVED***
+			d.current.err = ErrCRCMismatch
+		***REMOVED*** else ***REMOVED***
+			if debugDecoder ***REMOVED***
+				println("CRC ok", tmp[:])
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return true
+***REMOVED***
+
+func (d *Decoder) nextBlockSync() (ok bool) ***REMOVED***
+	if d.current.d == nil ***REMOVED***
+		d.current.d = <-d.decoders
+	***REMOVED***
+	for len(d.current.b) == 0 ***REMOVED***
+		if !d.syncStream.inFrame ***REMOVED***
+			d.frame.history.reset()
+			d.current.err = d.frame.reset(&d.syncStream.br)
+			if d.current.err != nil ***REMOVED***
+				return false
+			***REMOVED***
+			if d.frame.DictionaryID != nil ***REMOVED***
+				dict, ok := d.dicts[*d.frame.DictionaryID]
+				if !ok ***REMOVED***
+					d.current.err = ErrUnknownDictionary
+					return false
+				***REMOVED*** else ***REMOVED***
+					d.frame.history.setDict(&dict)
+				***REMOVED***
+			***REMOVED***
+			if d.frame.WindowSize > d.o.maxDecodedSize || d.frame.WindowSize > d.o.maxWindowSize ***REMOVED***
+				d.current.err = ErrDecoderSizeExceeded
+				return false
+			***REMOVED***
+
+			d.syncStream.decodedFrame = 0
+			d.syncStream.inFrame = true
+		***REMOVED***
+		d.current.err = d.frame.next(d.current.d)
+		if d.current.err != nil ***REMOVED***
+			return false
+		***REMOVED***
+		d.frame.history.ensureBlock()
+		if debugDecoder ***REMOVED***
+			println("History trimmed:", len(d.frame.history.b), "decoded already:", d.syncStream.decodedFrame)
+		***REMOVED***
+		histBefore := len(d.frame.history.b)
+		d.current.err = d.current.d.decodeBuf(&d.frame.history)
+
+		if d.current.err != nil ***REMOVED***
+			println("error after:", d.current.err)
+			return false
+		***REMOVED***
+		d.current.b = d.frame.history.b[histBefore:]
+		if debugDecoder ***REMOVED***
+			println("history after:", len(d.frame.history.b))
+		***REMOVED***
+
+		// Check frame size (before CRC)
+		d.syncStream.decodedFrame += uint64(len(d.current.b))
+		if d.syncStream.decodedFrame > d.frame.FrameContentSize ***REMOVED***
+			if debugDecoder ***REMOVED***
+				printf("DecodedFrame (%d) > FrameContentSize (%d)\n", d.syncStream.decodedFrame, d.frame.FrameContentSize)
+			***REMOVED***
+			d.current.err = ErrFrameSizeExceeded
+			return false
+		***REMOVED***
+
+		// Check FCS
+		if d.current.d.Last && d.frame.FrameContentSize != fcsUnknown && d.syncStream.decodedFrame != d.frame.FrameContentSize ***REMOVED***
+			if debugDecoder ***REMOVED***
+				printf("DecodedFrame (%d) != FrameContentSize (%d)\n", d.syncStream.decodedFrame, d.frame.FrameContentSize)
+			***REMOVED***
+			d.current.err = ErrFrameSizeMismatch
+			return false
+		***REMOVED***
+
+		// Update/Check CRC
+		if d.frame.HasCheckSum ***REMOVED***
+			d.frame.crc.Write(d.current.b)
+			if d.current.d.Last ***REMOVED***
+				d.current.err = d.frame.checkCRC()
+				if d.current.err != nil ***REMOVED***
+					println("CRC error:", d.current.err)
+					return false
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		d.syncStream.inFrame = !d.current.d.Last
+	***REMOVED***
+	return true
+***REMOVED***
+
+func (d *Decoder) stashDecoder() ***REMOVED***
 	if d.current.d != nil ***REMOVED***
 		if debugDecoder ***REMOVED***
 			printf("re-adding current decoder %p", d.current.d)
@@ -375,24 +555,6 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
 		d.decoders <- d.current.d
 		d.current.d = nil
 	***REMOVED***
-	if d.current.err != nil ***REMOVED***
-		// Keep error state.
-		return blocking
-	***REMOVED***
-
-	if blocking ***REMOVED***
-		d.current.decodeOutput = <-d.current.output
-	***REMOVED*** else ***REMOVED***
-		select ***REMOVED***
-		case d.current.decodeOutput = <-d.current.output:
-		default:
-			return false
-		***REMOVED***
-	***REMOVED***
-	if debugDecoder ***REMOVED***
-		println("got", len(d.current.b), "bytes, error:", d.current.err)
-	***REMOVED***
-	return true
 ***REMOVED***
 
 // Close will release all resources.
@@ -402,10 +564,10 @@ func (d *Decoder) Close() ***REMOVED***
 		return
 	***REMOVED***
 	d.drainOutput()
-	if d.stream != nil ***REMOVED***
-		close(d.stream)
+	if d.current.cancel != nil ***REMOVED***
+		d.current.cancel()
 		d.streamWg.Wait()
-		d.stream = nil
+		d.current.cancel = nil
 	***REMOVED***
 	if d.decoders != nil ***REMOVED***
 		close(d.decoders)
@@ -456,100 +618,307 @@ type decodeOutput struct ***REMOVED***
 	err error
 ***REMOVED***
 
-type decodeStream struct ***REMOVED***
-	r io.Reader
-
-	// Blocks ready to be written to output.
-	output chan decodeOutput
-
-	// cancel reading from the input
-	cancel chan struct***REMOVED******REMOVED***
+func (d *Decoder) startSyncDecoder(r io.Reader) error ***REMOVED***
+	d.frame.history.reset()
+	d.syncStream.br = readerWrapper***REMOVED***r: r***REMOVED***
+	d.syncStream.inFrame = false
+	d.syncStream.enabled = true
+	d.syncStream.decodedFrame = 0
+	return nil
 ***REMOVED***
 
-// errEndOfStream indicates that everything from the stream was read.
-var errEndOfStream = errors.New("end-of-stream")
-
 // Create Decoder:
-// Spawn n block decoders. These accept tasks to decode a block.
-// Create goroutine that handles stream processing, this will send history to decoders as they are available.
-// Decoders update the history as they decode.
-// When a block is returned:
-// 		a) history is sent to the next decoder,
-// 		b) content written to CRC.
-// 		c) return data to WRITER.
-// 		d) wait for next block to return data.
-// Once WRITTEN, the decoders reused by the writer frame decoder for re-use.
-func (d *Decoder) startStreamDecoder(inStream chan decodeStream) ***REMOVED***
+// ASYNC:
+// Spawn 4 go routines.
+// 0: Read frames and decode blocks.
+// 1: Decode block and literals. Receives hufftree and seqdecs, returns seqdecs and huff tree.
+// 2: Wait for recentOffsets if needed. Decode sequences, send recentOffsets.
+// 3: Wait for stream history, execute sequences, send stream history.
+func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output chan decodeOutput) ***REMOVED***
 	defer d.streamWg.Done()
-	frame := newFrameDec(d.o)
-	for stream := range inStream ***REMOVED***
-		if debugDecoder ***REMOVED***
-			println("got new stream")
+	br := readerWrapper***REMOVED***r: r***REMOVED***
+
+	var seqPrepare = make(chan *blockDec, d.o.concurrent)
+	var seqDecode = make(chan *blockDec, d.o.concurrent)
+	var seqExecute = make(chan *blockDec, d.o.concurrent)
+
+	// Async 1: Prepare blocks...
+	go func() ***REMOVED***
+		var hist history
+		var hasErr bool
+		for block := range seqPrepare ***REMOVED***
+			if hasErr ***REMOVED***
+				if block != nil ***REMOVED***
+					seqDecode <- block
+				***REMOVED***
+				continue
+			***REMOVED***
+			if block.async.newHist != nil ***REMOVED***
+				if debugDecoder ***REMOVED***
+					println("Async 1: new history")
+				***REMOVED***
+				hist.reset()
+				if block.async.newHist.dict != nil ***REMOVED***
+					hist.setDict(block.async.newHist.dict)
+				***REMOVED***
+			***REMOVED***
+			if block.err != nil || block.Type != blockTypeCompressed ***REMOVED***
+				hasErr = block.err != nil
+				seqDecode <- block
+				continue
+			***REMOVED***
+
+			remain, err := block.decodeLiterals(block.data, &hist)
+			block.err = err
+			hasErr = block.err != nil
+			if err == nil ***REMOVED***
+				block.async.literals = hist.decoders.literals
+				block.async.seqData = remain
+			***REMOVED*** else if debugDecoder ***REMOVED***
+				println("decodeLiterals error:", err)
+			***REMOVED***
+			seqDecode <- block
 		***REMOVED***
-		br := readerWrapper***REMOVED***r: stream.r***REMOVED***
-	decodeStream:
-		for ***REMOVED***
-			frame.history.reset()
-			err := frame.reset(&br)
-			if debugDecoder && err != nil ***REMOVED***
-				println("Frame decoder returned", err)
+		close(seqDecode)
+	***REMOVED***()
+
+	// Async 2: Decode sequences...
+	go func() ***REMOVED***
+		var hist history
+		var hasErr bool
+
+		for block := range seqDecode ***REMOVED***
+			if hasErr ***REMOVED***
+				if block != nil ***REMOVED***
+					seqExecute <- block
+				***REMOVED***
+				continue
 			***REMOVED***
-			if err == nil && frame.DictionaryID != nil ***REMOVED***
-				dict, ok := d.dicts[*frame.DictionaryID]
-				if !ok ***REMOVED***
-					err = ErrUnknownDictionary
+			if block.async.newHist != nil ***REMOVED***
+				if debugDecoder ***REMOVED***
+					println("Async 2: new history, recent:", block.async.newHist.recentOffsets)
+				***REMOVED***
+				hist.decoders = block.async.newHist.decoders
+				hist.recentOffsets = block.async.newHist.recentOffsets
+				hist.windowSize = block.async.newHist.windowSize
+				if block.async.newHist.dict != nil ***REMOVED***
+					hist.setDict(block.async.newHist.dict)
+				***REMOVED***
+			***REMOVED***
+			if block.err != nil || block.Type != blockTypeCompressed ***REMOVED***
+				hasErr = block.err != nil
+				seqExecute <- block
+				continue
+			***REMOVED***
+
+			hist.decoders.literals = block.async.literals
+			block.err = block.prepareSequences(block.async.seqData, &hist)
+			if debugDecoder && block.err != nil ***REMOVED***
+				println("prepareSequences returned:", block.err)
+			***REMOVED***
+			hasErr = block.err != nil
+			if block.err == nil ***REMOVED***
+				block.err = block.decodeSequences(&hist)
+				if debugDecoder && block.err != nil ***REMOVED***
+					println("decodeSequences returned:", block.err)
+				***REMOVED***
+				hasErr = block.err != nil
+				//				block.async.sequence = hist.decoders.seq[:hist.decoders.nSeqs]
+				block.async.seqSize = hist.decoders.seqSize
+			***REMOVED***
+			seqExecute <- block
+		***REMOVED***
+		close(seqExecute)
+	***REMOVED***()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Async 3: Execute sequences...
+	frameHistCache := d.frame.history.b
+	go func() ***REMOVED***
+		var hist history
+		var decodedFrame uint64
+		var fcs uint64
+		var hasErr bool
+		for block := range seqExecute ***REMOVED***
+			out := decodeOutput***REMOVED***err: block.err, d: block***REMOVED***
+			if block.err != nil || hasErr ***REMOVED***
+				hasErr = true
+				output <- out
+				continue
+			***REMOVED***
+			if block.async.newHist != nil ***REMOVED***
+				if debugDecoder ***REMOVED***
+					println("Async 3: new history")
+				***REMOVED***
+				hist.windowSize = block.async.newHist.windowSize
+				hist.allocFrameBuffer = block.async.newHist.allocFrameBuffer
+				if block.async.newHist.dict != nil ***REMOVED***
+					hist.setDict(block.async.newHist.dict)
+				***REMOVED***
+
+				if cap(hist.b) < hist.allocFrameBuffer ***REMOVED***
+					if cap(frameHistCache) >= hist.allocFrameBuffer ***REMOVED***
+						hist.b = frameHistCache
+					***REMOVED*** else ***REMOVED***
+						hist.b = make([]byte, 0, hist.allocFrameBuffer)
+						println("Alloc history sized", hist.allocFrameBuffer)
+					***REMOVED***
+				***REMOVED***
+				hist.b = hist.b[:0]
+				fcs = block.async.fcs
+				decodedFrame = 0
+			***REMOVED***
+			do := decodeOutput***REMOVED***err: block.err, d: block***REMOVED***
+			switch block.Type ***REMOVED***
+			case blockTypeRLE:
+				if debugDecoder ***REMOVED***
+					println("add rle block length:", block.RLESize)
+				***REMOVED***
+
+				if cap(block.dst) < int(block.RLESize) ***REMOVED***
+					if block.lowMem ***REMOVED***
+						block.dst = make([]byte, block.RLESize)
+					***REMOVED*** else ***REMOVED***
+						block.dst = make([]byte, maxBlockSize)
+					***REMOVED***
+				***REMOVED***
+				block.dst = block.dst[:block.RLESize]
+				v := block.data[0]
+				for i := range block.dst ***REMOVED***
+					block.dst[i] = v
+				***REMOVED***
+				hist.append(block.dst)
+				do.b = block.dst
+			case blockTypeRaw:
+				if debugDecoder ***REMOVED***
+					println("add raw block length:", len(block.data))
+				***REMOVED***
+				hist.append(block.data)
+				do.b = block.data
+			case blockTypeCompressed:
+				if debugDecoder ***REMOVED***
+					println("execute with history length:", len(hist.b), "window:", hist.windowSize)
+				***REMOVED***
+				hist.decoders.seqSize = block.async.seqSize
+				hist.decoders.literals = block.async.literals
+				do.err = block.executeSequences(&hist)
+				hasErr = do.err != nil
+				if debugDecoder && hasErr ***REMOVED***
+					println("executeSequences returned:", do.err)
+				***REMOVED***
+				do.b = block.dst
+			***REMOVED***
+			if !hasErr ***REMOVED***
+				decodedFrame += uint64(len(do.b))
+				if decodedFrame > fcs ***REMOVED***
+					println("fcs exceeded", block.Last, fcs, decodedFrame)
+					do.err = ErrFrameSizeExceeded
+					hasErr = true
+				***REMOVED*** else if block.Last && fcs != fcsUnknown && decodedFrame != fcs ***REMOVED***
+					do.err = ErrFrameSizeMismatch
+					hasErr = true
 				***REMOVED*** else ***REMOVED***
-					frame.history.setDict(&dict)
+					if debugDecoder ***REMOVED***
+						println("fcs ok", block.Last, fcs, decodedFrame)
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			if err != nil ***REMOVED***
-				stream.output <- decodeOutput***REMOVED***
-					err: err,
+			output <- do
+		***REMOVED***
+		close(output)
+		frameHistCache = hist.b
+		wg.Done()
+		if debugDecoder ***REMOVED***
+			println("decoder goroutines finished")
+		***REMOVED***
+	***REMOVED***()
+
+decodeStream:
+	for ***REMOVED***
+		frame := d.frame
+		if debugDecoder ***REMOVED***
+			println("New frame...")
+		***REMOVED***
+		var historySent bool
+		frame.history.reset()
+		err := frame.reset(&br)
+		if debugDecoder && err != nil ***REMOVED***
+			println("Frame decoder returned", err)
+		***REMOVED***
+		if err == nil && frame.DictionaryID != nil ***REMOVED***
+			dict, ok := d.dicts[*frame.DictionaryID]
+			if !ok ***REMOVED***
+				err = ErrUnknownDictionary
+			***REMOVED*** else ***REMOVED***
+				frame.history.setDict(&dict)
+			***REMOVED***
+		***REMOVED***
+		if err == nil && d.frame.WindowSize > d.o.maxWindowSize ***REMOVED***
+			err = ErrDecoderSizeExceeded
+		***REMOVED***
+		if err != nil ***REMOVED***
+			select ***REMOVED***
+			case <-ctx.Done():
+			case dec := <-d.decoders:
+				dec.sendErr(err)
+				seqPrepare <- dec
+			***REMOVED***
+			break decodeStream
+		***REMOVED***
+
+		// Go through all blocks of the frame.
+		for ***REMOVED***
+			var dec *blockDec
+			select ***REMOVED***
+			case <-ctx.Done():
+				break decodeStream
+			case dec = <-d.decoders:
+				// Once we have a decoder, we MUST return it.
+			***REMOVED***
+			err := frame.next(dec)
+			if !historySent ***REMOVED***
+				h := frame.history
+				if debugDecoder ***REMOVED***
+					println("Alloc History:", h.allocFrameBuffer)
 				***REMOVED***
+				dec.async.newHist = &h
+				dec.async.fcs = frame.FrameContentSize
+				historySent = true
+			***REMOVED*** else ***REMOVED***
+				dec.async.newHist = nil
+			***REMOVED***
+			if debugDecoder && err != nil ***REMOVED***
+				println("next block returned error:", err)
+			***REMOVED***
+			dec.err = err
+			dec.checkCRC = nil
+			if dec.Last && frame.HasCheckSum && err == nil ***REMOVED***
+				crc, err := frame.rawInput.readSmall(4)
+				if err != nil ***REMOVED***
+					println("CRC missing?", err)
+					dec.err = err
+				***REMOVED***
+				var tmp [4]byte
+				copy(tmp[:], crc)
+				dec.checkCRC = tmp[:]
+				if debugDecoder ***REMOVED***
+					println("found crc to check:", dec.checkCRC)
+				***REMOVED***
+			***REMOVED***
+			err = dec.err
+			last := dec.Last
+			seqPrepare <- dec
+			if err != nil ***REMOVED***
+				break decodeStream
+			***REMOVED***
+			if last ***REMOVED***
 				break
 			***REMOVED***
-			if debugDecoder ***REMOVED***
-				println("starting frame decoder")
-			***REMOVED***
-
-			// This goroutine will forward history between frames.
-			frame.frameDone.Add(1)
-			frame.initAsync()
-
-			go frame.startDecoder(stream.output)
-		decodeFrame:
-			// Go through all blocks of the frame.
-			for ***REMOVED***
-				dec := <-d.decoders
-				select ***REMOVED***
-				case <-stream.cancel:
-					if !frame.sendErr(dec, io.EOF) ***REMOVED***
-						// To not let the decoder dangle, send it back.
-						stream.output <- decodeOutput***REMOVED***d: dec***REMOVED***
-					***REMOVED***
-					break decodeStream
-				default:
-				***REMOVED***
-				err := frame.next(dec)
-				switch err ***REMOVED***
-				case io.EOF:
-					// End of current frame, no error
-					println("EOF on next block")
-					break decodeFrame
-				case nil:
-					continue
-				default:
-					println("block decoder returned", err)
-					break decodeStream
-				***REMOVED***
-			***REMOVED***
-			// All blocks have started decoding, check if there are more frames.
-			println("waiting for done")
-			frame.frameDone.Wait()
-			println("done waiting...")
 		***REMOVED***
-		frame.frameDone.Wait()
-		println("Sending EOS")
-		stream.output <- decodeOutput***REMOVED***err: errEndOfStream***REMOVED***
 	***REMOVED***
+	close(seqPrepare)
+	wg.Wait()
+	d.frame.history.b = frameHistCache
 ***REMOVED***

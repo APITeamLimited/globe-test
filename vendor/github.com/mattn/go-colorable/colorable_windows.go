@@ -1,5 +1,5 @@
-// +build windows
-// +build !appengine
+//go:build windows && !appengine
+// +build windows,!appengine
 
 package colorable
 
@@ -452,17 +452,21 @@ func (w *Writer) Write(data []byte) (n int, err error) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		er = bytes.NewReader(data)
 	***REMOVED***
-	var bw [1]byte
+	var plaintext bytes.Buffer
 loop:
 	for ***REMOVED***
 		c1, err := er.ReadByte()
 		if err != nil ***REMOVED***
+			plaintext.WriteTo(w.out)
 			break loop
 		***REMOVED***
 		if c1 != 0x1b ***REMOVED***
-			bw[0] = c1
-			w.out.Write(bw[:])
+			plaintext.WriteByte(c1)
 			continue
+		***REMOVED***
+		_, err = plaintext.WriteTo(w.out)
+		if err != nil ***REMOVED***
+			break loop
 		***REMOVED***
 		c2, err := er.ReadByte()
 		if err != nil ***REMOVED***

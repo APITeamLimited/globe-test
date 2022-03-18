@@ -98,23 +98,25 @@ func (e *Encoder) Reset(w io.Writer) ***REMOVED***
 	if cap(s.filling) == 0 ***REMOVED***
 		s.filling = make([]byte, 0, e.o.blockSize)
 	***REMOVED***
-	if cap(s.current) == 0 ***REMOVED***
-		s.current = make([]byte, 0, e.o.blockSize)
-	***REMOVED***
-	if cap(s.previous) == 0 ***REMOVED***
-		s.previous = make([]byte, 0, e.o.blockSize)
+	if e.o.concurrent > 1 ***REMOVED***
+		if cap(s.current) == 0 ***REMOVED***
+			s.current = make([]byte, 0, e.o.blockSize)
+		***REMOVED***
+		if cap(s.previous) == 0 ***REMOVED***
+			s.previous = make([]byte, 0, e.o.blockSize)
+		***REMOVED***
+		s.current = s.current[:0]
+		s.previous = s.previous[:0]
+		if s.writing == nil ***REMOVED***
+			s.writing = &blockEnc***REMOVED***lowMem: e.o.lowMem***REMOVED***
+			s.writing.init()
+		***REMOVED***
+		s.writing.initNewEncode()
 	***REMOVED***
 	if s.encoder == nil ***REMOVED***
 		s.encoder = e.o.encoder()
 	***REMOVED***
-	if s.writing == nil ***REMOVED***
-		s.writing = &blockEnc***REMOVED***lowMem: e.o.lowMem***REMOVED***
-		s.writing.init()
-	***REMOVED***
-	s.writing.initNewEncode()
 	s.filling = s.filling[:0]
-	s.current = s.current[:0]
-	s.previous = s.previous[:0]
 	s.encoder.Reset(e.o.dict, false)
 	s.headerWritten = false
 	s.eofWritten = false
@@ -255,6 +257,46 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 			s.nWritten += int64(len(blk.output))
 			s.eofWritten = true
 		***REMOVED***
+		return s.err
+	***REMOVED***
+
+	// SYNC:
+	if e.o.concurrent == 1 ***REMOVED***
+		src := s.filling
+		s.nInput += int64(len(s.filling))
+		if debugEncoder ***REMOVED***
+			println("Adding sync block,", len(src), "bytes, final:", final)
+		***REMOVED***
+		enc := s.encoder
+		blk := enc.Block()
+		blk.reset(nil)
+		enc.Encode(blk, src)
+		blk.last = final
+		if final ***REMOVED***
+			s.eofWritten = true
+		***REMOVED***
+
+		err := errIncompressible
+		// If we got the exact same number of literals as input,
+		// assume the literals cannot be compressed.
+		if len(src) != len(blk.literals) || len(src) != e.o.blockSize ***REMOVED***
+			err = blk.encode(src, e.o.noEntropy, !e.o.allLitEntropy)
+		***REMOVED***
+		switch err ***REMOVED***
+		case errIncompressible:
+			if debugEncoder ***REMOVED***
+				println("Storing incompressible block as raw")
+			***REMOVED***
+			blk.encodeRaw(src)
+			// In fast mode, we do not transfer offsets, so we don't have to deal with changing the.
+		case nil:
+		default:
+			s.err = err
+			return err
+		***REMOVED***
+		_, s.err = s.w.Write(blk.output)
+		s.nWritten += int64(len(blk.output))
+		s.filling = s.filling[:0]
 		return s.err
 	***REMOVED***
 
