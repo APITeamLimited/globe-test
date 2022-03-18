@@ -51,10 +51,9 @@ type fileHook struct ***REMOVED***
 
 // FileHookFromConfigLine returns new fileHook hook.
 func FileHookFromConfigLine(
-	ctx context.Context, fs afero.Fs, fallbackLogger logrus.FieldLogger, line string, done chan struct***REMOVED******REMOVED***,
+	ctx context.Context, fs afero.Fs, getCwd func() (string, error),
+	fallbackLogger logrus.FieldLogger, line string, done chan struct***REMOVED******REMOVED***,
 ) (logrus.Hook, error) ***REMOVED***
-	// TODO: fix this so it works correctly with relative paths from the CWD
-
 	hook := &fileHook***REMOVED***
 		fs:             fs,
 		fallbackLogger: fallbackLogger,
@@ -71,7 +70,7 @@ func FileHookFromConfigLine(
 		return nil, err
 	***REMOVED***
 
-	if err := hook.openFile(); err != nil ***REMOVED***
+	if err := hook.openFile(getCwd); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -107,14 +106,23 @@ func (h *fileHook) parseArgs(line string) error ***REMOVED***
 ***REMOVED***
 
 // openFile opens logfile and initializes writers.
-func (h *fileHook) openFile() error ***REMOVED***
-	if _, err := h.fs.Stat(filepath.Dir(h.path)); os.IsNotExist(err) ***REMOVED***
-		return fmt.Errorf("provided directory '%s' does not exist", filepath.Dir(h.path))
+func (h *fileHook) openFile(getCwd func() (string, error)) error ***REMOVED***
+	path := h.path
+	if !filepath.IsAbs(path) ***REMOVED***
+		cwd, err := getCwd()
+		if err != nil ***REMOVED***
+			return fmt.Errorf("'%s' is a relative path but could not determine CWD: %w", path, err)
+		***REMOVED***
+		path = filepath.Join(cwd, path)
 	***REMOVED***
 
-	file, err := h.fs.OpenFile(h.path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	if _, err := h.fs.Stat(filepath.Dir(path)); os.IsNotExist(err) ***REMOVED***
+		return fmt.Errorf("provided directory '%s' does not exist", filepath.Dir(path))
+	***REMOVED***
+
+	file, err := h.fs.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
 	if err != nil ***REMOVED***
-		return fmt.Errorf("failed to open logfile %s: %w", h.path, err)
+		return fmt.Errorf("failed to open logfile %s: %w", path, err)
 	***REMOVED***
 
 	h.w = file

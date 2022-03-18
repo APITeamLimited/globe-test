@@ -21,17 +21,16 @@
 package cmd
 
 import (
-	"archive/tar"
-	"bytes"
 	"fmt"
+	"os"
+	"syscall"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
 
+	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/loader"
 )
 
 // Panic if the given error is not nil.
@@ -86,28 +85,41 @@ func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// readSource is a small wrapper around loader.ReadSource returning
-// result of the load and filesystems map
-func readSource(globalState *globalState, filename string) (*loader.SourceData, map[string]afero.Fs, error) ***REMOVED***
-	pwd, err := globalState.getwd()
-	if err != nil ***REMOVED***
-		return nil, nil, err
-	***REMOVED***
-
-	filesystems := loader.CreateFilesystems(globalState.fs)
-	src, err := loader.ReadSource(globalState.logger, filename, pwd, filesystems, globalState.stdIn)
-	return src, filesystems, err
-***REMOVED***
-
-func detectType(data []byte) string ***REMOVED***
-	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
-		return typeArchive
-	***REMOVED***
-	return typeJS
-***REMOVED***
-
 func printToStdout(gs *globalState, s string) ***REMOVED***
 	if _, err := fmt.Fprint(gs.stdOut, s); err != nil ***REMOVED***
 		gs.logger.Errorf("could not print '%s' to stdout: %s", s, err.Error())
+	***REMOVED***
+***REMOVED***
+
+// Trap Interrupts, SIGINTs and SIGTERMs and call the given.
+func handleTestAbortSignals(gs *globalState, firstHandler, secondHandler func(os.Signal)) (stop func()) ***REMOVED***
+	sigC := make(chan os.Signal, 2)
+	done := make(chan struct***REMOVED******REMOVED***)
+	gs.signalNotify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() ***REMOVED***
+		select ***REMOVED***
+		case sig := <-sigC:
+			firstHandler(sig)
+		case <-done:
+			return
+		***REMOVED***
+
+		select ***REMOVED***
+		case sig := <-sigC:
+			if secondHandler != nil ***REMOVED***
+				secondHandler(sig)
+			***REMOVED***
+			// If we get a second signal, we immediately exit, so something like
+			// https://github.com/k6io/k6/issues/971 never happens again
+			gs.osExit(int(exitcodes.ExternalAbort))
+		case <-done:
+			return
+		***REMOVED***
+	***REMOVED***()
+
+	return func() ***REMOVED***
+		close(done)
+		gs.signalStop(sigC)
 	***REMOVED***
 ***REMOVED***

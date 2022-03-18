@@ -21,19 +21,15 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/types"
 )
 
-func getInspectCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getInspectCmd(gs *globalState) *cobra.Command ***REMOVED***
 	var addExecReqs bool
 
 	// inspectCmd represents the inspect command
@@ -43,54 +39,29 @@ func getInspectCmd(globalState *globalState) *cobra.Command ***REMOVED***
 		Long:  `Inspect a script or archive.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-			src, filesystems, err := readSource(globalState, args[0])
+			test, err := loadAndConfigureTest(gs, cmd, args, nil)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
-			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), globalState.envVars)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			registry := metrics.NewRegistry()
-
-			var b *js.Bundle
-			typ := globalState.flags.runType
-			if typ == "" ***REMOVED***
-				typ = detectType(src.Data)
-			***REMOVED***
-			switch typ ***REMOVED***
-			// this is an exhaustive list
-			case typeArchive:
-				var arc *lib.Archive
-				arc, err = lib.ReadArchive(bytes.NewBuffer(src.Data))
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-				b, err = js.NewBundleFromArchive(globalState.logger, arc, runtimeOptions, registry)
-
-			case typeJS:
-				b, err = js.NewBundle(globalState.logger, src, filesystems, runtimeOptions, registry)
-			***REMOVED***
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-
-			// ATM, output can take 2 forms: standard (equal to lib.Options struct) and extended, with additional fields.
-			inspectOutput := interface***REMOVED******REMOVED***(b.Options)
-
+			// At the moment, `k6 inspect` output can take 2 forms: standard
+			// (equal to the lib.Options struct) and extended, with additional
+			// fields with execution requirements.
+			var inspectOutput interface***REMOVED******REMOVED***
 			if addExecReqs ***REMOVED***
-				inspectOutput, err = addExecRequirements(globalState, b)
+				inspectOutput, err = inspectOutputWithExecRequirements(gs, cmd, test)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				inspectOutput = test.initRunner.GetOptions()
 			***REMOVED***
 
 			data, err := json.MarshalIndent(inspectOutput, "", "  ")
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			fmt.Println(string(data)) //nolint:forbidigo // yes we want to just print it
+			printToStdout(gs, string(data))
 
 			return nil
 		***REMOVED***,
@@ -98,8 +69,6 @@ func getInspectCmd(globalState *globalState) *cobra.Command ***REMOVED***
 
 	inspectCmd.Flags().SortFlags = false
 	inspectCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
-	inspectCmd.Flags().StringVarP(&globalState.flags.runType, "type", "t",
-		globalState.flags.runType, "override file `type`, \"js\" or \"archive\"")
 	inspectCmd.Flags().BoolVar(&addExecReqs,
 		"execution-requirements",
 		false,
@@ -108,23 +77,20 @@ func getInspectCmd(globalState *globalState) *cobra.Command ***REMOVED***
 	return inspectCmd
 ***REMOVED***
 
-func addExecRequirements(gs *globalState, b *js.Bundle) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	conf, err := getConsolidatedConfig(gs, Config***REMOVED******REMOVED***, b.Options)
+// If --execution-requirements is enabled, this will consolidate the config,
+// derive the value of `scenarios` and calculate the max test duration and VUs.
+func inspectOutputWithExecRequirements(gs *globalState, cmd *cobra.Command, test *loadedTest) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+	// we don't actually support CLI flags here, so we pass nil as the getter
+	if err := test.consolidateDeriveAndValidateConfig(gs, cmd, nil); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	et, err := lib.NewExecutionTuple(test.derivedConfig.ExecutionSegment, test.derivedConfig.ExecutionSegmentSequence)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	conf, err = deriveAndValidateConfig(conf, b.IsExecutable, gs.logger)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	et, err := lib.NewExecutionTuple(conf.ExecutionSegment, conf.ExecutionSegmentSequence)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	executionPlan := conf.Scenarios.GetFullExecutionRequirements(et)
+	executionPlan := test.derivedConfig.Scenarios.GetFullExecutionRequirements(et)
 	duration, _ := lib.GetEndOffset(executionPlan)
 
 	return struct ***REMOVED***
@@ -132,7 +98,7 @@ func addExecRequirements(gs *globalState, b *js.Bundle) (interface***REMOVED****
 		TotalDuration types.NullDuration `json:"totalDuration"`
 		MaxVUs        uint64             `json:"maxVUs"`
 	***REMOVED******REMOVED***
-		conf.Options,
+		test.derivedConfig.Options,
 		types.NewNullDuration(duration, true),
 		lib.GetMaxPossibleVUs(executionPlan),
 	***REMOVED***, nil

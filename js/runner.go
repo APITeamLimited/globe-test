@@ -364,10 +364,9 @@ func (r *Runner) GetOptions() lib.Options ***REMOVED***
 
 // IsExecutable returns whether the given name is an exported and
 // executable function in the script.
-//
-// TODO: completely remove this?
 func (r *Runner) IsExecutable(name string) bool ***REMOVED***
-	return r.Bundle.IsExecutable(name)
+	_, exists := r.Bundle.exports[name]
+	return exists
 ***REMOVED***
 
 // HandleSummary calls the specified summary callback, if supplied.
