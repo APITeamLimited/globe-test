@@ -766,3 +766,27 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestRampingArrivalRateCornerCase(t *testing.T) ***REMOVED***
+	t.Parallel()
+	config := &RampingArrivalRateConfig***REMOVED***
+		TimeUnit:  types.NullDurationFrom(time.Second),
+		StartRate: null.IntFrom(1),
+		Stages: []Stage***REMOVED***
+			***REMOVED***
+				Duration: types.NullDurationFrom(1 * time.Second),
+				Target:   null.IntFrom(1),
+			***REMOVED***,
+		***REMOVED***,
+		MaxVUs: null.IntFrom(2),
+	***REMOVED***
+
+	et, err := lib.NewExecutionTuple(newExecutionSegmentFromString("1/5:2/5"), newExecutionSegmentSequenceFromString("0,1/5,2/5,1"))
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+
+	executor, err := config.NewExecutor(es, nil)
+	require.NoError(t, err)
+
+	require.False(t, executor.GetConfig().HasWork(et))
+***REMOVED***

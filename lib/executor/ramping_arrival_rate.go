@@ -84,7 +84,7 @@ func (varc RampingArrivalRateConfig) GetPreAllocatedVUs(et *lib.ExecutionTuple) 
 
 // GetMaxVUs is just a helper method that returns the scaled max VUs.
 func (varc RampingArrivalRateConfig) GetMaxVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.Segment.Scale(varc.MaxVUs.Int64)
+	return et.ScaleInt64(varc.MaxVUs.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
