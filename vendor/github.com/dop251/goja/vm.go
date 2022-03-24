@@ -1842,9 +1842,11 @@ func (_newArrayFromIter) exec(vm *vm) ***REMOVED***
 	iter := vm.iterStack[l].iter
 	vm.iterStack[l] = iterStackItem***REMOVED******REMOVED***
 	vm.iterStack = vm.iterStack[:l]
-	iter.iterate(func(val Value) ***REMOVED***
-		values = append(values, val)
-	***REMOVED***)
+	if iter.iterator != nil ***REMOVED***
+		iter.iterate(func(val Value) ***REMOVED***
+			values = append(values, val)
+		***REMOVED***)
+	***REMOVED***
 	vm.push(vm.r.newArrayValues(values))
 	vm.pc++
 ***REMOVED***
