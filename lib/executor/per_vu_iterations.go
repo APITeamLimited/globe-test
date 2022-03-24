@@ -70,7 +70,7 @@ var _ lib.ExecutorConfig = &PerVUIterationsConfig***REMOVED******REMOVED***
 
 // GetVUs returns the scaled VUs for the executor.
 func (pvic PerVUIterationsConfig) GetVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.Segment.Scale(pvic.VUs.Int64)
+	return et.ScaleInt64(pvic.VUs.Int64)
 ***REMOVED***
 
 // GetIterations returns the UNSCALED iteration count for the executor. It's
