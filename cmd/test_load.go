@@ -208,8 +208,13 @@ func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 	// If parsing the threshold expressions failed, consider it as an
 	// invalid configuration error.
 	if !lt.runtimeOptions.NoThresholds.Bool ***REMOVED***
-		for _, thresholds := range consolidatedConfig.Options.Thresholds ***REMOVED***
-			err = thresholds.Parse()
+		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds ***REMOVED***
+			err = thresholdsDefinition.Parse()
+			if err != nil ***REMOVED***
+				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+			***REMOVED***
+
+			err = thresholdsDefinition.Validate(metricName, lt.metricsRegistry)
 			if err != nil ***REMOVED***
 				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***

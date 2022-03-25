@@ -32,6 +32,36 @@ func TestArchiveThresholds(t *testing.T) ***REMOVED***
 			testFilename: "testdata/thresholds/malformed_expression.js",
 			wantErr:      false,
 		***REMOVED***,
+		***REMOVED***
+			name:         "run should fail with exit status 104 on a threshold applied to a non existing metric",
+			noThresholds: false,
+			testFilename: "testdata/thresholds/non_existing_metric.js",
+			wantErr:      true,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should succeed on a threshold applied to a non existing metric with the --no-thresholds flag set",
+			noThresholds: true,
+			testFilename: "testdata/thresholds/non_existing_metric.js",
+			wantErr:      false,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should succeed on a threshold applied to a non existing submetric with the --no-thresholds flag set",
+			noThresholds: true,
+			testFilename: "testdata/thresholds/non_existing_metric.js",
+			wantErr:      false,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should fail with exit status 104 on a threshold applying an unsupported aggregation method to a metric",
+			noThresholds: false,
+			testFilename: "testdata/thresholds/unsupported_aggregation_method.js",
+			wantErr:      true,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should succeed on a threshold applying an unsupported aggregation method to a metric with the --no-thresholds flag set",
+			noThresholds: true,
+			testFilename: "testdata/thresholds/unsupported_aggregation_method.js",
+			wantErr:      false,
+		***REMOVED***,
 	***REMOVED***
 
 	for _, testCase := range testCases ***REMOVED***
