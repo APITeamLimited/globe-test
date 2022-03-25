@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ func newMetric(name string, mt MetricType, vt ...ValueType) *Metric ***REMOVED**
 	if len(vt) > 0 ***REMOVED***
 		valueType = vt[0]
 	***REMOVED***
+
 	var sink Sink
 	switch mt ***REMOVED***
 	case Counter:
@@ -53,6 +55,7 @@ func newMetric(name string, mt MetricType, vt ...ValueType) *Metric ***REMOVED**
 	default:
 		return nil
 	***REMOVED***
+
 	return &Metric***REMOVED***
 		Name:     name,
 		Type:     mt,
@@ -120,4 +123,61 @@ func (m *Metric) AddSubmetric(keyValues string) (*Submetric, error) ***REMOVED**
 	m.Submetrics = append(m.Submetrics, subMetric)
 
 	return subMetric, nil
+***REMOVED***
+
+// ErrMetricNameParsing indicates parsing a metric name failed
+var ErrMetricNameParsing = errors.New("parsing metric name failed")
+
+// ParseMetricName parses a metric name expression of the form metric_name***REMOVED***tag_key:tag_value,...***REMOVED***
+// Its first return value is the parsed metric name, second are parsed tags as as slice
+// of "key:value" strings. On failure, it returns an error containing the `ErrMetricNameParsing` in its chain.
+func ParseMetricName(name string) (string, []string, error) ***REMOVED***
+	openingTokenPos := strings.IndexByte(name, '***REMOVED***')
+	closingTokenPos := strings.IndexByte(name, '***REMOVED***')
+	containsOpeningToken := openingTokenPos != -1
+	containsClosingToken := closingTokenPos != -1
+
+	// Neither the opening '***REMOVED***' token nor the closing '***REMOVED***' token
+	// are present, thus the metric name only consists of a literal.
+	if !containsOpeningToken && !containsClosingToken ***REMOVED***
+		return name, nil, nil
+	***REMOVED***
+
+	// If the name contains an opening or closing token, but not
+	// its counterpart, the expression is malformed.
+	if (containsOpeningToken && !containsClosingToken) ||
+		(!containsOpeningToken && containsClosingToken) ***REMOVED***
+		return "", nil, fmt.Errorf("%w; reason: unmatched opening/close curly brace", ErrMetricNameParsing)
+	***REMOVED***
+
+	if closingTokenPos < openingTokenPos ***REMOVED***
+		return "", nil, fmt.Errorf("%w; reason: closing curly brace appears before opening one", ErrMetricNameParsing)
+	***REMOVED***
+
+	parserFn := func(c rune) bool ***REMOVED***
+		return c == '***REMOVED***' || c == '***REMOVED***'
+	***REMOVED***
+
+	// Split the metric_name***REMOVED***tag_key:tag_value,...***REMOVED*** expression
+	// into two "metric_name" and "tag_key:tag_value,..." strings.
+	parts := strings.FieldsFunc(name, parserFn)
+	if len(parts) == 0 || len(parts) > 2 ***REMOVED***
+		return "", nil, ErrMetricNameParsing
+	***REMOVED***
+
+	// Split the tag key values
+	tags := strings.Split(parts[1], ",")
+
+	// For each tag definition, ensure
+	for i, t := range tags ***REMOVED***
+		keyValue := strings.SplitN(t, ":", 2)
+
+		if len(keyValue) != 2 || keyValue[1] == "" ***REMOVED***
+			return "", nil, fmt.Errorf("%w; reason: malformed tag expression %q", ErrMetricNameParsing, t)
+		***REMOVED***
+
+		tags[i] = strings.TrimSpace(t)
+	***REMOVED***
+
+	return parts[0], tags, nil
 ***REMOVED***

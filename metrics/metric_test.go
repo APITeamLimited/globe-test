@@ -66,3 +66,116 @@ func TestAddSubmetric(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestParseMetricName(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	tests := []struct ***REMOVED***
+		name                 string
+		metricNameExpression string
+		wantMetricName       string
+		wantTags             []string
+		wantErr              bool
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:                 "metric name without tags",
+			metricNameExpression: "test_metric",
+			wantMetricName:       "test_metric",
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with single tag",
+			metricNameExpression: "test_metric***REMOVED***abc:123***REMOVED***",
+			wantMetricName:       "test_metric",
+			wantTags:             []string***REMOVED***"abc:123"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with multiple tags",
+			metricNameExpression: "test_metric***REMOVED***abc:123,easyas:doremi***REMOVED***",
+			wantMetricName:       "test_metric",
+			wantTags:             []string***REMOVED***"abc:123", "easyas:doremi"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with multiple spaced tags",
+			metricNameExpression: "test_metric***REMOVED***abc:123, easyas:doremi***REMOVED***",
+			wantMetricName:       "test_metric",
+			wantTags:             []string***REMOVED***"abc:123", "easyas:doremi"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with group tag",
+			metricNameExpression: "test_metric***REMOVED***group:::mygroup***REMOVED***",
+			wantMetricName:       "test_metric",
+			wantTags:             []string***REMOVED***"group:::mygroup"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with tag definition missing `:value`",
+			metricNameExpression: "test_metric***REMOVED***easyas***REMOVED***",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with tag definition missing value",
+			metricNameExpression: "test_metric***REMOVED***easyas:***REMOVED***",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with mixed valid and invalid tag definitions",
+			metricNameExpression: "test_metric***REMOVED***abc:123,easyas:***REMOVED***",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and unmatched opening tags definition token",
+			metricNameExpression: "test_metric***REMOVED***abc:123,easyas:doremi",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and unmatched closing tags definition token",
+			metricNameExpression: "test_metricabc:123,easyas:doremi***REMOVED***",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and invalid starting tags definition token",
+			metricNameExpression: "test_metric***REMOVED***abc:123,easyas:doremi***REMOVED***",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and invalid curly braces in tags definition",
+			metricNameExpression: "test_metric***REMOVED***abc***REMOVED***bar",
+			wantErr:              true,
+		***REMOVED***,
+	***REMOVED***
+	for _, tt := range tests ***REMOVED***
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			gotMetricName, gotTags, gotErr := ParseMetricName(tt.metricNameExpression)
+
+			assert.Equal(t,
+				gotErr != nil, tt.wantErr,
+				"ParseMetricName() error = %v, wantErr %v", gotErr, tt.wantErr,
+			)
+
+			if gotErr != nil ***REMOVED***
+				assert.ErrorIs(t,
+					gotErr, ErrMetricNameParsing,
+					"ParseMetricName() error chain should contain ErrMetricNameParsing",
+				)
+			***REMOVED***
+
+			assert.Equal(t,
+				gotMetricName, tt.wantMetricName,
+				"ParseMetricName() gotMetricName = %v, want %v", gotMetricName, tt.wantMetricName,
+			)
+
+			assert.Equal(t,
+				gotTags, tt.wantTags,
+				"ParseMetricName() gotTags = %v, want %v", gotTags, tt.wantTags,
+			)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
