@@ -124,34 +124,44 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":10,"vus-max":10,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
 		***REMOVED***,
 	***REMOVED***
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
-
-	scenarios := lib.ScenarioConfigs***REMOVED******REMOVED***
-	err := json.Unmarshal([]byte(`
-			***REMOVED***"external": ***REMOVED***"executor": "externally-controlled",
-			"vus": 0, "maxVUs": 10, "duration": "1s"***REMOVED******REMOVED***`), &scenarios)
-	require.NoError(t, err)
-	options := lib.Options***REMOVED***Scenarios: scenarios***REMOVED***
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
 	for name, testCase := range testData ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
 
+			scenarios := lib.ScenarioConfigs***REMOVED******REMOVED***
+			err := json.Unmarshal([]byte(`
+			***REMOVED***"external": ***REMOVED***"executor": "externally-controlled",
+			"vus": 0, "maxVUs": 10, "duration": "0"***REMOVED******REMOVED***`), &scenarios)
+			require.NoError(t, err)
+			options := lib.Options***REMOVED***Scenarios: scenarios***REMOVED***
+
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, builtinMetrics, logger)
 			require.NoError(t, err)
 			engine, err := core.NewEngine(execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
 			require.NoError(t, err)
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			run, _, err := engine.Init(ctx, ctx)
+
+			require.NoError(t, engine.OutputManager.StartOutputs())
+			defer engine.OutputManager.StopOutputs()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			run, wait, err := engine.Init(ctx, ctx)
 			require.NoError(t, err)
 
-			go func() ***REMOVED*** _ = run() ***REMOVED***()
+			defer func() ***REMOVED***
+				cancel()
+				wait()
+			***REMOVED***()
+
+			go func() ***REMOVED***
+				assert.NoError(t, run())
+			***REMOVED***()
 			// wait for the executor to initialize to avoid a potential data race below
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 
 			rw := httptest.NewRecorder()
 			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v1/status", bytes.NewReader(testCase.Payload)))
