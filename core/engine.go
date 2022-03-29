@@ -227,7 +227,7 @@ func (e *Engine) startBackgroundProcesses(
 			for ***REMOVED***
 				select ***REMOVED***
 				case <-ticker.C:
-					thresholdsTainted, shouldAbort := e.MetricsEngine.ProcessThresholds()
+					thresholdsTainted, shouldAbort := e.MetricsEngine.EvaluateThresholds()
 					e.thresholdsTaintedLock.Lock()
 					e.thresholdsTainted = thresholdsTainted
 					e.thresholdsTaintedLock.Unlock()
@@ -261,7 +261,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 
 		if !e.runtimeOptions.NoThresholds.Bool ***REMOVED***
 			// Process the thresholds one final time
-			thresholdsTainted, _ := e.MetricsEngine.ProcessThresholds()
+			thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds()
 			e.thresholdsTaintedLock.Lock()
 			e.thresholdsTainted = thresholdsTainted
 			e.thresholdsTaintedLock.Unlock()
@@ -300,7 +300,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			if !e.runtimeOptions.NoThresholds.Bool ***REMOVED***
 				// Ensure the ingester flushes any buffered metrics
 				_ = e.ingester.Stop()
-				thresholdsTainted, _ := e.MetricsEngine.ProcessThresholds()
+				thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds()
 				e.thresholdsTaintedLock.Lock()
 				e.thresholdsTainted = thresholdsTainted
 				e.thresholdsTaintedLock.Unlock()

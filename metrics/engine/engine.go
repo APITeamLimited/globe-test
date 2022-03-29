@@ -71,7 +71,7 @@ func (me *MetricsEngine) GetIngester() output.Output ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (me *MetricsEngine) getOrInitPotentialSubmetric(name string) (*stats.Metric, error) ***REMOVED***
+func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*stats.Metric, error) ***REMOVED***
 	// TODO: replace with strings.Cut after Go 1.18
 	nameParts := strings.SplitN(name, "***REMOVED***", 2)
 
@@ -83,10 +83,11 @@ func (me *MetricsEngine) getOrInitPotentialSubmetric(name string) (*stats.Metric
 		return metric, nil
 	***REMOVED***
 
-	if nameParts[1][len(nameParts[1])-1] != '***REMOVED***' ***REMOVED***
+	submetricDefinition := nameParts[1]
+	if submetricDefinition[len(submetricDefinition)-1] != '***REMOVED***' ***REMOVED***
 		return nil, fmt.Errorf("missing ending bracket, sub-metric format needs to be 'metric***REMOVED***key:value***REMOVED***'")
 	***REMOVED***
-	sm, err := metric.AddSubmetric(nameParts[1][:len(nameParts[1])-1])
+	sm, err := metric.AddSubmetric(submetricDefinition[:len(submetricDefinition)-1])
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -102,7 +103,7 @@ func (me *MetricsEngine) markObserved(metric *stats.Metric) ***REMOVED***
 
 func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
 	for metricName, thresholds := range me.options.Thresholds ***REMOVED***
-		metric, err := me.getOrInitPotentialSubmetric(metricName)
+		metric, err := me.getThresholdMetricOrSubmetric(metricName)
 
 		if me.runtimeOptions.NoThresholds.Bool ***REMOVED***
 			if err != nil ***REMOVED***
@@ -130,7 +131,7 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
 	// TODO: refactor out of here when https://github.com/grafana/k6/issues/1321
 	// lands and there is a better way to enable a metric with tag
 	if me.options.SystemTags.Has(stats.TagExpectedResponse) ***REMOVED***
-		_, err := me.getOrInitPotentialSubmetric("http_req_duration***REMOVED***expected_response:true***REMOVED***")
+		_, err := me.getThresholdMetricOrSubmetric("http_req_duration***REMOVED***expected_response:true***REMOVED***")
 		if err != nil ***REMOVED***
 			return err // shouldn't happen, but ¯\_(ツ)_/¯
 		***REMOVED***
@@ -139,10 +140,10 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// ProcessThresholds processes all of the thresholds.
+// EvaluateThresholds processes all of the thresholds.
 //
 // TODO: refactor, make private, optimize
-func (me *MetricsEngine) ProcessThresholds() (thresholdsTainted, shouldAbort bool) ***REMOVED***
+func (me *MetricsEngine) EvaluateThresholds() (thresholdsTainted, shouldAbort bool) ***REMOVED***
 	me.MetricsLock.Lock()
 	defer me.MetricsLock.Unlock()
 
@@ -154,19 +155,20 @@ func (me *MetricsEngine) ProcessThresholds() (thresholdsTainted, shouldAbort boo
 		***REMOVED***
 		m.Tainted = null.BoolFrom(false)
 
-		me.logger.WithField("m", m.Name).Debug("running thresholds")
+		me.logger.WithField("metric_name", m.Name).Debug("running thresholds")
 		succ, err := m.Thresholds.Run(m.Sink, t)
 		if err != nil ***REMOVED***
-			me.logger.WithField("m", m.Name).WithError(err).Error("Threshold error")
+			me.logger.WithField("metric_name", m.Name).WithError(err).Error("Threshold error")
 			continue
 		***REMOVED***
-		if !succ ***REMOVED***
-			me.logger.WithField("m", m.Name).Debug("Thresholds failed")
-			m.Tainted = null.BoolFrom(true)
-			thresholdsTainted = true
-			if m.Thresholds.Abort ***REMOVED***
-				shouldAbort = true
-			***REMOVED***
+		if succ ***REMOVED***
+			continue // threshold passed
+		***REMOVED***
+		me.logger.WithField("metric_name", m.Name).Debug("Thresholds failed")
+		m.Tainted = null.BoolFrom(true)
+		thresholdsTainted = true
+		if m.Thresholds.Abort ***REMOVED***
+			shouldAbort = true
 		***REMOVED***
 	***REMOVED***
 
