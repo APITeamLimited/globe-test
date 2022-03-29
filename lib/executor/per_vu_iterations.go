@@ -91,16 +91,16 @@ func (pvic PerVUIterationsConfig) GetDescription(et *lib.ExecutionTuple) string 
 func (pvic PerVUIterationsConfig) Validate() []error ***REMOVED***
 	errors := pvic.BaseConfig.Validate()
 	if pvic.VUs.Int64 <= 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of VUs should be more than 0"))
+		errors = append(errors, fmt.Errorf("the number of VUs must be more than 0"))
 	***REMOVED***
 
 	if pvic.Iterations.Int64 <= 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of iterations should be more than 0"))
+		errors = append(errors, fmt.Errorf("the number of iterations must be more than 0"))
 	***REMOVED***
 
 	if pvic.MaxDuration.TimeDuration() < minDuration ***REMOVED***
 		errors = append(errors, fmt.Errorf(
-			"the maxDuration should be at least %s, but is %s", minDuration, pvic.MaxDuration,
+			"the maxDuration must be at least %s, but is %s", minDuration, pvic.MaxDuration,
 		))
 	***REMOVED***
 

@@ -253,7 +253,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 				defer close(stopped)
 				select ***REMOVED***
 				case <-ctx.Done():
-					t.Fatal("The iterations shouldn't have ended before the context")
+					t.Fatal("The iterations can't have ended before the context")
 				case <-stop:
 				***REMOVED***
 			***REMOVED*** else ***REMOVED*** // all other (1) VUs will just sleep long enough

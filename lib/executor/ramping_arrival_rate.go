@@ -108,11 +108,11 @@ func (varc *RampingArrivalRateConfig) Validate() []error ***REMOVED***
 	errors := varc.BaseConfig.Validate()
 
 	if varc.StartRate.Int64 < 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the startRate value shouldn't be negative"))
+		errors = append(errors, fmt.Errorf("the startRate value can't be negative"))
 	***REMOVED***
 
 	if varc.TimeUnit.TimeDuration() < 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the timeUnit should be more than 0"))
+		errors = append(errors, fmt.Errorf("the timeUnit must be more than 0"))
 	***REMOVED***
 
 	errors = append(errors, validateStages(varc.Stages)...)
@@ -120,14 +120,14 @@ func (varc *RampingArrivalRateConfig) Validate() []error ***REMOVED***
 	if !varc.PreAllocatedVUs.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of preAllocatedVUs isn't specified"))
 	***REMOVED*** else if varc.PreAllocatedVUs.Int64 < 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of preAllocatedVUs shouldn't be negative"))
+		errors = append(errors, fmt.Errorf("the number of preAllocatedVUs can't be negative"))
 	***REMOVED***
 
 	if !varc.MaxVUs.Valid ***REMOVED***
 		// TODO: don't change the config while validating
 		varc.MaxVUs.Int64 = varc.PreAllocatedVUs.Int64
 	***REMOVED*** else if varc.MaxVUs.Int64 < varc.PreAllocatedVUs.Int64 ***REMOVED***
-		errors = append(errors, fmt.Errorf("maxVUs shouldn't be less than preAllocatedVUs"))
+		errors = append(errors, fmt.Errorf("maxVUs can't be less than preAllocatedVUs"))
 	***REMOVED***
 
 	return errors

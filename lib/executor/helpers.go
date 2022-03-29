@@ -66,12 +66,12 @@ func validateStages(stages []Stage) []error ***REMOVED***
 		if !s.Duration.Valid ***REMOVED***
 			errors = append(errors, fmt.Errorf("stage %d doesn't have a duration", stageNum))
 		***REMOVED*** else if s.Duration.Duration < 0 ***REMOVED***
-			errors = append(errors, fmt.Errorf("the duration for stage %d shouldn't be negative", stageNum))
+			errors = append(errors, fmt.Errorf("the duration for stage %d can't be negative", stageNum))
 		***REMOVED***
 		if !s.Target.Valid ***REMOVED***
 			errors = append(errors, fmt.Errorf("stage %d doesn't have a target", stageNum))
 		***REMOVED*** else if s.Target.Int64 < 0 ***REMOVED***
-			errors = append(errors, fmt.Errorf("the target for stage %d shouldn't be negative", stageNum))
+			errors = append(errors, fmt.Errorf("the target for stage %d can't be negative", stageNum))
 		***REMOVED***
 	***REMOVED***
 	return errors
