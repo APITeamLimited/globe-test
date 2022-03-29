@@ -48,7 +48,7 @@ func (j *JSTest) Exports() modules.Exports ***REMOVED***
 func (j JSTest) Foo(arg float64) (bool, error) ***REMOVED***
 	state := j.vu.State()
 	if state == nil ***REMOVED***
-		return false, fmt.Errorf("the VU State is not avaialble in the init context")
+		return false, fmt.Errorf("the VU State is not available in the init context")
 	***REMOVED***
 
 	ctx := j.vu.Context()

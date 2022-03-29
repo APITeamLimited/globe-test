@@ -186,7 +186,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
+func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
 	t.Parallel()
 
 	var (

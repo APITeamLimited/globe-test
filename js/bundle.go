@@ -299,7 +299,7 @@ func (b *Bundle) Instantiate(
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64) error ***REMOVED***
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64) (err error) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
@@ -333,10 +333,13 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	init.moduleVUImpl.ctx = context.Background()
 	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.eventLoop = eventloop.New(init.moduleVUImpl)
-	err := init.moduleVUImpl.eventLoop.Start(func() error ***REMOVED***
-		_, err := rt.RunProgram(b.Program)
-		return err
+	err = common.RunWithPanicCatching(logger, rt, func() error ***REMOVED***
+		return init.moduleVUImpl.eventLoop.Start(func() error ***REMOVED***
+			_, errRun := rt.RunProgram(b.Program)
+			return errRun
+		***REMOVED***)
 	***REMOVED***)
+
 	if err != nil ***REMOVED***
 		var exception *goja.Exception
 		if errors.As(err, &exception) ***REMOVED***
