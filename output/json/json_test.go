@@ -72,10 +72,10 @@ func generateTestMetricSamples(t testing.TB) ([]stats.SampleContainer, func(io.R
 		stats.Sample***REMOVED***Time: time3, Metric: metric2, Value: float64(5), Tags: stats.NewSampleTags(map[string]string***REMOVED***"tag3": "val3"***REMOVED***)***REMOVED***,
 	***REMOVED***
 	expected := []string***REMOVED***
-		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01","p(99)<250"],"submetrics":null,"sub":***REMOVED***"name":"","parent":"","suffix":"","tags":null***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
+		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01","p(99)<250"],"submetrics":null***REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":1,"tags":***REMOVED***"tag1":"val1"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":2,"tags":***REMOVED***"tag2":"val2"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
-		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric2","type":"counter","contains":"data","tainted":null,"thresholds":[],"submetrics":null,"sub":***REMOVED***"name":"","parent":"","suffix":"","tags":null***REMOVED******REMOVED***,"metric":"my_metric2"***REMOVED***`,
+		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric2","type":"counter","contains":"data","tainted":null,"thresholds":[],"submetrics":null***REMOVED***,"metric":"my_metric2"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:20Z","value":3,"tags":***REMOVED***"key":"val"***REMOVED******REMOVED***,"metric":"my_metric2"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:20Z","value":4,"tags":***REMOVED***"key":"val"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:30Z","value":5,"tags":***REMOVED***"tag3":"val3"***REMOVED******REMOVED***,"metric":"my_metric2"***REMOVED***`,

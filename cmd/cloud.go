@@ -200,10 +200,10 @@ func (c *cmdCloud) run(cmd *cobra.Command, args []string) error ***REMOVED***
 			globalCancel()
 		***REMOVED***()
 	***REMOVED***
-	hardStop := func(sig os.Signal) ***REMOVED***
+	onHardStop := func(sig os.Signal) ***REMOVED***
 		logger.WithField("sig", sig).Error("Aborting k6 in response to signal, we won't wait for the test to end.")
 	***REMOVED***
-	stopSignalHandling := handleTestAbortSignals(c.gs, gracefulStop, hardStop)
+	stopSignalHandling := handleTestAbortSignals(c.gs, gracefulStop, onHardStop)
 	defer stopSignalHandling()
 
 	et, err := lib.NewExecutionTuple(test.derivedConfig.ExecutionSegment, test.derivedConfig.ExecutionSegmentSequence)

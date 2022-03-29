@@ -34,9 +34,9 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/stats"
 )
 
@@ -71,7 +71,10 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	t.Parallel()
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestConstantArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -81,10 +84,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	)
 	defer cancel()
 	engineOut := make(chan stats.SampleContainer, 1000)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-
-	err = executor.Run(ctx, engineOut, builtinMetrics)
+	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	entries := logHook.Drain()
 	require.NotEmpty(t, entries)
@@ -101,7 +101,9 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	var count int64
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestConstantArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -124,9 +126,7 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 	engineOut := make(chan stats.SampleContainer, 1000)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	err = executor.Run(ctx, engineOut, builtinMetrics)
+	err = executor.Run(ctx, engineOut)
 	wg.Wait()
 	require.NoError(t, err)
 	require.Empty(t, logHook.Drain())
@@ -199,7 +199,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 			es := lib.NewExecutionState(lib.Options***REMOVED***
 				ExecutionSegment:         test.segment,
 				ExecutionSegmentSequence: test.sequence,
-			***REMOVED***, et, 10, 50)
+			***REMOVED***, et, builtinMetrics, 10, 50)
 			var count int64
 			seconds := 2
 			config := getTestConstantArrivalRateConfig()
@@ -249,7 +249,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 			***REMOVED***()
 			startTime = time.Now()
 			engineOut := make(chan stats.SampleContainer, 1000)
-			err = executor.Run(ctx, engineOut, builtinMetrics)
+			err = executor.Run(ctx, engineOut)
 			wg.Wait()
 			require.NoError(t, err)
 			require.Empty(t, logHook.Drain())
@@ -275,7 +275,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 			weAreDoneCh := make(chan struct***REMOVED******REMOVED***)
 			et, err := lib.NewExecutionTuple(nil, nil)
 			require.NoError(t, err)
-			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 			ctx, cancel, executor, logHook := setupExecutor(
 				t, config, es, simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 					select ***REMOVED***
@@ -292,7 +292,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 				defer wg.Done()
 
 				engineOut := make(chan stats.SampleContainer, 1000)
-				errCh <- executor.Run(ctx, engineOut, builtinMetrics)
+				errCh <- executor.Run(ctx, engineOut)
 				close(weAreDoneCh)
 			***REMOVED***()
 
@@ -329,7 +329,9 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 		MaxVUs:          null.IntFrom(5),
 	***REMOVED***
 
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -340,9 +342,7 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	engineOut := make(chan stats.SampleContainer, 1000)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	err = executor.Run(ctx, engineOut, builtinMetrics)
+	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	logs := logHook.Drain()
 	require.Len(t, logs, 1)
@@ -384,7 +384,7 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			et, err := lib.NewExecutionTuple(seg, &ess)
 			require.NoError(t, err)
-			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 5, 5)
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, builtinMetrics, 5, 5)
 
 			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
 			ctx, cancel, executor, _ := setupExecutor(t, config, es, runner)
@@ -400,7 +400,7 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			engineOut := make(chan stats.SampleContainer, 100)
-			err = executor.Run(ctx, engineOut, builtinMetrics)
+			err = executor.Run(ctx, engineOut)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expIters, gotIters)
 		***REMOVED***)

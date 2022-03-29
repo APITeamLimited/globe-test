@@ -39,22 +39,25 @@ import (
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/testutils/mockoutput"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
 	"go.k6.io/k6/stats"
 )
 
 const isWindows = runtime.GOOS == "windows"
 
+// TODO: completely rewrite all of these tests
+
 // Wrapper around NewEngine that applies a logger and manages the options.
-func newTestEngine( //nolint:golint
+func newTestEngineWithRegistry( //nolint:golint
 	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options,
+	registry *metrics.Registry,
 ) (engine *Engine, run func() error, wait func()) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
@@ -75,13 +78,13 @@ func newTestEngine( //nolint:golint
 
 	require.NoError(t, runner.SetOptions(newOpts))
 
-	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, builtinMetrics)
+	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, registry)
 	require.NoError(t, err)
+	require.NoError(t, engine.OutputManager.StartOutputs())
 
 	run, waitFn, err := engine.Init(globalCtx, runCtx)
 	require.NoError(t, err)
@@ -92,7 +95,14 @@ func newTestEngine( //nolint:golint
 		***REMOVED***
 		globalCancel()
 		waitFn()
+		engine.OutputManager.StopOutputs()
 	***REMOVED***
+***REMOVED***
+
+func newTestEngine(
+	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options, //nolint:revive
+) (engine *Engine, run func() error, wait func()) ***REMOVED***
+	return newTestEngineWithRegistry(t, runCtx, runner, outputs, opts, metrics.NewRegistry())
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
@@ -139,7 +149,10 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 	// Make sure samples are discarded after context close (using "cutoff" timestamp in local.go)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		testMetric := stats.New("test_metric", stats.Trend)
+
+		registry := metrics.NewRegistry()
+		testMetric, err := registry.NewMetric("test_metric", stats.Trend)
+		require.NoError(t, err)
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 
@@ -155,10 +168,10 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		mockOutput := mockoutput.New()
 		ctx, cancel := context.WithCancel(context.Background())
-		_, run, wait := newTestEngine(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+		_, run, wait := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***)
+		***REMOVED***, registry)
 
 		errC := make(chan error)
 		go func() ***REMOVED*** errC <- run() ***REMOVED***()
@@ -211,7 +224,10 @@ func TestEngineStopped(t *testing.T) ***REMOVED***
 
 func TestEngineOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
-	testMetric := stats.New("test_metric", stats.Trend)
+
+	registry := metrics.NewRegistry()
+	testMetric, err := registry.NewMetric("test_metric", stats.Trend)
+	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner***REMOVED***
 		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -221,10 +237,10 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	e, run, wait := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	e, run, wait := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(1),
-	***REMOVED***)
+	***REMOVED***, registry)
 
 	assert.NoError(t, run())
 	wait()
@@ -235,7 +251,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 			cSamples = append(cSamples, sample)
 		***REMOVED***
 	***REMOVED***
-	metric := e.Metrics["test_metric"]
+	metric := e.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) ***REMOVED***
 		sink := metric.Sink.(*stats.TrendSink)
 		if assert.NotNil(t, sink) ***REMOVED***
@@ -248,49 +264,64 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 
 func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := stats.New("my_metric", stats.Gauge)
 
 	t.Run("metric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***)
-		defer wait()
 
-		e.processSamples(
+		registry := metrics.NewRegistry()
+		metric, err := registry.NewMetric("my_metric", stats.Gauge)
+		require.NoError(t, err)
+
+		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
+
+		e.OutputManager.AddMetricSamples(
 			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
+		e.Stop()
+		wait()
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
+
+		registry := metrics.NewRegistry()
+		metric, err := registry.NewMetric("my_metric", stats.Gauge)
+		require.NoError(t, err)
+
 		ths := stats.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
-		e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
+		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***
 			Thresholds: map[string]stats.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
-		***REMOVED***)
-		defer wait()
+		***REMOVED***, registry)
 
-		sms := e.submetrics["my_metric"]
-		assert.Len(t, sms, 1)
-		assert.Equal(t, "my_metric***REMOVED***a:1***REMOVED***", sms[0].Name)
-		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags.CloneTags())
-
-		e.processSamples(
+		e.OutputManager.AddMetricSamples(
 			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
+		e.Stop()
+		wait()
+
+		assert.Len(t, e.MetricsEngine.ObservedMetrics, 2)
+		sms := e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
+		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
 
 func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := stats.New("my_metric", stats.Gauge)
+
+	registry := metrics.NewRegistry()
+	metric, err := registry.NewMetric("my_metric", stats.Gauge)
+	require.NoError(t, err)
 
 	// The incoming samples for the metric set it to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
@@ -302,18 +333,22 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 
 	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
-	e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
-	defer wait()
+	e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
 
-	e.processSamples(
+	e.OutputManager.AddMetricSamples(
 		[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 	)
-	assert.True(t, e.processThresholds())
+	e.Stop()
+	wait()
+	assert.True(t, e.thresholdsTainted)
 ***REMOVED***
 
 func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := stats.New("my_metric", stats.Gauge)
+
+	registry := metrics.NewRegistry()
+	metric, err := registry.NewMetric("my_metric", stats.Gauge)
+	require.NoError(t, err)
 
 	// The MiniRunner sets the value of the metric to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
@@ -336,7 +371,7 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	_, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+	_, run, wait := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
 	defer wait()
 
 	go func() ***REMOVED***
@@ -353,44 +388,71 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 
 func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := stats.New("my_metric", stats.Gauge)
 
 	testdata := map[string]struct ***REMOVED***
-		pass  bool
-		ths   map[string][]string
-		abort bool
+		pass bool
+		ths  map[string][]string
 	***REMOVED******REMOVED***
-		"passing":  ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"failing":  ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
-		"aborting": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, true***REMOVED***,
+		"passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
 
-		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,failing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
+
+		"unused,passing":      ***REMOVED***true, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
+		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
+		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
+
+		"used,passing":               ***REMOVED***true, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
+		"used,failing":               ***REMOVED***false, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
+		"used,subm,passing":          ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:1***REMOVED***": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
+		"used,not-subm,passing":      ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:2***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,passing1": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,failing1": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,passing2": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,failing2": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
 		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
+
+			registry := metrics.NewRegistry()
+			gaugeMetric, err := registry.NewMetric("my_metric", stats.Gauge)
+			require.NoError(t, err)
+			counterMetric, err := registry.NewMetric("used_counter", stats.Counter)
+			require.NoError(t, err)
+			_, err = registry.NewMetric("unused_counter", stats.Counter)
+			require.NoError(t, err)
+
 			thresholds := make(map[string]stats.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
 				ths := stats.NewThresholds(srcs)
 				gotParseErr := ths.Parse()
 				require.NoError(t, gotParseErr)
-				ths.Thresholds[0].AbortOnFail = data.abort
 				thresholds[m] = ths
 			***REMOVED***
 
-			e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
-			defer wait()
-
-			e.processSamples(
-				[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e, run, wait := newTestEngineWithRegistry(
+				t, ctx, &minirunner.MiniRunner***REMOVED******REMOVED***, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry,
 			)
 
-			assert.Equal(t, data.abort, e.processThresholds())
+			e.OutputManager.AddMetricSamples(
+				[]stats.SampleContainer***REMOVED***
+					stats.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+					stats.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
+				***REMOVED***,
+			)
+
+			require.NoError(t, run())
+			wait()
+
 			assert.Equal(t, data.pass, !e.IsTainted())
 		***REMOVED***)
 	***REMOVED***
@@ -843,9 +905,9 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 	require.Empty(t, opts.Validate())
 	require.NoError(t, runner.SetOptions(opts))
 
-	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
+	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1128,7 +1190,10 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 
 func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	t.Parallel()
-	testMetric := stats.New("teardown_metric", stats.Counter)
+
+	registry := metrics.NewRegistry()
+	testMetric, err := registry.NewMetric("teardown_metric", stats.Counter)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -1144,9 +1209,9 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	_, run, wait := newTestEngine(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	_, run, wait := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
-	***REMOVED***)
+	***REMOVED***, registry)
 
 	assert.NoError(t, run())
 	wait()
@@ -1228,10 +1293,11 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.Empty(t, opts.Validate())
 	require.NoError(t, runner.SetOptions(opts))
-	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger, builtinMetrics)
+	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger, registry)
 	require.NoError(t, err)
+	require.NoError(t, engine.OutputManager.StartOutputs())
 	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
 	require.NoError(t, err)
 
@@ -1245,6 +1311,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		cancel()
 		waitFn()
+		engine.OutputManager.StopOutputs()
 		require.False(t, engine.IsTainted())
 	***REMOVED***
 

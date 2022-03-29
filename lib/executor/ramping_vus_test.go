@@ -84,7 +84,7 @@ func TestRampingVUsRun(t *testing.T) ***REMOVED***
 	var iterCount int64
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -105,7 +105,7 @@ func TestRampingVUsRun(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
 	result := make([]int64, len(sampleTimes))
 	for i, d := range sampleTimes ***REMOVED***
@@ -141,7 +141,7 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -157,7 +157,7 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the duration and 500 less then the gracefulStop
@@ -190,7 +190,7 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -206,7 +206,7 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the gracefulStop + duration
@@ -244,7 +244,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
@@ -264,7 +264,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the gracefulRampDown + duration
@@ -349,11 +349,11 @@ func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, cfg,
-		lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, maxVus, maxVus),
+		lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, maxVus, maxVus),
 		simpleRunner(iteration),
 	)
 	defer cancel()
-	require.NoError(t, executor.Run(ctx, nil, nil))
+	require.NoError(t, executor.Run(ctx, nil))
 
 	assert.Equal(t, wantVuInterrupted, atomic.LoadUint32(&gotVuInterrupted))
 	assert.Equal(t, wantVuFinished, atomic.LoadUint32(&gotVuFinished))
@@ -382,7 +382,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
@@ -401,7 +401,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 		int((config.Stages[len(config.Stages)-1].Duration.TimeDuration() + config.GracefulRampDown.TimeDuration()) / rampDownSampleTime)
 
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
 	result := make([]int64, len(sampleTimes)+rampDownSamples)
 	for i, d := range sampleTimes ***REMOVED***

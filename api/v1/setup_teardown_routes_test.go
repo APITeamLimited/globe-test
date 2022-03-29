@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,10 +40,10 @@ import (
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
+	"go.k6.io/k6/metrics"
 )
 
 func TestSetupData(t *testing.T) ***REMOVED***
@@ -133,14 +134,16 @@ func TestSetupData(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	for _, testCase := range testCases ***REMOVED***
-		testCase := testCase
+
+	runTestCase := func(t *testing.T, tcid int) ***REMOVED***
+		testCase := testCases[tcid]
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
+
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
 			runner, err := js.New(
 				logger,
@@ -159,18 +162,21 @@ func TestSetupData(t *testing.T) ***REMOVED***
 				SetupTimeout:    types.NullDurationFrom(5 * time.Second),
 				TeardownTimeout: types.NullDurationFrom(5 * time.Second),
 			***REMOVED***)
-			execScheduler, err := local.NewExecutionScheduler(runner, logger)
+			execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
 			require.NoError(t, err)
-			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
+			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
 			require.NoError(t, err)
+
+			require.NoError(t, engine.OutputManager.StartOutputs())
+			defer engine.OutputManager.StopOutputs()
 
 			globalCtx, globalCancel := context.WithCancel(context.Background())
 			runCtx, runCancel := context.WithCancel(globalCtx)
 			run, wait, err := engine.Init(globalCtx, runCtx)
+			require.NoError(t, err)
+
 			defer wait()
 			defer globalCancel()
-
-			require.NoError(t, err)
 
 			errC := make(chan error)
 			go func() ***REMOVED*** errC <- run() ***REMOVED***()
@@ -209,6 +215,14 @@ func TestSetupData(t *testing.T) ***REMOVED***
 				runCancel()
 				require.NoError(t, err)
 			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+
+	for id := range testCases ***REMOVED***
+		id := id
+		t.Run(fmt.Sprintf("testcase_%d", id), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			runTestCase(t, id)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

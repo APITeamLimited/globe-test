@@ -233,7 +233,7 @@ func (st *SampleTags) Contains(other *SampleTags) bool ***REMOVED***
 	***REMOVED***
 
 	for k, v := range other.tags ***REMOVED***
-		if st.tags[k] != v ***REMOVED***
+		if myv, ok := st.tags[k]; !ok || myv != v ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -438,16 +438,22 @@ func PushIfNotDone(ctx context.Context, output chan<- SampleContainer, sample Sa
 	return true
 ***REMOVED***
 
+// TODO: move to the metrics/ package
+
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
-	Name       string       `json:"name"`
-	Type       MetricType   `json:"type"`
-	Contains   ValueType    `json:"contains"`
+	Name     string     `json:"name"`
+	Type     MetricType `json:"type"`
+	Contains ValueType  `json:"contains"`
+
+	// TODO: decouple the metrics from the sinks and thresholds... have them
+	// linked, but not in the same struct?
 	Tainted    null.Bool    `json:"tainted"`
 	Thresholds Thresholds   `json:"thresholds"`
 	Submetrics []*Submetric `json:"submetrics"`
-	Sub        Submetric    `json:"sub,omitempty"`
+	Sub        *Submetric   `json:"-"`
 	Sink       Sink         `json:"-"`
+	Observed   bool         `json:"-"`
 ***REMOVED***
 
 // Sample samples the metric at the given time, with the provided tags and value
@@ -484,37 +490,62 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 // A Submetric represents a filtered dataset based on a parent metric.
 type Submetric struct ***REMOVED***
 	Name   string      `json:"name"`
-	Parent string      `json:"parent"`
-	Suffix string      `json:"suffix"`
+	Suffix string      `json:"suffix"` // TODO: rename?
 	Tags   *SampleTags `json:"tags"`
-	Metric *Metric     `json:"-"`
+
+	Metric *Metric `json:"-"`
+	Parent *Metric `json:"-"`
 ***REMOVED***
 
-// Creates a submetric from a name.
-func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
-	parts := strings.SplitN(strings.TrimSuffix(name, "***REMOVED***"), "***REMOVED***", 2)
-	if len(parts) == 1 ***REMOVED***
-		return parts[0], &Submetric***REMOVED***Name: name***REMOVED***
+// AddSubmetric creates a new submetric from the key:value threshold definition
+// and adds it to the metric's submetrics list.
+func (m *Metric) AddSubmetric(keyValues string) (*Submetric, error) ***REMOVED***
+	keyValues = strings.TrimSpace(keyValues)
+	if len(keyValues) == 0 ***REMOVED***
+		return nil, fmt.Errorf("submetric criteria for metric '%s' cannot be empty", m.Name)
 	***REMOVED***
-
-	kvs := strings.Split(parts[1], ",")
-	tags := make(map[string]string, len(kvs))
+	kvs := strings.Split(keyValues, ",")
+	rawTags := make(map[string]string, len(kvs))
 	for _, kv := range kvs ***REMOVED***
 		if kv == "" ***REMOVED***
 			continue
 		***REMOVED***
 		parts := strings.SplitN(kv, ":", 2)
 
-		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
+		key := strings.Trim(strings.TrimSpace(parts[0]), `"'`)
 		if len(parts) != 2 ***REMOVED***
-			tags[key] = ""
+			rawTags[key] = ""
 			continue
 		***REMOVED***
 
-		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
-		tags[key] = value
+		value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+		rawTags[key] = value
 	***REMOVED***
-	return parts[0], &Submetric***REMOVED***Name: name, Parent: parts[0], Suffix: parts[1], Tags: IntoSampleTags(&tags)***REMOVED***
+
+	tags := IntoSampleTags(&rawTags)
+
+	for _, sm := range m.Submetrics ***REMOVED***
+		if sm.Tags.IsEqual(tags) ***REMOVED***
+			return nil, fmt.Errorf(
+				"sub-metric with params '%s' already exists for metric %s: %s",
+				keyValues, m.Name, sm.Name,
+			)
+		***REMOVED***
+	***REMOVED***
+
+	subMetric := &Submetric***REMOVED***
+		Name:   m.Name + "***REMOVED***" + keyValues + "***REMOVED***",
+		Suffix: keyValues,
+		Tags:   tags,
+		Parent: m,
+	***REMOVED***
+	subMetricMetric := New(subMetric.Name, m.Type, m.Contains)
+	subMetricMetric.Sub = subMetric // sigh
+	subMetric.Metric = subMetricMetric
+
+	m.Submetrics = append(m.Submetrics, subMetric)
+
+	return subMetric, nil
 ***REMOVED***
 
 // parsePercentile is a helper function to parse and validate percentile notations

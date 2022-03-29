@@ -33,9 +33,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/loader"
+	"go.k6.io/k6/metrics"
 )
 
 func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
@@ -117,7 +117,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
@@ -216,7 +216,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 	scStats := map[string]uint64***REMOVED******REMOVED***
 
@@ -297,7 +297,7 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 	expIters := [50]int64***REMOVED******REMOVED***
 	for i := 0; i < 50; i++ ***REMOVED***
@@ -424,7 +424,7 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
+			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
 
 			select ***REMOVED***
 			case err := <-errCh:
