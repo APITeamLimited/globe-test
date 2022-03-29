@@ -61,7 +61,7 @@ func (r *Registry) NewMetric(name string, typ stats.MetricType, t ...stats.Value
 	oldMetric, ok := r.metrics[name]
 
 	if !ok ***REMOVED***
-		m := stats.New(name, typ, t...)
+		m := newMetric(name, typ, t...)
 		r.metrics[name] = m
 		return m, nil
 	***REMOVED***
@@ -90,4 +90,30 @@ func (r *Registry) MustNewMetric(name string, typ stats.MetricType, t ...stats.V
 // Get() will return a nil value.
 func (r *Registry) Get(name string) *stats.Metric ***REMOVED***
 	return r.metrics[name]
+***REMOVED***
+
+func newMetric(name string, mt stats.MetricType, vt ...stats.ValueType) *stats.Metric ***REMOVED***
+	valueType := stats.Default
+	if len(vt) > 0 ***REMOVED***
+		valueType = vt[0]
+	***REMOVED***
+	var sink stats.Sink
+	switch mt ***REMOVED***
+	case stats.Counter:
+		sink = &stats.CounterSink***REMOVED******REMOVED***
+	case stats.Gauge:
+		sink = &stats.GaugeSink***REMOVED******REMOVED***
+	case stats.Trend:
+		sink = &stats.TrendSink***REMOVED******REMOVED***
+	case stats.Rate:
+		sink = &stats.RateSink***REMOVED******REMOVED***
+	default:
+		return nil
+	***REMOVED***
+	return &stats.Metric***REMOVED***
+		Name:     name,
+		Type:     mt,
+		Contains: valueType,
+		Sink:     sink,
+	***REMOVED***
 ***REMOVED***

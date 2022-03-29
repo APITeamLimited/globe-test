@@ -36,6 +36,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
 	"go.k6.io/k6/stats"
 )
@@ -108,10 +109,14 @@ func testOutputCycle(t testing.TB, handler http.HandlerFunc, body func(testing.T
 func TestOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 
+	metric, err := metrics.NewRegistry().NewMetric("test_gauge", stats.Gauge)
+	require.NoError(t, err)
+
 	var samplesRead int
 	defer func() ***REMOVED***
 		require.Equal(t, samplesRead, 20)
 	***REMOVED***()
+
 	testOutputCycle(t, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		b := bytes.NewBuffer(nil)
 		_, _ = io.Copy(b, r.Body)
@@ -130,7 +135,7 @@ func TestOutput(t *testing.T) ***REMOVED***
 		samples := make(stats.Samples, 10)
 		for i := 0; i < len(samples); i++ ***REMOVED***
 			samples[i] = stats.Sample***REMOVED***
-				Metric: stats.New("testGauge", stats.Gauge),
+				Metric: metric,
 				Time:   time.Now(),
 				Tags: stats.NewSampleTags(map[string]string***REMOVED***
 					"something": "else",
@@ -152,6 +157,7 @@ func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
 		requests = int32(0)
 		block    = make(chan struct***REMOVED******REMOVED***)
 	)
+
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		// block all the received requests
@@ -170,6 +176,9 @@ func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
 		ts.Close()
 	***REMOVED***()
 
+	metric, err := metrics.NewRegistry().NewMetric("test_gauge", stats.Gauge)
+	require.NoError(t, err)
+
 	o, err := newOutput(output.Params***REMOVED***
 		Logger:         testutils.NewLogger(t),
 		ConfigArgument: ts.URL,
@@ -183,7 +192,7 @@ func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
 			wg.Add(1)
 			o.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Samples***REMOVED***
 				stats.Sample***REMOVED***
-					Metric: stats.New("gauge", stats.Gauge),
+					Metric: metric,
 					Value:  2.0,
 				***REMOVED***,
 			***REMOVED******REMOVED***)

@@ -1227,7 +1227,8 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***
 		return stats.IntoSampleTags(&tags)
 	***REMOVED***
-	testCounter := stats.New("test_counter", stats.Counter)
+	testCounter, err := registry.NewMetric("test_counter", stats.Counter)
+	require.NoError(t, err)
 	getSample := func(expValue float64, expMetric *stats.Metric, expTags ...string) stats.SampleContainer ***REMOVED***
 		return stats.Sample***REMOVED***
 			Metric: expMetric,
