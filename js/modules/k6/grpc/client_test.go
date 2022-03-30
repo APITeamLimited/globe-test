@@ -59,7 +59,6 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -70,7 +69,7 @@ type codeBlock struct ***REMOVED***
 	val        interface***REMOVED******REMOVED***
 	err        string
 	windowsErr string
-	asserts    func(*testing.T, *httpmultibin.HTTPMultiBin, chan stats.SampleContainer, error)
+	asserts    func(*testing.T, *httpmultibin.HTTPMultiBin, chan metrics.SampleContainer, error)
 ***REMOVED***
 
 type testcase struct ***REMOVED***
@@ -88,7 +87,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		vuState *lib.State
 		env     *common.InitEnvironment
 		httpBin *httpmultibin.HTTPMultiBin
-		samples chan stats.SampleContainer
+		samples chan metrics.SampleContainer
 	***REMOVED***
 	setup := func(t *testing.T) testState ***REMOVED***
 		t.Helper()
@@ -96,16 +95,16 @@ func TestClient(t *testing.T) ***REMOVED***
 		root, err := lib.NewGroup("", nil)
 		require.NoError(t, err)
 		tb := httpmultibin.NewHTTPMultiBin(t)
-		samples := make(chan stats.SampleContainer, 1000)
+		samples := make(chan metrics.SampleContainer, 1000)
 		state := &lib.State***REMOVED***
 			Group:     root,
 			Dialer:    tb.Dialer,
 			TLSConfig: tb.TLSClientConfig,
 			Samples:   samples,
 			Options: lib.Options***REMOVED***
-				SystemTags: stats.NewSystemTagSet(
-					stats.TagName,
-					stats.TagURL,
+				SystemTags: metrics.NewSystemTagSet(
+					metrics.TagName,
+					metrics.TagURL,
 				),
 				UserAgent: null.StringFrom("k6-test"),
 			***REMOVED***,
@@ -144,7 +143,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	assertMetricEmitted := func(
 		t *testing.T,
 		metricName string,
-		sampleContainers []stats.SampleContainer,
+		sampleContainers []metrics.SampleContainer,
 		url string,
 	) ***REMOVED***
 		seenMetric := false
@@ -391,8 +390,8 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (resp.status !== grpc.StatusOK) ***REMOVED***
 					throw new Error("unexpected error status: " + resp.status)
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := stats.GetBufferedSamples(samples)
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
@@ -465,8 +464,8 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.message || resp.message.username !== "" || resp.message.oauthScope !== "水") ***REMOVED***
 					throw new Error("unexpected response message: " + JSON.stringify(resp.message))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := stats.GetBufferedSamples(samples)
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/UnaryCall"))
 				***REMOVED***,
 			***REMOVED***,
@@ -493,8 +492,8 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.error || resp.error.message !== "foobar" || resp.error.code !== 15) ***REMOVED***
 					throw new Error("unexpected error object: " + JSON.stringify(resp.error.code))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := stats.GetBufferedSamples(samples)
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
@@ -523,8 +522,8 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.headers || !resp.headers["foo"] || resp.headers["foo"][0] !== "bar") ***REMOVED***
 					throw new Error("unexpected headers object: " + JSON.stringify(resp.trailers))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := stats.GetBufferedSamples(samples)
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
@@ -553,8 +552,8 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.trailers || !resp.trailers["foo"] || resp.trailers["foo"][0] !== "bar") ***REMOVED***
 					throw new Error("unexpected trailers object: " + JSON.stringify(resp.trailers))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := stats.GetBufferedSamples(samples)
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,

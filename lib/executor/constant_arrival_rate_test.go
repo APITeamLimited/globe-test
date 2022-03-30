@@ -37,7 +37,6 @@ import (
 	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func newExecutionSegmentFromString(str string) *lib.ExecutionSegment ***REMOVED***
@@ -83,7 +82,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 		***REMOVED***),
 	)
 	defer cancel()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	entries := logHook.Drain()
@@ -125,7 +124,7 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 			require.InDelta(t, 50, currentCount, 1)
 		***REMOVED***
 	***REMOVED***()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	err = executor.Run(ctx, engineOut)
 	wg.Wait()
 	require.NoError(t, err)
@@ -248,7 +247,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***()
 			startTime = time.Now()
-			engineOut := make(chan stats.SampleContainer, 1000)
+			engineOut := make(chan metrics.SampleContainer, 1000)
 			err = executor.Run(ctx, engineOut)
 			wg.Wait()
 			require.NoError(t, err)
@@ -291,7 +290,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 			go func() ***REMOVED***
 				defer wg.Done()
 
-				engineOut := make(chan stats.SampleContainer, 1000)
+				engineOut := make(chan metrics.SampleContainer, 1000)
 				errCh <- executor.Run(ctx, engineOut)
 				close(weAreDoneCh)
 			***REMOVED***()
@@ -341,7 +340,7 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	logs := logHook.Drain()
@@ -392,14 +391,14 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 
 			gotIters := []uint64***REMOVED******REMOVED***
 			var mx sync.Mutex
-			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
+			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- metrics.SampleContainer) error ***REMOVED***
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()
 				return nil
 			***REMOVED***
 
-			engineOut := make(chan stats.SampleContainer, 100)
+			engineOut := make(chan metrics.SampleContainer, 100)
 			err = executor.Run(ctx, engineOut)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expIters, gotIters)

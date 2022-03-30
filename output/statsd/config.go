@@ -28,7 +28,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 // config defines the StatsD configuration.
@@ -37,11 +37,11 @@ type config struct ***REMOVED***
 	BufferSize   null.Int           `json:"bufferSize,omitempty" envconfig:"K6_STATSD_BUFFER_SIZE"`
 	Namespace    null.String        `json:"namespace,omitempty" envconfig:"K6_STATSD_NAMESPACE"`
 	PushInterval types.NullDuration `json:"pushInterval,omitempty" envconfig:"K6_STATSD_PUSH_INTERVAL"`
-	TagBlocklist stats.TagSet       `json:"tagBlocklist,omitempty" envconfig:"K6_STATSD_TAG_BLOCKLIST"`
+	TagBlocklist metrics.TagSet     `json:"tagBlocklist,omitempty" envconfig:"K6_STATSD_TAG_BLOCKLIST"`
 	EnableTags   null.Bool          `json:"enableTags,omitempty" envconfig:"K6_STATSD_ENABLE_TAGS"`
 ***REMOVED***
 
-func processTags(t stats.TagSet, tags map[string]string) []string ***REMOVED***
+func processTags(t metrics.TagSet, tags map[string]string) []string ***REMOVED***
 	var res []string
 	for key, value := range tags ***REMOVED***
 		if value != "" && !t[key] ***REMOVED***
@@ -82,7 +82,7 @@ func newConfig() config ***REMOVED***
 		BufferSize:   null.NewInt(20, false),
 		Namespace:    null.NewString("k6.", false),
 		PushInterval: types.NewNullDuration(1*time.Second, false),
-		TagBlocklist: (stats.TagVU | stats.TagIter | stats.TagURL).Map(),
+		TagBlocklist: (metrics.TagVU | metrics.TagIter | metrics.TagURL).Map(),
 		EnableTags:   null.NewBool(false, false),
 	***REMOVED***
 ***REMOVED***

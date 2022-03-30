@@ -18,7 +18,7 @@
  *
  */
 
-package stats
+package metrics
 
 import (
 	"encoding/json"
@@ -29,6 +29,8 @@ import (
 )
 
 func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	tests := []struct ***REMOVED***
 		tagset   SystemTagSet
 		expected string
@@ -47,6 +49,8 @@ func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	tests := []struct ***REMOVED***
 		tags []byte
 		sets []SystemTagSet
@@ -65,6 +69,8 @@ func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	testMatrix := map[string]SystemTagSet***REMOVED***
 		"":                      0,
 		"ip":                    TagIP,
@@ -83,6 +89,8 @@ func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	tests := []struct ***REMOVED***
 		tagset   TagSet
 		expected string
@@ -100,6 +108,8 @@ func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	tests := []struct ***REMOVED***
 		tags []byte
 		sets TagSet
@@ -118,6 +128,8 @@ func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	testMatrix := map[string]TagSet***REMOVED***
 		"":                           make(TagSet),
 		"ip":                         ***REMOVED***"ip": true***REMOVED***,

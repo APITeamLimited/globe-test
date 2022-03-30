@@ -37,7 +37,7 @@ import (
 
 	"go.k6.io/k6/lib/consts"
 	"go.k6.io/k6/lib/fsext"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 func TestNormalizeAndAnonymizePath(t *testing.T) ***REMOVED***
@@ -142,7 +142,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 			K6Version: consts.Version,
 			Options: Options***REMOVED***
 				VUs:        null.IntFrom(12345),
-				SystemTags: &stats.DefaultSystemTagSet,
+				SystemTags: &metrics.DefaultSystemTagSet,
 			***REMOVED***,
 			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: "/path/to/a.js"***REMOVED***,
 			Data:        []byte(`// a contents`),
@@ -192,7 +192,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 				Type: "js",
 				Options: Options***REMOVED***
 					VUs:        null.IntFrom(12345),
-					SystemTags: &stats.DefaultSystemTagSet,
+					SystemTags: &metrics.DefaultSystemTagSet,
 				***REMOVED***,
 				FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: fmt.Sprintf("%s/a.js", entry.Pwd)***REMOVED***,
 				K6Version:   consts.Version,
@@ -215,7 +215,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 				Type: "js",
 				Options: Options***REMOVED***
 					VUs:        null.IntFrom(12345),
-					SystemTags: &stats.DefaultSystemTagSet,
+					SystemTags: &metrics.DefaultSystemTagSet,
 				***REMOVED***,
 				FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: fmt.Sprintf("%s/a.js", entry.PwdNormAnon)***REMOVED***,
 				K6Version:   consts.Version,
@@ -344,7 +344,7 @@ func TestStrangePaths(t *testing.T) ***REMOVED***
 			K6Version: consts.Version,
 			Options: Options***REMOVED***
 				VUs:        null.IntFrom(12345),
-				SystemTags: &stats.DefaultSystemTagSet,
+				SystemTags: &metrics.DefaultSystemTagSet,
 			***REMOVED***,
 			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: pathToChange***REMOVED***,
 			Data:        []byte(`// ` + pathToChange + ` contents`),

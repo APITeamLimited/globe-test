@@ -33,8 +33,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 // TODO: add option for emitting proper JSON files (https://github.com/k6io/k6/issues/737)
@@ -52,7 +52,7 @@ type Output struct ***REMOVED***
 	out         io.Writer
 	closeFn     func() error
 	seenMetrics map[string]struct***REMOVED******REMOVED***
-	thresholds  map[string][]*stats.Threshold
+	thresholds  map[string][]*metrics.Threshold
 ***REMOVED***
 
 // New returns a new JSON output.
@@ -131,8 +131,8 @@ func (o *Output) Stop() error ***REMOVED***
 ***REMOVED***
 
 // SetThresholds receives the thresholds before the output is Start()-ed.
-func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) ***REMOVED***
-	ths := make(map[string][]*stats.Threshold)
+func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) ***REMOVED***
+	ths := make(map[string][]*metrics.Threshold)
 	for name, t := range thresholds ***REMOVED***
 		ths[name] = append(ths[name], t.Thresholds...)
 	***REMOVED***
@@ -165,7 +165,7 @@ func (o *Output) flushMetrics() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (o *Output) handleMetric(m *stats.Metric, jw *jwriter.Writer) ***REMOVED***
+func (o *Output) handleMetric(m *metrics.Metric, jw *jwriter.Writer) ***REMOVED***
 	if _, ok := o.seenMetrics[m.Name]; ok ***REMOVED***
 		return
 	***REMOVED***

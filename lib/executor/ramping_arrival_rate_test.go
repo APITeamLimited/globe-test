@@ -38,7 +38,6 @@ import (
 	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig ***REMOVED***
@@ -80,7 +79,7 @@ func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED
 		***REMOVED***),
 	)
 	defer cancel()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	err = executor.Run(ctx, engineOut)
 	require.NoError(t, err)
 	entries := logHook.Drain()
@@ -128,7 +127,7 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		currentCount = atomic.SwapInt64(&count, 0)
 		assert.InDelta(t, 50, currentCount, 3)
 	***REMOVED***()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	err = executor.Run(ctx, engineOut)
 	wg.Wait()
 	require.NoError(t, err)
@@ -171,7 +170,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		es, runner)
 	defer cancel()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	es.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
@@ -234,7 +233,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 		***REMOVED***,
 		es, runner)
 	defer cancel()
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	es.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
 		t.Log("init")
 		cur := atomic.LoadInt64(&count)
@@ -287,7 +286,7 @@ func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
 		es, runner)
 	defer cancel()
 
-	engineOut := make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan metrics.SampleContainer, 1000)
 	defer close(engineOut)
 
 	err = executor.Run(ctx, engineOut)
@@ -309,7 +308,7 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
 		b.Run(fmt.Sprintf("VUs%d", tc.prealloc.ValueOrZero()), func(b *testing.B) ***REMOVED***
-			engineOut := make(chan stats.SampleContainer, 1000)
+			engineOut := make(chan metrics.SampleContainer, 1000)
 			defer close(engineOut)
 			go func() ***REMOVED***
 				for range engineOut ***REMOVED***
@@ -757,14 +756,14 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 
 			gotIters := []uint64***REMOVED******REMOVED***
 			var mx sync.Mutex
-			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
+			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- metrics.SampleContainer) error ***REMOVED***
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()
 				return nil
 			***REMOVED***
 
-			engineOut := make(chan stats.SampleContainer, 100)
+			engineOut := make(chan metrics.SampleContainer, 100)
 			err = executor.Run(ctx, engineOut)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expIters, gotIters)

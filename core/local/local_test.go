@@ -51,12 +51,11 @@ import (
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func newTestExecutionScheduler(
 	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options,
-) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan stats.SampleContainer) ***REMOVED***
+) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan metrics.SampleContainer) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
@@ -79,7 +78,7 @@ func newTestExecutionScheduler(
 	execScheduler, err = NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
-	samples = make(chan stats.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
+	samples = make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
 	go func() ***REMOVED***
 		for ***REMOVED***
 			select ***REMOVED***
@@ -147,7 +146,7 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 			defer cancel()
 
 			done := make(chan struct***REMOVED******REMOVED***)
-			samples := make(chan stats.SampleContainer)
+			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
 				err := execScheduler.Init(ctx, samples)
 				if tc.expErr != "" ***REMOVED***
@@ -259,7 +258,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			defer cancel()
 
 			done := make(chan struct***REMOVED******REMOVED***)
-			samples := make(chan stats.SampleContainer)
+			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
 				assert.NoError(t, execScheduler.Init(ctx, samples))
 				assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
@@ -268,7 +267,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			for ***REMOVED***
 				select ***REMOVED***
 				case sample := <-samples:
-					if s, ok := sample.(stats.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
+					if s, ok := sample.(metrics.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
 						assert.FailNow(t, "received error sample from test")
 					***REMOVED***
 				case <-done:
@@ -320,7 +319,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
-		SystemTags: &stats.DefaultSystemTagSet,
+		SystemTags: &metrics.DefaultSystemTagSet,
 	***REMOVED***)))
 
 	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
@@ -329,7 +328,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	samples := make(chan stats.SampleContainer)
+	samples := make(chan metrics.SampleContainer)
 	done := make(chan struct***REMOVED******REMOVED***)
 	go func() ***REMOVED***
 		defer close(done)
@@ -337,7 +336,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		require.NoError(t, execScheduler.Run(ctx, ctx, samples))
 	***REMOVED***()
 
-	expCommonTrailTags := stats.IntoSampleTags(&map[string]string***REMOVED***
+	expCommonTrailTags := metrics.IntoSampleTags(&map[string]string***REMOVED***
 		"group":             "",
 		"method":            "GET",
 		"name":              sr("HTTPBIN_IP_URL/"),
@@ -348,15 +347,15 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	expTrailPVUTagsRaw := expCommonTrailTags.CloneTags()
 	expTrailPVUTagsRaw["scenario"] = "per_vu_test"
-	expTrailPVUTags := stats.IntoSampleTags(&expTrailPVUTagsRaw)
+	expTrailPVUTags := metrics.IntoSampleTags(&expTrailPVUTagsRaw)
 	expTrailSITagsRaw := expCommonTrailTags.CloneTags()
 	expTrailSITagsRaw["scenario"] = "shared_test"
-	expTrailSITags := stats.IntoSampleTags(&expTrailSITagsRaw)
-	expNetTrailPVUTags := stats.IntoSampleTags(&map[string]string***REMOVED***
+	expTrailSITags := metrics.IntoSampleTags(&expTrailSITagsRaw)
+	expNetTrailPVUTags := metrics.IntoSampleTags(&map[string]string***REMOVED***
 		"group":    "",
 		"scenario": "per_vu_test",
 	***REMOVED***)
-	expNetTrailSITags := stats.IntoSampleTags(&map[string]string***REMOVED***
+	expNetTrailSITags := metrics.IntoSampleTags(&map[string]string***REMOVED***
 		"group":    "",
 		"scenario": "shared_test",
 	***REMOVED***)
@@ -467,7 +466,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			defer cancel()
 
 			done := make(chan struct***REMOVED******REMOVED***)
-			samples := make(chan stats.SampleContainer)
+			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
 				defer close(done)
 				require.NoError(t, execScheduler.Init(ctx, samples))
@@ -629,7 +628,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	samples := make(chan stats.SampleContainer)
+	samples := make(chan metrics.SampleContainer)
 	go func() ***REMOVED***
 		assert.NoError(t, execScheduler.Init(ctx, samples))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
@@ -654,7 +653,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	var gotSampleTags int
 	for sample := range samples ***REMOVED***
 		switch s := sample.(type) ***REMOVED***
-		case stats.Sample:
+		case metrics.Sample:
 			if s.Metric.Name == "errors" ***REMOVED***
 				assert.FailNow(t, "received error sample from test")
 			***REMOVED***
@@ -680,7 +679,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 					gotSampleTags++
 				***REMOVED***
 			***REMOVED***
-		case stats.ConnectedSamples:
+		case metrics.ConnectedSamples:
 			for _, sm := range s.Samples ***REMOVED***
 				tags := sm.Tags.CloneTags()
 				if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
@@ -699,11 +698,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 		setupC := make(chan struct***REMOVED******REMOVED***)
 		teardownC := make(chan struct***REMOVED******REMOVED***)
 		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) ***REMOVED***
 				close(setupC)
 				return nil, nil
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
 				close(teardownC)
 				return nil
 			***REMOVED***,
@@ -720,7 +719,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
 		***REMOVED***
@@ -731,10 +730,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
@@ -750,10 +749,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, nil
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
@@ -768,10 +767,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, nil
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
@@ -816,7 +815,7 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			runner := &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+				Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 					time.Sleep(100 * time.Millisecond)
 					return nil
 				***REMOVED***,
@@ -835,7 +834,7 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		***REMOVED***,
@@ -860,7 +859,7 @@ func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			time.Sleep(10 * time.Millisecond)
 			return errors.New("hi")
 		***REMOVED***,
@@ -898,7 +897,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return errors.New("hi")
 		***REMOVED***,
@@ -925,7 +924,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 
 func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
+	metric := &metrics.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
 	options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
@@ -936,13 +935,13 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 
 	var i int64
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			select ***REMOVED***
 			case <-ctx.Done():
 			default:
 				atomic.AddInt64(&i, 1)
 			***REMOVED***
-			out <- stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***
+			out <- metrics.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***
 			return nil
 		***REMOVED***,
 		Options: options,
@@ -959,7 +958,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	execScheduler, err := NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
-	samples := make(chan stats.SampleContainer, 300)
+	samples := make(chan metrics.SampleContainer, 300)
 	require.NoError(t, execScheduler.Init(ctx, samples))
 	require.NoError(t, execScheduler.Run(ctx, ctx, samples))
 
@@ -970,14 +969,14 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	for i := 0; i < 100; i++ ***REMOVED***
 		mySample, ok := <-samples
 		require.True(t, ok)
-		assert.Equal(t, stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, mySample)
+		assert.Equal(t, metrics.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, mySample)
 	***REMOVED***
 ***REMOVED***
 
 func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return nil
 		***REMOVED***,
@@ -1153,7 +1152,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
-		SystemTags:      &stats.DefaultSystemTagSet,
+		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(4 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(4 * time.Second),
 	***REMOVED***), nil)
@@ -1167,14 +1166,14 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	done := make(chan struct***REMOVED******REMOVED***)
-	sampleContainers := make(chan stats.SampleContainer)
+	sampleContainers := make(chan metrics.SampleContainer)
 	go func() ***REMOVED***
 		require.NoError(t, execScheduler.Init(ctx, sampleContainers))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers))
 		close(done)
 	***REMOVED***()
 
-	expectIn := func(from, to time.Duration, expected stats.SampleContainer) ***REMOVED***
+	expectIn := func(from, to time.Duration, expected metrics.SampleContainer) ***REMOVED***
 		start := time.Now()
 		from *= time.Millisecond
 		to *= time.Millisecond
@@ -1220,24 +1219,24 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	getTags := func(args ...string) *stats.SampleTags ***REMOVED***
+	getTags := func(args ...string) *metrics.SampleTags ***REMOVED***
 		tags := map[string]string***REMOVED******REMOVED***
 		for i := 0; i < len(args)-1; i += 2 ***REMOVED***
 			tags[args[i]] = args[i+1]
 		***REMOVED***
-		return stats.IntoSampleTags(&tags)
+		return metrics.IntoSampleTags(&tags)
 	***REMOVED***
-	testCounter, err := registry.NewMetric("test_counter", stats.Counter)
+	testCounter, err := registry.NewMetric("test_counter", metrics.Counter)
 	require.NoError(t, err)
-	getSample := func(expValue float64, expMetric *stats.Metric, expTags ...string) stats.SampleContainer ***REMOVED***
-		return stats.Sample***REMOVED***
+	getSample := func(expValue float64, expMetric *metrics.Metric, expTags ...string) metrics.SampleContainer ***REMOVED***
+		return metrics.Sample***REMOVED***
 			Metric: expMetric,
 			Time:   time.Now(),
 			Tags:   getTags(expTags...),
 			Value:  expValue,
 		***REMOVED***
 	***REMOVED***
-	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) stats.SampleContainer ***REMOVED***
+	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) metrics.SampleContainer ***REMOVED***
 		expTags := []string***REMOVED***"group", group***REMOVED***
 		expTags = append(expTags, addExpTags...)
 		return netext.NewDialer(

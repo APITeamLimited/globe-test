@@ -24,20 +24,18 @@ import (
 	"fmt"
 	"regexp"
 	"sync"
-
-	"go.k6.io/k6/stats"
 )
 
 // Registry is what can create metrics
 type Registry struct ***REMOVED***
-	metrics map[string]*stats.Metric
+	metrics map[string]*Metric
 	l       sync.RWMutex
 ***REMOVED***
 
 // NewRegistry returns a new registry
 func NewRegistry() *Registry ***REMOVED***
 	return &Registry***REMOVED***
-		metrics: make(map[string]*stats.Metric),
+		metrics: make(map[string]*Metric),
 	***REMOVED***
 ***REMOVED***
 
@@ -51,7 +49,7 @@ func checkName(name string) bool ***REMOVED***
 
 // NewMetric returns new metric registered to this registry
 // TODO have multiple versions returning specific metric types when we have such things
-func (r *Registry) NewMetric(name string, typ stats.MetricType, t ...stats.ValueType) (*stats.Metric, error) ***REMOVED***
+func (r *Registry) NewMetric(name string, typ MetricType, t ...ValueType) (*Metric, error) ***REMOVED***
 	r.l.Lock()
 	defer r.l.Unlock()
 
@@ -78,7 +76,7 @@ func (r *Registry) NewMetric(name string, typ stats.MetricType, t ...stats.Value
 ***REMOVED***
 
 // MustNewMetric is like NewMetric, but will panic if there is an error
-func (r *Registry) MustNewMetric(name string, typ stats.MetricType, t ...stats.ValueType) *stats.Metric ***REMOVED***
+func (r *Registry) MustNewMetric(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 	m, err := r.NewMetric(name, typ, t...)
 	if err != nil ***REMOVED***
 		panic(err)
@@ -88,32 +86,6 @@ func (r *Registry) MustNewMetric(name string, typ stats.MetricType, t ...stats.V
 
 // Get returns the Metric with the given name. If that metric doesn't exist,
 // Get() will return a nil value.
-func (r *Registry) Get(name string) *stats.Metric ***REMOVED***
+func (r *Registry) Get(name string) *Metric ***REMOVED***
 	return r.metrics[name]
-***REMOVED***
-
-func newMetric(name string, mt stats.MetricType, vt ...stats.ValueType) *stats.Metric ***REMOVED***
-	valueType := stats.Default
-	if len(vt) > 0 ***REMOVED***
-		valueType = vt[0]
-	***REMOVED***
-	var sink stats.Sink
-	switch mt ***REMOVED***
-	case stats.Counter:
-		sink = &stats.CounterSink***REMOVED******REMOVED***
-	case stats.Gauge:
-		sink = &stats.GaugeSink***REMOVED******REMOVED***
-	case stats.Trend:
-		sink = &stats.TrendSink***REMOVED******REMOVED***
-	case stats.Rate:
-		sink = &stats.RateSink***REMOVED******REMOVED***
-	default:
-		return nil
-	***REMOVED***
-	return &stats.Metric***REMOVED***
-		Name:     name,
-		Type:     mt,
-		Contains: valueType,
-		Sink:     sink,
-	***REMOVED***
 ***REMOVED***

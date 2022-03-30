@@ -7,7 +7,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	stats "go.k6.io/k6/stats"
+	metrics "go.k6.io/k6/metrics"
 )
 
 // suppress unused package warning
@@ -113,7 +113,7 @@ func easyjson9def2ecdDecodeGoK6IoK6OutputCloud1(in *jlexer.Lexer, out *SampleDat
 				out.Tags = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Tags == nil ***REMOVED***
-					out.Tags = new(stats.SampleTags)
+					out.Tags = new(metrics.SampleTags)
 				***REMOVED***
 				if data := in.Raw(); in.Ok() ***REMOVED***
 					in.AddError((*out.Tags).UnmarshalJSON(data))
@@ -198,7 +198,7 @@ func easyjson9def2ecdDecodeGoK6IoK6OutputCloud2(in *jlexer.Lexer, out *SampleDat
 				out.Tags = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Tags == nil ***REMOVED***
-					out.Tags = new(stats.SampleTags)
+					out.Tags = new(metrics.SampleTags)
 				***REMOVED***
 				if data := in.Raw(); in.Ok() ***REMOVED***
 					in.AddError((*out.Tags).UnmarshalJSON(data))
@@ -315,7 +315,7 @@ func easyjson9def2ecdDecodeGoK6IoK6OutputCloud3(in *jlexer.Lexer, out *SampleDat
 				out.Tags = nil
 			***REMOVED*** else ***REMOVED***
 				if out.Tags == nil ***REMOVED***
-					out.Tags = new(stats.SampleTags)
+					out.Tags = new(metrics.SampleTags)
 				***REMOVED***
 				if data := in.Raw(); in.Ok() ***REMOVED***
 					in.AddError((*out.Tags).UnmarshalJSON(data))

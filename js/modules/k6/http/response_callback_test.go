@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func TestExpectedStatuses(t *testing.T) ***REMOVED***
@@ -278,7 +277,7 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 
 			_, err := rt.RunString(sr(testCase.code))
 			assert.NoError(t, err)
-			bufSamples := stats.GetBufferedSamples(samples)
+			bufSamples := metrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
 			for _, container := range bufSamples ***REMOVED***
@@ -387,7 +386,7 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 
 			_, err := rt.RunString(sr(testCase.code))
 			assert.NoError(t, err)
-			bufSamples := stats.GetBufferedSamples(samples)
+			bufSamples := metrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
 			for _, container := range bufSamples ***REMOVED***
@@ -427,11 +426,11 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 		metrics.HTTPReqWaitingName,
 		metrics.HTTPReqTLSHandshakingName,
 	***REMOVED***
-	deleteSystemTag(state, stats.TagExpectedResponse.String())
+	deleteSystemTag(state, metrics.TagExpectedResponse.String())
 
 	_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/redirect/1", null, ***REMOVED***responseCallback: http.expectedStatuses(200)***REMOVED***);`))
 	assert.NoError(t, err)
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
 	for _, container := range bufSamples ***REMOVED***
@@ -452,7 +451,7 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 		"group":  "",
 		"proto":  "HTTP/1.1",
 	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample stats.Sample) ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
 		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 1)
 		***REMOVED***
@@ -460,7 +459,7 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 	tags["url"] = sr("HTTPBIN_URL/get")
 	tags["name"] = tags["url"]
 	tags["status"] = "200"
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample stats.Sample) ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
 		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
@@ -492,7 +491,7 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		if (res.error_code !== 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
 	`, urlWithCreds))
 	require.NoError(t, err)
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
 	for _, container := range bufSamples ***REMOVED***
@@ -518,14 +517,14 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		"expected_response": "true",
 		"error_code":        "1401",
 	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample stats.Sample) ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
 		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
 	***REMOVED***)
 	tags["status"] = "200"
 	delete(tags, "error_code")
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample stats.Sample) ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
 		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
@@ -539,5 +538,5 @@ func deleteSystemTag(state *lib.State, tag string) ***REMOVED***
 	for k := range enabledTags ***REMOVED***
 		tagsList = append(tagsList, k)
 	***REMOVED***
-	state.Options.SystemTags = stats.ToSystemTagSet(tagsList)
+	state.Options.SystemTags = metrics.ToSystemTagSet(tagsList)
 ***REMOVED***

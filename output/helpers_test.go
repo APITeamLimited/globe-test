@@ -30,41 +30,40 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func TestSampleBufferBasics(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", stats.Rate)
+	metric, err := registry.NewMetric("my_metric", metrics.Rate)
 	require.NoError(t, err)
 
-	single := stats.Sample***REMOVED***
+	single := metrics.Sample***REMOVED***
 		Time:   time.Now(),
 		Metric: metric,
 		Value:  float64(123),
-		Tags:   stats.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
+		Tags:   metrics.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
 	***REMOVED***
-	connected := stats.ConnectedSamples***REMOVED***Samples: []stats.Sample***REMOVED***single, single***REMOVED***, Time: single.Time***REMOVED***
+	connected := metrics.ConnectedSamples***REMOVED***Samples: []metrics.Sample***REMOVED***single, single***REMOVED***, Time: single.Time***REMOVED***
 	buffer := SampleBuffer***REMOVED******REMOVED***
 
 	assert.Empty(t, buffer.GetBufferedSamples())
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***single, single***REMOVED***)
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***single, connected, single***REMOVED***)
-	assert.Equal(t, []stats.SampleContainer***REMOVED***single, single, single, connected, single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***single, single***REMOVED***)
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***single, connected, single***REMOVED***)
+	assert.Equal(t, []metrics.SampleContainer***REMOVED***single, single, single, connected, single***REMOVED***, buffer.GetBufferedSamples())
 	assert.Empty(t, buffer.GetBufferedSamples())
 
 	// Verify some internals
 	assert.Equal(t, cap(buffer.buffer), 5)
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***single, connected***REMOVED***)
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***single, connected***REMOVED***)
 	buffer.AddMetricSamples(nil)
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED******REMOVED***)
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***single***REMOVED***)
-	assert.Equal(t, []stats.SampleContainer***REMOVED***single, connected, single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED******REMOVED***)
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***single***REMOVED***)
+	assert.Equal(t, []metrics.SampleContainer***REMOVED***single, connected, single***REMOVED***, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 4)
-	buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***single***REMOVED***)
-	assert.Equal(t, []stats.SampleContainer***REMOVED***single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***single***REMOVED***)
+	assert.Equal(t, []metrics.SampleContainer***REMOVED***single***REMOVED***, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 3)
 	assert.Empty(t, buffer.GetBufferedSamples())
 ***REMOVED***
@@ -77,7 +76,7 @@ func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
 	t.Logf("Random source seeded with %d\n", seed)
 
 	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", stats.Gauge)
+	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 	require.NoError(t, err)
 
 	producersCount := 50 + r.Intn(50)
@@ -88,11 +87,11 @@ func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
 	wg := make(chan struct***REMOVED******REMOVED***)
 	fillBuffer := func() ***REMOVED***
 		for i := 0; i < sampleCount; i++ ***REMOVED***
-			buffer.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+			buffer.AddMetricSamples([]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***
 				Time:   time.Unix(1562324644, 0),
 				Metric: metric,
 				Value:  float64(i),
-				Tags:   stats.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
+				Tags:   metrics.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
 			***REMOVED******REMOVED***)
 			time.Sleep(time.Duration(i*sleepModifier) * time.Microsecond)
 		***REMOVED***
@@ -105,7 +104,7 @@ func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
 	timer := time.NewTicker(5 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
 	defer timer.Stop()
-	readSamples := make([]stats.SampleContainer, 0, sampleCount*producersCount)
+	readSamples := make([]metrics.SampleContainer, 0, sampleCount*producersCount)
 	finishedProducers := 0
 loop:
 	for ***REMOVED***

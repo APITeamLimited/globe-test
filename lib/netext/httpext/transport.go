@@ -31,7 +31,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/netext"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 // transport is an implementation of http.RoundTripper that will measure and emit
@@ -106,9 +106,9 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	***REMOVED***
 
 	enabledTags := t.state.Options.SystemTags
-	urlEnabled := enabledTags.Has(stats.TagURL)
+	urlEnabled := enabledTags.Has(metrics.TagURL)
 	var setName bool
-	if _, ok := tags["name"]; !ok && enabledTags.Has(stats.TagName) ***REMOVED***
+	if _, ok := tags["name"]; !ok && enabledTags.Has(metrics.TagName) ***REMOVED***
 		setName = true
 	***REMOVED***
 	if urlEnabled || setName ***REMOVED***
@@ -121,49 +121,49 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 		***REMOVED***
 	***REMOVED***
 
-	if enabledTags.Has(stats.TagMethod) ***REMOVED***
+	if enabledTags.Has(metrics.TagMethod) ***REMOVED***
 		tags["method"] = unfReq.request.Method
 	***REMOVED***
 
 	if unfReq.err != nil ***REMOVED***
 		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
-		if enabledTags.Has(stats.TagError) ***REMOVED***
+		if enabledTags.Has(metrics.TagError) ***REMOVED***
 			tags["error"] = result.errorMsg
 		***REMOVED***
 
-		if enabledTags.Has(stats.TagErrorCode) ***REMOVED***
+		if enabledTags.Has(metrics.TagErrorCode) ***REMOVED***
 			tags["error_code"] = strconv.Itoa(int(result.errorCode))
 		***REMOVED***
 
-		if enabledTags.Has(stats.TagStatus) ***REMOVED***
+		if enabledTags.Has(metrics.TagStatus) ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if enabledTags.Has(stats.TagStatus) ***REMOVED***
+		if enabledTags.Has(metrics.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		***REMOVED***
 		if unfReq.response.StatusCode >= 400 ***REMOVED***
-			if enabledTags.Has(stats.TagErrorCode) ***REMOVED***
+			if enabledTags.Has(metrics.TagErrorCode) ***REMOVED***
 				result.errorCode = errCode(1000 + unfReq.response.StatusCode)
 				tags["error_code"] = strconv.Itoa(int(result.errorCode))
 			***REMOVED***
 		***REMOVED***
-		if enabledTags.Has(stats.TagProto) ***REMOVED***
+		if enabledTags.Has(metrics.TagProto) ***REMOVED***
 			tags["proto"] = unfReq.response.Proto
 		***REMOVED***
 
 		if unfReq.response.TLS != nil ***REMOVED***
 			tlsInfo, oscp := netext.ParseTLSConnState(unfReq.response.TLS)
-			if enabledTags.Has(stats.TagTLSVersion) ***REMOVED***
+			if enabledTags.Has(metrics.TagTLSVersion) ***REMOVED***
 				tags["tls_version"] = tlsInfo.Version
 			***REMOVED***
-			if enabledTags.Has(stats.TagOCSPStatus) ***REMOVED***
+			if enabledTags.Has(metrics.TagOCSPStatus) ***REMOVED***
 				tags["ocsp_status"] = oscp.Status
 			***REMOVED***
 			result.tlsInfo = tlsInfo
 		***REMOVED***
 	***REMOVED***
-	if enabledTags.Has(stats.TagIP) && trail.ConnRemoteAddr != nil ***REMOVED***
+	if enabledTags.Has(metrics.TagIP) && trail.ConnRemoteAddr != nil ***REMOVED***
 		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***
@@ -179,12 +179,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			failed = 1
 		***REMOVED***
 
-		if enabledTags.Has(stats.TagExpectedResponse) ***REMOVED***
-			tags[stats.TagExpectedResponse.String()] = strconv.FormatBool(expected)
+		if enabledTags.Has(metrics.TagExpectedResponse) ***REMOVED***
+			tags[metrics.TagExpectedResponse.String()] = strconv.FormatBool(expected)
 		***REMOVED***
 	***REMOVED***
 
-	finalTags := stats.IntoSampleTags(&tags)
+	finalTags := metrics.IntoSampleTags(&tags)
 	builtinMetrics := t.state.BuiltinMetrics
 	trail.SaveSamples(builtinMetrics, finalTags)
 	if t.responseCallback != nil ***REMOVED***
@@ -193,12 +193,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			trail.Failed.Bool = true
 		***REMOVED***
 		trail.Samples = append(trail.Samples,
-			stats.Sample***REMOVED***
+			metrics.Sample***REMOVED***
 				Metric: builtinMetrics.HTTPReqFailed, Time: trail.EndTime, Tags: finalTags, Value: failed,
 			***REMOVED***,
 		)
 	***REMOVED***
-	stats.PushIfNotDone(t.ctx, t.state.Samples, trail)
+	metrics.PushIfNotDone(t.ctx, t.state.Samples, trail)
 
 	return result
 ***REMOVED***

@@ -23,7 +23,7 @@ package json
 import (
 	"time"
 
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 //go:generate easyjson -pkg -no_std_marshalers -gen_build_flags -mod=mod .
@@ -34,14 +34,14 @@ type sampleEnvelope struct ***REMOVED***
 	Data struct ***REMOVED***
 		Time  time.Time         `json:"time"`
 		Value float64           `json:"value"`
-		Tags  *stats.SampleTags `json:"tags"`
+		Tags  *metrics.SampleTags `json:"tags"`
 	***REMOVED*** `json:"data"`
 	Metric string `json:"metric"`
 ***REMOVED***
 
 // wrapSample is used to package a metric sample in a way that's nice to export
 // to JSON.
-func wrapSample(sample stats.Sample) sampleEnvelope ***REMOVED***
+func wrapSample(sample metrics.Sample) sampleEnvelope ***REMOVED***
 	s := sampleEnvelope***REMOVED***
 		Type:   "Point",
 		Metric: sample.Metric.Name,
@@ -55,11 +55,11 @@ func wrapSample(sample stats.Sample) sampleEnvelope ***REMOVED***
 //easyjson:json
 type metricEnvelope struct ***REMOVED***
 	Type   string        `json:"type"`
-	Data   *stats.Metric `json:"data"`
+	Data   *metrics.Metric `json:"data"`
 	Metric string        `json:"metric"`
 ***REMOVED***
 
-func wrapMetric(metric *stats.Metric) metricEnvelope ***REMOVED***
+func wrapMetric(metric *metrics.Metric) metricEnvelope ***REMOVED***
 	return metricEnvelope***REMOVED***
 		Type:   "Metric",
 		Metric: metric.Name,

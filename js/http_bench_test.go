@@ -30,7 +30,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 )
 
 func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
@@ -56,7 +56,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 
-	ch := make(chan stats.SampleContainer, 100)
+	ch := make(chan metrics.SampleContainer, 100)
 	defer close(ch)
 	go func() ***REMOVED*** // read the channel so it doesn't block
 		for range ch ***REMOVED***
@@ -99,7 +99,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 
-	ch := make(chan stats.SampleContainer, 100)
+	ch := make(chan metrics.SampleContainer, 100)
 	defer close(ch)
 	go func() ***REMOVED*** // read the channel so it doesn't block
 		for range ch ***REMOVED***

@@ -34,7 +34,6 @@ import (
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/stats"
 )
 
 func TestFail(t *testing.T) ***REMOVED***
@@ -161,10 +160,10 @@ func TestGroup(t *testing.T) ***REMOVED***
 		rt := goja.New()
 		state := &lib.State***REMOVED***
 			Group:   root,
-			Samples: make(chan stats.SampleContainer, 1000),
+			Samples: make(chan metrics.SampleContainer, 1000),
 			Tags:    lib.NewTagMap(nil),
 			Options: lib.Options***REMOVED***
-				SystemTags: stats.NewSystemTagSet(stats.TagGroup),
+				SystemTags: metrics.NewSystemTagSet(metrics.TagGroup),
 			***REMOVED***,
 		***REMOVED***
 		state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
@@ -209,16 +208,16 @@ func TestGroup(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func checkTestRuntime(t testing.TB) (*goja.Runtime, chan stats.SampleContainer, *metrics.BuiltinMetrics) ***REMOVED***
+func checkTestRuntime(t testing.TB) (*goja.Runtime, chan metrics.SampleContainer, *metrics.BuiltinMetrics) ***REMOVED***
 	rt := goja.New()
 
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group: root,
 		Options: lib.Options***REMOVED***
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples: samples,
 		Tags: lib.NewTagMap(map[string]string***REMOVED***
@@ -248,9 +247,9 @@ func TestCheckObject(t *testing.T) ***REMOVED***
 	_, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 	assert.NoError(t, err)
 
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(stats.Sample)
+		sample, ok := bufSamples[0].(metrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
@@ -269,7 +268,7 @@ func TestCheckObject(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(`k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
 		assert.NoError(t, err)
 
-		bufSamples := stats.GetBufferedSamples(samples)
+		bufSamples := metrics.GetBufferedSamples(samples)
 		assert.Len(t, bufSamples, 2)
 		var foundA, foundB bool
 		for _, sampleC := range bufSamples ***REMOVED***
@@ -307,9 +306,9 @@ func TestCheckArray(t *testing.T) ***REMOVED***
 	_, err := rt.RunString(`k6.check(null, [ true ])`)
 	assert.NoError(t, err)
 
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(stats.Sample)
+		sample, ok := bufSamples[0].(metrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
@@ -328,7 +327,7 @@ func TestCheckLiteral(t *testing.T) ***REMOVED***
 
 	_, err := rt.RunString(`k6.check(null, 12345)`)
 	assert.NoError(t, err)
-	assert.Len(t, stats.GetBufferedSamples(samples), 0)
+	assert.Len(t, metrics.GetBufferedSamples(samples), 0)
 ***REMOVED***
 
 func TestCheckNull(t *testing.T) ***REMOVED***
@@ -338,7 +337,7 @@ func TestCheckNull(t *testing.T) ***REMOVED***
 	_, err := rt.RunString(`k6.check(5)`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no checks provided")
-	assert.Len(t, stats.GetBufferedSamples(samples), 0)
+	assert.Len(t, metrics.GetBufferedSamples(samples), 0)
 ***REMOVED***
 
 func TestCheckThrows(t *testing.T) ***REMOVED***
@@ -352,9 +351,9 @@ func TestCheckThrows(t *testing.T) ***REMOVED***
 		`)
 	assert.EqualError(t, err, "Error: error A at a (<eval>:3:28(3))")
 
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(stats.Sample)
+		sample, ok := bufSamples[0].(metrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
@@ -401,9 +400,9 @@ func TestCheckTypes(t *testing.T) ***REMOVED***
 						assert.Equal(t, succ, v.Export())
 					***REMOVED***
 
-					bufSamples := stats.GetBufferedSamples(samples)
+					bufSamples := metrics.GetBufferedSamples(samples)
 					if assert.Len(t, bufSamples, 1) ***REMOVED***
-						sample, ok := bufSamples[0].(stats.Sample)
+						sample, ok := bufSamples[0].(metrics.Sample)
 						require.True(t, ok)
 
 						assert.NotZero(t, sample.Time)
@@ -432,11 +431,11 @@ func TestCheckContextExpiry(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
 	require.NoError(t, err)
 
-	samples := make(chan stats.SampleContainer, 1000)
+	samples := make(chan metrics.SampleContainer, 1000)
 	state := &lib.State***REMOVED***
 		Group: root,
 		Options: lib.Options***REMOVED***
-			SystemTags: &stats.DefaultSystemTagSet,
+			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples: samples,
 		Tags: lib.NewTagMap(map[string]string***REMOVED***
@@ -484,9 +483,9 @@ func TestCheckTags(t *testing.T) ***REMOVED***
 		assert.Equal(t, true, v.Export())
 	***REMOVED***
 
-	bufSamples := stats.GetBufferedSamples(samples)
+	bufSamples := metrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(stats.Sample)
+		sample, ok := bufSamples[0].(metrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)

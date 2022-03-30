@@ -32,7 +32,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/stats"
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/ui/pb"
 )
 
@@ -151,7 +151,7 @@ var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 
 // Run executes a specific number of iterations with each configured VU.
 // nolint:funlen
-func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer) (err error) ***REMOVED***
 	numVUs := pvi.config.GetVUs(pvi.executionState.ExecutionTuple)
 	iterations := pvi.config.GetIterations()
 	duration := pvi.config.MaxDuration.TimeDuration()
@@ -225,7 +225,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 		for i := int64(0); i < iterations; i++ ***REMOVED***
 			select ***REMOVED***
 			case <-regDurationDone:
-				stats.PushIfNotDone(parentCtx, out, stats.Sample***REMOVED***
+				metrics.PushIfNotDone(parentCtx, out, metrics.Sample***REMOVED***
 					Value: float64(iterations - i), Metric: droppedIterationMetric,
 					Tags: pvi.getMetricTags(&vuID), Time: time.Now(),
 				***REMOVED***)

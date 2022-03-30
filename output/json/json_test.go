@@ -35,7 +35,6 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 func getValidator(t testing.TB, expected []string) func(io.Reader) ***REMOVED***
@@ -55,28 +54,29 @@ func getValidator(t testing.TB, expected []string) func(io.Reader) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func generateTestMetricSamples(t testing.TB) ([]stats.SampleContainer, func(io.Reader)) ***REMOVED***
+func generateTestMetricSamples(t testing.TB) ([]metrics.SampleContainer, func(io.Reader)) ***REMOVED***
 	registry := metrics.NewRegistry()
 
-	metric1, err := registry.NewMetric("my_metric1", stats.Gauge)
+	metric1, err := registry.NewMetric("my_metric1", metrics.Gauge)
 	require.NoError(t, err)
 
-	metric2, err := registry.NewMetric("my_metric2", stats.Counter, stats.Data)
+	metric2, err := registry.NewMetric("my_metric2", metrics.Counter, metrics.Data)
 	require.NoError(t, err)
 
 	time1 := time.Date(2021, time.February, 24, 13, 37, 10, 0, time.UTC)
 	time2 := time1.Add(10 * time.Second)
 	time3 := time2.Add(10 * time.Second)
-	connTags := stats.NewSampleTags(map[string]string***REMOVED***"key": "val"***REMOVED***)
 
-	samples := []stats.SampleContainer***REMOVED***
-		stats.Sample***REMOVED***Time: time1, Metric: metric1, Value: float64(1), Tags: stats.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***)***REMOVED***,
-		stats.Sample***REMOVED***Time: time1, Metric: metric1, Value: float64(2), Tags: stats.NewSampleTags(map[string]string***REMOVED***"tag2": "val2"***REMOVED***)***REMOVED***,
-		stats.ConnectedSamples***REMOVED***Samples: []stats.Sample***REMOVED***
+	connTags := metrics.NewSampleTags(map[string]string***REMOVED***"key": "val"***REMOVED***)
+
+	samples := []metrics.SampleContainer***REMOVED***
+		metrics.Sample***REMOVED***Time: time1, Metric: metric1, Value: float64(1), Tags: metrics.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***)***REMOVED***,
+		metrics.Sample***REMOVED***Time: time1, Metric: metric1, Value: float64(2), Tags: metrics.NewSampleTags(map[string]string***REMOVED***"tag2": "val2"***REMOVED***)***REMOVED***,
+		metrics.ConnectedSamples***REMOVED***Samples: []metrics.Sample***REMOVED***
 			***REMOVED***Time: time2, Metric: metric2, Value: float64(3), Tags: connTags***REMOVED***,
 			***REMOVED***Time: time2, Metric: metric1, Value: float64(4), Tags: connTags***REMOVED***,
 		***REMOVED***, Time: time2, Tags: connTags***REMOVED***,
-		stats.Sample***REMOVED***Time: time3, Metric: metric2, Value: float64(5), Tags: stats.NewSampleTags(map[string]string***REMOVED***"tag3": "val3"***REMOVED***)***REMOVED***,
+		metrics.Sample***REMOVED***Time: time3, Metric: metric2, Value: float64(5), Tags: metrics.NewSampleTags(map[string]string***REMOVED***"tag3": "val3"***REMOVED***)***REMOVED***,
 	***REMOVED***
 	expected := []string***REMOVED***
 		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01","p(99)<250"],"submetrics":null***REMOVED***,"metric":"my_metric1"***REMOVED***`,
@@ -186,15 +186,15 @@ func TestJsonOutputFileGzipped(t *testing.T) ***REMOVED***
 
 func TestWrapSampleWithSamplePointer(t *testing.T) ***REMOVED***
 	t.Parallel()
-	out := wrapSample(stats.Sample***REMOVED***
-		Metric: &stats.Metric***REMOVED******REMOVED***,
+	out := wrapSample(metrics.Sample***REMOVED***
+		Metric: &metrics.Metric***REMOVED******REMOVED***,
 	***REMOVED***)
 	assert.NotEqual(t, out, (*sampleEnvelope)(nil))
 ***REMOVED***
 
 func TestWrapMetricWithMetricPointer(t *testing.T) ***REMOVED***
 	t.Parallel()
-	out := wrapMetric(&stats.Metric***REMOVED******REMOVED***)
+	out := wrapMetric(&metrics.Metric***REMOVED******REMOVED***)
 	assert.NotEqual(t, out, (*metricEnvelope)(nil))
 ***REMOVED***
 
@@ -204,7 +204,7 @@ func setThresholds(t *testing.T, out output.Output) ***REMOVED***
 	jout, ok := out.(*Output)
 	require.True(t, ok)
 
-	ts := stats.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
+	ts := metrics.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
 
-	jout.SetThresholds(map[string]stats.Thresholds***REMOVED***"my_metric1": ts***REMOVED***)
+	jout.SetThresholds(map[string]metrics.Thresholds***REMOVED***"my_metric1": ts***REMOVED***)
 ***REMOVED***
