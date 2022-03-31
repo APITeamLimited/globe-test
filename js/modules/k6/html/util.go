@@ -65,7 +65,7 @@ func valueOrHTML(s *goquery.Selection) string ***REMOVED***
 	return ""
 ***REMOVED***
 
-func getHtmlAttr(node *gohtml.Node, name string) *gohtml.Attribute ***REMOVED***
+func getHTMLAttr(node *gohtml.Node, name string) *gohtml.Attribute ***REMOVED***
 	for i := 0; i < len(node.Attr); i++ ***REMOVED***
 		if node.Attr[i].Key == name ***REMOVED***
 			return &node.Attr[i]

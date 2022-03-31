@@ -423,9 +423,9 @@ func (f FormElement) Method() string ***REMOVED***
 ***REMOVED***
 
 func (i InputElement) List() goja.Value ***REMOVED***
-	listId := i.attrAsString("list")
+	listID := i.attrAsString("list")
 
-	if listId == "" ***REMOVED***
+	if listID == "" ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
@@ -442,7 +442,7 @@ func (i InputElement) List() goja.Value ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
-	datalist := i.sel.sel.Parents().Last().Find("datalist[id=\"" + listId + "\"]")
+	datalist := i.sel.sel.Parents().Last().Find("datalist[id=\"" + listID + "\"]")
 	if datalist.Length() == 0 ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
@@ -528,12 +528,12 @@ func (o OptionElement) Form() goja.Value ***REMOVED***
 	***REMOVED***
 
 	prtSelect := o.sel.sel.ParentsFiltered("select")
-	formId, exists := prtSelect.Attr("form")
+	formID, exists := prtSelect.Attr("form")
 	if !exists ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
-	ownerForm := prtSelect.Parents().Last().Find("form#" + formId)
+	ownerForm := prtSelect.Parents().Last().Find("form#" + formID)
 	if ownerForm.Length() == 0 ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
