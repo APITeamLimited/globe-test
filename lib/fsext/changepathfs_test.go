@@ -33,22 +33,27 @@ import (
 )
 
 func TestChangePathFs(t *testing.T) ***REMOVED***
-	var m = afero.NewMemMapFs()
-	var prefix = "/another/"
-	var c = NewChangePathFs(m, ChangePathFunc(func(name string) (string, error) ***REMOVED***
-		if !strings.HasPrefix(name, prefix) ***REMOVED***
-			return "", fmt.Errorf("path %s doesn't  start with `%s`", name, prefix)
-		***REMOVED***
-		return name[len(prefix):], nil
-	***REMOVED***))
+	t.Parallel()
+	filePath := "/another/path/to/file.txt"
+	newTestFS := func() *ChangePathFs ***REMOVED***
+		m := afero.NewMemMapFs()
+		prefix := "/another/"
+		c := NewChangePathFs(m, ChangePathFunc(func(name string) (string, error) ***REMOVED***
+			if !strings.HasPrefix(name, prefix) ***REMOVED***
+				return "", fmt.Errorf("path %s doesn't  start with `%s`", name, prefix)
+			***REMOVED***
+			return name[len(prefix):], nil
+		***REMOVED***))
 
-	var filePath = "/another/path/to/file.txt"
-
-	require.Equal(t, c.Name(), "ChangePathFs")
-	t.Run("Create", func(t *testing.T) ***REMOVED***
+		require.Equal(t, c.Name(), "ChangePathFs")
 		f, err := c.Create(filePath)
 		require.NoError(t, err)
 		require.Equal(t, filePath, f.Name())
+		return c
+	***REMOVED***
+	t.Run("Create", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		c := newTestFS()
 
 		/** TODO figure out if this is error in MemMapFs
 		_, err = c.Create(filePath)
@@ -56,21 +61,27 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 		require.True(t, os.IsExist(err))
 		*/
 
-		_, err = c.Create("/notanother/path/to/file.txt")
+		_, err := c.Create("/notanother/path/to/file.txt")
 		checkErrorPath(t, err, "/notanother/path/to/file.txt")
 	***REMOVED***)
 
 	t.Run("Mkdir", func(t *testing.T) ***REMOVED***
-		require.NoError(t, c.Mkdir("/another/path/too", 0644))
-		checkErrorPath(t, c.Mkdir("/notanother/path/too", 0644), "/notanother/path/too")
+		t.Parallel()
+		c := newTestFS()
+		require.NoError(t, c.Mkdir("/another/path/too", 0o644))
+		checkErrorPath(t, c.Mkdir("/notanother/path/too", 0o644), "/notanother/path/too")
 	***REMOVED***)
 
 	t.Run("MkdirAll", func(t *testing.T) ***REMOVED***
-		require.NoError(t, c.MkdirAll("/another/pattth/too", 0644))
-		checkErrorPath(t, c.MkdirAll("/notanother/pattth/too", 0644), "/notanother/pattth/too")
+		t.Parallel()
+		c := newTestFS()
+		require.NoError(t, c.MkdirAll("/another/pattth/too", 0o644))
+		checkErrorPath(t, c.MkdirAll("/notanother/pattth/too", 0o644), "/notanother/pattth/too")
 	***REMOVED***)
 
 	t.Run("Open", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		c := newTestFS()
 		f, err := c.Open(filePath)
 		require.NoError(t, err)
 		require.Equal(t, filePath, f.Name())
@@ -80,18 +91,22 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("OpenFile", func(t *testing.T) ***REMOVED***
-		f, err := c.OpenFile(filePath, os.O_RDWR, 0644)
+		t.Parallel()
+		c := newTestFS()
+		f, err := c.OpenFile(filePath, os.O_RDWR, 0o644)
 		require.NoError(t, err)
 		require.Equal(t, filePath, f.Name())
 
-		_, err = c.OpenFile("/notanother/path/to/file.txt", os.O_RDWR, 0644)
+		_, err = c.OpenFile("/notanother/path/to/file.txt", os.O_RDWR, 0o644)
 		checkErrorPath(t, err, "/notanother/path/to/file.txt")
 
-		_, err = c.OpenFile("/another/nonexistant", os.O_RDWR, 0644)
+		_, err = c.OpenFile("/another/nonexistant", os.O_RDWR, 0o644)
 		require.True(t, os.IsNotExist(err))
 	***REMOVED***)
 
 	t.Run("Stat Chmod Chtimes", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		c := newTestFS()
 		info, err := c.Stat(filePath)
 		require.NoError(t, err)
 		require.Equal(t, "file.txt", info.Name())
@@ -101,7 +116,7 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 		require.NoError(t, c.Chtimes(filePath, time.Now(), sometime))
 		require.Equal(t, sometime, info.ModTime())
 
-		mode := os.FileMode(0007)
+		mode := os.FileMode(0o007)
 		require.NotEqual(t, mode, info.Mode())
 		require.NoError(t, c.Chmod(filePath, mode))
 		require.Equal(t, mode, info.Mode())
@@ -115,6 +130,8 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("LstatIfPossible", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		c := newTestFS()
 		info, ok, err := c.LstatIfPossible(filePath)
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -125,6 +142,8 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Rename", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		c := newTestFS()
 		info, err := c.Stat(filePath)
 		require.NoError(t, err)
 		require.False(t, info.IsDir())
@@ -149,7 +168,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Remove", func(t *testing.T) ***REMOVED***
-		var removeFilePath = "/another/file/to/remove.txt"
+		t.Parallel()
+		c := newTestFS()
+		removeFilePath := "/another/file/to/remove.txt"
 		_, err := c.Create(removeFilePath)
 		require.NoError(t, err)
 
@@ -183,5 +204,4 @@ func checkErrorPath(t *testing.T, err error, path string) ***REMOVED***
 	p, ok := err.(*os.PathError)
 	require.True(t, ok)
 	require.Equal(t, p.Path, path)
-
 ***REMOVED***

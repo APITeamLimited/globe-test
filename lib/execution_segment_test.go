@@ -41,6 +41,7 @@ func TestExecutionSegmentEquals(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	t.Run("nil segment to full", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		var nilEs *ExecutionSegment
 		fullEs := stringToES(t, "0:1")
 		require.True(t, nilEs.Equal(fullEs))
@@ -48,6 +49,7 @@ func TestExecutionSegmentEquals(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("To it's self", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		es := stringToES(t, "1/2:2/3")
 		require.True(t, es.Equal(es))
 	***REMOVED***)
@@ -56,23 +58,28 @@ func TestExecutionSegmentEquals(t *testing.T) ***REMOVED***
 func TestExecutionSegmentNew(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("from is below zero", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := NewExecutionSegment(big.NewRat(-1, 1), big.NewRat(1, 1))
 		require.Error(t, err)
 	***REMOVED***)
 	t.Run("to is more than 1", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := NewExecutionSegment(big.NewRat(0, 1), big.NewRat(2, 1))
 		require.Error(t, err)
 	***REMOVED***)
 	t.Run("from is smaller than to", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := NewExecutionSegment(big.NewRat(1, 2), big.NewRat(1, 3))
 		require.Error(t, err)
 	***REMOVED***)
 
 	t.Run("from is equal to 'to'", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := NewExecutionSegment(big.NewRat(1, 2), big.NewRat(1, 2))
 		require.Error(t, err)
 	***REMOVED***)
 	t.Run("ok", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := NewExecutionSegment(big.NewRat(0, 1), big.NewRat(1, 1))
 		require.NoError(t, err)
 	***REMOVED***)
@@ -102,6 +109,7 @@ func TestExecutionSegmentUnmarshalText(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			es := new(ExecutionSegment)
 			err := es.UnmarshalText([]byte(testCase.input))
 			if testCase.isErr ***REMOVED***
@@ -239,6 +247,7 @@ func TestExecutionTupleScale(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBigScale(t *testing.T) ***REMOVED***
+	t.Parallel()
 	es := new(ExecutionSegment)
 	ess, err := NewExecutionSegmentSequenceFromString("0,7/20,7/10,1")
 	require.NoError(t, err)
@@ -326,6 +335,7 @@ func TestExecutionSegmentSubSegment(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			require.Equal(t, testCase.result, testCase.base.SubSegment(testCase.sub))
 		***REMOVED***)
 	***REMOVED***
@@ -368,6 +378,7 @@ func TestSegmentExecutionFloatLength(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.es.String(), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			require.InEpsilon(t, testCase.expected, testCase.es.FloatLength(), 0.001)
 		***REMOVED***)
 	***REMOVED***
@@ -411,6 +422,7 @@ func TestExecutionSegmentStringSequences(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.seq, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			result, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			if tc.expError ***REMOVED***
 				require.Error(t, err)
@@ -467,6 +479,7 @@ func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 		seq := generateRandomSequence(t, r.Int63n(9)+2, 100, r)
 
 		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			var total int64
 			for _, segment := range seq ***REMOVED***
 				total += segment.Scale(int64(scale))
@@ -493,6 +506,7 @@ func TestExecutionTupleScaleConsistency(t *testing.T) ***REMOVED***
 		et, err := NewExecutionTuple(seq[0], &seq)
 		require.NoError(t, err)
 		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			var total int64
 			for i, segment := range seq ***REMOVED***
 				assert.True(t, segment.Equal(et.Sequence.ExecutionSegmentSequence[i]))
@@ -517,6 +531,7 @@ func TestExecutionSegmentScaleNoWobble(t *testing.T) ***REMOVED***
 
 	// Baseline full segment test
 	t.Run("0:1", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		et, err := NewExecutionTuple(nil, nil)
 		require.NoError(t, err)
 		requireSegmentScaleGreater(t, et)
@@ -536,6 +551,7 @@ func TestExecutionSegmentScaleNoWobble(t *testing.T) ***REMOVED***
 		et, err := NewExecutionTuple(seq[0], &seq)
 		require.NoError(t, err)
 		t.Run(es.String(), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			requireSegmentScaleGreater(t, et)
 		***REMOVED***)
 	***REMOVED***
@@ -579,6 +595,7 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
 			segment, err := NewExecutionSegmentFromString(tc.seg)
@@ -600,6 +617,7 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSequenceLCD(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		seq string
 		lcd int64
@@ -614,6 +632,7 @@ func TestSequenceLCD(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("seq:%s", tc.seq), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
 			require.Equal(t, tc.lcd, ess.LCD())
@@ -693,6 +712,7 @@ func TestGetNewExecutionTupleBesedOnValue(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
 
@@ -725,6 +745,7 @@ func mustNewExecutionSegmentSequence(str string) *ExecutionSegmentSequence ***RE
 ***REMOVED***
 
 func TestNewExecutionTuple(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		seg           *ExecutionSegment
 		seq           *ExecutionSegmentSequence
@@ -848,6 +869,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(fmt.Sprintf("seg:'%s',seq:'%s'", testCase.seg, testCase.seq), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			et, err := NewExecutionTuple(testCase.seg, testCase.seq)
 			require.NoError(t, err)
 

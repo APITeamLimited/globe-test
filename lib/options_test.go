@@ -38,27 +38,33 @@ import (
 )
 
 func TestOptions(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Paused", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.Paused.Valid)
 		assert.True(t, opts.Paused.Bool)
 	***REMOVED***)
 	t.Run("VUs", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.VUs.Valid)
 		assert.Equal(t, int64(12345), opts.VUs.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: types.NullDurationFrom(2 * time.Minute)***REMOVED***)
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m0s", opts.Duration.String())
 	***REMOVED***)
 	t.Run("Iterations", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Iterations: null.IntFrom(1234)***REMOVED***)
 		assert.True(t, opts.Iterations.Valid)
 		assert.Equal(t, int64(1234), opts.Iterations.Int64)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED***
 			***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***Duration: types.NullDurationFrom(2 * time.Second), Target: null.IntFrom(20)***REMOVED***,
@@ -84,43 +90,52 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	// Execution overwriting is tested by the config consolidation test in cmd
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.RPS.Valid)
 		assert.Equal(t, int64(12345), opts.RPS.Int64)
 	***REMOVED***)
 	t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***MaxRedirects: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.MaxRedirects.Valid)
 		assert.Equal(t, int64(12345), opts.MaxRedirects.Int64)
 	***REMOVED***)
 	t.Run("UserAgent", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***UserAgent: null.StringFrom("foo")***REMOVED***)
 		assert.True(t, opts.UserAgent.Valid)
 		assert.Equal(t, "foo", opts.UserAgent.String)
 	***REMOVED***)
 	t.Run("Batch", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Batch: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.Batch.Valid)
 		assert.Equal(t, int64(12345), opts.Batch.Int64)
 	***REMOVED***)
 	t.Run("BatchPerHost", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***BatchPerHost: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.BatchPerHost.Valid)
 		assert.Equal(t, int64(12345), opts.BatchPerHost.Int64)
 	***REMOVED***)
 	t.Run("HTTPDebug", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***HTTPDebug: null.StringFrom("foo")***REMOVED***)
 		assert.True(t, opts.HTTPDebug.Valid)
 		assert.Equal(t, "foo", opts.HTTPDebug.String)
 	***REMOVED***)
 	t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.InsecureSkipTLSVerify.Valid)
 		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
 	***REMOVED***)
 	t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		for suiteName, suiteID := range SupportedTLSCipherSuites ***REMOVED***
 			t.Run(suiteName, func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***suiteID***REMOVED******REMOVED***)
 
 				assert.NotNil(t, opts.TLSCipherSuites)
@@ -130,13 +145,16 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			t.Run("String", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, &TLSCipherSuites***REMOVED***tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA***REMOVED***, opts.TLSCipherSuites)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					data, err := json.Marshal(opts.TLSCipherSuites)
 					assert.NoError(t, err)
 					assert.Equal(t, `["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]`, string(data))
@@ -146,11 +164,13 @@ func TestOptions(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***)
 			t.Run("Not a string", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":[1.2]***REMOVED***`
 				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
 			***REMOVED***)
 			t.Run("Unknown cipher", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":["foo"]***REMOVED***`
 				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
@@ -158,6 +178,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		versions := TLSVersions***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionTLS12***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSVersion: &versions***REMOVED***)
 
@@ -166,7 +187,9 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, opts.TLSVersion.Max, TLSVersion(tls.VersionTLS12))
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			t.Run("Object", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":***REMOVED***"min":"tls1.0","max":"tls1.2"***REMOVED******REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
@@ -176,6 +199,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 				***REMOVED***, opts.TLSVersion)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					data, err := json.Marshal(opts.TLSVersion)
 					assert.NoError(t, err)
 					assert.Equal(t, `***REMOVED***"min":"tls1.0","max":"tls1.2"***REMOVED***`, string(data))
@@ -185,6 +209,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":"tls1.2"***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
@@ -194,17 +219,20 @@ func TestOptions(t *testing.T) ***REMOVED***
 				***REMOVED***, opts.TLSVersion)
 			***REMOVED***)
 			t.Run("Blank", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":""***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, &TLSVersions***REMOVED******REMOVED***, opts.TLSVersion)
 			***REMOVED***)
 			t.Run("Not a string", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":1.2***REMOVED***`
 				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
 			***REMOVED***)
 			t.Run("Unsupported version", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":"-1"***REMOVED***`
 				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
@@ -215,6 +243,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("TLSAuth", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		tlsAuth := []*TLSAuth***REMOVED***
 			***REMOVED***TLSAuthFields***REMOVED***
 				Domains: []string***REMOVED***"example.com", "*.example.com"***REMOVED***,
@@ -259,6 +288,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, tlsAuth, opts.TLSAuth)
 
 		t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			optsData, err := json.Marshal(opts)
 			assert.NoError(t, err)
 
@@ -275,33 +305,39 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Invalid JSON", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			var opts Options
 			jsonStr := `***REMOVED***"tlsAuth":["invalid"]***REMOVED***`
 			assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
 		***REMOVED***)
 
 		t.Run("Certificate error", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			var opts Options
 			jsonStr := `***REMOVED***"tlsAuth":[***REMOVED***"Cert":""***REMOVED***]***REMOVED***`
 			assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("NoConnectionReuse", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoConnectionReuse: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.NoConnectionReuse.Valid)
 		assert.True(t, opts.NoConnectionReuse.Bool)
 	***REMOVED***)
 	t.Run("NoVUConnectionReuse", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoVUConnectionReuse: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.NoVUConnectionReuse.Valid)
 		assert.True(t, opts.NoVUConnectionReuse.Bool)
 	***REMOVED***)
 	t.Run("NoCookiesReset", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoCookiesReset: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.NoCookiesReset.Valid)
 		assert.True(t, opts.NoCookiesReset.Bool)
 	***REMOVED***)
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*IPNet***REMOVED******REMOVED***
 				IPNet: net.IPNet***REMOVED***
@@ -329,6 +365,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("BlockedHostnames", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		blockedHostnames, err := types.NewNullHostnameTrie([]string***REMOVED***"test.k6.io", "*valid.pattern"***REMOVED***)
 		require.NoError(t, err)
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***BlockedHostnames: blockedHostnames***REMOVED***)
@@ -337,6 +374,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Hosts", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		host, err := NewHostAddress(net.ParseIP("192.0.2.1"), "80")
 		assert.NoError(t, err)
 
@@ -349,12 +387,14 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Throws", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.Throw.Valid)
 		assert.Equal(t, true, opts.Throw.Bool)
 	***REMOVED***)
 
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]metrics.Thresholds***REMOVED***
 			"metric": ***REMOVED***
 				Thresholds: []*metrics.Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
@@ -364,12 +404,14 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.NotEmpty(t, opts.Thresholds)
 	***REMOVED***)
 	t.Run("External", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		ext := map[string]json.RawMessage***REMOVED***"a": json.RawMessage("1")***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***External: ext***REMOVED***)
 		assert.Equal(t, ext, opts.External)
 	***REMOVED***)
 
 	t.Run("JSON", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		data, err := json.Marshal(Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		var opts Options
@@ -377,19 +419,23 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, Options***REMOVED******REMOVED***, opts)
 	***REMOVED***)
 	t.Run("SystemTags", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SystemTags: metrics.NewSystemTagSet(metrics.TagProto)***REMOVED***)
 		assert.NotNil(t, opts.SystemTags)
 		assert.NotEmpty(t, opts.SystemTags)
 		assert.True(t, opts.SystemTags.Has(metrics.TagProto))
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			t.Run("Array", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"systemTags":["url"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, *metrics.NewSystemTagSet(metrics.TagURL), *opts.SystemTags)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					data, err := json.Marshal(opts.SystemTags)
 					assert.NoError(t, err)
 					assert.Equal(t, `["url"]`, string(data))
@@ -399,6 +445,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***)
 			t.Run("Blank", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				var opts Options
 				jsonStr := `***REMOVED***"systemTags":[]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
@@ -407,21 +454,25 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("SummaryTrendStats", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		stats := []string***REMOVED***"myStat1", "myStat2"***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SummaryTrendStats: stats***REMOVED***)
 		assert.Equal(t, stats, opts.SummaryTrendStats)
 	***REMOVED***)
 	t.Run("RunTags", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		tags := metrics.IntoSampleTags(&map[string]string***REMOVED***"myTag": "hello"***REMOVED***)
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RunTags: tags***REMOVED***)
 		assert.Equal(t, tags, opts.RunTags)
 	***REMOVED***)
 	t.Run("DiscardResponseBodies", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***DiscardResponseBodies: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.DiscardResponseBodies.Valid)
 		assert.True(t, opts.DiscardResponseBodies.Bool)
 	***REMOVED***)
 	t.Run("ClientIPRanges", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		clientIPRanges, err := types.NewIPPool("129.112.232.12,123.12.0.0/32")
 		require.NoError(t, err)
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***LocalIPs: types.NullIPPool***REMOVED***Pool: clientIPRanges, Valid: true***REMOVED******REMOVED***)
@@ -547,6 +598,7 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *IPNet
@@ -576,6 +628,7 @@ func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
 	for _, data := range testData ***REMOVED***
 		data := data
 		t.Run(data.input, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			actualIPNet := &IPNet***REMOVED******REMOVED***
 			err := actualIPNet.UnmarshalText([]byte(data.input))
 
@@ -591,6 +644,7 @@ func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHostAddressUnmarshal(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *HostAddress
@@ -636,6 +690,7 @@ func TestHostAddressUnmarshal(t *testing.T) ***REMOVED***
 	for _, data := range testData ***REMOVED***
 		data := data
 		t.Run(data.input, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			actualHost := &HostAddress***REMOVED******REMOVED***
 			err := actualHost.UnmarshalText([]byte(data.input))
 

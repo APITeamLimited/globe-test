@@ -39,6 +39,7 @@ func get128BigInt(hi, lo int64) *big.Int ***REMOVED***
 ***REMOVED***
 
 func TestIpBlock(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
 		count           *big.Int
 		firstIP, lastIP net.IP
@@ -65,6 +66,7 @@ func TestIpBlock(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getIPBlock(name)
 			require.NoError(t, err)
 			assert.Equal(t, data.count, b.count)
@@ -78,6 +80,7 @@ func TestIpBlock(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestIPPool(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
 		count   *big.Int
 		queries map[uint64]net.IP
@@ -123,6 +126,7 @@ func TestIPPool(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			p, err := NewIPPool(name)
 			require.NoError(t, err)
 			assert.Equal(t, data.count, p.count)
@@ -134,6 +138,7 @@ func TestIPPool(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestIpBlockError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]string***REMOVED***
 		"whatever":                       "not a valid IP",
 		"192.168.0.1012":                 "not a valid IP",
@@ -148,6 +153,7 @@ func TestIpBlockError(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			_, err := getIPBlock(name)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), data)
