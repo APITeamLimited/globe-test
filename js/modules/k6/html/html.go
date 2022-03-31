@@ -237,7 +237,7 @@ func (s Selection) Siblings(def ...string) Selection ***REMOVED***
 	return s.adjacent(s.sel.Siblings, s.sel.SiblingsFiltered, def...)
 ***REMOVED***
 
-// prevUntil, nextUntil and parentsUntil support two arguments with mutable type.
+// PrevUntil, NextUntil and ParentsUntil support two arguments with mutable type.
 // 1st argument is the selector. Either a selector string, a Selection object, or nil
 // 2nd argument is the filter. Either a selector string or nil/undefined
 func (s Selection) PrevUntil(def ...goja.Value) Selection ***REMOVED***
@@ -317,7 +317,6 @@ func (s Selection) Html() goja.Value ***REMOVED***
 	return s.rt.ToValue(val)
 ***REMOVED***
 
-// nolint: goconst
 func (s Selection) Val() goja.Value ***REMOVED***
 	switch goquery.NodeName(s.sel) ***REMOVED***
 	case InputTagName:
@@ -501,16 +500,14 @@ func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 		val, exists := s.sel.Attr("data-" + propertyToAttr(def[0]))
 		if exists ***REMOVED***
 			return s.rt.ToValue(convertDataAttrVal(val))
-		***REMOVED*** else ***REMOVED***
-			return goja.Undefined()
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		data := make(map[string]interface***REMOVED******REMOVED***)
-		for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
-			if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 5 ***REMOVED***
-				data[attrToProperty(attr.Key[5:])] = convertDataAttrVal(attr.Val)
-			***REMOVED***
-		***REMOVED***
-		return s.rt.ToValue(data)
+		return goja.Undefined()
 	***REMOVED***
+	data := make(map[string]interface***REMOVED******REMOVED***)
+	for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
+		if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 5 ***REMOVED***
+			data[attrToProperty(attr.Key[5:])] = convertDataAttrVal(attr.Val)
+		***REMOVED***
+	***REMOVED***
+	return s.rt.ToValue(data)
 ***REMOVED***

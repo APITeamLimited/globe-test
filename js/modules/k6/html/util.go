@@ -33,13 +33,13 @@ import (
 
 func attrToProperty(s string) string ***REMOVED***
 	if idx := strings.Index(s, "-"); idx != -1 ***REMOVED***
-		return s[0:idx] + snaker.SnakeToCamel(strings.Replace(s[idx+1:], "-", "_", -1))
+		return s[0:idx] + snaker.SnakeToCamel(strings.ReplaceAll(s[idx+1:], "-", "_"))
 	***REMOVED***
 	return s
 ***REMOVED***
 
 func propertyToAttr(attrName string) string ***REMOVED***
-	return strings.Replace(snaker.CamelToSnake(attrName), "_", "-", -1)
+	return strings.ReplaceAll(snaker.CamelToSnake(attrName), "_", "-")
 ***REMOVED***
 
 func namespaceURI(prefix string) string ***REMOVED***
@@ -108,35 +108,35 @@ func toNumeric(val string) (float64, bool) ***REMOVED***
 func convertDataAttrVal(val string) interface***REMOVED******REMOVED*** ***REMOVED***
 	if len(val) == 0 ***REMOVED***
 		return goja.Undefined()
-	***REMOVED*** else if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
+	***REMOVED***
+
+	if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
 		var subdata interface***REMOVED******REMOVED***
 
 		err := json.Unmarshal([]byte(val), &subdata)
 		if err == nil ***REMOVED***
 			return subdata
-		***REMOVED*** else ***REMOVED***
-			return val
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		switch val ***REMOVED***
-		case "true":
-			return true
+		return val
+	***REMOVED***
 
-		case "false":
-			return false
+	switch val ***REMOVED***
+	case "true":
+		return true
 
-		case "null":
-			return goja.Undefined()
+	case "false":
+		return false
 
-		case "undefined":
-			return goja.Undefined()
+	case "null":
+		return goja.Undefined()
 
-		default:
-			if fltVal, isOk := toNumeric(val); isOk ***REMOVED***
-				return fltVal
-			***REMOVED*** else ***REMOVED***
-				return val
-			***REMOVED***
+	case "undefined":
+		return goja.Undefined()
+
+	default:
+		if fltVal, isOk := toNumeric(val); isOk ***REMOVED***
+			return fltVal
 		***REMOVED***
+		return val
 	***REMOVED***
 ***REMOVED***

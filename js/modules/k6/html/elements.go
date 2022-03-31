@@ -32,6 +32,7 @@ import (
 //go:generate go run gen/gen_elements.go
 //go:generate gofumpt -w .
 
+//nolint:gochecknoglobals
 var defaultPorts = map[string]string***REMOVED***
 	"http":  "80",
 	"https": "443",
@@ -99,15 +100,12 @@ const (
 //revive:disable:exported
 
 type (
-	HrefElement         struct***REMOVED*** Element ***REMOVED***
-	MediaElement        struct***REMOVED*** Element ***REMOVED***
-	FormFieldElement    struct***REMOVED*** Element ***REMOVED***
-	ModElement          struct***REMOVED*** Element ***REMOVED***
-	TableSectionElement struct***REMOVED*** Element ***REMOVED***
-	TableCellElement    struct***REMOVED*** Element ***REMOVED***
-)
-
-type (
+	HrefElement            struct***REMOVED*** Element ***REMOVED***
+	MediaElement           struct***REMOVED*** Element ***REMOVED***
+	FormFieldElement       struct***REMOVED*** Element ***REMOVED***
+	ModElement             struct***REMOVED*** Element ***REMOVED***
+	TableSectionElement    struct***REMOVED*** Element ***REMOVED***
+	TableCellElement       struct***REMOVED*** Element ***REMOVED***
 	AnchorElement          struct***REMOVED*** HrefElement ***REMOVED***
 	AreaElement            struct***REMOVED*** HrefElement ***REMOVED***
 	AudioElement           struct***REMOVED*** MediaElement ***REMOVED***
@@ -248,7 +246,6 @@ func (h HrefElement) Password() string ***REMOVED***
 	return pwd
 ***REMOVED***
 
-// nolint: goconst
 func (h HrefElement) Origin() string ***REMOVED***
 	href := h.hrefURL()
 
@@ -331,7 +328,6 @@ func (f FormFieldElement) FormAction() string ***REMOVED***
 	return actionURL.String()
 ***REMOVED***
 
-// nolint: goconst
 func (f FormFieldElement) FormEnctype() string ***REMOVED***
 	enctype, _ := f.formOrElemAttr("enctype")
 
@@ -426,7 +422,6 @@ func (f FormElement) Method() string ***REMOVED***
 	return methodGet
 ***REMOVED***
 
-// nolint: goconst
 func (i InputElement) List() goja.Value ***REMOVED***
 	listId := i.attrAsString("list")
 
@@ -662,17 +657,15 @@ func (s SelectElement) SelectedOptions() []goja.Value ***REMOVED***
 func (s SelectElement) Size() int ***REMOVED***
 	if s.attrIsPresent("multiple") ***REMOVED***
 		return 4
-	***REMOVED*** else ***REMOVED***
-		return 1
 	***REMOVED***
+	return 1
 ***REMOVED***
 
 func (s SelectElement) Type() string ***REMOVED***
 	if s.attrIsPresent("multiple") ***REMOVED***
 		return "select-multiple"
-	***REMOVED*** else ***REMOVED***
-		return "select"
 	***REMOVED***
+	return "select"
 ***REMOVED***
 
 func (s SelectElement) Value() string ***REMOVED***
