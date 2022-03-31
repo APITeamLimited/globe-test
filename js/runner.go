@@ -83,34 +83,28 @@ type Runner struct ***REMOVED***
 
 // New returns a new Runner for the provide source
 func New(
-	logger *logrus.Logger, src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
-	builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
+	rs *lib.RuntimeState, src *loader.SourceData, filesystems map[string]afero.Fs,
 ) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundle(logger, src, filesystems, rtOpts, registry)
+	bundle, err := NewBundle(rs.Logger, src, filesystems, rs.RuntimeOptions, rs.Registry)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return NewFromBundle(logger, bundle, builtinMetrics, registry)
+	return NewFromBundle(rs, bundle)
 ***REMOVED***
 
 // NewFromArchive returns a new Runner from the source in the provided archive
-func NewFromArchive(
-	logger *logrus.Logger, arc *lib.Archive, rtOpts lib.RuntimeOptions,
-	builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
-) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundleFromArchive(logger, arc, rtOpts, registry)
+func NewFromArchive(rs *lib.RuntimeState, arc *lib.Archive) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundleFromArchive(rs.Logger, arc, rs.RuntimeOptions, rs.Registry)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return NewFromBundle(logger, bundle, builtinMetrics, registry)
+	return NewFromBundle(rs, bundle)
 ***REMOVED***
 
 // NewFromBundle returns a new Runner from the provided Bundle
-func NewFromBundle(
-	logger *logrus.Logger, b *Bundle, builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
-) (*Runner, error) ***REMOVED***
+func NewFromBundle(rs *lib.RuntimeState, b *Bundle) (*Runner, error) ***REMOVED***
 	defaultGroup, err := lib.NewGroup("", nil)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -119,19 +113,19 @@ func NewFromBundle(
 	defDNS := types.DefaultDNSConfig()
 	r := &Runner***REMOVED***
 		Bundle:       b,
-		Logger:       logger,
+		Logger:       rs.Logger,
 		defaultGroup: defaultGroup,
 		BaseDialer: net.Dialer***REMOVED***
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		***REMOVED***,
-		console: newConsole(logger),
+		console: newConsole(rs.Logger),
 		Resolver: netext.NewResolver(
 			net.LookupIP, 0, defDNS.Select.DNSSelect, defDNS.Policy.DNSPolicy),
 		ActualResolver: net.LookupIP,
-		builtinMetrics: builtinMetrics,
-		registry:       registry,
+		builtinMetrics: rs.BuiltinMetrics,
+		registry:       rs.Registry,
 	***REMOVED***
 
 	err = r.SetOptions(r.Bundle.Options)

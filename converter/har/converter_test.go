@@ -61,10 +61,15 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	_, err = js.New(testutils.NewLogger(t), &loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-		Data: []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
-	***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
+	_, err = js.New(
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***, &loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+			Data: []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
+		***REMOVED***, nil)
 	assert.NoError(t, err)
 ***REMOVED***
 

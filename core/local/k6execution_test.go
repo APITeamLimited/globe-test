@@ -88,15 +88,16 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		logger,
+		&lib.RuntimeState***REMOVED***
+			Logger:         logger,
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -200,15 +201,16 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		logger,
+		&lib.RuntimeState***REMOVED***
+			Logger:         logger,
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -281,15 +283,16 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		logger,
+		&lib.RuntimeState***REMOVED***
+			Logger:         logger,
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -414,10 +417,16 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-			runner, err := js.New(logger, &loader.SourceData***REMOVED***
-				URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-				Data: []byte(tc.script),
-			***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
+			runner, err := js.New(
+				&lib.RuntimeState***REMOVED***
+					Logger:         logger,
+					BuiltinMetrics: builtinMetrics,
+					Registry:       registry,
+				***REMOVED***,
+				&loader.SourceData***REMOVED***
+					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+					Data: []byte(tc.script),
+				***REMOVED***, nil)
 			require.NoError(t, err)
 
 			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)

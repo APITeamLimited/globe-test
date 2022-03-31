@@ -552,12 +552,13 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		registry := metrics.NewRegistry()
 		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 		r, err := js.New(
-			testutils.NewLogger(t),
+			&lib.RuntimeState***REMOVED***
+				Logger:         testutils.NewLogger(t),
+				BuiltinMetrics: builtinMetrics,
+				Registry:       registry,
+			***REMOVED***,
 			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
 			nil,
-			lib.RuntimeOptions***REMOVED******REMOVED***,
-			builtinMetrics,
-			registry,
 		)
 		require.NoError(t, err)
 
@@ -690,12 +691,13 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r, err := js.New(
-		testutils.NewLogger(t),
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -785,12 +787,13 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		testutils.NewLogger(t),
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -838,12 +841,13 @@ func TestSetupException(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		testutils.NewLogger(t),
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -891,11 +895,13 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		logger,
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		nil, lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -962,12 +968,13 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		testutils.NewLogger(t),
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 	require.NoError(t, err)
 
@@ -1050,7 +1057,11 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				testutils.NewLogger(t),
+				&lib.RuntimeState***REMOVED***
+					Logger:         testutils.NewLogger(t),
+					BuiltinMetrics: builtinMetrics,
+					Registry:       registry,
+				***REMOVED***,
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
 				import ***REMOVED*** sleep ***REMOVED*** from "k6";
 				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
@@ -1074,9 +1085,6 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 				***REMOVED***
 				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
 				nil,
-				lib.RuntimeOptions***REMOVED******REMOVED***,
-				builtinMetrics,
-				registry,
 			)
 			require.NoError(t, err)
 
@@ -1162,12 +1170,13 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				testutils.NewLogger(t),
+				&lib.RuntimeState***REMOVED***
+					Logger:         testutils.NewLogger(t),
+					BuiltinMetrics: builtinMetrics,
+					Registry:       registry,
+				***REMOVED***,
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
 				nil,
-				lib.RuntimeOptions***REMOVED******REMOVED***,
-				builtinMetrics,
-				registry,
 			)
 			require.NoError(t, err)
 
@@ -1278,8 +1287,13 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	runner, err := js.New(logger, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, rtOpts,
-		builtinMetrics, registry)
+	runner, err := js.New(
+		&lib.RuntimeState***REMOVED***
+			Logger:         logger,
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+			RuntimeOptions: rtOpts,
+		***REMOVED***, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()

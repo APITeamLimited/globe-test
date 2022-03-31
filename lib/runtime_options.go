@@ -60,6 +60,7 @@ type RuntimeOptions struct ***REMOVED***
 	NoThresholds  null.Bool   `json:"noThresholds"`
 	NoSummary     null.Bool   `json:"noSummary"`
 	SummaryExport null.String `json:"summaryExport"`
+	KeyWriter     null.String `json:"-"`
 ***REMOVED***
 
 // ValidateCompatibilityMode checks if the provided val is a valid compatibility mode

@@ -119,12 +119,14 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		testutils.NewLogger(t),
+		&lib.RuntimeState***REMOVED***
+			Logger:         testutils.NewLogger(t),
+			BuiltinMetrics: builtinMetrics,
+			Registry:       registry,
+		***REMOVED***,
+
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-		builtinMetrics,
-		registry,
 	)
 
 	require.NoError(t, err)

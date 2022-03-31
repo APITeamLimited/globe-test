@@ -100,12 +100,16 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		testType = detectTestType(lt.source.Data)
 	***REMOVED***
 
+	state := &lib.RuntimeState***REMOVED***
+		Logger:         gs.logger,
+		RuntimeOptions: lt.runtimeOptions,
+		BuiltinMetrics: lt.builtInMetrics,
+		Registry:       lt.metricsRegistry,
+	***REMOVED***
 	switch testType ***REMOVED***
 	case testTypeJS:
 		logger.Debug("Trying to load as a JS test...")
-		runner, err := js.New(
-			gs.logger, lt.source, lt.fileSystems, lt.runtimeOptions, lt.builtInMetrics, lt.metricsRegistry,
-		)
+		runner, err := js.New(state, lt.source, lt.fileSystems)
 		// TODO: should we use common.UnwrapGojaInterruptedError() here?
 		if err != nil ***REMOVED***
 			return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
@@ -126,7 +130,7 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		switch arc.Type ***REMOVED***
 		case testTypeJS:
 			logger.Debug("Evaluating JS from archive bundle...")
-			lt.initRunner, err = js.NewFromArchive(gs.logger, arc, lt.runtimeOptions, lt.builtInMetrics, lt.metricsRegistry)
+			lt.initRunner, err = js.NewFromArchive(state, arc)
 			if err != nil ***REMOVED***
 				return fmt.Errorf("could not load JS from test archive bundle '%s': %w", testPath, err)
 			***REMOVED***
