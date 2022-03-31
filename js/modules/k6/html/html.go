@@ -113,7 +113,8 @@ func (s Selection) buildMatcher(v goja.Value, gojaFn goja.Callable) func(int, *g
 func (s Selection) varargFnCall(arg interface***REMOVED******REMOVED***,
 	strFilter func(string) *goquery.Selection,
 	selFilter func(*goquery.Selection) *goquery.Selection,
-	nodeFilter func(...*gohtml.Node) *goquery.Selection) Selection ***REMOVED***
+	nodeFilter func(...*gohtml.Node) *goquery.Selection,
+) Selection ***REMOVED***
 	switch v := arg.(type) ***REMOVED***
 	case Selection:
 		return Selection***REMOVED***s.rt, selFilter(v.sel), s.URL***REMOVED***
@@ -135,7 +136,8 @@ func (s Selection) varargFnCall(arg interface***REMOVED******REMOVED***,
 
 func (s Selection) adjacent(unfiltered func() *goquery.Selection,
 	filtered func(string) *goquery.Selection,
-	def ...string) Selection ***REMOVED***
+	def ...string,
+) Selection ***REMOVED***
 	if len(def) > 0 ***REMOVED***
 		return Selection***REMOVED***s.rt, filtered(def[0]), s.URL***REMOVED***
 	***REMOVED***
@@ -147,7 +149,8 @@ func (s Selection) adjacentUntil(until func(string) *goquery.Selection,
 	untilSelection func(*goquery.Selection) *goquery.Selection,
 	filteredUntil func(string, string) *goquery.Selection,
 	filteredUntilSelection func(string, *goquery.Selection) *goquery.Selection,
-	def ...goja.Value) Selection ***REMOVED***
+	def ...goja.Value,
+) Selection ***REMOVED***
 	switch len(def) ***REMOVED***
 	case 0:
 		return Selection***REMOVED***s.rt, until(""), s.URL***REMOVED***

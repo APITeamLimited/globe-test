@@ -317,7 +317,7 @@ func main() ***REMOVED***
 	***REMOVED***
 
 	// Initialise the AstInspectState
-	var collector = &AstInspectState***REMOVED******REMOVED***
+	collector := &AstInspectState***REMOVED******REMOVED***
 
 	collector.handler = collector.defaultHandler
 	collector.elemInfos = make(map[string]*ElemInfo)
