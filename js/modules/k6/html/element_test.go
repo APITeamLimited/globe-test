@@ -52,6 +52,7 @@ const testHTMLElem = `
 `
 
 func TestElement(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("NodeName", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElem)
