@@ -203,7 +203,7 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	err = afero.WriteFile(arc.getFs(scheme), pathOnFs, arc.Data, 0644) // TODO fix the mode ?
+	err = afero.WriteFile(arc.getFs(scheme), pathOnFs, arc.Data, 0o644) // TODO fix the mode ?
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -262,7 +262,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	***REMOVED***
 	_ = w.WriteHeader(&tar.Header***REMOVED***
 		Name:     "metadata.json",
-		Mode:     0644,
+		Mode:     0o644,
 		Size:     int64(len(metadata)),
 		ModTime:  now,
 		Typeflag: tar.TypeReg,
@@ -273,7 +273,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 
 	_ = w.WriteHeader(&tar.Header***REMOVED***
 		Name:     "data",
-		Mode:     0644,
+		Mode:     0o644,
 		Size:     int64(len(arc.Data)),
 		ModTime:  now,
 		Typeflag: tar.TypeReg,
@@ -335,10 +335,10 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		for _, dirPath := range dirs ***REMOVED***
 			_ = w.WriteHeader(&tar.Header***REMOVED***
 				Name:       path.Clean(path.Join(name, dirPath)),
-				Mode:       0755, // MemMapFs is buggy
-				AccessTime: now,  // MemMapFs is buggy
-				ChangeTime: now,  // MemMapFs is buggy
-				ModTime:    now,  // MemMapFs is buggy
+				Mode:       0o755, // MemMapFs is buggy
+				AccessTime: now,   // MemMapFs is buggy
+				ChangeTime: now,   // MemMapFs is buggy
+				ModTime:    now,   // MemMapFs is buggy
 				Typeflag:   tar.TypeDir,
 			***REMOVED***)
 		***REMOVED***
@@ -357,7 +357,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				err = w.WriteHeader(&tar.Header***REMOVED***
 					Name:       fullFilePath,
-					Mode:       0644, // MemMapFs is buggy
+					Mode:       0o644, // MemMapFs is buggy
 					Size:       int64(len(files[filePath])),
 					AccessTime: infos[filePath].ModTime(),
 					ChangeTime: infos[filePath].ModTime(),

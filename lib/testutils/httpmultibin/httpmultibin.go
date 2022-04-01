@@ -233,7 +233,8 @@ func (s *GRPCStub) UnaryCall(ctx context.Context, req *grpctest.SimpleRequest) (
 
 // StreamingOutputCall implements the interface for the gRPC TestServiceServer
 func (*GRPCStub) StreamingOutputCall(*grpctest.StreamingOutputCallRequest,
-	grpctest.TestService_StreamingOutputCallServer) error ***REMOVED***
+	grpctest.TestService_StreamingOutputCallServer,
+) error ***REMOVED***
 	return status.Errorf(codes.Unimplemented, "method StreamingOutputCall not implemented")
 ***REMOVED***
 
