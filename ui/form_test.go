@@ -29,12 +29,15 @@ import (
 )
 
 func TestForm(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		data, err := Form***REMOVED******REMOVED***.Run(strings.NewReader(""), bytes.NewBuffer(nil))
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]string***REMOVED******REMOVED***, data)
 	***REMOVED***)
 	t.Run("Banner", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		out := bytes.NewBuffer(nil)
 		data, err := Form***REMOVED***Banner: "Hi!"***REMOVED***.Run(strings.NewReader(""), out)
 		assert.NoError(t, err)
@@ -42,6 +45,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		assert.Equal(t, "Hi!\n\n", out.String())
 	***REMOVED***)
 	t.Run("Field", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		f := Form***REMOVED***
 			Fields: []Field***REMOVED***
 				StringField***REMOVED***Key: "key", Label: "label"***REMOVED***,
@@ -55,6 +59,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		assert.Equal(t, "  label: ", out.String())
 	***REMOVED***)
 	t.Run("Fields", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		f := Form***REMOVED***
 			Fields: []Field***REMOVED***
 				StringField***REMOVED***Key: "a", Label: "label a"***REMOVED***,
@@ -69,6 +74,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		assert.Equal(t, "  label a:   label b: ", out.String())
 	***REMOVED***)
 	t.Run("Defaults", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		f := Form***REMOVED***
 			Fields: []Field***REMOVED***
 				StringField***REMOVED***Key: "a", Label: "label a", Default: "default a"***REMOVED***,
@@ -83,6 +89,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		assert.Equal(t, "  label a [default a]:   label b [default b]: ", out.String())
 	***REMOVED***)
 	t.Run("Errors", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		f := Form***REMOVED***
 			Fields: []Field***REMOVED***
 				StringField***REMOVED***Key: "key", Label: "label", Min: 6, Max: 10***REMOVED***,

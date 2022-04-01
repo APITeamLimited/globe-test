@@ -34,6 +34,7 @@ import (
 )
 
 func TestGetFixedLengthInt(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		val, maxVal int64
 		expRes      string
@@ -64,6 +65,7 @@ func TestGetFixedLengthInt(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.expRes, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			fmtFormat := GetFixedLengthIntFormat(tc.maxVal)
 			res := fmt.Sprintf(fmtFormat, tc.val)
 			assert.Equal(t, tc.expRes, res)
@@ -73,7 +75,9 @@ func TestGetFixedLengthInt(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
 func TestGetFixedLengthFloat(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		val, maxVal float64
 		precision   uint
@@ -108,6 +112,7 @@ func TestGetFixedLengthFloat(t *testing.T) ***REMOVED***
 	for i, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("tc%d_exp_%s", i, tc.expRes), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			fmtFormat := GetFixedLengthFloatFormat(tc.maxVal, tc.precision)
 			res := fmt.Sprintf(fmtFormat, tc.val)
 			assert.Equal(t, tc.expRes, res)
@@ -122,6 +127,7 @@ func TestGetFixedLengthFloat(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestGetFixedLengthDuration(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		val, maxVal time.Duration
 		expRes      string
@@ -155,6 +161,7 @@ func TestGetFixedLengthDuration(t *testing.T) ***REMOVED***
 	for i, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("tc%d_exp_%s", i, tc.expRes), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			res := GetFixedLengthDuration(tc.val, tc.maxVal)
 			assert.Equal(t, tc.expRes, res)
 

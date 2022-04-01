@@ -72,7 +72,9 @@ func (f StringField) GetContents(r io.Reader) (string, error) ***REMOVED***
 		n, err := io.ReadAtLeast(r, buf, 1)
 		if err != nil ***REMOVED***
 			return string(result), err
-		***REMOVED*** else if n != 1 ***REMOVED***
+		***REMOVED***
+
+		if n != 1 ***REMOVED***
 			// Shouldn't happen, but just in case
 			return string(result), errors.New("unexpected input when reading string field")
 		***REMOVED*** else if buf[0] == '\n' ***REMOVED***
