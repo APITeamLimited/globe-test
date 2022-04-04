@@ -2024,12 +2024,6 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			script:            `var res = http.request("GET", "HTTPBIN_URL/redirect-to?url=http://dafsgdhfjg.com/");`,
 		***REMOVED***,
 		***REMOVED***
-			name:              "Non location redirect",
-			expectedErrorCode: 1000,
-			expectedErrorMsg:  "302 response missing Location header",
-			script:            `var res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
-		***REMOVED***,
-		***REMOVED***
 			name:              "Bad location redirect",
 			expectedErrorCode: 1000,
 			expectedErrorMsg:  "failed to parse Location header \"h\\t:/\": ",
