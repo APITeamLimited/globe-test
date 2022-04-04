@@ -33,72 +33,78 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Generate elements_gen.go. There are two sections of code which need to be generated. The selToElement function and the attribute accessor methods.
+// Generate elements_gen.go.
+// There are two sections of code which need to be generated.
+// The selToElement function and the attribute accessor methods.
 
-// Thhe first step to generate the selToElement function is parse the TagName constants and Element structs in elements.go using ast.Inspect
+// The first step to generate the selToElement function is parse the TagName constants and Element structs
+// in elements.go using ast.Inspect
 // One of NodeHandlerFunc methods is called for each ast.Node parsed by ast.Inspect
 // The NodeHandlerFunc methods build ElemInfo structs and populate elemInfos in AstInspectState
 // The template later iterates over elemInfos to build the selToElement function
 
-type NodeHandlerFunc func(node ast.Node) NodeHandlerFunc
+type nodeHandlerFunc func(node ast.Node) nodeHandlerFunc
 
-type AstInspectState struct ***REMOVED***
-	handler   NodeHandlerFunc
+type astInspectState struct ***REMOVED***
+	handler   nodeHandlerFunc
 	elemName  string
-	elemInfos map[string]*ElemInfo
+	elemInfos map[string]*elemInfo
 ***REMOVED***
 
-type ElemInfo struct ***REMOVED***
+type elemInfo struct ***REMOVED***
 	StructName    string
 	PrtStructName string
 ***REMOVED***
 
-// The attribute accessors are build using function definitions. Each funcion definition has a TemplateType.
+// The attribute accessors are build using function definitions. Each funcion definition has a templateType.
 // The number of TemplateArgs varies based on the TenplateType and is documented below.
-type TemplateType string
-type TemplateArg string
+type (
+	templateType string
+	templateArg  string
+)
 
 const (
-	stringTemplate       TemplateType = "typeString"
-	urlTemplate          TemplateType = "typeUrl"
-	boolTemplate         TemplateType = "typeBool"
-	intTemplate          TemplateType = "typeInt"
-	constTemplate        TemplateType = "typeConst"
-	enumTemplate         TemplateType = "typeEnum"
-	nullableEnumTemplate TemplateType = "typeEnumNullable"
+	stringTemplate       templateType = "typeString"
+	urlTemplate          templateType = "typeURL"
+	boolTemplate         templateType = "typeBool"
+	intTemplate          templateType = "typeInt"
+	constTemplate        templateType = "typeConst"
+	enumTemplate         templateType = "typeEnum"
+	nullableEnumTemplate templateType = "typeEnumNullable"
 )
 
 // Some common TemplateArgs
+//nolint:lll,gochecknoglobals
 var (
 	// Default return values for urlTemplate functions. Either an empty string or the current URL.
-	defaultURLEmpty   = []TemplateArg***REMOVED***"\"\""***REMOVED***
-	defaultURLCurrent = []TemplateArg***REMOVED***"e.sel.URL"***REMOVED***
+	defaultURLEmpty   = []templateArg***REMOVED***"\"\""***REMOVED***
+	defaultURLCurrent = []templateArg***REMOVED***"e.sel.URL"***REMOVED***
 
 	// Common default return values for intTemplates
-	defaultInt0      = []TemplateArg***REMOVED***"0"***REMOVED***
-	defaultIntMinus1 = []TemplateArg***REMOVED***"-1"***REMOVED***
-	defaultIntPlus1  = []TemplateArg***REMOVED***"1"***REMOVED***
+	defaultInt0      = []templateArg***REMOVED***"0"***REMOVED***
+	defaultIntMinus1 = []templateArg***REMOVED***"-1"***REMOVED***
+	defaultIntPlus1  = []templateArg***REMOVED***"1"***REMOVED***
 
 	// The following are the for various attributes using enumTemplate.
 	// The first item in the list is the default value.
-	autocompleteOpts = []TemplateArg***REMOVED***"on", "off"***REMOVED***
-	referrerOpts     = []TemplateArg***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED***
-	preloadOpts      = []TemplateArg***REMOVED***"auto", "metadata", "none"***REMOVED***
-	btnTypeOpts      = []TemplateArg***REMOVED***"submit", "button", "menu", "reset"***REMOVED***
-	encTypeOpts      = []TemplateArg***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED***
-	inputTypeOpts    = []TemplateArg***REMOVED***"text", "button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "time", "url", "week"***REMOVED***
-	keyTypeOpts      = []TemplateArg***REMOVED***"RSA", "DSA", "EC"***REMOVED***
-	keygenTypeOpts   = []TemplateArg***REMOVED***"keygen"***REMOVED***
-	liTypeOpts       = []TemplateArg***REMOVED***"", "1", "a", "A", "i", "I", "disc", "square", "circle"***REMOVED***
-	httpEquivOpts    = []TemplateArg***REMOVED***"content-type", "default-style", "refresh"***REMOVED***
-	olistTypeOpts    = []TemplateArg***REMOVED***"1", "a", "A", "i", "I"***REMOVED***
-	scopeOpts        = []TemplateArg***REMOVED***"", "row", "col", "colgroup", "rowgroup"***REMOVED***
-	autocapOpts      = []TemplateArg***REMOVED***"sentences", "none", "off", "characters", "words"***REMOVED***
-	wrapOpts         = []TemplateArg***REMOVED***"soft", "hard", "off"***REMOVED***
-	kindOpts         = []TemplateArg***REMOVED***"subtitle", "captions", "descriptions", "chapters", "metadata"***REMOVED***
+	autocompleteOpts = []templateArg***REMOVED***"on", "off"***REMOVED***
+	referrerOpts     = []templateArg***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED***
+	preloadOpts      = []templateArg***REMOVED***"auto", "metadata", "none"***REMOVED***
+	btnTypeOpts      = []templateArg***REMOVED***"submit", "button", "menu", "reset"***REMOVED***
+	encTypeOpts      = []templateArg***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED***
+	inputTypeOpts    = []templateArg***REMOVED***"text", "button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "time", "url", "week"***REMOVED***
+	keyTypeOpts      = []templateArg***REMOVED***"RSA", "DSA", "EC"***REMOVED***
+	keygenTypeOpts   = []templateArg***REMOVED***"keygen"***REMOVED***
+	liTypeOpts       = []templateArg***REMOVED***"", "1", "a", "A", "i", "I", "disc", "square", "circle"***REMOVED***
+	httpEquivOpts    = []templateArg***REMOVED***"content-type", "default-style", "refresh"***REMOVED***
+	olistTypeOpts    = []templateArg***REMOVED***"1", "a", "A", "i", "I"***REMOVED***
+	scopeOpts        = []templateArg***REMOVED***"", "row", "col", "colgroup", "rowgroup"***REMOVED***
+	autocapOpts      = []templateArg***REMOVED***"sentences", "none", "off", "characters", "words"***REMOVED***
+	wrapOpts         = []templateArg***REMOVED***"soft", "hard", "off"***REMOVED***
+	kindOpts         = []templateArg***REMOVED***"subtitle", "captions", "descriptions", "chapters", "metadata"***REMOVED***
 
 	// These are the values allowed for the crossorigin attribute, used by the nullableEnumTemplates is always goja.Undefined
-	crossOriginOpts = []TemplateArg***REMOVED***"anonymous", "use-credentials"***REMOVED***
+	crossOriginOpts = []templateArg***REMOVED***"anonymous", "use-credentials"***REMOVED***
 )
 
 // Elem is one of the Element struct names from elements.go
@@ -113,13 +119,16 @@ var (
 //   constTemplate: uses 1 Template Arg, the generated function always returns that value
 //   intTemplate: needs 1 TemplateArg, used as the default return value (when the attribute was empty).
 //   urlTemplate: needs 1 TemplateArg, used as the default, either "defaultURLEmpty" or "defaultURLCurrent"
-//   enumTemplate: uses any number or more TemplateArg, the gen'd func always returns one of the values in the TemplateArgs.
-//                 The first item in the list is used as the default when the attribute was invalid or unset.
-//   nullableEnumTemplate: similar to the enumTemplate except the default is goja.Undefined and the return type is goja.Value
+//   enumTemplate: uses any number or more TemplateArg, the gen'd func always returns one of the values in
+//                 the TemplateArgs. The first item in the list is used as the default when the attribute
+//                 was invalid or unset.
+//   nullableEnumTemplate: similar to the enumTemplate except the default is goja.Undefined and the
+//                         return type is goja.Value
+//nolint:gochecknoglobals
 var funcDefs = []struct ***REMOVED***
 	Elem, Method, Attr string
-	TemplateType       TemplateType
-	TemplateArgs       []TemplateArg
+	TemplateType       templateType
+	TemplateArgs       []templateArg
 ***REMOVED******REMOVED***
 	***REMOVED***"HrefElement", "Download", "download", stringTemplate, nil***REMOVED***,
 	***REMOVED***"HrefElement", "ReferrerPolicy", "referrerpolicy", enumTemplate, referrerOpts***REMOVED***,
@@ -253,7 +262,7 @@ var funcDefs = []struct ***REMOVED***
 	***REMOVED***"OptionElement", "Selected", "selected", boolTemplate, nil***REMOVED***,
 	***REMOVED***"OutputElement", "HtmlFor", "for", stringTemplate, nil***REMOVED***,
 	***REMOVED***"OutputElement", "Name", "name", stringTemplate, nil***REMOVED***,
-	***REMOVED***"OutputElement", "Type", "type", constTemplate, []TemplateArg***REMOVED***"output"***REMOVED******REMOVED***,
+	***REMOVED***"OutputElement", "Type", "type", constTemplate, []templateArg***REMOVED***"output"***REMOVED******REMOVED***,
 	***REMOVED***"ParamElement", "Name", "name", stringTemplate, nil***REMOVED***,
 	***REMOVED***"ParamElement", "Value", "value", stringTemplate, nil***REMOVED***,
 	***REMOVED***"PreElement", "Name", "name", stringTemplate, nil***REMOVED***,
@@ -286,7 +295,7 @@ var funcDefs = []struct ***REMOVED***
 	***REMOVED***"TableHeaderCellElement", "Abbr", "abbr", stringTemplate, nil***REMOVED***,
 	***REMOVED***"TableHeaderCellElement", "Scope", "scope", enumTemplate, scopeOpts***REMOVED***,
 	***REMOVED***"TableHeaderCellElement", "Sorted", "sorted", boolTemplate, nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Type", "type", constTemplate, []TemplateArg***REMOVED***"textarea"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Type", "type", constTemplate, []templateArg***REMOVED***"textarea"***REMOVED******REMOVED***,
 	***REMOVED***"TextAreaElement", "Value", "value", stringTemplate, nil***REMOVED***,
 	***REMOVED***"TextAreaElement", "DefaultValue", "value", stringTemplate, nil***REMOVED***,
 	***REMOVED***"TextAreaElement", "Placeholder", "placeholder", stringTemplate, nil***REMOVED***,
@@ -317,10 +326,10 @@ func main() ***REMOVED***
 	***REMOVED***
 
 	// Initialise the AstInspectState
-	var collector = &AstInspectState***REMOVED******REMOVED***
+	collector := &astInspectState***REMOVED******REMOVED***
 
 	collector.handler = collector.defaultHandler
-	collector.elemInfos = make(map[string]*ElemInfo)
+	collector.elemInfos = make(map[string]*elemInfo)
 
 	// Populate collector.elemInfos
 	ast.Inspect(parsedFile, func(n ast.Node) bool ***REMOVED***
@@ -333,17 +342,19 @@ func main() ***REMOVED***
 	// elemInfos and funcDefs are now complete and the template can be executed.
 	var buf bytes.Buffer
 	err := elemFuncsTemplate.Execute(&buf, struct ***REMOVED***
-		ElemInfos map[string]*ElemInfo
+		ElemInfos map[string]*elemInfo
 		FuncDefs  []struct ***REMOVED***
 			Elem, Method, Attr string
-			TemplateType       TemplateType
-			TemplateArgs       []TemplateArg
+			TemplateType       templateType
+			TemplateArgs       []templateArg
 		***REMOVED***
-		TemplateTypes struct***REMOVED*** String, Url, Enum, Bool, GojaEnum, Int, Const TemplateType ***REMOVED***
+		TemplateTypes struct***REMOVED*** String, URL, Enum, Bool, GojaEnum, Int, Const templateType ***REMOVED***
 	***REMOVED******REMOVED***
 		collector.elemInfos,
 		funcDefs,
-		struct***REMOVED*** String, Url, Enum, Bool, GojaEnum, Int, Const TemplateType ***REMOVED******REMOVED***stringTemplate, urlTemplate, enumTemplate, boolTemplate, nullableEnumTemplate, intTemplate, constTemplate***REMOVED***,
+		struct***REMOVED*** String, URL, Enum, Bool, GojaEnum, Int, Const templateType ***REMOVED******REMOVED***
+			stringTemplate, urlTemplate, enumTemplate, boolTemplate, nullableEnumTemplate, intTemplate, constTemplate,
+		***REMOVED***,
 	***REMOVED***)
 	if err != nil ***REMOVED***
 		logrus.WithError(err).Fatal("Unable to execute template")
@@ -369,11 +380,11 @@ func main() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+//nolint:gochecknoglobals
 var elemFuncsTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
 	"buildStruct": buildStruct,
 	"returnType":  returnType,
-***REMOVED***).Parse(`// generated by js/modules/k6/html/gen/gen_elements.go directed by js/modules/k6/html/elements.go;  DO NOT EDIT
-// nolint: goconst
+***REMOVED***).Parse(`// generated by js/modules/k6/html/gen/gen_elements.go;  DO NOT EDIT
 package html
 
 import "github.com/dop251/goja"
@@ -428,7 +439,7 @@ func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***RE
 	***REMOVED***
 ***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateTypes.Const ***REMOVED******REMOVED***
 	return "***REMOVED******REMOVED*** index $funcDef.TemplateArgs 0 ***REMOVED******REMOVED***"
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateTypes.Url ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateTypes.URL ***REMOVED******REMOVED***
 	return e.attrAsURLString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.TemplateArgs 0 ***REMOVED******REMOVED***)
 ***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateTypes.String ***REMOVED******REMOVED***
 	return e.attrAsString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
@@ -439,18 +450,18 @@ func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***RE
 ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 `))
 
-// generate the nested struct, either one or two levels of nesting, ie "BaseElement***REMOVED***elem***REMOVED***" or "ButtonElement***REMOVED***FormFieldElement***REMOVED***elem***REMOVED******REMOVED***)"
-func buildStruct(elemInfo ElemInfo) string ***REMOVED***
-	if elemInfo.PrtStructName == "Element" ***REMOVED***
-		return elemInfo.StructName + "***REMOVED***elem***REMOVED***"
-	***REMOVED*** else ***REMOVED***
-		return elemInfo.StructName + "***REMOVED***" + elemInfo.PrtStructName + "***REMOVED***elem***REMOVED******REMOVED***"
+// generate the nested struct, either one or two levels of nesting,
+// ie "BaseElement***REMOVED***elem***REMOVED***" or "ButtonElement***REMOVED***FormFieldElement***REMOVED***elem***REMOVED******REMOVED***)"
+func buildStruct(ei elemInfo) string ***REMOVED***
+	if ei.PrtStructName == "Element" ***REMOVED***
+		return ei.StructName + "***REMOVED***elem***REMOVED***"
 	***REMOVED***
+	return ei.StructName + "***REMOVED***" + ei.PrtStructName + "***REMOVED***elem***REMOVED******REMOVED***"
 ***REMOVED***
 
 // Select the correct return type for one of the attribute accessor methods
-func returnType(templateType TemplateType) string ***REMOVED***
-	switch templateType ***REMOVED***
+func returnType(tt templateType) string ***REMOVED***
+	switch tt ***REMOVED***
 	case boolTemplate:
 		return "bool"
 	case intTemplate:
@@ -463,7 +474,7 @@ func returnType(templateType TemplateType) string ***REMOVED***
 ***REMOVED***
 
 // Default node handler functions for ast.Inspect. Return itself unless it's found a "const" or "struct" keyword
-func (ce *AstInspectState) defaultHandler(node ast.Node) NodeHandlerFunc ***REMOVED***
+func (ce *astInspectState) defaultHandler(node ast.Node) nodeHandlerFunc ***REMOVED***
 	ce.elemName = ""
 	switch node.(type) ***REMOVED***
 	case *ast.TypeSpec: // struct keyword
@@ -477,13 +488,14 @@ func (ce *AstInspectState) defaultHandler(node ast.Node) NodeHandlerFunc ***REMO
 	***REMOVED***
 ***REMOVED***
 
-// Found a tagname constant. The code 'const AnchorTagName = "a"' will add an ElemInfo called "Anchor", like elemInfos["Anchor"] = ElemInfo***REMOVED***"", ""***REMOVED***
-func (ce *AstInspectState) elementTagNameHandler(node ast.Node) NodeHandlerFunc ***REMOVED***
+// Found a tagname constant. The code 'const AnchorTagName = "a"' will add an ElemInfo called "Anchor",
+// like elemInfos["Anchor"] = ElemInfo***REMOVED***"", ""***REMOVED***
+func (ce *astInspectState) elementTagNameHandler(node ast.Node) nodeHandlerFunc ***REMOVED***
 	switch x := node.(type) ***REMOVED***
 	case *ast.Ident:
 		if strings.HasSuffix(x.Name, "TagName") ***REMOVED***
 			ce.elemName = strings.TrimSuffix(x.Name, "TagName")
-			ce.elemInfos[ce.elemName] = &ElemInfo***REMOVED***"", ""***REMOVED***
+			ce.elemInfos[ce.elemName] = &elemInfo***REMOVED***"", ""***REMOVED***
 		***REMOVED***
 
 		return ce.defaultHandler
@@ -494,10 +506,11 @@ func (ce *AstInspectState) elementTagNameHandler(node ast.Node) NodeHandlerFunc 
 ***REMOVED***
 
 // A struct definition was found, keep the elem handler if it's for an Element struct
-// Element structs nest the "Element" struct or an intermediate struct like "HrefElement", the name of the 'parent' struct is contained in the
+// Element structs nest the "Element" struct or an intermediate struct like "HrefElement",
+// the name of the 'parent' struct is contained in the
 // *ast.Ident node located a few nodes after the TypeSpec node containing struct keyword
 // The nodes in between the ast.TypeSpec and ast.Ident are ignored
-func (ce *AstInspectState) elementStructHandler(node ast.Node) NodeHandlerFunc ***REMOVED***
+func (ce *astInspectState) elementStructHandler(node ast.Node) nodeHandlerFunc ***REMOVED***
 	switch x := node.(type) ***REMOVED***
 	case *ast.Ident:
 		if !strings.HasSuffix(x.Name, "Element") ***REMOVED***
@@ -506,18 +519,20 @@ func (ce *AstInspectState) elementStructHandler(node ast.Node) NodeHandlerFunc *
 
 		if ce.elemName == "" ***REMOVED***
 			ce.elemName = strings.TrimSuffix(x.Name, "Element")
-			// Ignore elements which don't have a tag name constant meaning no elemInfo structure was created by the TagName handle.
-			// It skips the Href, Media, FormField, Mod, TableSection or TableCell structs as these structs are inherited by other elements and not created indepedently.
+			// Ignore elements which don't have a tag name constant meaning no elemInfo
+			// structure was created by the TagName handle.
+			// It skips the Href, Media, FormField, Mod, TableSection or TableCell structs
+			// as these structs are inherited by other elements and not created indepedently.
 			if _, ok := ce.elemInfos[ce.elemName]; !ok ***REMOVED***
 				return ce.defaultHandler
 			***REMOVED***
 
 			ce.elemInfos[ce.elemName].StructName = x.Name
 			return ce.elementStructHandler
-		***REMOVED*** else ***REMOVED***
-			ce.elemInfos[ce.elemName].PrtStructName = x.Name
-			return ce.defaultHandler
 		***REMOVED***
+
+		ce.elemInfos[ce.elemName].PrtStructName = x.Name
+		return ce.defaultHandler
 
 	case *ast.StructType:
 		return ce.elementStructHandler
