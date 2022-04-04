@@ -477,10 +477,13 @@ func (ctx *tc39TestCtx) init() ***REMOVED***
 	if err != nil ***REMOVED***
 		panic(err)
 	***REMOVED***
-	ctx.expectedErrors = make(map[string]string, 1000)
-	err = json.Unmarshal(b, &ctx.expectedErrors)
-	if err != nil ***REMOVED***
-		panic(err)
+	b = bytes.TrimSpace(b)
+	if len(b) > 0 ***REMOVED***
+		ctx.expectedErrors = make(map[string]string, 1000)
+		err = json.Unmarshal(b, &ctx.expectedErrors)
+		if err != nil ***REMOVED***
+			panic(err)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
