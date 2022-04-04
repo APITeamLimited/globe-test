@@ -59,66 +59,6 @@ type bridgeTestErrorType struct***REMOVED******REMOVED***
 
 func (bridgeTestErrorType) Error() error ***REMOVED*** return errors.New("error") ***REMOVED***
 
-type bridgeTestJSValueType struct***REMOVED******REMOVED***
-
-func (bridgeTestJSValueType) Func(arg goja.Value) goja.Value ***REMOVED*** return arg ***REMOVED***
-
-type bridgeTestJSValueErrorType struct***REMOVED******REMOVED***
-
-func (bridgeTestJSValueErrorType) Func(arg goja.Value) (goja.Value, error) ***REMOVED***
-	if goja.IsUndefined(arg) ***REMOVED***
-		return goja.Undefined(), errors.New("missing argument")
-	***REMOVED***
-	return arg, nil
-***REMOVED***
-
-type bridgeTestJSValueContextType struct***REMOVED******REMOVED***
-
-func (bridgeTestJSValueContextType) Func(ctx context.Context, arg goja.Value) goja.Value ***REMOVED***
-	return arg
-***REMOVED***
-
-type bridgeTestJSValueContextErrorType struct***REMOVED******REMOVED***
-
-func (bridgeTestJSValueContextErrorType) Func(ctx context.Context, arg goja.Value) (goja.Value, error) ***REMOVED***
-	if goja.IsUndefined(arg) ***REMOVED***
-		return goja.Undefined(), errors.New("missing argument")
-	***REMOVED***
-	return arg, nil
-***REMOVED***
-
-type bridgeTestNativeFunctionType struct***REMOVED******REMOVED***
-
-func (bridgeTestNativeFunctionType) Func(call goja.FunctionCall) goja.Value ***REMOVED***
-	return call.Argument(0)
-***REMOVED***
-
-type bridgeTestNativeFunctionErrorType struct***REMOVED******REMOVED***
-
-func (bridgeTestNativeFunctionErrorType) Func(call goja.FunctionCall) (goja.Value, error) ***REMOVED***
-	arg := call.Argument(0)
-	if goja.IsUndefined(arg) ***REMOVED***
-		return goja.Undefined(), errors.New("missing argument")
-	***REMOVED***
-	return arg, nil
-***REMOVED***
-
-type bridgeTestNativeFunctionContextType struct***REMOVED******REMOVED***
-
-func (bridgeTestNativeFunctionContextType) Func(ctx context.Context, call goja.FunctionCall) goja.Value ***REMOVED***
-	return call.Argument(0)
-***REMOVED***
-
-type bridgeTestNativeFunctionContextErrorType struct***REMOVED******REMOVED***
-
-func (bridgeTestNativeFunctionContextErrorType) Func(ctx context.Context, call goja.FunctionCall) (goja.Value, error) ***REMOVED***
-	arg := call.Argument(0)
-	if goja.IsUndefined(arg) ***REMOVED***
-		return goja.Undefined(), errors.New("missing argument")
-	***REMOVED***
-	return arg, nil
-***REMOVED***
-
 type bridgeTestAddType struct***REMOVED******REMOVED***
 
 func (bridgeTestAddType) Add(a, b int) int ***REMOVED*** return a + b ***REMOVED***
@@ -152,18 +92,6 @@ func (bridgeTestContextAddWithErrorType) ContextAddWithError(ctx context.Context
 	***REMOVED***
 	return res, nil
 ***REMOVED***
-
-type bridgeTestContextInjectType struct ***REMOVED***
-	ctx context.Context
-***REMOVED***
-
-func (t *bridgeTestContextInjectType) ContextInject(ctx context.Context) ***REMOVED*** t.ctx = ctx ***REMOVED***
-
-type bridgeTestContextInjectPtrType struct ***REMOVED***
-	ctxPtr *context.Context
-***REMOVED***
-
-func (t *bridgeTestContextInjectPtrType) ContextInjectPtr(ctxPtr *context.Context) ***REMOVED*** t.ctxPtr = ctxPtr ***REMOVED***
 
 type bridgeTestSumType struct***REMOVED******REMOVED***
 
@@ -209,15 +137,6 @@ func (m bridgeTestSumWithContextAndErrorType) SumWithContextAndError(ctx context
 		return 0, errors.New("answer is negative")
 	***REMOVED***
 	return sum, nil
-***REMOVED***
-
-type bridgeTestCounterType struct ***REMOVED***
-	Counter int
-***REMOVED***
-
-func (m *bridgeTestCounterType) Count() int ***REMOVED***
-	m.Counter++
-	return m.Counter
 ***REMOVED***
 
 type bridgeTestConstructorType struct***REMOVED******REMOVED***

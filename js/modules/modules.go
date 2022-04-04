@@ -23,7 +23,6 @@ package modules
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -80,18 +79,6 @@ func GetJSModules() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 // Instance is what a module needs to return
 type Instance interface ***REMOVED***
 	Exports() Exports
-***REMOVED***
-
-func getInterfaceMethods() []string ***REMOVED***
-	var t Instance
-	T := reflect.TypeOf(&t).Elem()
-	result := make([]string, T.NumMethod())
-
-	for i := range result ***REMOVED***
-		result[i] = T.Method(i).Name
-	***REMOVED***
-
-	return result
 ***REMOVED***
 
 // VU gives access to the currently executing VU to a module Instance

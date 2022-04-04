@@ -1,26 +1,10 @@
 package common
 
 import (
-	"context"
 	"reflect"
 	"strings"
 
-	"github.com/dop251/goja"
 	"github.com/serenize/snaker"
-)
-
-var (
-	ctxPtrT = reflect.TypeOf((*context.Context)(nil))
-	ctxT    = reflect.TypeOf((*context.Context)(nil)).Elem()
-	errorT  = reflect.TypeOf((*error)(nil)).Elem()
-	jsValT  = reflect.TypeOf((*goja.Value)(nil)).Elem()
-	fnCallT = reflect.TypeOf((*goja.FunctionCall)(nil)).Elem()
-
-	constructWrap = goja.MustCompile(
-		"__constructor__",
-		`(function(impl) ***REMOVED*** return function() ***REMOVED*** return impl.apply(this, arguments); ***REMOVED*** ***REMOVED***)`,
-		true,
-	)
 )
 
 // if a fieldName is the key of this map exactly than the value for the given key should be used as
