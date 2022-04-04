@@ -36,8 +36,8 @@ import (
 )
 
 func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
-	var b = bytes.NewBuffer(nil)
-	var w = tar.NewWriter(b)
+	b := bytes.NewBuffer(nil)
+	w := tar.NewWriter(b)
 	err := fsext.Walk(fs, afero.FilePathSeparator,
 		filepath.WalkFunc(func(filePath string, info os.FileInfo, err error) error ***REMOVED***
 			if filePath == afero.FilePathSeparator ***REMOVED***
@@ -49,7 +49,7 @@ func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
 			if info.IsDir() ***REMOVED***
 				return w.WriteHeader(&tar.Header***REMOVED***
 					Name:     path.Clean(filepath.ToSlash(filePath)[1:]),
-					Mode:     0555,
+					Mode:     0o555,
 					Typeflag: tar.TypeDir,
 				***REMOVED***)
 			***REMOVED***
@@ -60,7 +60,7 @@ func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
 			***REMOVED***
 			err = w.WriteHeader(&tar.Header***REMOVED***
 				Name:     path.Clean(filepath.ToSlash(filePath)[1:]),
-				Mode:     0644,
+				Mode:     0o644,
 				Size:     int64(len(data)),
 				Typeflag: tar.TypeReg,
 			***REMOVED***)
@@ -80,7 +80,8 @@ func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
 ***REMOVED***
 
 func TestOldArchive(t *testing.T) ***REMOVED***
-	var testCases = map[string]string***REMOVED***
+	t.Parallel()
+	testCases := map[string]string***REMOVED***
 		// map of filename to data for each main file tested
 		"github.com/k6io/k6/samples/example.js": `github file`,
 		"cdnjs.com/packages/Faker":              `faker file`,
@@ -90,6 +91,7 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 	for filename, data := range testCases ***REMOVED***
 		filename, data := filename, data
 		t.Run(filename, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			metadata := `***REMOVED***"filename": "` + filename + `", "options": ***REMOVED******REMOVED******REMOVED***`
 			fs := makeMemMapFs(t, map[string][]byte***REMOVED***
 				// files
@@ -112,24 +114,22 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 			buf, err := dumpMemMapFsToBuf(fs)
 			require.NoError(t, err)
 
-			var (
-				expectedFilesystems = map[string]afero.Fs***REMOVED***
-					"file": makeMemMapFs(t, map[string][]byte***REMOVED***
-						"/C:/something/path":  []byte(`windows file`),
-						"/absolulte/path":     []byte(`unix file`),
-						"/C:/something/path2": []byte(`windows script`),
-						"/absolulte/path2":    []byte(`unix script`),
-					***REMOVED***),
-					"https": makeMemMapFs(t, map[string][]byte***REMOVED***
-						"/example.com/path/to.js":                 []byte(`example.com file`),
-						"/example.com/path/too.js":                []byte(`example.com script`),
-						"/github.com/k6io/k6/samples/example.js":  []byte(`github file`),
-						"/cdnjs.com/packages/Faker":               []byte(`faker file`),
-						"/github.com/k6io/k6/samples/example.js2": []byte(`github script`),
-						"/cdnjs.com/packages/Faker2":              []byte(`faker script`),
-					***REMOVED***),
-				***REMOVED***
-			)
+			expectedFilesystems := map[string]afero.Fs***REMOVED***
+				"file": makeMemMapFs(t, map[string][]byte***REMOVED***
+					"/C:/something/path":  []byte(`windows file`),
+					"/absolulte/path":     []byte(`unix file`),
+					"/C:/something/path2": []byte(`windows script`),
+					"/absolulte/path2":    []byte(`unix script`),
+				***REMOVED***),
+				"https": makeMemMapFs(t, map[string][]byte***REMOVED***
+					"/example.com/path/to.js":                 []byte(`example.com file`),
+					"/example.com/path/too.js":                []byte(`example.com script`),
+					"/github.com/k6io/k6/samples/example.js":  []byte(`github file`),
+					"/cdnjs.com/packages/Faker":               []byte(`faker file`),
+					"/github.com/k6io/k6/samples/example.js2": []byte(`github script`),
+					"/cdnjs.com/packages/Faker2":              []byte(`faker script`),
+				***REMOVED***),
+			***REMOVED***
 
 			arc, err := ReadArchive(buf)
 			require.NoError(t, err)
@@ -140,6 +140,7 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestUnknownPrefix(t *testing.T) ***REMOVED***
+	t.Parallel()
 	fs := makeMemMapFs(t, map[string][]byte***REMOVED***
 		"/strange/something": []byte(`github file`),
 	***REMOVED***)
@@ -153,7 +154,8 @@ func TestUnknownPrefix(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
-	var tests = []struct ***REMOVED***
+	t.Parallel()
+	tests := []struct ***REMOVED***
 		Filename, Pwd, version              string
 		expectedFilenameURL, expectedPwdURL *url.URL
 		expectedError                       string
@@ -229,8 +231,9 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
+	t.Parallel()
 	var emptyConfigMap ScenarioConfigs
-	var tests = []struct ***REMOVED***
+	tests := []struct ***REMOVED***
 		metadata     string
 		expScenarios interface***REMOVED******REMOVED***
 		expError     string

@@ -49,6 +49,7 @@ func TestResolver(t *testing.T) ***REMOVED***
 	***REMOVED***, nil)
 
 	t.Run("LookupIP", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		testCases := []struct ***REMOVED***
 			ttl   time.Duration
 			sel   types.DNSSelect
@@ -84,6 +85,7 @@ func TestResolver(t *testing.T) ***REMOVED***
 		for _, tc := range testCases ***REMOVED***
 			tc := tc
 			t.Run(fmt.Sprintf("%s_%s_%s", tc.ttl, tc.sel, tc.pol), func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				r := NewResolver(mr.LookupIPAll, tc.ttl, tc.sel, tc.pol)
 				ip, err := r.LookupIP(host)
 				require.NoError(t, err)

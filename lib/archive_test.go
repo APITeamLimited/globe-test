@@ -41,6 +41,7 @@ import (
 )
 
 func TestNormalizeAndAnonymizePath(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]string***REMOVED***
 		"/tmp":                            "/tmp",
 		"/tmp/myfile.txt":                 "/tmp/myfile.txt",
@@ -64,6 +65,7 @@ func TestNormalizeAndAnonymizePath(t *testing.T) ***REMOVED***
 	for from, to := range testdata ***REMOVED***
 		from, to := from, to
 		t.Run("path="+from, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			res := NormalizeAndAnonymizePath(from)
 			assert.Equal(t, to, res)
 			assert.Equal(t, res, NormalizeAndAnonymizePath(res))
@@ -74,7 +76,7 @@ func TestNormalizeAndAnonymizePath(t *testing.T) ***REMOVED***
 func makeMemMapFs(t *testing.T, input map[string][]byte) afero.Fs ***REMOVED***
 	fs := afero.NewMemMapFs()
 	for path, data := range input ***REMOVED***
-		require.NoError(t, afero.WriteFile(fs, path, data, 0644))
+		require.NoError(t, afero.WriteFile(fs, path, data, 0o644))
 	***REMOVED***
 	return fs
 ***REMOVED***
@@ -104,7 +106,7 @@ func diffFilesystems(t *testing.T, first, second afero.Fs) ***REMOVED***
 ***REMOVED***
 
 func getInfoNames(infos []os.FileInfo) []string ***REMOVED***
-	var names = make([]string, len(infos))
+	names := make([]string, len(infos))
 	for i, info := range infos ***REMOVED***
 		names[i] = info.Name()
 	***REMOVED***
@@ -136,7 +138,9 @@ func diffFilesystemsDir(t *testing.T, first, second afero.Fs, dirname string) **
 ***REMOVED***
 
 func TestArchiveReadWrite(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		arc1 := &Archive***REMOVED***
 			Type:      "js",
 			K6Version: consts.Version,
@@ -181,6 +185,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Anonymized", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		testdata := []struct ***REMOVED***
 			Pwd, PwdNormAnon string
 		***REMOVED******REMOVED***
@@ -267,11 +272,12 @@ func TestArchiveJSONEscape(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestUsingCacheFromCacheOnReadFs(t *testing.T) ***REMOVED***
-	var base = afero.NewMemMapFs()
-	var cached = afero.NewMemMapFs()
+	t.Parallel()
+	base := afero.NewMemMapFs()
+	cached := afero.NewMemMapFs()
 	// we specifically have different contents in both places
-	require.NoError(t, afero.WriteFile(base, "/wrong", []byte(`ooops`), 0644))
-	require.NoError(t, afero.WriteFile(cached, "/correct", []byte(`test`), 0644))
+	require.NoError(t, afero.WriteFile(base, "/wrong", []byte(`ooops`), 0o644))
+	require.NoError(t, afero.WriteFile(cached, "/correct", []byte(`test`), 0o644))
 
 	arc := &Archive***REMOVED***
 		Type:        "js",
@@ -318,9 +324,10 @@ func TestArchiveWithDataNotInFS(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestMalformedMetadata(t *testing.T) ***REMOVED***
-	var fs = afero.NewMemMapFs()
-	require.NoError(t, afero.WriteFile(fs, "/metadata.json", []byte("***REMOVED***,***REMOVED***"), 0644))
-	var b, err = dumpMemMapFsToBuf(fs)
+	t.Parallel()
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/metadata.json", []byte("***REMOVED***,***REMOVED***"), 0o644))
+	b, err := dumpMemMapFsToBuf(fs)
 	require.NoError(t, err)
 	_, err = ReadArchive(b)
 	require.Error(t, err)
@@ -328,7 +335,8 @@ func TestMalformedMetadata(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestStrangePaths(t *testing.T) ***REMOVED***
-	var pathsToChange = []string***REMOVED***
+	t.Parallel()
+	pathsToChange := []string***REMOVED***
 		`/path/with spaces/a.js`,
 		`/path/with spaces/a.js`,
 		`/path/with日本語/b.js`,
@@ -376,9 +384,10 @@ func TestStrangePaths(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestStdinArchive(t *testing.T) ***REMOVED***
-	var fs = afero.NewMemMapFs()
+	t.Parallel()
+	fs := afero.NewMemMapFs()
 	// we specifically have different contents in both places
-	require.NoError(t, afero.WriteFile(fs, "/-", []byte(`test`), 0644))
+	require.NoError(t, afero.WriteFile(fs, "/-", []byte(`test`), 0o644))
 
 	arc := &Archive***REMOVED***
 		Type:        "js",
@@ -400,5 +409,4 @@ func TestStdinArchive(t *testing.T) ***REMOVED***
 	data, err := afero.ReadFile(newArc.Filesystems["file"], "/-")
 	require.NoError(t, err)
 	require.Equal(t, string(data), "test")
-
 ***REMOVED***

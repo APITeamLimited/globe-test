@@ -56,7 +56,7 @@ func readDirNames(fs afero.Fs, dirname string) ([]string, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	var names = make([]string, len(infos))
+	names := make([]string, len(infos))
 	for i, info := range infos ***REMOVED***
 		names[i] = info.Name()
 	***REMOVED***

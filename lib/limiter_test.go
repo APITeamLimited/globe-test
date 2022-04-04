@@ -49,6 +49,7 @@ func TestSlotLimiterUnlimited(t *testing.T) ***REMOVED***
 	l.Begin()
 	l.Begin()
 ***REMOVED***
+
 func TestSlotLimiters(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testCases := []struct***REMOVED*** limit, launches, expMid int ***REMOVED******REMOVED***
@@ -105,15 +106,18 @@ func TestSlotLimiters(t *testing.T) ***REMOVED***
 func TestMultiSlotLimiter(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("0", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		l := NewMultiSlotLimiter(0)
 		assert.Nil(t, l.Slot("test"))
 	***REMOVED***)
 	t.Run("1", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		l := NewMultiSlotLimiter(1)
 		assert.Equal(t, l.Slot("test"), l.Slot("test"))
 		assert.NotNil(t, l.Slot("test"))
 	***REMOVED***)
 	t.Run("2", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		l := NewMultiSlotLimiter(1)
 		wg := sync.WaitGroup***REMOVED******REMOVED***
 		wg.Add(2)

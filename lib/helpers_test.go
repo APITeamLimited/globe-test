@@ -54,6 +54,7 @@ func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 	for i, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			err := StrictJSONUnmarshal([]byte(tc.data), &tc.destination)
 			if tc.expectedError ***REMOVED***
 				require.Error(t, err)
@@ -65,4 +66,4 @@ func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-//TODO: test EventStream very thoroughly
+// TODO: test EventStream very thoroughly

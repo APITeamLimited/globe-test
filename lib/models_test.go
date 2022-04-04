@@ -33,6 +33,7 @@ import (
 )
 
 func TestStageJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
 	s := Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***
 
 	data, err := json.Marshal(s)
@@ -46,7 +47,9 @@ func TestStageJSON(t *testing.T) ***REMOVED***
 
 // Suggested by @nkovacs in https://github.com/k6io/k6/issues/207#issuecomment-330545467
 func TestDataRaces(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Check race", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		group, err := NewGroup("test", nil)
 		assert.Nil(t, err, "NewGroup")
 		wg := sync.WaitGroup***REMOVED******REMOVED***
@@ -68,6 +71,7 @@ func TestDataRaces(t *testing.T) ***REMOVED***
 		assert.Equal(t, check1, check2, "Checks are the same")
 	***REMOVED***)
 	t.Run("Group race", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		group, err := NewGroup("test", nil)
 		assert.Nil(t, err, "NewGroup")
 		wg := sync.WaitGroup***REMOVED******REMOVED***
