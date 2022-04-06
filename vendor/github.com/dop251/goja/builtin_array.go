@@ -144,8 +144,8 @@ func (r *Runtime) arrayproto_pop(call FunctionCall) Value ***REMOVED***
 	obj := call.This.ToObject(r)
 	if a, ok := obj.self.(*arrayObject); ok ***REMOVED***
 		l := a.length
+		var val Value
 		if l > 0 ***REMOVED***
-			var val Value
 			l--
 			if l < uint32(len(a.values)) ***REMOVED***
 				val = a.values[l]
@@ -161,10 +161,15 @@ func (r *Runtime) arrayproto_pop(call FunctionCall) Value ***REMOVED***
 			//a._setLengthInt(l, false)
 			a.values[l] = nil
 			a.values = a.values[:l]
-			a.length = l
-			return val
+		***REMOVED*** else ***REMOVED***
+			val = _undefined
 		***REMOVED***
-		return _undefined
+		if a.lengthProp.writable ***REMOVED***
+			a.length = l
+		***REMOVED*** else ***REMOVED***
+			a.setLength(0, true) // will throw
+		***REMOVED***
+		return val
 	***REMOVED*** else ***REMOVED***
 		return r.arrayproto_pop_generic(obj)
 	***REMOVED***
@@ -313,7 +318,7 @@ func (r *Runtime) arrayproto_slice(call FunctionCall) Value ***REMOVED***
 
 	a := arraySpeciesCreate(o, count)
 	if src := r.checkStdArrayObj(o); src != nil ***REMOVED***
-		if dst, ok := a.self.(*arrayObject); ok ***REMOVED***
+		if dst := r.checkStdArrayObjWithProto(a); dst != nil ***REMOVED***
 			values := make([]Value, count)
 			copy(values, src.values[start:])
 			setArrayValues(dst, values)
@@ -396,7 +401,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value ***REMOVED***
 	itemCount := max(int64(len(call.Arguments)-2), 0)
 	newLength := length - actualDeleteCount + itemCount
 	if src := r.checkStdArrayObj(o); src != nil ***REMOVED***
-		if dst, ok := a.self.(*arrayObject); ok ***REMOVED***
+		if dst := r.checkStdArrayObjWithProto(a); dst != nil ***REMOVED***
 			values := make([]Value, actualDeleteCount)
 			copy(values, src.values[actualStart:])
 			setArrayValues(dst, values)
@@ -484,7 +489,7 @@ func (r *Runtime) arrayproto_unshift(call FunctionCall) Value ***REMOVED***
 	argCount := int64(len(call.Arguments))
 	newLen := intToValue(length + argCount)
 	newSize := length + argCount
-	if arr := r.checkStdArrayObj(o); arr != nil && newSize < math.MaxUint32 ***REMOVED***
+	if arr := r.checkStdArrayObjWithProto(o); arr != nil && newSize < math.MaxUint32 ***REMOVED***
 		if int64(cap(arr.values)) >= newSize ***REMOVED***
 			arr.values = arr.values[:newSize]
 			copy(arr.values[argCount:], arr.values[:length])
@@ -917,8 +922,11 @@ func (r *Runtime) arrayproto_reverse(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) arrayproto_shift(call FunctionCall) Value ***REMOVED***
 	o := call.This.ToObject(r)
-	if a := r.checkStdArrayObj(o); a != nil ***REMOVED***
+	if a := r.checkStdArrayObjWithProto(o); a != nil ***REMOVED***
 		if len(a.values) == 0 ***REMOVED***
+			if !a.lengthProp.writable ***REMOVED***
+				a.setLength(0, true) // will throw
+			***REMOVED***
 			return _undefined
 		***REMOVED***
 		first := a.values[0]
@@ -1138,6 +1146,20 @@ func (r *Runtime) checkStdArrayObj(obj *Object) *arrayObject ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (r *Runtime) checkStdArrayObjWithProto(obj *Object) *arrayObject ***REMOVED***
+	if arr := r.checkStdArrayObj(obj); arr != nil ***REMOVED***
+		if p1, ok := arr.prototype.self.(*arrayObject); ok && p1.propValueCount == 0 ***REMOVED***
+			if p2, ok := p1.prototype.self.(*baseObject); ok && p2.prototype == nil ***REMOVED***
+				p2.ensurePropOrder()
+				if p2.idxPropCount == 0 ***REMOVED***
+					return arr
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func (r *Runtime) checkStdArray(v Value) *arrayObject ***REMOVED***
 	if obj, ok := v.(*Object); ok ***REMOVED***
 		return r.checkStdArrayObj(obj)
@@ -1195,7 +1217,7 @@ func (r *Runtime) array_from(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 		iter := r.getIterator(items, usingIterator)
 		if mapFn == nil ***REMOVED***
-			if a := r.checkStdArrayObj(arr); a != nil ***REMOVED***
+			if a := r.checkStdArrayObjWithProto(arr); a != nil ***REMOVED***
 				var values []Value
 				iter.iterate(func(val Value) ***REMOVED***
 					values = append(values, val)
@@ -1222,7 +1244,7 @@ func (r *Runtime) array_from(call FunctionCall) Value ***REMOVED***
 			arr = r.newArrayValues(nil)
 		***REMOVED***
 		if mapFn == nil ***REMOVED***
-			if a := r.checkStdArrayObj(arr); a != nil ***REMOVED***
+			if a := r.checkStdArrayObjWithProto(arr); a != nil ***REMOVED***
 				values := make([]Value, l)
 				for k := int64(0); k < l; k++ ***REMOVED***
 					values[k] = nilSafe(arrayLike.self.getIdx(valueInt(k), nil))
@@ -1344,6 +1366,8 @@ func (r *Runtime) createArrayProto(val *Object) objectImpl ***REMOVED***
 	bl.setOwnStr("includes", valueTrue, true)
 	bl.setOwnStr("keys", valueTrue, true)
 	bl.setOwnStr("values", valueTrue, true)
+	bl.setOwnStr("groupBy", valueTrue, true)
+	bl.setOwnStr("groupByToMap", valueTrue, true)
 	o._putSym(SymUnscopables, valueProp(bl.val, false, false, true))
 
 	return o

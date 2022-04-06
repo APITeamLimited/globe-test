@@ -81,3 +81,16 @@ func TestHTTPFile(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestHTTPFileDataInRequest(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	tb, _, _, rt, _ := newRuntime(t) //nolint:dogsled
+	_, err := rt.RunString(tb.Replacer.Replace(`
+    let f = http.file("something");
+    let res = http.request("POST", "HTTPBIN_URL/post", f.data);
+    if (res.status != 200) ***REMOVED***
+      throw new Error("Unexpected status " + res.status)
+    ***REMOVED***`))
+	require.NoError(t, err)
+***REMOVED***

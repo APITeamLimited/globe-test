@@ -50,7 +50,7 @@ func (o *objectGoArrayReflect) _getIdx(idx int) Value ***REMOVED***
 	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() ***REMOVED***
 		return _null
 	***REMOVED***
-	return o.val.runtime.ToValue(v.Interface())
+	return o.val.runtime.toValue(v.Interface(), v)
 ***REMOVED***
 
 func (o *objectGoArrayReflect) getIdx(idx valueInt, receiver Value) Value ***REMOVED***

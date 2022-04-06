@@ -127,9 +127,6 @@ func (a *arrayObject) setLengthInt(l uint32, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (a *arrayObject) setLength(v uint32, throw bool) bool ***REMOVED***
-	if v == a.length ***REMOVED***
-		return true
-	***REMOVED***
 	if !a.lengthProp.writable ***REMOVED***
 		a.val.runtime.typeErrorResult(throw, "length is not writable")
 		return false
@@ -201,7 +198,7 @@ func (a *arrayObject) getStr(name unistring.String, receiver Value) Value ***REM
 	return a.getStrWithOwnProp(a.getOwnPropStr(name), name, receiver)
 ***REMOVED***
 
-func (a *arrayObject) getLengthProp() Value ***REMOVED***
+func (a *arrayObject) getLengthProp() *valueProperty ***REMOVED***
 	a.lengthProp.value = intToValue(int64(a.length))
 	return &a.lengthProp
 ***REMOVED***
@@ -382,7 +379,10 @@ func (r *Runtime) defineArrayLength(prop *valueProperty, descr PropertyDescripto
 	***REMOVED***
 
 	if descr.Value != nil ***REMOVED***
-		ret = setter(newLen, false)
+		oldLen := uint32(prop.value.ToInteger())
+		if oldLen != newLen ***REMOVED***
+			ret = setter(newLen, false)
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		ret = true
 	***REMOVED***
@@ -437,7 +437,7 @@ func (a *arrayObject) defineOwnPropertyStr(name unistring.String, descr Property
 		return a._defineIdxProperty(idx, descr, throw)
 	***REMOVED***
 	if name == "length" ***REMOVED***
-		return a.val.runtime.defineArrayLength(&a.lengthProp, descr, a.setLength, throw)
+		return a.val.runtime.defineArrayLength(a.getLengthProp(), descr, a.setLength, throw)
 	***REMOVED***
 	return a.baseObject.defineOwnPropertyStr(name, descr, throw)
 ***REMOVED***

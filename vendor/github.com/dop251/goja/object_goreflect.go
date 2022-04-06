@@ -155,22 +155,15 @@ func (o *objectGoReflect) _getMethod(jsName string) reflect.Value ***REMOVED***
 	return reflect.Value***REMOVED******REMOVED***
 ***REMOVED***
 
-func (o *objectGoReflect) getAddr(v reflect.Value) reflect.Value ***REMOVED***
-	if (v.Kind() == reflect.Struct || v.Kind() == reflect.Slice) && v.CanAddr() ***REMOVED***
-		return v.Addr()
-	***REMOVED***
-	return v
-***REMOVED***
-
 func (o *objectGoReflect) _get(name string) Value ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
-			return o.val.runtime.ToValue(o.getAddr(v).Interface())
+			return o.val.runtime.toValue(v.Interface(), v)
 		***REMOVED***
 	***REMOVED***
 
 	if v := o._getMethod(name); v.IsValid() ***REMOVED***
-		return o.val.runtime.ToValue(v.Interface())
+		return o.val.runtime.toValue(v.Interface(), v)
 	***REMOVED***
 
 	return nil
@@ -181,7 +174,7 @@ func (o *objectGoReflect) getOwnPropStr(name unistring.String) Value ***REMOVED*
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(n); v.IsValid() ***REMOVED***
 			return &valueProperty***REMOVED***
-				value:      o.val.runtime.ToValue(o.getAddr(v).Interface()),
+				value:      o.val.runtime.toValue(v.Interface(), v),
 				writable:   v.CanSet(),
 				enumerable: true,
 			***REMOVED***
@@ -190,7 +183,7 @@ func (o *objectGoReflect) getOwnPropStr(name unistring.String) Value ***REMOVED*
 
 	if v := o._getMethod(n); v.IsValid() ***REMOVED***
 		return &valueProperty***REMOVED***
-			value:      o.val.runtime.ToValue(v.Interface()),
+			value:      o.val.runtime.toValue(v.Interface(), v),
 			enumerable: true,
 		***REMOVED***
 	***REMOVED***

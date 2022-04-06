@@ -3086,14 +3086,22 @@ func (vm *vm) alreadyDeclared(name unistring.String) Value ***REMOVED***
 func (vm *vm) checkBindVarsGlobal(names []unistring.String) ***REMOVED***
 	o := vm.r.globalObject.self
 	sn := vm.r.global.stash.names
-	if o, ok := o.(*baseObject); ok ***REMOVED***
+	if bo, ok := o.(*baseObject); ok ***REMOVED***
 		// shortcut
-		for _, name := range names ***REMOVED***
-			if !o.hasOwnPropertyStr(name) && !o.extensible ***REMOVED***
-				panic(vm.r.NewTypeError("Cannot define global variable '%s', global object is not extensible", name))
+		if bo.extensible ***REMOVED***
+			for _, name := range names ***REMOVED***
+				if _, exists := sn[name]; exists ***REMOVED***
+					panic(vm.alreadyDeclared(name))
+				***REMOVED***
 			***REMOVED***
-			if _, exists := sn[name]; exists ***REMOVED***
-				panic(vm.alreadyDeclared(name))
+		***REMOVED*** else ***REMOVED***
+			for _, name := range names ***REMOVED***
+				if !bo.hasOwnPropertyStr(name) ***REMOVED***
+					panic(vm.r.NewTypeError("Cannot define global variable '%s', global object is not extensible", name))
+				***REMOVED***
+				if _, exists := sn[name]; exists ***REMOVED***
+					panic(vm.alreadyDeclared(name))
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -3115,10 +3123,10 @@ func (vm *vm) createGlobalVarBindings(names []unistring.String, d bool) ***REMOV
 		vm.r.global.varNames = globalVarNames
 	***REMOVED***
 	o := vm.r.globalObject.self
-	if o, ok := o.(*baseObject); ok ***REMOVED***
+	if bo, ok := o.(*baseObject); ok ***REMOVED***
 		for _, name := range names ***REMOVED***
-			if !o.hasOwnPropertyStr(name) && o.extensible ***REMOVED***
-				o._putProp(name, _undefined, true, true, d)
+			if !bo.hasOwnPropertyStr(name) && bo.extensible ***REMOVED***
+				bo._putProp(name, _undefined, true, true, d)
 			***REMOVED***
 			globalVarNames[name] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 		***REMOVED***

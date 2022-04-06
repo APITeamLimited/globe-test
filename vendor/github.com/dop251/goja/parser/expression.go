@@ -333,6 +333,9 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 	***REMOVED***
 	keyStartIdx := self.idx
 	literal, parsedLiteral, value, tkn := self.parseObjectPropertyKey()
+	if value == nil ***REMOVED***
+		return nil
+	***REMOVED***
 	if tkn == token.IDENTIFIER || tkn == token.STRING || tkn == token.KEYWORD || tkn == token.ILLEGAL ***REMOVED***
 		switch ***REMOVED***
 		case self.token == token.LEFT_PARENTHESIS:
@@ -367,12 +370,21 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 					Initializer: initializer,
 				***REMOVED***
 			***REMOVED***
-		case literal == "get" && self.token != token.COLON:
+		case (literal == "get" || literal == "set") && self.token != token.COLON:
 			_, _, keyValue, _ := self.parseObjectPropertyKey()
+			if keyValue == nil ***REMOVED***
+				return nil
+			***REMOVED***
+			var kind ast.PropertyKind
 			idx1 := self.idx
 			parameterList := self.parseFunctionParameterList()
-			if len(parameterList.List) > 0 || parameterList.Rest != nil ***REMOVED***
-				self.error(idx1, "Getter must not have any formal parameters.")
+			if literal == "get" ***REMOVED***
+				kind = ast.PropertyKindGet
+				if len(parameterList.List) > 0 || parameterList.Rest != nil ***REMOVED***
+					self.error(idx1, "Getter must not have any formal parameters.")
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				kind = ast.PropertyKindSet
 			***REMOVED***
 			node := &ast.FunctionLiteral***REMOVED***
 				Function:      keyStartIdx,
@@ -382,39 +394,19 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 			node.Source = self.slice(keyStartIdx, node.Body.Idx1())
 			return &ast.PropertyKeyed***REMOVED***
 				Key:   keyValue,
-				Kind:  ast.PropertyKindGet,
-				Value: node,
-			***REMOVED***
-		case literal == "set" && self.token != token.COLON:
-			_, _, keyValue, _ := self.parseObjectPropertyKey()
-			parameterList := self.parseFunctionParameterList()
-
-			node := &ast.FunctionLiteral***REMOVED***
-				Function:      keyStartIdx,
-				ParameterList: parameterList,
-			***REMOVED***
-
-			node.Body, node.DeclarationList = self.parseFunctionBlock()
-			node.Source = self.slice(keyStartIdx, node.Body.Idx1())
-
-			return &ast.PropertyKeyed***REMOVED***
-				Key:   keyValue,
-				Kind:  ast.PropertyKindSet,
+				Kind:  kind,
 				Value: node,
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	self.expect(token.COLON)
-	if value != nil ***REMOVED***
-		return &ast.PropertyKeyed***REMOVED***
-			Key:      value,
-			Kind:     ast.PropertyKindValue,
-			Value:    self.parseAssignmentExpression(),
-			Computed: tkn == token.ILLEGAL,
-		***REMOVED***
+	return &ast.PropertyKeyed***REMOVED***
+		Key:      value,
+		Kind:     ast.PropertyKindValue,
+		Value:    self.parseAssignmentExpression(),
+		Computed: tkn == token.ILLEGAL,
 	***REMOVED***
-	return nil
 ***REMOVED***
 
 func (self *_parser) parseObjectLiteral() *ast.ObjectLiteral ***REMOVED***

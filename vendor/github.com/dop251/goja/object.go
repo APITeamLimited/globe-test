@@ -590,9 +590,7 @@ func (o *baseObject) setForeignStr(name unistring.String, val, receiver Value, t
 
 func (o *baseObject) setForeignIdx(name valueInt, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
 	if idx := toIdx(name); idx != math.MaxUint32 ***REMOVED***
-		if o.lastSortedPropLen != len(o.propNames) ***REMOVED***
-			o.fixPropOrder()
-		***REMOVED***
+		o.ensurePropOrder()
 		if o.idxPropCount == 0 ***REMOVED***
 			return o._setForeignIdx(name, name, nil, receiver, throw)
 		***REMOVED***
@@ -1238,9 +1236,7 @@ func copyNamesIfNeeded(names []unistring.String, extraCap int) []unistring.Strin
 ***REMOVED***
 
 func (o *baseObject) iterateStringKeys() iterNextFunc ***REMOVED***
-	if len(o.propNames) > o.lastSortedPropLen ***REMOVED***
-		o.fixPropOrder()
-	***REMOVED***
+	o.ensurePropOrder()
 	propNames := prepareNamesForCopy(o.propNames)
 	o.propNames = propNames
 	return (&objectPropIter***REMOVED***
@@ -1301,6 +1297,13 @@ func (o *baseObject) equal(objectImpl) bool ***REMOVED***
 	return false
 ***REMOVED***
 
+// hopefully this gets inlined
+func (o *baseObject) ensurePropOrder() ***REMOVED***
+	if o.lastSortedPropLen < len(o.propNames) ***REMOVED***
+		o.fixPropOrder()
+	***REMOVED***
+***REMOVED***
+
 // Reorder property names so that any integer properties are shifted to the beginning of the list
 // in ascending order. This is to conform to https://262.ecma-international.org/#sec-ordinaryownpropertykeys.
 // Personally I think this requirement is strange. I can sort of understand where they are coming from,
@@ -1336,9 +1339,7 @@ func (o *baseObject) fixPropOrder() ***REMOVED***
 ***REMOVED***
 
 func (o *baseObject) stringKeys(all bool, keys []Value) []Value ***REMOVED***
-	if len(o.propNames) > o.lastSortedPropLen ***REMOVED***
-		o.fixPropOrder()
-	***REMOVED***
+	o.ensurePropOrder()
 	if all ***REMOVED***
 		for _, k := range o.propNames ***REMOVED***
 			keys = append(keys, stringValueFromRaw(k))

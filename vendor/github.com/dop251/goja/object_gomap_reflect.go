@@ -41,7 +41,7 @@ func (o *objectGoMapReflect) _get(n Value) Value ***REMOVED***
 		return nil
 	***REMOVED***
 	if v := o.value.MapIndex(key); v.IsValid() ***REMOVED***
-		return o.val.runtime.ToValue(v.Interface())
+		return o.val.runtime.toValue(v.Interface(), v)
 	***REMOVED***
 
 	return nil
@@ -53,7 +53,7 @@ func (o *objectGoMapReflect) _getStr(name string) Value ***REMOVED***
 		return nil
 	***REMOVED***
 	if v := o.value.MapIndex(key); v.IsValid() ***REMOVED***
-		return o.val.runtime.ToValue(v.Interface())
+		return o.val.runtime.toValue(v.Interface(), v)
 	***REMOVED***
 
 	return nil
