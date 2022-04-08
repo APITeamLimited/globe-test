@@ -79,6 +79,8 @@ type Runner struct ***REMOVED***
 
 	console   *console
 	setupData []byte
+
+	keylogger io.Writer
 ***REMOVED***
 
 // New returns a new Runner for the provide source
@@ -126,6 +128,7 @@ func NewFromBundle(rs *lib.RuntimeState, b *Bundle) (*Runner, error) ***REMOVED*
 		ActualResolver: net.LookupIP,
 		builtinMetrics: rs.BuiltinMetrics,
 		registry:       rs.Registry,
+		keylogger:      rs.KeyLogger,
 	***REMOVED***
 
 	err = r.SetOptions(r.Bundle.Options)
@@ -201,6 +204,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		MaxVersion:         uint16(tlsVersions.Max),
 		Certificates:       certs,
 		Renegotiation:      tls.RenegotiateFreelyAsClient,
+		KeyLogWriter:       r.keylogger,
 	***REMOVED***
 	// Follow NameToCertificate in https://pkg.go.dev/crypto/tls@go1.17.6#Config, leave this field nil
 	// when it is empty

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/lib/consts"
 	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/lib/testutils/httpmultibin"
 )
 
 const (
@@ -247,6 +248,38 @@ func TestMetricsAndThresholds(t *testing.T) ***REMOVED***
 
 	expected := map[string]interface***REMOVED******REMOVED******REMOVED***"count == 1": map[string]interface***REMOVED******REMOVED******REMOVED***"ok": true***REMOVED******REMOVED***
 	require.Equal(t, expected, teardownThresholds)
+***REMOVED***
+
+func TestSSLKEYLOGFILE(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	// TODO don't use insecureSkipTLSVerify when/if tlsConfig is given to the runner from outside
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	ts := newGlobalTestState(t)
+	ts.args = []string***REMOVED***"k6", "run", "-"***REMOVED***
+	ts.envVars = map[string]string***REMOVED***"SSLKEYLOGFILE": "./ssl.log"***REMOVED***
+	ts.stdIn = bytes.NewReader([]byte(tb.Replacer.Replace(`
+    import http from "k6/http"
+    export const options = ***REMOVED***
+      hosts: ***REMOVED***
+        "HTTPSBIN_DOMAIN": "HTTPSBIN_IP",
+      ***REMOVED***,
+      insecureSkipTLSVerify: true,
+    ***REMOVED***
+
+    export default () => ***REMOVED***
+      http.get("HTTPSBIN_URL/get");
+    ***REMOVED***
+  `)))
+
+	newRootCommand(ts.globalState).execute()
+
+	assert.True(t,
+		testutils.LogContains(ts.loggerHook.Drain(), logrus.WarnLevel, "SSLKEYLOGFILE was specified"))
+	sslloglines, err := afero.ReadFile(ts.fs, filepath.Join(ts.cwd, "ssl.log"))
+	require.NoError(t, err)
+	// TODO maybe have multiple depending on the ciphers used as that seems to change it
+	require.Regexp(t, "^CLIENT_[A-Z_]+ [0-9a-f]+ [0-9a-f]+\n", string(sslloglines))
 ***REMOVED***
 
 // TODO: add a hell of a lot more integration tests, including some that spin up

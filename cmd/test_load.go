@@ -4,6 +4,10 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sync"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -25,12 +29,15 @@ const (
 // and configured k6 test.
 type loadedTest struct ***REMOVED***
 	sourceRootPath  string // contains the raw string the user supplied
+	pwd             string
 	source          *loader.SourceData
+	fs              afero.Fs
 	fileSystems     map[string]afero.Fs
 	runtimeOptions  lib.RuntimeOptions
 	metricsRegistry *metrics.Registry
 	builtInMetrics  *metrics.BuiltinMetrics
 	initRunner      lib.Runner // TODO: rename to something more appropriate
+	keywriter       io.Closer
 
 	// Only set if cliConfigGetter is supplied to loadAndConfigureTest() or if
 	// consolidateDeriveAndValidateConfig() is manually called.
@@ -49,7 +56,7 @@ func loadAndConfigureTest(
 
 	sourceRootPath := args[0]
 	gs.logger.Debugf("Resolving and reading test '%s'...", sourceRootPath)
-	src, fileSystems, err := readSource(gs, sourceRootPath)
+	src, fileSystems, pwd, err := readSource(gs, sourceRootPath)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -67,8 +74,10 @@ func loadAndConfigureTest(
 
 	registry := metrics.NewRegistry()
 	test := &loadedTest***REMOVED***
+		pwd:             pwd,
 		sourceRootPath:  sourceRootPath,
 		source:          src,
+		fs:              gs.fs,
 		fileSystems:     fileSystems,
 		runtimeOptions:  runtimeOptions,
 		metricsRegistry: registry,
@@ -105,6 +114,17 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		RuntimeOptions: lt.runtimeOptions,
 		BuiltinMetrics: lt.builtInMetrics,
 		Registry:       lt.metricsRegistry,
+	***REMOVED***
+	if lt.runtimeOptions.KeyWriter.Valid ***REMOVED***
+		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
+			lt.runtimeOptions.KeyWriter.String)
+		keyfileName := filepath.Join(lt.pwd, lt.runtimeOptions.KeyWriter.String)
+		f, err := lt.fs.OpenFile(keyfileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		lt.keywriter = f
+		state.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
 	***REMOVED***
 	switch testType ***REMOVED***
 	case testTypeJS:
@@ -145,15 +165,15 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 
 // readSource is a small wrapper around loader.ReadSource returning
 // result of the load and filesystems map
-func readSource(globalState *globalState, filename string) (*loader.SourceData, map[string]afero.Fs, error) ***REMOVED***
+func readSource(globalState *globalState, filename string) (*loader.SourceData, map[string]afero.Fs, string, error) ***REMOVED***
 	pwd, err := globalState.getwd()
 	if err != nil ***REMOVED***
-		return nil, nil, err
+		return nil, nil, "", err
 	***REMOVED***
 
 	filesystems := loader.CreateFilesystems(globalState.fs)
 	src, err := loader.ReadSource(globalState.logger, filename, pwd, filesystems, globalState.stdIn)
-	return src, filesystems, err
+	return src, filesystems, pwd, err
 ***REMOVED***
 
 func detectTestType(data []byte) string ***REMOVED***
@@ -205,4 +225,15 @@ func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 	lt.derivedConfig = derivedConfig
 
 	return nil
+***REMOVED***
+
+type syncWriter struct ***REMOVED***
+	w io.Writer
+	m sync.Mutex
+***REMOVED***
+
+func (cw *syncWriter) Write(b []byte) (int, error) ***REMOVED***
+	cw.m.Lock()
+	defer cw.m.Unlock()
+	return cw.w.Write(b)
 ***REMOVED***
