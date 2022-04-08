@@ -26,7 +26,7 @@ import (
 func TestInvoke(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	helloReply := func(in, out *dynamicpb.Message) error ***REMOVED***
+	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error ***REMOVED***
 		err := protojson.Unmarshal([]byte(`***REMOVED***"reply":"text reply"***REMOVED***`), out)
 		require.NoError(t, err)
 
@@ -35,7 +35,7 @@ func TestInvoke(t *testing.T) ***REMOVED***
 
 	c := Conn***REMOVED***raw: invokemock(helloReply)***REMOVED***
 	r := Request***REMOVED***
-		MethodDescriptor: methodFromProto("./testdata/hello.proto", "SayHello"),
+		MethodDescriptor: methodFromProto("SayHello"),
 		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
 	***REMOVED***
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/SayHello", metadata.New(nil), r)
@@ -46,16 +46,34 @@ func TestInvoke(t *testing.T) ***REMOVED***
 	assert.Empty(t, res.Error)
 ***REMOVED***
 
+func TestInvokeWithCallOptions(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	reply := func(in, out *dynamicpb.Message, opts ...grpc.CallOption) error ***REMOVED***
+		assert.Len(t, opts, 3) // two by default plus one injected
+		return nil
+	***REMOVED***
+
+	c := Conn***REMOVED***raw: invokemock(reply)***REMOVED***
+	r := Request***REMOVED***
+		MethodDescriptor: methodFromProto("NoOp"),
+		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
+	***REMOVED***
+	res, err := c.Invoke(context.Background(), "/hello.HelloService/NoOp", metadata.New(nil), r, grpc.UseCompressor("fakeone"))
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+***REMOVED***
+
 func TestInvokeReturnError(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	helloReply := func(in, out *dynamicpb.Message) error ***REMOVED***
+	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error ***REMOVED***
 		return fmt.Errorf("test error")
 	***REMOVED***
 
 	c := Conn***REMOVED***raw: invokemock(helloReply)***REMOVED***
 	r := Request***REMOVED***
-		MethodDescriptor: methodFromProto("./testdata/hello.proto", "SayHello"),
+		MethodDescriptor: methodFromProto("SayHello"),
 		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
 	***REMOVED***
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/SayHello", metadata.New(nil), r)
@@ -74,7 +92,7 @@ func TestConnInvokeInvalid(t *testing.T) ***REMOVED***
 		ctx        = context.Background()
 		method     = "not-empty-method"
 		md         = metadata.New(nil)
-		methodDesc = methodFromProto("./testdata/hello.proto", "SayHello")
+		methodDesc = methodFromProto("SayHello")
 		payload    = []byte(`***REMOVED***"greeting":"test"***REMOVED***`)
 	)
 
@@ -232,7 +250,7 @@ func (m *getServiceFileDescriptorMock) Recv() (*reflectpb.ServerReflectionRespon
 	return srr, nil
 ***REMOVED***
 
-func methodFromProto(proto string, method string) protoreflect.MethodDescriptor ***REMOVED***
+func methodFromProto(method string) protoreflect.MethodDescriptor ***REMOVED***
 	parser := protoparse.Parser***REMOVED***
 		InferImportPaths: false,
 		Accessor: protoparse.FileAccessor(func(filename string) (io.ReadCloser, error) ***REMOVED***
@@ -243,6 +261,7 @@ package hello;
 
 service HelloService ***REMOVED***
   rpc SayHello(HelloRequest) returns (HelloResponse);
+  rpc NoOp(HelloRequest) returns (Empty);
   rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
   rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
   rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
@@ -254,12 +273,16 @@ message HelloRequest ***REMOVED***
 
 message HelloResponse ***REMOVED***
   string reply = 1;
+***REMOVED***
+
+message Empty ***REMOVED***
+
 ***REMOVED***`
 			return io.NopCloser(bytes.NewBufferString(b)), nil
 		***REMOVED***),
 	***REMOVED***
 
-	fds, err := parser.ParseFiles(proto)
+	fds, err := parser.ParseFiles("any-path")
 	if err != nil ***REMOVED***
 		panic(err)
 	***REMOVED***
@@ -277,7 +300,7 @@ message HelloResponse ***REMOVED***
 ***REMOVED***
 
 // invokemock is a mock for the grpc connection supporting only unary requests.
-type invokemock func(in, out *dynamicpb.Message) error
+type invokemock func(in, out *dynamicpb.Message, opts ...grpc.CallOption) error
 
 func (im invokemock) Invoke(ctx context.Context, method string, payload interface***REMOVED******REMOVED***, reply interface***REMOVED******REMOVED***, opts ...grpc.CallOption) error ***REMOVED***
 	in, ok := payload.(*dynamicpb.Message)
@@ -288,7 +311,7 @@ func (im invokemock) Invoke(ctx context.Context, method string, payload interfac
 	if !ok ***REMOVED***
 		return fmt.Errorf("unexpected type for reply")
 	***REMOVED***
-	return im(in, out)
+	return im(in, out, opts...)
 ***REMOVED***
 
 func (invokemock) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) ***REMOVED***
