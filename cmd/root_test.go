@@ -53,8 +53,8 @@ func newGlobalTestState(t *testing.T) *globalTestState ***REMOVED***
 	***REMOVED***
 
 	defaultOsExitHandle := func(exitCode int) ***REMOVED***
-		require.Equal(t, ts.expectedExitCode, exitCode)
 		cancel()
+		require.Equal(t, ts.expectedExitCode, exitCode)
 	***REMOVED***
 
 	outMutex := &sync.Mutex***REMOVED******REMOVED***
