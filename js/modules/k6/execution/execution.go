@@ -21,6 +21,7 @@
 package execution
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -167,6 +168,9 @@ func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
 // newTestInfo returns a goja.Object with property accessors to retrieve
 // information and control execution of the overall test run.
 func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) ***REMOVED***
+	// the cache of goja.Object in the optimal parsed form
+	// for the consolidated and derived lib.Options
+	var optionsObject *goja.Object
 	rt := mi.vu.Runtime()
 	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
 		// stop the test run
@@ -178,6 +182,16 @@ func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) ***REMOVED***
 				***REMOVED***
 				rt.Interrupt(&common.InterruptError***REMOVED***Reason: reason***REMOVED***)
 			***REMOVED***
+		***REMOVED***,
+		"options": func() interface***REMOVED******REMOVED*** ***REMOVED***
+			if optionsObject == nil ***REMOVED***
+				opts, err := optionsAsObject(rt, mi.vu.State().Options)
+				if err != nil ***REMOVED***
+					common.Throw(rt, err)
+				***REMOVED***
+				optionsObject = opts
+			***REMOVED***
+			return optionsObject
 		***REMOVED***,
 	***REMOVED***
 
@@ -225,6 +239,69 @@ func newInfoObj(rt *goja.Runtime, props map[string]func() interface***REMOVED***
 	***REMOVED***
 
 	return o, nil
+***REMOVED***
+
+// optionsAsObject maps the lib.Options struct that contains the consolidated
+// and derived options configuration in a goja.Object.
+//
+// When values are not set then the default value returned from JSON is used.
+// Most of the lib.Options are Nullable types so they will be null on default.
+func optionsAsObject(rt *goja.Runtime, options lib.Options) (*goja.Object, error) ***REMOVED***
+	b, err := json.Marshal(options)
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("failed to encode the lib.Options as json: %w", err)
+	***REMOVED***
+
+	// Using the native JS parser function guarantees getting
+	// the supported types for deep freezing the complex object.
+	jsonParse, _ := goja.AssertFunction(rt.GlobalObject().Get("JSON").ToObject(rt).Get("parse"))
+	parsed, err := jsonParse(goja.Undefined(), rt.ToValue(string(b)))
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+
+	obj := parsed.ToObject(rt)
+
+	mustDelete := func(prop string) ***REMOVED***
+		delErr := obj.Delete(prop)
+		if err != nil ***REMOVED***
+			common.Throw(rt, delErr)
+		***REMOVED***
+	***REMOVED***
+	mustSetReadOnlyProperty := func(k string, v interface***REMOVED******REMOVED***) ***REMOVED***
+		defErr := obj.DefineDataProperty(k, rt.ToValue(v), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		if err != nil ***REMOVED***
+			common.Throw(rt, defErr)
+		***REMOVED***
+	***REMOVED***
+
+	mustDelete("vus")
+	mustDelete("iterations")
+	mustDelete("duration")
+	mustDelete("stages")
+
+	consoleOutput := goja.Null()
+	if options.ConsoleOutput.Valid ***REMOVED***
+		consoleOutput = rt.ToValue(options.ConsoleOutput.String)
+	***REMOVED***
+	mustSetReadOnlyProperty("consoleOutput", consoleOutput)
+
+	localIPs := goja.Null()
+	if options.LocalIPs.Valid ***REMOVED***
+		raw, marshalErr := options.LocalIPs.MarshalText()
+		if err != nil ***REMOVED***
+			common.Throw(rt, marshalErr)
+		***REMOVED***
+		localIPs = rt.ToValue(string(raw))
+	***REMOVED***
+	mustSetReadOnlyProperty("localIPs", localIPs)
+
+	err = common.FreezeObject(rt, obj)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+
+	return obj, nil
 ***REMOVED***
 
 type tagsDynamicObject struct ***REMOVED***

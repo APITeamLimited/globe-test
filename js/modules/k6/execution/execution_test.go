@@ -1,30 +1,14 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2021 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package execution
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -33,7 +17,9 @@ import (
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/executor"
 	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/metrics"
 	"gopkg.in/guregu/null.v3"
 )
@@ -222,4 +208,192 @@ func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
 	t.Run("custom reason", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
 		prove(t, `exec.test.abort("mayday")`, fmt.Sprintf("%s: mayday", common.AbortTest))
 	***REMOVED***)
+***REMOVED***
+
+func TestOptionsTestFull(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	expected := `***REMOVED***"paused":true,"scenarios":***REMOVED***"const-vus":***REMOVED***"executor":"constant-vus","startTime":"10s","gracefulStop":"30s","env":***REMOVED***"FOO":"bar"***REMOVED***,"exec":"default","tags":***REMOVED***"tagkey":"tagvalue"***REMOVED***,"vus":50,"duration":"10m0s"***REMOVED******REMOVED***,"executionSegment":"0:1/4","executionSegmentSequence":"0,1/4,1/2,1","noSetup":true,"setupTimeout":"1m0s","noTeardown":true,"teardownTimeout":"5m0s","rps":100,"dns":***REMOVED***"ttl":"1m","select":"roundRobin","policy":"any"***REMOVED***,"maxRedirects":3,"userAgent":"k6-user-agent","batch":15,"batchPerHost":5,"httpDebug":"full","insecureSkipTLSVerify":true,"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"],"tlsVersion":***REMOVED***"min":"tls1.2","max":"tls1.3"***REMOVED***,"tlsAuth":[***REMOVED***"domains":["example.com"],"cert":"mycert.pem","key":"mycert-key.pem"***REMOVED***],"throw":true,"thresholds":***REMOVED***"http_req_duration":[***REMOVED***"threshold":"rate>0.01","abortOnFail":true,"delayAbortEval":"10s"***REMOVED***]***REMOVED***,"blacklistIPs":["192.0.2.0/24"],"blockHostnames":["test.k6.io","*.example.com"],"hosts":***REMOVED***"test.k6.io":"1.2.3.4:8443"***REMOVED***,"noConnectionReuse":true,"noVUConnectionReuse":true,"minIterationDuration":"10s","ext":***REMOVED***"ext-one":***REMOVED***"rawkey":"rawvalue"***REMOVED******REMOVED***,"summaryTrendStats":["avg","min","max"],"summaryTimeUnit":"ms","systemTags":["iter","vu"],"tags":null,"metricSamplesBufferSize":8,"noCookiesReset":true,"discardResponseBodies":true,"consoleOutput":"loadtest.log","tags":***REMOVED***"runtag-key":"runtag-value"***REMOVED***,"localIPs":"192.168.20.12-192.168.20.15,192.168.10.0/27"***REMOVED***`
+
+	var (
+		rt    = goja.New()
+		state = &lib.State***REMOVED***
+			Options: lib.Options***REMOVED***
+				Paused: null.BoolFrom(true),
+				Scenarios: map[string]lib.ExecutorConfig***REMOVED***
+					"const-vus": executor.ConstantVUsConfig***REMOVED***
+						BaseConfig: executor.BaseConfig***REMOVED***
+							Name:         "const-vus",
+							Type:         "constant-vus",
+							StartTime:    types.NullDurationFrom(10 * time.Second),
+							GracefulStop: types.NullDurationFrom(30 * time.Second),
+							Env: map[string]string***REMOVED***
+								"FOO": "bar",
+							***REMOVED***,
+							Exec: null.StringFrom("default"),
+							Tags: map[string]string***REMOVED***
+								"tagkey": "tagvalue",
+							***REMOVED***,
+						***REMOVED***,
+						VUs:      null.IntFrom(50),
+						Duration: types.NullDurationFrom(10 * time.Minute),
+					***REMOVED***,
+				***REMOVED***,
+				ExecutionSegment: func() *lib.ExecutionSegment ***REMOVED***
+					seg, err := lib.NewExecutionSegmentFromString("0:1/4")
+					require.NoError(t, err)
+					return seg
+				***REMOVED***(),
+				ExecutionSegmentSequence: func() *lib.ExecutionSegmentSequence ***REMOVED***
+					seq, err := lib.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
+					require.NoError(t, err)
+					return &seq
+				***REMOVED***(),
+				NoSetup:               null.BoolFrom(true),
+				NoTeardown:            null.BoolFrom(true),
+				NoConnectionReuse:     null.BoolFrom(true),
+				NoVUConnectionReuse:   null.BoolFrom(true),
+				InsecureSkipTLSVerify: null.BoolFrom(true),
+				Throw:                 null.BoolFrom(true),
+				NoCookiesReset:        null.BoolFrom(true),
+				DiscardResponseBodies: null.BoolFrom(true),
+				RPS:                   null.IntFrom(100),
+				MaxRedirects:          null.IntFrom(3),
+				UserAgent:             null.StringFrom("k6-user-agent"),
+				Batch:                 null.IntFrom(15),
+				BatchPerHost:          null.IntFrom(5),
+				SetupTimeout:          types.NullDurationFrom(1 * time.Minute),
+				TeardownTimeout:       types.NullDurationFrom(5 * time.Minute),
+				MinIterationDuration:  types.NullDurationFrom(10 * time.Second),
+				HTTPDebug:             null.StringFrom("full"),
+				DNS: types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("1m"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSroundRobin, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
+					Valid:  true,
+				***REMOVED***,
+				TLSVersion: &lib.TLSVersions***REMOVED***
+					Min: tls.VersionTLS12,
+					Max: tls.VersionTLS13,
+				***REMOVED***,
+				TLSAuth: []*lib.TLSAuth***REMOVED***
+					***REMOVED***
+						TLSAuthFields: lib.TLSAuthFields***REMOVED***
+							Cert:    "mycert.pem",
+							Key:     "mycert-key.pem",
+							Domains: []string***REMOVED***"example.com"***REMOVED***,
+						***REMOVED***,
+					***REMOVED***,
+				***REMOVED***,
+				TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***
+					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				***REMOVED***,
+				BlacklistIPs: []*lib.IPNet***REMOVED***
+					***REMOVED***
+						IPNet: func() net.IPNet ***REMOVED***
+							_, ipv4net, err := net.ParseCIDR("192.0.2.1/24")
+							require.NoError(t, err)
+							return *ipv4net
+						***REMOVED***(),
+					***REMOVED***,
+				***REMOVED***,
+				Thresholds: map[string]metrics.Thresholds***REMOVED***
+					"http_req_duration": ***REMOVED***
+						Thresholds: []*metrics.Threshold***REMOVED***
+							***REMOVED***
+								Source:           "rate>0.01",
+								LastFailed:       true,
+								AbortOnFail:      true,
+								AbortGracePeriod: types.NullDurationFrom(10 * time.Second),
+							***REMOVED***,
+						***REMOVED***,
+					***REMOVED***,
+				***REMOVED***,
+				BlockedHostnames: func() types.NullHostnameTrie ***REMOVED***
+					bh, err := types.NewNullHostnameTrie([]string***REMOVED***"test.k6.io", "*.example.com"***REMOVED***)
+					require.NoError(t, err)
+					return bh
+				***REMOVED***(),
+				Hosts: map[string]*lib.HostAddress***REMOVED***
+					"test.k6.io": ***REMOVED***
+						IP:   []byte***REMOVED***0x01, 0x02, 0x03, 0x04***REMOVED***,
+						Port: 8443,
+					***REMOVED***,
+				***REMOVED***,
+				External: map[string]json.RawMessage***REMOVED***
+					"ext-one": json.RawMessage(`***REMOVED***"rawkey":"rawvalue"***REMOVED***`),
+				***REMOVED***,
+				SummaryTrendStats: []string***REMOVED***"avg", "min", "max"***REMOVED***,
+				SummaryTimeUnit:   null.StringFrom("ms"),
+				SystemTags: func() *metrics.SystemTagSet ***REMOVED***
+					sysm := metrics.TagIter | metrics.TagVU
+					return &sysm
+				***REMOVED***(),
+				RunTags:                 metrics.NewSampleTags(map[string]string***REMOVED***"runtag-key": "runtag-value"***REMOVED***),
+				MetricSamplesBufferSize: null.IntFrom(8),
+				ConsoleOutput:           null.StringFrom("loadtest.log"),
+				LocalIPs: func() types.NullIPPool ***REMOVED***
+					npool := types.NullIPPool***REMOVED******REMOVED***
+					err := npool.UnmarshalText([]byte("192.168.20.12-192.168.20.15,192.168.10.0/27"))
+					require.NoError(t, err)
+					return npool
+				***REMOVED***(),
+
+				// The following fields are not expected to be
+				// in the final test.options object
+				VUs:        null.IntFrom(50),
+				Iterations: null.IntFrom(100),
+				Duration:   types.NullDurationFrom(10 * time.Second),
+				Stages: []lib.Stage***REMOVED***
+					***REMOVED***
+						Duration: types.NullDurationFrom(2 * time.Second),
+						Target:   null.IntFrom(2),
+					***REMOVED***,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***
+		ctx = context.Background()
+	)
+
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   state,
+		***REMOVED***,
+	).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("exec", m.Exports().Default))
+
+	opts, err := rt.RunString(`JSON.stringify(exec.test.options)`)
+	require.NoError(t, err)
+	require.NotNil(t, opts)
+	assert.JSONEq(t, expected, opts.String())
+***REMOVED***
+
+func TestOptionsTestSetPropertyDenied(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	rt := goja.New()
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     context.Background(),
+			StateField: &lib.State***REMOVED***
+				Options: lib.Options***REMOVED***
+					Paused: null.BoolFrom(true),
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("exec", m.Exports().Default))
+
+	_, err := rt.RunString(`exec.test.options.paused = false`)
+	require.NoError(t, err)
+	paused, err := rt.RunString(`exec.test.options.paused`)
+	require.NoError(t, err)
+	assert.Equal(t, true, rt.ToValue(paused).ToBoolean())
 ***REMOVED***
