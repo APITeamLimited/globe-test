@@ -168,6 +168,22 @@ func TestRunScriptErrorsAndAbort(t *testing.T) ***REMOVED***
 			expExitCode:  exitcodes.ScriptException,
 		***REMOVED***,
 		***REMOVED***
+			testFilename: "thresholds/non_existing_metric.js",
+			name:         "run should fail with exit status 104 on a threshold applied to a non existing metric",
+			expErr:       "invalid threshold",
+			expExitCode:  exitcodes.InvalidConfig,
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "thresholds/non_existing_metric.js",
+			name:         "run should succeed on a threshold applied to a non existing metric with the --no-thresholds flag set",
+			extraArgs:    []string***REMOVED***"--no-thresholds"***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "thresholds/non_existing_metric.js",
+			name:         "run should succeed on a threshold applied to a non existing submetric with the --no-thresholds flag set",
+			extraArgs:    []string***REMOVED***"--no-thresholds"***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
 			testFilename: "thresholds/malformed_expression.js",
 			name:         "run should fail with exit status 104 on a malformed threshold expression",
 			expErr:       "malformed threshold expression",
@@ -178,6 +194,17 @@ func TestRunScriptErrorsAndAbort(t *testing.T) ***REMOVED***
 			name:         "run should on a malformed threshold expression but --no-thresholds flag set",
 			extraArgs:    []string***REMOVED***"--no-thresholds"***REMOVED***,
 			// we don't expect an error
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "thresholds/unsupported_aggregation_method.js",
+			name:         "run should fail with exit status 104 on a threshold applying an unsupported aggregation method to a metric",
+			expErr:       "invalid threshold",
+			expExitCode:  exitcodes.InvalidConfig,
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "thresholds/unsupported_aggregation_method.js",
+			name:         "run should succeed on a threshold applying an unsupported aggregation method to a metric with the --no-thresholds flag set",
+			extraArgs:    []string***REMOVED***"--no-thresholds"***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 
@@ -209,6 +236,51 @@ func TestRunScriptErrorsAndAbort(t *testing.T) ***REMOVED***
 			if tc.expLogOutput != "" ***REMOVED***
 				assert.True(t, testutils.LogContains(logs, logrus.InfoLevel, tc.expLogOutput))
 			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestInvalidOptionsThresholdErrExitCode(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		name         string
+		testFilename string
+		expExitCode  errext.ExitCode
+		extraArgs    []string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:         "run should fail with exit status 104 on a malformed threshold expression",
+			testFilename: "thresholds/malformed_expression.js",
+			expExitCode:  exitcodes.InvalidConfig,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should fail with exit status 104 on a threshold applied to a non existing metric",
+			testFilename: "thresholds/non_existing_metric.js",
+			expExitCode:  exitcodes.InvalidConfig,
+		***REMOVED***,
+		***REMOVED***
+			name:         "run should fail with exit status 104 on a threshold method being unsupported by the metric",
+			testFilename: "thresholds/unsupported_aggregation_method.js",
+			expExitCode:  exitcodes.InvalidConfig,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			testScript, err := ioutil.ReadFile(path.Join("testdata", tc.testFilename))
+			require.NoError(t, err)
+
+			testState := newGlobalTestState(t)
+			require.NoError(t, afero.WriteFile(testState.fs, filepath.Join(testState.cwd, tc.testFilename), testScript, 0o644))
+			testState.args = append([]string***REMOVED***"k6", "run", tc.testFilename***REMOVED***, tc.extraArgs...)
+
+			testState.expectedExitCode = int(tc.expExitCode)
+			newRootCommand(testState.globalState).execute()
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

@@ -27,6 +27,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.k6.io/k6/errext"
+	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/lib/types"
 	"gopkg.in/guregu/null.v3"
 )
@@ -149,6 +151,7 @@ func TestThreshold_runNoTaint(t *testing.T) ***REMOVED***
 			wantErr:          true,
 		***REMOVED***,
 	***REMOVED***
+
 	for _, testCase := range tests ***REMOVED***
 		testCase := testCase
 
@@ -331,6 +334,219 @@ func TestThresholdsParse(t *testing.T) ***REMOVED***
 
 			return false
 		***REMOVED***, "Parse failed, but some Thresholds' parsed field was not empty")
+	***REMOVED***)
+***REMOVED***
+
+func TestThresholdsValidate(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	t.Run("validating thresholds applied to a non existing metric fails", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
+		testRegistry := NewRegistry()
+
+		// Prepare a Thresholds collection containing syntaxically
+		// correct thresholds
+		ts := Thresholds***REMOVED***
+			Thresholds: []*Threshold***REMOVED***
+				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
+			***REMOVED***,
+		***REMOVED***
+
+		parseErr := ts.Parse()
+		require.NoError(t, parseErr)
+
+		var wantErr errext.HasExitCode
+
+		// Collect the result of the parsing operation
+		gotErr := ts.Validate("non-existing", testRegistry)
+
+		assert.Error(t, gotErr)
+		assert.ErrorIs(t, gotErr, ErrInvalidThreshold)
+		assert.ErrorAs(t, gotErr, &wantErr)
+		assert.Equal(t, exitcodes.InvalidConfig, wantErr.ExitCode())
+	***REMOVED***)
+
+	t.Run("validating unparsed thresholds fails", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
+		testRegistry := NewRegistry()
+		_, err := testRegistry.NewMetric("test_counter", Counter)
+		require.NoError(t, err)
+
+		// Prepare a Thresholds collection containing syntaxically
+		// correct thresholds
+		ts := Thresholds***REMOVED***
+			Thresholds: []*Threshold***REMOVED***
+				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
+			***REMOVED***,
+		***REMOVED***
+
+		// Note that we're not parsing the thresholds
+
+		// Collect the result of the parsing operation
+		gotErr := ts.Validate("non-existing", testRegistry)
+
+		assert.Error(t, gotErr)
+	***REMOVED***)
+
+	t.Run("thresholds supported aggregation methods for metrics", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
+		testRegistry := NewRegistry()
+		testCounter, err := testRegistry.NewMetric("test_counter", Counter)
+		require.NoError(t, err)
+		_, err = testCounter.AddSubmetric("foo:bar")
+		require.NoError(t, err)
+		_, err = testCounter.AddSubmetric("abc:123,easyas:doremi")
+		require.NoError(t, err)
+
+		_, err = testRegistry.NewMetric("test_rate", Rate)
+		require.NoError(t, err)
+
+		_, err = testRegistry.NewMetric("test_gauge", Gauge)
+		require.NoError(t, err)
+
+		_, err = testRegistry.NewMetric("test_trend", Trend)
+		require.NoError(t, err)
+
+		tests := []struct ***REMOVED***
+			name       string
+			metricName string
+			thresholds Thresholds
+			wantErr    bool
+		***REMOVED******REMOVED***
+			***REMOVED***
+				name:       "threshold expression using 'count' is valid against a counter metric",
+				metricName: "test_counter",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("count==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'rate' is valid against a counter metric",
+				metricName: "test_counter",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'rate' is valid against a counter single tag submetric",
+				metricName: "test_counter***REMOVED***foo:bar***REMOVED***",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'rate' is valid against a counter multi-tag submetric",
+				metricName: "test_counter***REMOVED***abc:123,easyas:doremi***REMOVED***",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'value' is valid against a gauge metric",
+				metricName: "test_gauge",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("value==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'rate' is valid against a rate metric",
+				metricName: "test_rate",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'avg' is valid against a trend metric",
+				metricName: "test_trend",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("avg==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'min' is valid against a trend metric",
+				metricName: "test_trend",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("min==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'max' is valid against a trend metric",
+				metricName: "test_trend",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("max==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'med' is valid against a trend metric",
+				metricName: "test_trend",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("med==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+			***REMOVED***
+				name:       "threshold expression using 'p(value)' is valid against a trend metric",
+				metricName: "test_trend",
+				thresholds: Thresholds***REMOVED***
+					Thresholds: []*Threshold***REMOVED***newThreshold("p(99)==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
+				***REMOVED***,
+				wantErr: false,
+			***REMOVED***,
+		***REMOVED***
+
+		for _, testCase := range tests ***REMOVED***
+			testCase := testCase
+
+			t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+
+				// Ensure thresholds are parsed
+				parseErr := testCase.thresholds.Parse()
+				require.NoError(t, parseErr)
+
+				gotErr := testCase.thresholds.Validate(testCase.metricName, testRegistry)
+
+				assert.Equal(t,
+					testCase.wantErr,
+					gotErr != nil,
+					"Thresholds.Validate() error = %v, wantErr %v", gotErr, testCase.wantErr,
+				)
+
+				if testCase.wantErr ***REMOVED***
+					var targetErr errext.HasExitCode
+
+					assert.ErrorIs(t,
+						gotErr,
+						ErrInvalidThreshold,
+						"Validate error chain should contain an ErrInvalidThreshold error",
+					)
+
+					assert.ErrorAs(t,
+						gotErr,
+						&targetErr,
+						"Validate error chain should contain an errext.HasExitCode error",
+					)
+
+					assert.Equal(t,
+						exitcodes.InvalidConfig,
+						targetErr.ExitCode(),
+						"Validate error should have been exitcodes.InvalidConfig",
+					)
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
