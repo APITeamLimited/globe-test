@@ -57,7 +57,7 @@ func TestInvokeWithCallOptions(t *testing.T) ***REMOVED***
 	c := Conn***REMOVED***raw: invokemock(reply)***REMOVED***
 	r := Request***REMOVED***
 		MethodDescriptor: methodFromProto("NoOp"),
-		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
+		Message:          []byte(`***REMOVED******REMOVED***`),
 	***REMOVED***
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/NoOp", metadata.New(nil), r, grpc.UseCompressor("fakeone"))
 	require.NoError(t, err)
@@ -131,6 +131,14 @@ func TestConnInvokeInvalid(t *testing.T) ***REMOVED***
 			url:    url,
 			md:     nil,
 			req:    Request***REMOVED***MethodDescriptor: methodDesc***REMOVED***,
+			experr: "message is required",
+		***REMOVED***,
+		***REMOVED***
+			name:   "EmptyMessage",
+			ctx:    ctx,
+			url:    url,
+			md:     nil,
+			req:    Request***REMOVED***MethodDescriptor: methodDesc, Message: []byte***REMOVED******REMOVED******REMOVED***,
 			experr: "message is required",
 		***REMOVED***,
 	***REMOVED***
@@ -261,7 +269,7 @@ package hello;
 
 service HelloService ***REMOVED***
   rpc SayHello(HelloRequest) returns (HelloResponse);
-  rpc NoOp(HelloRequest) returns (Empty);
+  rpc NoOp(Empty) returns (Empty);
   rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
   rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
   rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
