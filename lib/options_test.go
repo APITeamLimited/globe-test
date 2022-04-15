@@ -473,17 +473,19 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("ClientIPRanges", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		clientIPRanges, err := types.NewIPPool("129.112.232.12,123.12.0.0/32")
+		clientIPRanges := types.NullIPPool***REMOVED******REMOVED***
+		err := clientIPRanges.UnmarshalText([]byte("129.112.232.12,123.12.0.0/32"))
 		require.NoError(t, err)
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***LocalIPs: types.NullIPPool***REMOVED***Pool: clientIPRanges, Valid: true***REMOVED******REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***LocalIPs: clientIPRanges***REMOVED***)
 		assert.NotNil(t, opts.LocalIPs)
 	***REMOVED***)
 ***REMOVED***
 
 func TestOptionsEnv(t *testing.T) ***REMOVED***
 	t.Parallel()
-	mustIPPool := func(s string) *types.IPPool ***REMOVED***
-		p, err := types.NewIPPool(s)
+	mustNullIPPool := func(s string) types.NullIPPool ***REMOVED***
+		p := types.NullIPPool***REMOVED******REMOVED***
+		err := p.UnmarshalText([]byte(s))
 		require.NoError(t, err)
 		return p
 	***REMOVED***
@@ -559,8 +561,8 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***"LocalIPs", "K6_LOCAL_IPS"***REMOVED***: ***REMOVED***
 			"":                 types.NullIPPool***REMOVED******REMOVED***,
-			"192.168.220.2":    types.NullIPPool***REMOVED***Pool: mustIPPool("192.168.220.2"), Valid: true***REMOVED***,
-			"192.168.220.2/24": types.NullIPPool***REMOVED***Pool: mustIPPool("192.168.220.0/24"), Valid: true***REMOVED***,
+			"192.168.220.2":    mustNullIPPool("192.168.220.2"),
+			"192.168.220.0/24": mustNullIPPool("192.168.220.0/24"),
 		***REMOVED***,
 		***REMOVED***"Throw", "K6_THROW"***REMOVED***: ***REMOVED***
 			"":      null.Bool***REMOVED******REMOVED***,

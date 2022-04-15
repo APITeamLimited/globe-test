@@ -182,6 +182,7 @@ func (pool *IPPool) GetIPBig(index *big.Int) net.IP ***REMOVED***
 type NullIPPool struct ***REMOVED***
 	Pool  *IPPool
 	Valid bool
+	raw   []byte
 ***REMOVED***
 
 // UnmarshalText converts text data to a valid NullIPPool
@@ -196,5 +197,11 @@ func (n *NullIPPool) UnmarshalText(data []byte) error ***REMOVED***
 		return err
 	***REMOVED***
 	n.Valid = true
+	n.raw = data
 	return nil
+***REMOVED***
+
+// MarshalText returns the IPs pool in text form
+func (n *NullIPPool) MarshalText() ([]byte, error) ***REMOVED***
+	return n.raw, nil
 ***REMOVED***
