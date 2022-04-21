@@ -107,9 +107,24 @@ func (c *Client) Connect(addr string, params map[string]interface***REMOVED*****
 	defer cancel()
 
 	c.addr = addr
+	c.conn, err = grpcext.Dial(ctx, addr, opts...)
+	if err != nil ***REMOVED***
+		return false, err
+	***REMOVED***
 
-	err = c.dial(ctx, addr, p.UseReflectionProtocol, opts...)
-	return err != nil, err
+	if !p.UseReflectionProtocol ***REMOVED***
+		return true, nil
+	***REMOVED***
+	fdset, err := c.conn.Reflect(ctx)
+	if err != nil ***REMOVED***
+		return false, err
+	***REMOVED***
+	_, err = c.convertToMethodInfo(fdset)
+	if err != nil ***REMOVED***
+		return false, fmt.Errorf("can't convert method info: %w", err)
+	***REMOVED***
+
+	return true, err
 ***REMOVED***
 
 // Invoke creates and calls a unary RPC by fully qualified method name
@@ -245,36 +260,6 @@ func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]M
 		return true
 	***REMOVED***)
 	return rtn, nil
-***REMOVED***
-
-func (c *Client) dial(
-	ctx context.Context,
-	addr string,
-	reflect bool,
-	options ...grpc.DialOption,
-) error ***REMOVED***
-	var err error
-	c.conn, err = grpcext.Dial(ctx, addr, options...)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	if !reflect ***REMOVED***
-		return nil
-	***REMOVED***
-	rc, err := c.conn.ReflectionClient()
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	fdset, err := rc.Reflect(ctx)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	_, err = c.convertToMethodInfo(fdset)
-	if err != nil ***REMOVED***
-		err = fmt.Errorf("can't convert method info: %w", err)
-	***REMOVED***
-	return err
 ***REMOVED***
 
 type params struct ***REMOVED***

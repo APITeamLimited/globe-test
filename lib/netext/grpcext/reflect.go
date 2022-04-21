@@ -11,13 +11,13 @@ import (
 )
 
 // ReflectionClient wraps a grpc.ServerReflectionClient.
-type ReflectionClient struct ***REMOVED***
+type reflectionClient struct ***REMOVED***
 	Conn grpc.ClientConnInterface
 ***REMOVED***
 
 // Reflect will use the grpc reflection api to make the file descriptors available to request.
 // It is called in the connect function the first time the Client.Connect function is called.
-func (rc *ReflectionClient) Reflect(ctx context.Context) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
+func (rc *reflectionClient) Reflect(ctx context.Context) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
 	client := reflectpb.NewServerReflectionClient(rc.Conn)
 	methodClient, err := client.ServerReflectionInfo(ctx)
 	if err != nil ***REMOVED***
@@ -41,7 +41,7 @@ func (rc *ReflectionClient) Reflect(ctx context.Context) (*descriptorpb.FileDesc
 	return fdset, nil
 ***REMOVED***
 
-func (rc *ReflectionClient) resolveServiceFileDescriptors(
+func (rc *reflectionClient) resolveServiceFileDescriptors(
 	client sendReceiver,
 	res *reflectpb.ListServiceResponse,
 ) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***

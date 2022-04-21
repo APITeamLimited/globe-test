@@ -214,7 +214,7 @@ func TestResolveFileDescriptors(t *testing.T) ***REMOVED***
 				mock.names = append(mock.names, service)
 			***REMOVED***
 
-			rc := ReflectionClient***REMOVED******REMOVED***
+			rc := reflectionClient***REMOVED******REMOVED***
 			fdset, err := rc.resolveServiceFileDescriptors(mock, lsr)
 			require.NoError(t, err)
 			assert.Len(t, fdset.File, tt.expectedDescriptors)

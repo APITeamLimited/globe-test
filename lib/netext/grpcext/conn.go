@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -79,9 +80,10 @@ func Dial(ctx context.Context, addr string, options ...grpc.DialOption) (*Conn, 
 	***REMOVED***, nil
 ***REMOVED***
 
-// ReflectionClient returns a reflection client based on the current connection.
-func (c *Conn) ReflectionClient() (*ReflectionClient, error) ***REMOVED***
-	return &ReflectionClient***REMOVED***Conn: c.raw***REMOVED***, nil
+// Reflect returns using the reflection the FileDescriptorSet describing the service.
+func (c *Conn) Reflect(ctx context.Context) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
+	rc := reflectionClient***REMOVED***Conn: c.raw***REMOVED***
+	return rc.Reflect(ctx)
 ***REMOVED***
 
 // Invoke executes a unary gRPC request.
