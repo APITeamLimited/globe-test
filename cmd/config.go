@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mstoykov/envconfig"
 	"github.com/sirupsen/logrus"
@@ -213,11 +214,11 @@ func getConsolidatedConfig(globalState *globalState, cliConf Config, runnerOpts 
 //
 // Note that if you add option default value here, also add it in command line argument help text.
 func applyDefault(conf Config) Config ***REMOVED***
-	if conf.Options.SystemTags == nil ***REMOVED***
-		conf.Options.SystemTags = &metrics.DefaultSystemTagSet
+	if conf.SystemTags == nil ***REMOVED***
+		conf.SystemTags = &metrics.DefaultSystemTagSet
 	***REMOVED***
-	if conf.Options.SummaryTrendStats == nil ***REMOVED***
-		conf.Options.SummaryTrendStats = lib.DefaultSummaryTrendStats
+	if conf.SummaryTrendStats == nil ***REMOVED***
+		conf.SummaryTrendStats = lib.DefaultSummaryTrendStats
 	***REMOVED***
 	defDNS := types.DefaultDNSConfig()
 	if !conf.DNS.TTL.Valid ***REMOVED***
@@ -229,7 +230,12 @@ func applyDefault(conf Config) Config ***REMOVED***
 	if !conf.DNS.Policy.Valid ***REMOVED***
 		conf.DNS.Policy = defDNS.Policy
 	***REMOVED***
-
+	if !conf.SetupTimeout.Valid ***REMOVED***
+		conf.SetupTimeout.Duration = types.Duration(60 * time.Second)
+	***REMOVED***
+	if !conf.TeardownTimeout.Valid ***REMOVED***
+		conf.TeardownTimeout.Duration = types.Duration(60 * time.Second)
+	***REMOVED***
 	return conf
 ***REMOVED***
 
