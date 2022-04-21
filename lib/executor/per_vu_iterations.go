@@ -157,8 +157,12 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 	duration := pvi.config.MaxDuration.TimeDuration()
 	gracefulStop := pvi.config.GetGracefulStop()
 
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
-	defer cancel()
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	// Make sure the log and the progress bar have accurate information
 	pvi.logger.WithFields(logrus.Fields***REMOVED***
@@ -188,7 +192,17 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 		return float64(currentDoneIters) / float64(totalIters), right
 	***REMOVED***
 	pvi.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, pvi, progressFn)
+
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       pvi.config.Name,
+		Executor:   pvi.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
+	go func() ***REMOVED***
+		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, pvi, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	handleVUsWG := &sync.WaitGroup***REMOVED******REMOVED***
 	defer handleVUsWG.Wait()
@@ -198,13 +212,6 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
-
-	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       pvi.config.Name,
-		Executor:   pvi.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		pvi.executionState.ReturnVU(u, true)

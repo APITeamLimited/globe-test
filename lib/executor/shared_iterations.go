@@ -189,8 +189,12 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 	duration := si.config.MaxDuration.TimeDuration()
 	gracefulStop := si.config.GetGracefulStop()
 
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
-	defer cancel()
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	// Make sure the log and the progress bar have accurate information
 	si.logger.WithFields(logrus.Fields***REMOVED***
@@ -214,7 +218,16 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 		return float64(currentDoneIters) / float64(totalIters), right
 	***REMOVED***
 	si.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &si, progressFn)
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       si.config.Name,
+		Executor:   si.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
+	go func() ***REMOVED***
+		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &si, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	var attemptedIters uint64
 
@@ -233,13 +246,6 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(si.executionState, si.logger)
-
-	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       si.config.Name,
-		Executor:   si.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		si.executionState.ReturnVU(u, true)

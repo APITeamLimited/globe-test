@@ -509,7 +509,11 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metri
 	mex.configLock.RUnlock()
 
 	ctx, cancel := context.WithCancel(parentCtx)
-	defer cancel()
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	duration := currentControlConfig.Duration.TimeDuration()
 	if duration > 0 ***REMOVED*** // Only keep track of duration if it's not infinite
@@ -548,7 +552,10 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metri
 	***REMOVED***
 
 	mex.progress.Modify(pb.WithProgress(runState.progressFn)) // Keep track of the progress
-	go trackProgress(parentCtx, ctx, ctx, mex, runState.progressFn)
+	go func() ***REMOVED***
+		trackProgress(parentCtx, ctx, ctx, mex, runState.progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	err = runState.handleConfigChange( // Start by setting MaxVUs to the starting MaxVUs
 		ExternallyControlledConfigParams***REMOVED***MaxVUs: mex.config.MaxVUs***REMOVED***, currentControlConfig,

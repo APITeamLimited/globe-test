@@ -230,7 +230,12 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
 
 	returnedVUs := make(chan struct***REMOVED******REMOVED***)
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	vusPool := newActiveVUPool()
 	defer func() ***REMOVED***
@@ -266,14 +271,17 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 		return math.Min(1, float64(spent)/float64(duration)), right
 	***REMOVED***
 	car.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
-
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
 		Name:       car.config.Name,
 		Executor:   car.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
 	***REMOVED***)
+
+	go func() ***REMOVED***
+		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		car.executionState.ReturnVU(u, true)

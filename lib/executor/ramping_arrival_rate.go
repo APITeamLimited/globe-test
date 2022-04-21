@@ -342,6 +342,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
 
 	returnedVUs := make(chan struct***REMOVED******REMOVED***)
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 
 	vusPool := newActiveVUPool()
@@ -354,6 +355,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 		vusPool.Close()
 		cancel()
 		activeVUsWg.Wait()
+		<-waitOnProgressChannel
 	***REMOVED***()
 
 	activeVUsCount := uint64(0)
@@ -388,14 +390,16 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 	***REMOVED***
 
 	varr.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &varr, progressFn)
-
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
 		Name:       varr.config.Name,
 		Executor:   varr.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
 	***REMOVED***)
+	go func() ***REMOVED***
+		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &varr, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		varr.executionState.ReturnVU(u, true)

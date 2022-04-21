@@ -147,8 +147,12 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- metrics.SampleC
 	duration := clv.config.Duration.TimeDuration()
 	gracefulStop := clv.config.GetGracefulStop()
 
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
-	defer cancel()
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	// Make sure the log and the progress bar have accurate information
 	clv.logger.WithFields(
@@ -167,7 +171,17 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- metrics.SampleC
 		return float64(spent) / float64(duration), right
 	***REMOVED***
 	clv.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, clv, progressFn)
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       clv.config.Name,
+		Executor:   clv.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
+
+	go func() ***REMOVED***
+		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, clv, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
@@ -175,13 +189,6 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- metrics.SampleC
 
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(clv.executionState, clv.logger)
-
-	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       clv.config.Name,
-		Executor:   clv.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		clv.executionState.ReturnVU(u, true)

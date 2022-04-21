@@ -515,10 +515,14 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- metrics.SampleContainer
 	if !isFinal ***REMOVED***
 		return fmt.Errorf("%s expected graceful end offset at %s to be final", vlv.config.GetName(), maxDuration)
 	***REMOVED***
+	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regularDurationCtx, cancel := getDurationContexts(
 		ctx, regularDuration, maxDuration-regularDuration,
 	)
-	defer cancel()
+	defer func() ***REMOVED***
+		cancel()
+		<-waitOnProgressChannel
+	***REMOVED***()
 
 	maxVUs := lib.GetMaxPlannedVUs(vlv.gracefulSteps)
 
@@ -547,8 +551,10 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- metrics.SampleContainer
 		ProgressFn: progressFn,
 	***REMOVED***)
 	vlv.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(ctx, maxDurationCtx, regularDurationCtx, vlv, progressFn)
-
+	go func() ***REMOVED***
+		trackProgress(ctx, maxDurationCtx, regularDurationCtx, vlv, progressFn)
+		close(waitOnProgressChannel)
+	***REMOVED***()
 	defer runState.wg.Wait()
 	// this will populate stopped VUs and run runLoopsIfPossible on each VU
 	// handle in a new goroutine
