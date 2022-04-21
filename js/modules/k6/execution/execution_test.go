@@ -213,7 +213,7 @@ func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
 func TestOptionsTestFull(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	expected := `***REMOVED***"paused":true,"scenarios":***REMOVED***"const-vus":***REMOVED***"executor":"constant-vus","startTime":"10s","gracefulStop":"30s","env":***REMOVED***"FOO":"bar"***REMOVED***,"exec":"default","tags":***REMOVED***"tagkey":"tagvalue"***REMOVED***,"vus":50,"duration":"10m0s"***REMOVED******REMOVED***,"executionSegment":"0:1/4","executionSegmentSequence":"0,1/4,1/2,1","noSetup":true,"setupTimeout":"1m0s","noTeardown":true,"teardownTimeout":"5m0s","rps":100,"dns":***REMOVED***"ttl":"1m","select":"roundRobin","policy":"any"***REMOVED***,"maxRedirects":3,"userAgent":"k6-user-agent","batch":15,"batchPerHost":5,"httpDebug":"full","insecureSkipTLSVerify":true,"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"],"tlsVersion":***REMOVED***"min":"tls1.2","max":"tls1.3"***REMOVED***,"tlsAuth":[***REMOVED***"domains":["example.com"],"cert":"mycert.pem","key":"mycert-key.pem"***REMOVED***],"throw":true,"thresholds":***REMOVED***"http_req_duration":[***REMOVED***"threshold":"rate>0.01","abortOnFail":true,"delayAbortEval":"10s"***REMOVED***]***REMOVED***,"blacklistIPs":["192.0.2.0/24"],"blockHostnames":["test.k6.io","*.example.com"],"hosts":***REMOVED***"test.k6.io":"1.2.3.4:8443"***REMOVED***,"noConnectionReuse":true,"noVUConnectionReuse":true,"minIterationDuration":"10s","ext":***REMOVED***"ext-one":***REMOVED***"rawkey":"rawvalue"***REMOVED******REMOVED***,"summaryTrendStats":["avg","min","max"],"summaryTimeUnit":"ms","systemTags":["iter","vu"],"tags":null,"metricSamplesBufferSize":8,"noCookiesReset":true,"discardResponseBodies":true,"consoleOutput":"loadtest.log","tags":***REMOVED***"runtag-key":"runtag-value"***REMOVED***,"localIPs":"192.168.20.12-192.168.20.15,192.168.10.0/27"***REMOVED***`
+	expected := `***REMOVED***"paused":true,"scenarios":***REMOVED***"const-vus":***REMOVED***"executor":"constant-vus","startTime":"10s","gracefulStop":"30s","env":***REMOVED***"FOO":"bar"***REMOVED***,"exec":"default","tags":***REMOVED***"tagkey":"tagvalue"***REMOVED***,"vus":50,"duration":"10m0s"***REMOVED******REMOVED***,"executionSegment":"0:1/4","executionSegmentSequence":"0,1/4,1/2,1","noSetup":true,"setupTimeout":"1m0s","noTeardown":true,"teardownTimeout":"5m0s","rps":100,"dns":***REMOVED***"ttl":"1m","select":"roundRobin","policy":"any"***REMOVED***,"maxRedirects":3,"userAgent":"k6-user-agent","batch":15,"batchPerHost":5,"httpDebug":"full","insecureSkipTLSVerify":true,"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"],"tlsVersion":***REMOVED***"min":"tls1.2","max":"tls1.3"***REMOVED***,"tlsAuth":[***REMOVED***"domains":["example.com"],"cert":"mycert.pem","key":"mycert-key.pem","password":"mypwd"***REMOVED***],"throw":true,"thresholds":***REMOVED***"http_req_duration":[***REMOVED***"threshold":"rate>0.01","abortOnFail":true,"delayAbortEval":"10s"***REMOVED***]***REMOVED***,"blacklistIPs":["192.0.2.0/24"],"blockHostnames":["test.k6.io","*.example.com"],"hosts":***REMOVED***"test.k6.io":"1.2.3.4:8443"***REMOVED***,"noConnectionReuse":true,"noVUConnectionReuse":true,"minIterationDuration":"10s","ext":***REMOVED***"ext-one":***REMOVED***"rawkey":"rawvalue"***REMOVED******REMOVED***,"summaryTrendStats":["avg","min","max"],"summaryTimeUnit":"ms","systemTags":["iter","vu"],"tags":null,"metricSamplesBufferSize":8,"noCookiesReset":true,"discardResponseBodies":true,"consoleOutput":"loadtest.log","tags":***REMOVED***"runtag-key":"runtag-value"***REMOVED***,"localIPs":"192.168.20.12-192.168.20.15,192.168.10.0/27"***REMOVED***`
 
 	var (
 		rt    = goja.New()
@@ -279,9 +279,10 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 				TLSAuth: []*lib.TLSAuth***REMOVED***
 					***REMOVED***
 						TLSAuthFields: lib.TLSAuthFields***REMOVED***
-							Cert:    "mycert.pem",
-							Key:     "mycert-key.pem",
-							Domains: []string***REMOVED***"example.com"***REMOVED***,
+							Cert:     "mycert.pem",
+							Key:      "mycert-key.pem",
+							Password: null.StringFrom("mypwd"),
+							Domains:  []string***REMOVED***"example.com"***REMOVED***,
 						***REMOVED***,
 					***REMOVED***,
 				***REMOVED***,

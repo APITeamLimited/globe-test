@@ -397,7 +397,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 						Domains:  domains,
 						Cert:     cert,
 						Key:      tc.privateKey,
-						Password: tc.password,
+						Password: null.StringFrom(tc.password),
 					***REMOVED***, nil***REMOVED***,
 				***REMOVED***
 				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSAuth: tlsAuth***REMOVED***)
