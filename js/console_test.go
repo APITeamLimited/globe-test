@@ -1,23 +1,3 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package js
 
 import (
@@ -105,6 +85,87 @@ func extractLogger(fl logrus.FieldLogger) *logrus.Logger ***REMOVED***
 		return e
 	***REMOVED***
 	return nil
+***REMOVED***
+
+func TestConsoleLogWithGojaNativeObject(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	obj := rt.NewObject()
+	err := obj.Set("text", "nativeObject")
+	require.NoError(t, err)
+
+	logger := testutils.NewLogger(t)
+	hook := logtest.NewLocal(logger)
+
+	c := newConsole(logger)
+	c.Log(obj)
+
+	entry := hook.LastEntry()
+	require.NotNil(t, entry, "nothing logged")
+	assert.JSONEq(t, `***REMOVED***"text":"nativeObject"***REMOVED***`, entry.Message)
+***REMOVED***
+
+func TestConsoleLogObjectsWithGoTypes(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	type value struct ***REMOVED***
+		Text string
+	***REMOVED***
+
+	tests := []struct ***REMOVED***
+		name string
+		in   interface***REMOVED******REMOVED***
+		exp  string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name: "StructLiteral",
+			in: value***REMOVED***
+				Text: "test1",
+			***REMOVED***,
+			exp: `***REMOVED***"text":"test1"***REMOVED***`,
+		***REMOVED***,
+		***REMOVED***
+			name: "StructPointer",
+			in: &value***REMOVED***
+				Text: "test2",
+			***REMOVED***,
+			exp: `***REMOVED***"text":"test2"***REMOVED***`,
+		***REMOVED***,
+		***REMOVED***
+			name: "Map",
+			in: map[string]interface***REMOVED******REMOVED******REMOVED***
+				"text": "test3",
+			***REMOVED***,
+			exp: `***REMOVED***"text":"test3"***REMOVED***`,
+		***REMOVED***,
+	***REMOVED***
+
+	expFields := logrus.Fields***REMOVED***"source": "console"***REMOVED***
+	for _, tt := range tests ***REMOVED***
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			rt := goja.New()
+			rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+			obj := rt.ToValue(tt.in)
+
+			logger := testutils.NewLogger(t)
+			hook := logtest.NewLocal(logger)
+
+			c := newConsole(logger)
+			c.Log(obj)
+
+			entry := hook.LastEntry()
+			require.NotNil(t, entry, "nothing logged")
+			assert.JSONEq(t, tt.exp, entry.Message)
+			assert.Equal(t, expFields, entry.Data)
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestConsoleLog(t *testing.T) ***REMOVED***

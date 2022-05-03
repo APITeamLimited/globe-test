@@ -23,7 +23,6 @@ package js
 import (
 	"encoding/json"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -97,17 +96,12 @@ func (c console) Error(args ...goja.Value) ***REMOVED***
 ***REMOVED***
 
 func (c console) valueString(v goja.Value) string ***REMOVED***
-	exptype := v.ExportType()
-	if exptype == nil ***REMOVED***
+	mv, ok := v.(json.Marshaler)
+	if !ok ***REMOVED***
 		return v.String()
 	***REMOVED***
 
-	kind := exptype.Kind()
-	if kind != reflect.Map && kind != reflect.Slice ***REMOVED***
-		return v.String()
-	***REMOVED***
-
-	b, err := json.Marshal(v)
+	b, err := json.Marshal(mv)
 	if err != nil ***REMOVED***
 		return v.String()
 	***REMOVED***
