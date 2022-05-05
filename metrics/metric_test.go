@@ -112,6 +112,20 @@ func TestParseMetricName(t *testing.T) ***REMOVED***
 			wantErr:              false,
 		***REMOVED***,
 		***REMOVED***
+			name:                 "metric name with valid name and repeated curly braces tokens in tags definition",
+			metricNameExpression: "http_req_duration***REMOVED***name:http://$***REMOVED******REMOVED***.com***REMOVED***",
+			wantMetricName:       "http_req_duration",
+			wantTags:             []string***REMOVED***"name:http://$***REMOVED******REMOVED***.com"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and repeated curly braces and colon tokens in tags definition",
+			metricNameExpression: "http_req_duration***REMOVED***name:http://$***REMOVED******REMOVED***.com,url:ssh://github.com:grafana/k6***REMOVED***",
+			wantMetricName:       "http_req_duration",
+			wantTags:             []string***REMOVED***"name:http://$***REMOVED******REMOVED***.com", "url:ssh://github.com:grafana/k6"***REMOVED***,
+			wantErr:              false,
+		***REMOVED***,
+		***REMOVED***
 			name:                 "metric name with tag definition missing `:value`",
 			metricNameExpression: "test_metric***REMOVED***easyas***REMOVED***",
 			wantErr:              true,
@@ -144,6 +158,11 @@ func TestParseMetricName(t *testing.T) ***REMOVED***
 		***REMOVED***
 			name:                 "metric name with valid name and invalid curly braces in tags definition",
 			metricNameExpression: "test_metric***REMOVED***abc***REMOVED***bar",
+			wantErr:              true,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "metric name with valid name and trailing characters after closing curly brace in tags definition",
+			metricNameExpression: "test_metric***REMOVED***foo:ba***REMOVED***r",
 			wantErr:              true,
 		***REMOVED***,
 	***REMOVED***
