@@ -311,3 +311,34 @@ func TestExecutionTestOptionsDefaultValues(t *testing.T) ***REMOVED***
 	expected := `***REMOVED***"paused":null,"executionSegment":null,"executionSegmentSequence":null,"noSetup":null,"setupTimeout":null,"noTeardown":null,"teardownTimeout":null,"rps":null,"dns":***REMOVED***"ttl":null,"select":null,"policy":null***REMOVED***,"maxRedirects":null,"userAgent":null,"batch":null,"batchPerHost":null,"httpDebug":null,"insecureSkipTLSVerify":null,"tlsCipherSuites":null,"tlsVersion":null,"tlsAuth":null,"throw":null,"thresholds":null,"blacklistIPs":null,"blockHostnames":null,"hosts":null,"noConnectionReuse":null,"noVUConnectionReuse":null,"minIterationDuration":null,"ext":null,"summaryTrendStats":["avg", "min", "med", "max", "p(90)", "p(95)"],"summaryTimeUnit":null,"systemTags":["check","error","error_code","expected_response","group","method","name","proto","scenario","service","status","subproto","tls_version","url"],"tags":null,"metricSamplesBufferSize":null,"noCookiesReset":null,"discardResponseBodies":null,"consoleOutput":null,"scenarios":***REMOVED***"default":***REMOVED***"vus":null,"iterations":1,"executor":"shared-iterations","maxDuration":null,"startTime":null,"env":null,"tags":null,"gracefulStop":null,"exec":null***REMOVED******REMOVED***,"localIPs":null***REMOVED***`
 	assert.JSONEq(t, expected, loglines[0].Message)
 ***REMOVED***
+
+func TestSubMetricThresholdNoData(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := `
+		import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
+
+		const counter1 = new Counter("one");
+		const counter2 = new Counter("two");
+
+		export const options = ***REMOVED***
+			thresholds: ***REMOVED***
+				'one***REMOVED***tag:xyz***REMOVED***': [],
+			***REMOVED***,
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+			counter2.add(42);
+		***REMOVED***
+	`
+	ts := newGlobalTestState(t)
+	require.NoError(t, afero.WriteFile(ts.fs, filepath.Join(ts.cwd, "test.js"), []byte(script), 0o644))
+	ts.args = []string***REMOVED***"k6", "run", "--quiet", "test.js"***REMOVED***
+
+	newRootCommand(ts.globalState).execute()
+
+	require.Len(t, ts.loggerHook.Drain(), 0)
+	require.Contains(t, ts.stdOut.String(), `
+     one..................: 0   0/s
+       ***REMOVED*** tag:xyz ***REMOVED***........: 0   0/s
+     two..................: 42`)
+***REMOVED***
