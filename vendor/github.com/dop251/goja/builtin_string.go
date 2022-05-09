@@ -157,6 +157,20 @@ func (r *Runtime) string_raw(call FunctionCall) Value ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (r *Runtime) stringproto_at(call FunctionCall) Value ***REMOVED***
+	r.checkObjectCoercible(call.This)
+	s := call.This.toString()
+	pos := call.Argument(0).ToInteger()
+	length := int64(s.length())
+	if pos < 0 ***REMOVED***
+		pos = length + pos
+	***REMOVED***
+	if pos >= length || pos < 0 ***REMOVED***
+		return _undefined
+	***REMOVED***
+	return s.substring(int(pos), int(pos+1))
+***REMOVED***
+
 func (r *Runtime) stringproto_charAt(call FunctionCall) Value ***REMOVED***
 	r.checkObjectCoercible(call.This)
 	s := call.This.toString()
@@ -164,7 +178,7 @@ func (r *Runtime) stringproto_charAt(call FunctionCall) Value ***REMOVED***
 	if pos < 0 || pos >= int64(s.length()) ***REMOVED***
 		return stringEmpty
 	***REMOVED***
-	return newStringValue(string(s.charAt(toIntStrict(pos))))
+	return s.substring(int(pos), int(pos+1))
 ***REMOVED***
 
 func (r *Runtime) stringproto_charCodeAt(call FunctionCall) Value ***REMOVED***
@@ -947,6 +961,7 @@ func (r *Runtime) initString() ***REMOVED***
 	r.global.StringPrototype = r.builtin_newString([]Value***REMOVED***stringEmpty***REMOVED***, r.global.ObjectPrototype)
 
 	o := r.global.StringPrototype.self
+	o._putProp("at", r.newNativeFunc(r.stringproto_at, nil, "at", nil, 1), true, false, true)
 	o._putProp("charAt", r.newNativeFunc(r.stringproto_charAt, nil, "charAt", nil, 1), true, false, true)
 	o._putProp("charCodeAt", r.newNativeFunc(r.stringproto_charCodeAt, nil, "charCodeAt", nil, 1), true, false, true)
 	o._putProp("codePointAt", r.newNativeFunc(r.stringproto_codePointAt, nil, "codePointAt", nil, 1), true, false, true)

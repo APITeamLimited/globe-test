@@ -470,7 +470,12 @@ func (r *Runtime) typeErrorResult(throw bool, args ...interface***REMOVED******R
 ***REMOVED***
 
 func (r *Runtime) newError(typ *Object, format string, args ...interface***REMOVED******REMOVED***) Value ***REMOVED***
-	msg := fmt.Sprintf(format, args...)
+	var msg string
+	if len(args) > 0 ***REMOVED***
+		msg = fmt.Sprintf(format, args...)
+	***REMOVED*** else ***REMOVED***
+		msg = format
+	***REMOVED***
 	return r.builtin_new(typ, []Value***REMOVED***newStringValue(msg)***REMOVED***)
 ***REMOVED***
 

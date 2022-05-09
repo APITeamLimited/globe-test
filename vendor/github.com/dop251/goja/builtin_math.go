@@ -181,9 +181,7 @@ NaNLoop:
 	return _NaN
 ***REMOVED***
 
-func (r *Runtime) math_pow(call FunctionCall) Value ***REMOVED***
-	x := call.Argument(0)
-	y := call.Argument(1)
+func pow(x, y Value) Value ***REMOVED***
 	if x, ok := x.(valueInt); ok ***REMOVED***
 		if y, ok := y.(valueInt); ok && y >= 0 && y < 64 ***REMOVED***
 			if y == 0 ***REMOVED***
@@ -207,6 +205,10 @@ func (r *Runtime) math_pow(call FunctionCall) Value ***REMOVED***
 		return _NaN
 	***REMOVED***
 	return floatToValue(math.Pow(xf, yf))
+***REMOVED***
+
+func (r *Runtime) math_pow(call FunctionCall) Value ***REMOVED***
+	return pow(call.Argument(0), call.Argument(1))
 ***REMOVED***
 
 func (r *Runtime) math_random(call FunctionCall) Value ***REMOVED***

@@ -757,9 +757,30 @@ func (self *_parser) parseUnaryExpression() ast.Expression ***REMOVED***
 	return self.parsePostfixExpression()
 ***REMOVED***
 
+func isUpdateExpression(expr ast.Expression) bool ***REMOVED***
+	if ux, ok := expr.(*ast.UnaryExpression); ok ***REMOVED***
+		return ux.Operator == token.INCREMENT || ux.Operator == token.DECREMENT
+	***REMOVED***
+	return true
+***REMOVED***
+
+func (self *_parser) parseExponentiationExpression() ast.Expression ***REMOVED***
+	left := self.parseUnaryExpression()
+
+	for self.token == token.EXPONENT && isUpdateExpression(left) ***REMOVED***
+		self.next()
+		left = &ast.BinaryExpression***REMOVED***
+			Operator: token.EXPONENT,
+			Left:     left,
+			Right:    self.parseExponentiationExpression(),
+		***REMOVED***
+	***REMOVED***
+
+	return left
+***REMOVED***
+
 func (self *_parser) parseMultiplicativeExpression() ast.Expression ***REMOVED***
-	next := self.parseUnaryExpression
-	left := next()
+	left := self.parseExponentiationExpression()
 
 	for self.token == token.MULTIPLY || self.token == token.SLASH ||
 		self.token == token.REMAINDER ***REMOVED***
@@ -768,7 +789,7 @@ func (self *_parser) parseMultiplicativeExpression() ast.Expression ***REMOVED**
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseExponentiationExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -776,8 +797,7 @@ func (self *_parser) parseMultiplicativeExpression() ast.Expression ***REMOVED**
 ***REMOVED***
 
 func (self *_parser) parseAdditiveExpression() ast.Expression ***REMOVED***
-	next := self.parseMultiplicativeExpression
-	left := next()
+	left := self.parseMultiplicativeExpression()
 
 	for self.token == token.PLUS || self.token == token.MINUS ***REMOVED***
 		tkn := self.token
@@ -785,7 +805,7 @@ func (self *_parser) parseAdditiveExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseMultiplicativeExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -793,8 +813,7 @@ func (self *_parser) parseAdditiveExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseShiftExpression() ast.Expression ***REMOVED***
-	next := self.parseAdditiveExpression
-	left := next()
+	left := self.parseAdditiveExpression()
 
 	for self.token == token.SHIFT_LEFT || self.token == token.SHIFT_RIGHT ||
 		self.token == token.UNSIGNED_SHIFT_RIGHT ***REMOVED***
@@ -803,7 +822,7 @@ func (self *_parser) parseShiftExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseAdditiveExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -811,8 +830,7 @@ func (self *_parser) parseShiftExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseRelationalExpression() ast.Expression ***REMOVED***
-	next := self.parseShiftExpression
-	left := next()
+	left := self.parseShiftExpression()
 
 	allowIn := self.scope.allowIn
 	self.scope.allowIn = true
@@ -855,8 +873,7 @@ func (self *_parser) parseRelationalExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseEqualityExpression() ast.Expression ***REMOVED***
-	next := self.parseRelationalExpression
-	left := next()
+	left := self.parseRelationalExpression()
 
 	for self.token == token.EQUAL || self.token == token.NOT_EQUAL ||
 		self.token == token.STRICT_EQUAL || self.token == token.STRICT_NOT_EQUAL ***REMOVED***
@@ -865,7 +882,7 @@ func (self *_parser) parseEqualityExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator:   tkn,
 			Left:       left,
-			Right:      next(),
+			Right:      self.parseRelationalExpression(),
 			Comparison: true,
 		***REMOVED***
 	***REMOVED***
@@ -874,8 +891,7 @@ func (self *_parser) parseEqualityExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseBitwiseAndExpression() ast.Expression ***REMOVED***
-	next := self.parseEqualityExpression
-	left := next()
+	left := self.parseEqualityExpression()
 
 	for self.token == token.AND ***REMOVED***
 		tkn := self.token
@@ -883,7 +899,7 @@ func (self *_parser) parseBitwiseAndExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseEqualityExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -891,8 +907,7 @@ func (self *_parser) parseBitwiseAndExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseBitwiseExclusiveOrExpression() ast.Expression ***REMOVED***
-	next := self.parseBitwiseAndExpression
-	left := next()
+	left := self.parseBitwiseAndExpression()
 
 	for self.token == token.EXCLUSIVE_OR ***REMOVED***
 		tkn := self.token
@@ -900,7 +915,7 @@ func (self *_parser) parseBitwiseExclusiveOrExpression() ast.Expression ***REMOV
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseBitwiseAndExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -908,8 +923,7 @@ func (self *_parser) parseBitwiseExclusiveOrExpression() ast.Expression ***REMOV
 ***REMOVED***
 
 func (self *_parser) parseBitwiseOrExpression() ast.Expression ***REMOVED***
-	next := self.parseBitwiseExclusiveOrExpression
-	left := next()
+	left := self.parseBitwiseExclusiveOrExpression()
 
 	for self.token == token.OR ***REMOVED***
 		tkn := self.token
@@ -917,7 +931,7 @@ func (self *_parser) parseBitwiseOrExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseBitwiseExclusiveOrExpression(),
 		***REMOVED***
 	***REMOVED***
 
@@ -925,8 +939,7 @@ func (self *_parser) parseBitwiseOrExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseLogicalAndExpression() ast.Expression ***REMOVED***
-	next := self.parseBitwiseOrExpression
-	left := next()
+	left := self.parseBitwiseOrExpression()
 
 	for self.token == token.LOGICAL_AND ***REMOVED***
 		tkn := self.token
@@ -934,27 +947,71 @@ func (self *_parser) parseLogicalAndExpression() ast.Expression ***REMOVED***
 		left = &ast.BinaryExpression***REMOVED***
 			Operator: tkn,
 			Left:     left,
-			Right:    next(),
+			Right:    self.parseBitwiseOrExpression(),
 		***REMOVED***
 	***REMOVED***
 
 	return left
 ***REMOVED***
 
-func (self *_parser) parseLogicalOrExpression() ast.Expression ***REMOVED***
-	next := self.parseLogicalAndExpression
-	left := next()
+func isLogicalAndExpr(expr ast.Expression) bool ***REMOVED***
+	if bexp, ok := expr.(*ast.BinaryExpression); ok && bexp.Operator == token.LOGICAL_AND ***REMOVED***
+		return true
+	***REMOVED***
+	return false
+***REMOVED***
 
-	for self.token == token.LOGICAL_OR ***REMOVED***
-		tkn := self.token
-		self.next()
-		left = &ast.BinaryExpression***REMOVED***
-			Operator: tkn,
-			Left:     left,
-			Right:    next(),
+func (self *_parser) parseLogicalOrExpression() ast.Expression ***REMOVED***
+	var idx file.Idx
+	parenthesis := self.token == token.LEFT_PARENTHESIS
+	left := self.parseLogicalAndExpression()
+
+	if self.token == token.LOGICAL_OR || !parenthesis && isLogicalAndExpr(left) ***REMOVED***
+		for ***REMOVED***
+			switch self.token ***REMOVED***
+			case token.LOGICAL_OR:
+				self.next()
+				left = &ast.BinaryExpression***REMOVED***
+					Operator: token.LOGICAL_OR,
+					Left:     left,
+					Right:    self.parseLogicalAndExpression(),
+				***REMOVED***
+			case token.COALESCE:
+				idx = self.idx
+				goto mixed
+			default:
+				return left
+			***REMOVED***
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		for ***REMOVED***
+			switch self.token ***REMOVED***
+			case token.COALESCE:
+				idx = self.idx
+				self.next()
+
+				parenthesis := self.token == token.LEFT_PARENTHESIS
+				right := self.parseLogicalAndExpression()
+				if !parenthesis && isLogicalAndExpr(right) ***REMOVED***
+					goto mixed
+				***REMOVED***
+
+				left = &ast.BinaryExpression***REMOVED***
+					Operator: token.COALESCE,
+					Left:     left,
+					Right:    right,
+				***REMOVED***
+			case token.LOGICAL_OR:
+				idx = self.idx
+				goto mixed
+			default:
+				return left
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+mixed:
+	self.error(idx, "Logical expressions and coalesce expressions cannot be mixed. Wrap either by parentheses")
 	return left
 ***REMOVED***
 
@@ -996,6 +1053,8 @@ func (self *_parser) parseAssignmentExpression() ast.Expression ***REMOVED***
 		operator = token.MINUS
 	case token.MULTIPLY_ASSIGN:
 		operator = token.MULTIPLY
+	case token.EXPONENT_ASSIGN:
+		operator = token.EXPONENT
 	case token.QUOTIENT_ASSIGN:
 		operator = token.SLASH
 	case token.REMAINDER_ASSIGN:
@@ -1080,8 +1139,7 @@ func (self *_parser) parseExpression() ast.Expression ***REMOVED***
 	if self.token == token.LET ***REMOVED***
 		self.token = token.IDENTIFIER
 	***REMOVED***
-	next := self.parseAssignmentExpression
-	left := next()
+	left := self.parseAssignmentExpression()
 
 	if self.token == token.COMMA ***REMOVED***
 		sequence := []ast.Expression***REMOVED***left***REMOVED***
@@ -1090,7 +1148,7 @@ func (self *_parser) parseExpression() ast.Expression ***REMOVED***
 				break
 			***REMOVED***
 			self.next()
-			sequence = append(sequence, next())
+			sequence = append(sequence, self.parseAssignmentExpression())
 		***REMOVED***
 		return &ast.SequenceExpression***REMOVED***
 			Sequence: sequence,

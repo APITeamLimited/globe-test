@@ -994,6 +994,16 @@ end:
 	vm.pc++
 ***REMOVED***
 
+type _exp struct***REMOVED******REMOVED***
+
+var exp _exp
+
+func (_exp) exec(vm *vm) ***REMOVED***
+	vm.sp--
+	vm.stack[vm.sp-1] = pow(vm.stack[vm.sp-1], vm.stack[vm.sp])
+	vm.pc++
+***REMOVED***
+
 type _div struct***REMOVED******REMOVED***
 
 var div _div
@@ -3314,6 +3324,7 @@ func (j jeq1) exec(vm *vm) ***REMOVED***
 	if vm.stack[vm.sp-1].ToBoolean() ***REMOVED***
 		vm.pc += int(j)
 	***REMOVED*** else ***REMOVED***
+		vm.sp--
 		vm.pc++
 	***REMOVED***
 ***REMOVED***
@@ -3324,6 +3335,7 @@ func (j jneq1) exec(vm *vm) ***REMOVED***
 	if !vm.stack[vm.sp-1].ToBoolean() ***REMOVED***
 		vm.pc += int(j)
 	***REMOVED*** else ***REMOVED***
+		vm.sp--
 		vm.pc++
 	***REMOVED***
 ***REMOVED***
@@ -3361,6 +3373,31 @@ func (j jopt) exec(vm *vm) ***REMOVED***
 		vm.pc += int(j)
 	default:
 		vm.pc++
+	***REMOVED***
+***REMOVED***
+
+type joptc int32
+
+func (j joptc) exec(vm *vm) ***REMOVED***
+	switch vm.stack[vm.sp-1].(type) ***REMOVED***
+	case valueNull, valueUndefined, memberUnresolved:
+		vm.sp--
+		vm.stack[vm.sp-1] = _undefined
+		vm.pc += int(j)
+	default:
+		vm.pc++
+	***REMOVED***
+***REMOVED***
+
+type jcoalesc int32
+
+func (j jcoalesc) exec(vm *vm) ***REMOVED***
+	switch vm.stack[vm.sp-1] ***REMOVED***
+	case _undefined, _null:
+		vm.sp--
+		vm.pc++
+	default:
+		vm.pc += int(j)
 	***REMOVED***
 ***REMOVED***
 

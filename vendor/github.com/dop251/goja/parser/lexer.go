@@ -356,7 +356,12 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 					insertSemicolon = true
 				***REMOVED***
 			case '*':
-				tkn = self.switch2(token.MULTIPLY, token.MULTIPLY_ASSIGN)
+				if self.chr == '*' ***REMOVED***
+					self.read()
+					tkn = self.switch2(token.EXPONENT, token.EXPONENT_ASSIGN)
+				***REMOVED*** else ***REMOVED***
+					tkn = self.switch2(token.MULTIPLY, token.MULTIPLY_ASSIGN)
+				***REMOVED***
 			case '/':
 				if self.chr == '/' ***REMOVED***
 					self.skipSingleLineComment()
@@ -408,6 +413,9 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 				if self.chr == '.' && !isDecimalDigit(self._peek()) ***REMOVED***
 					self.read()
 					tkn = token.QUESTION_DOT
+				***REMOVED*** else if self.chr == '?' ***REMOVED***
+					self.read()
+					tkn = token.COALESCE
 				***REMOVED*** else ***REMOVED***
 					tkn = token.QUESTION_MARK
 				***REMOVED***

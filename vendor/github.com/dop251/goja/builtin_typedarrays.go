@@ -637,6 +637,25 @@ func (r *Runtime) typedArrayProto_includes(call FunctionCall) Value ***REMOVED**
 	panic(r.NewTypeError("Method TypedArray.prototype.includes called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: call.This***REMOVED***)))
 ***REMOVED***
 
+func (r *Runtime) typedArrayProto_at(call FunctionCall) Value ***REMOVED***
+	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
+		ta.viewedArrayBuf.ensureNotDetached(true)
+		idx := call.Argument(0).ToInteger()
+		length := int64(ta.length)
+		if idx < 0 ***REMOVED***
+			idx = length + idx
+		***REMOVED***
+		if idx >= length || idx < 0 ***REMOVED***
+			return _undefined
+		***REMOVED***
+		if ta.viewedArrayBuf.ensureNotDetached(false) ***REMOVED***
+			return ta.typedArray.get(ta.offset + int(idx))
+		***REMOVED***
+		return _undefined
+	***REMOVED***
+	panic(r.NewTypeError("Method TypedArray.prototype.at called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: call.This***REMOVED***)))
+***REMOVED***
+
 func (r *Runtime) typedArrayProto_indexOf(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
 		ta.viewedArrayBuf.ensureNotDetached(true)
@@ -1419,6 +1438,7 @@ func (r *Runtime) createTypedArrayProto(val *Object) objectImpl ***REMOVED***
 		configurable: true,
 		getterFunc:   r.newNativeFunc(r.typedArrayProto_getByteOffset, nil, "get byteOffset", nil, 0),
 	***REMOVED***)
+	b._putProp("at", r.newNativeFunc(r.typedArrayProto_at, nil, "at", nil, 1), true, false, true)
 	b._putProp("constructor", r.global.TypedArray, true, false, true)
 	b._putProp("copyWithin", r.newNativeFunc(r.typedArrayProto_copyWithin, nil, "copyWithin", nil, 2), true, false, true)
 	b._putProp("entries", r.newNativeFunc(r.typedArrayProto_entries, nil, "entries", nil, 0), true, false, true)

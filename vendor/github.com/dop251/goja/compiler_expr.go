@@ -163,6 +163,11 @@ type compiledLogicalOr struct ***REMOVED***
 	left, right compiledExpr
 ***REMOVED***
 
+type compiledCoalesce struct ***REMOVED***
+	baseCompiledExpr
+	left, right compiledExpr
+***REMOVED***
+
 type compiledLogicalAnd struct ***REMOVED***
 	baseCompiledExpr
 	left, right compiledExpr
@@ -780,6 +785,11 @@ func (e *compiledAssignExpr) emitGetter(putOnStack bool) ***REMOVED***
 		e.left.emitUnary(nil, func() ***REMOVED***
 			e.right.emitGetter(true)
 			e.c.emit(mul)
+		***REMOVED***, false, putOnStack)
+	case token.EXPONENT:
+		e.left.emitUnary(nil, func() ***REMOVED***
+			e.right.emitGetter(true)
+			e.c.emit(exp)
 		***REMOVED***, false, putOnStack)
 	case token.SLASH:
 		e.left.emitUnary(nil, func() ***REMOVED***
@@ -1625,9 +1635,49 @@ func (e *compiledLogicalOr) emitGetter(putOnStack bool) ***REMOVED***
 	j := len(e.c.p.code)
 	e.addSrcMap()
 	e.c.emit(nil)
-	e.c.emit(pop)
 	e.c.emitExpr(e.right, true)
 	e.c.p.code[j] = jeq1(len(e.c.p.code) - j)
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledCoalesce) constant() bool ***REMOVED***
+	if e.left.constant() ***REMOVED***
+		if v, ex := e.c.evalConst(e.left); ex == nil ***REMOVED***
+			if v != _null && v != _undefined ***REMOVED***
+				return true
+			***REMOVED***
+			return e.right.constant()
+		***REMOVED*** else ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+
+	return false
+***REMOVED***
+
+func (e *compiledCoalesce) emitGetter(putOnStack bool) ***REMOVED***
+	if e.left.constant() ***REMOVED***
+		if v, ex := e.c.evalConst(e.left); ex == nil ***REMOVED***
+			if v == _undefined || v == _null ***REMOVED***
+				e.c.emitExpr(e.right, putOnStack)
+			***REMOVED*** else ***REMOVED***
+				if putOnStack ***REMOVED***
+					e.c.emit(loadVal(e.c.p.defineLiteralValue(v)))
+				***REMOVED***
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			e.c.emitThrow(ex.val)
+		***REMOVED***
+		return
+	***REMOVED***
+	e.c.emitExpr(e.left, true)
+	j := len(e.c.p.code)
+	e.addSrcMap()
+	e.c.emit(nil)
+	e.c.emitExpr(e.right, true)
+	e.c.p.code[j] = jcoalesc(len(e.c.p.code) - j)
 	if !putOnStack ***REMOVED***
 		e.c.emit(pop)
 	***REMOVED***
@@ -1667,7 +1717,6 @@ func (e *compiledLogicalAnd) emitGetter(putOnStack bool) ***REMOVED***
 	j = len(e.c.p.code)
 	e.addSrcMap()
 	e.c.emit(nil)
-	e.c.emit(pop)
 	e.c.emitExpr(e.right, true)
 	e.c.p.code[j] = jneq1(len(e.c.p.code) - j)
 	if !putOnStack ***REMOVED***
@@ -1707,6 +1756,8 @@ func (e *compiledBinaryExpr) emitGetter(putOnStack bool) ***REMOVED***
 		e.c.emit(sub)
 	case token.MULTIPLY:
 		e.c.emit(mul)
+	case token.EXPONENT:
+		e.c.emit(exp)
 	case token.SLASH:
 		e.c.emit(div)
 	case token.REMAINDER:
@@ -1741,6 +1792,8 @@ func (c *compiler) compileBinaryExpression(v *ast.BinaryExpression) compiledExpr
 	switch v.Operator ***REMOVED***
 	case token.LOGICAL_OR:
 		return c.compileLogicalOr(v.Left, v.Right, v.Idx0())
+	case token.COALESCE:
+		return c.compileCoalesce(v.Left, v.Right, v.Idx0())
 	case token.LOGICAL_AND:
 		return c.compileLogicalAnd(v.Left, v.Right, v.Idx0())
 	***REMOVED***
@@ -1756,6 +1809,15 @@ func (c *compiler) compileBinaryExpression(v *ast.BinaryExpression) compiledExpr
 
 func (c *compiler) compileLogicalOr(left, right ast.Expression, idx file.Idx) compiledExpr ***REMOVED***
 	r := &compiledLogicalOr***REMOVED***
+		left:  c.compileExpression(left),
+		right: c.compileExpression(right),
+	***REMOVED***
+	r.init(c, idx)
+	return r
+***REMOVED***
+
+func (c *compiler) compileCoalesce(left, right ast.Expression, idx file.Idx) compiledExpr ***REMOVED***
+	r := &compiledCoalesce***REMOVED***
 		left:  c.compileExpression(left),
 		right: c.compileExpression(right),
 	***REMOVED***
@@ -1953,6 +2015,8 @@ func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String)
 		c.endOptChain()
 	case *compiledOptional:
 		c.emitCallee(callee.expr)
+		c.block.conts = append(c.block.conts, len(c.p.code))
+		c.emit(nil)
 	default:
 		c.emit(loadUndef)
 		callee.emitGetter(true)
@@ -2395,6 +2459,9 @@ func (c *compiler) endOptChain() ***REMOVED***
 	lbl := len(c.p.code)
 	for _, item := range c.block.breaks ***REMOVED***
 		c.p.code[item] = jopt(lbl - item)
+	***REMOVED***
+	for _, item := range c.block.conts ***REMOVED***
+		c.p.code[item] = joptc(lbl - item)
 	***REMOVED***
 	c.block = c.block.outer
 ***REMOVED***
