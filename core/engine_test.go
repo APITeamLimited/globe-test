@@ -53,11 +53,18 @@ const isWindows = runtime.GOOS == "windows"
 
 // TODO: completely rewrite all of these tests
 
+type testStruct struct ***REMOVED***
+	engine    *Engine
+	run       func() error
+	runCancel func()
+	wait      func()
+***REMOVED***
+
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngineWithRegistry( //nolint:golint
 	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options,
 	registry *metrics.Registry,
-) (engine *Engine, run func() error, wait func()) ***REMOVED***
+) testStruct ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
@@ -81,32 +88,32 @@ func newTestEngineWithRegistry( //nolint:golint
 	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
 	require.NoError(t, err)
 
-	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, registry)
+	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, registry)
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 
 	run, waitFn, err := engine.Init(globalCtx, runCtx)
 	require.NoError(t, err)
 
-	return engine, run, func() ***REMOVED***
-		if runCancel != nil ***REMOVED***
-			runCancel()
-		***REMOVED***
-		globalCancel()
-		waitFn()
-		engine.OutputManager.StopOutputs()
+	return testStruct***REMOVED***
+		engine:    engine,
+		run:       run,
+		runCancel: runCancel,
+		wait: func() ***REMOVED***
+			if runCancel != nil ***REMOVED***
+				runCancel()
+			***REMOVED***
+			globalCancel()
+			waitFn()
+			engine.OutputManager.StopOutputs()
+		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
 func newTestEngine(
 	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options, //nolint:revive
-) (engine *Engine, run func() error, wait func()) ***REMOVED***
+) testStruct ***REMOVED***
 	return newTestEngineWithRegistry(t, runCtx, runner, outputs, opts, metrics.NewRegistry())
-***REMOVED***
-
-func TestNewEngine(t *testing.T) ***REMOVED***
-	t.Parallel()
-	newTestEngine(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***)
 ***REMOVED***
 
 func TestEngineRun(t *testing.T) ***REMOVED***
@@ -127,23 +134,23 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		ctx, cancel := context.WithTimeout(context.Background(), duration)
 		defer cancel()
 
-		_, run, wait := newTestEngine(t, ctx, runner, nil, lib.Options***REMOVED******REMOVED***)
-		defer wait()
+		test := newTestEngine(t, ctx, runner, nil, lib.Options***REMOVED******REMOVED***)
+		defer test.wait()
 
 		startTime := time.Now()
-		assert.NoError(t, run())
+		assert.NoError(t, test.run())
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
 		<-done
 	***REMOVED***)
 	t.Run("exits with executor", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		e, run, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
+		test := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
 			VUs:        null.IntFrom(10),
 			Iterations: null.IntFrom(100),
 		***REMOVED***)
-		defer wait()
-		assert.NoError(t, run())
-		assert.Equal(t, uint64(100), e.ExecutionScheduler.GetState().GetFullIterationCount())
+		defer test.wait()
+		assert.NoError(t, test.run())
+		assert.Equal(t, uint64(100), test.engine.ExecutionScheduler.GetState().GetFullIterationCount())
 	***REMOVED***)
 	// Make sure samples are discarded after context close (using "cutoff" timestamp in local.go)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
@@ -167,17 +174,17 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		mockOutput := mockoutput.New()
 		ctx, cancel := context.WithCancel(context.Background())
-		_, run, wait := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+		test := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***, registry)
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- run() ***REMOVED***()
+		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 		<-signalChan
 		cancel()
 		assert.NoError(t, <-errC)
-		wait()
+		test.wait()
 
 		found := 0
 		for _, s := range mockOutput.Samples ***REMOVED***
@@ -195,30 +202,30 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	_, run, wait := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(2),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
-	defer wait()
+	defer test.wait()
 
-	assert.NoError(t, run())
+	assert.NoError(t, test.run())
 ***REMOVED***
 
 func TestEngineStopped(t *testing.T) ***REMOVED***
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	e, run, wait := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(1),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
-	defer wait()
+	defer test.wait()
 
-	assert.NoError(t, run())
-	assert.Equal(t, false, e.IsStopped(), "engine should be running")
-	e.Stop()
-	assert.Equal(t, true, e.IsStopped(), "engine should be stopped")
-	e.Stop() // test that a second stop doesn't panic
+	assert.NoError(t, test.run())
+	assert.Equal(t, false, test.engine.IsStopped(), "engine should be running")
+	test.engine.Stop()
+	assert.Equal(t, true, test.engine.IsStopped(), "engine should be stopped")
+	test.engine.Stop() // test that a second stop doesn't panic
 ***REMOVED***
 
 func TestEngineOutput(t *testing.T) ***REMOVED***
@@ -236,13 +243,13 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	e, run, wait := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(1),
 	***REMOVED***, registry)
 
-	assert.NoError(t, run())
-	wait()
+	assert.NoError(t, test.run())
+	test.wait()
 
 	cSamples := []metrics.Sample***REMOVED******REMOVED***
 	for _, sample := range mockOutput.Samples ***REMOVED***
@@ -250,7 +257,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 			cSamples = append(cSamples, sample)
 		***REMOVED***
 	***REMOVED***
-	metric := e.MetricsEngine.ObservedMetrics["test_metric"]
+	metric := test.engine.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) ***REMOVED***
 		sink := metric.Sink.(*metrics.TrendSink) // nolint: forcetypeassert
 		if assert.NotNil(t, sink) ***REMOVED***
@@ -271,16 +278,16 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
-		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
+		test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
 
-		e.OutputManager.AddMetricSamples(
+		test.engine.OutputManager.AddMetricSamples(
 			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		e.Stop()
-		wait()
+		test.engine.Stop()
+		test.wait()
 
-		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -293,25 +300,25 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
-		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***
+		test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***
 			Thresholds: map[string]metrics.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***, registry)
 
-		e.OutputManager.AddMetricSamples(
+		test.engine.OutputManager.AddMetricSamples(
 			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		e.Stop()
-		wait()
+		test.engine.Stop()
+		test.wait()
 
-		assert.Len(t, e.MetricsEngine.ObservedMetrics, 2)
-		sms := e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
+		assert.Len(t, test.engine.MetricsEngine.ObservedMetrics, 2)
+		sms := test.engine.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
 		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
 
-		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
-		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
 
@@ -332,14 +339,14 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 
 	thresholds := map[string]metrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
-	e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
+	test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
 
-	e.OutputManager.AddMetricSamples(
+	test.engine.OutputManager.AddMetricSamples(
 		[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 	)
-	e.Stop()
-	wait()
-	assert.True(t, e.thresholdsTainted)
+	test.engine.Stop()
+	test.wait()
+	assert.True(t, test.engine.thresholdsTainted)
 ***REMOVED***
 
 func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
@@ -370,11 +377,11 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	_, run, wait := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
-	defer wait()
+	test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
+	defer test.wait()
 
 	go func() ***REMOVED***
-		assert.NoError(t, run())
+		assert.NoError(t, test.run())
 	***REMOVED***()
 
 	select ***REMOVED***
@@ -437,21 +444,21 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
-			e, run, wait := newTestEngineWithRegistry(
+			test := newTestEngineWithRegistry(
 				t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry,
 			)
 
-			e.OutputManager.AddMetricSamples(
+			test.engine.OutputManager.AddMetricSamples(
 				[]metrics.SampleContainer***REMOVED***
 					metrics.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 					metrics.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
 				***REMOVED***,
 			)
 
-			require.NoError(t, run())
-			wait()
+			require.NoError(t, test.run())
+			test.wait()
 
-			assert.Equal(t, data.pass, !e.IsTainted())
+			assert.Equal(t, data.pass, !test.engine.IsTainted())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -562,7 +569,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		mockOutput := mockoutput.New()
-		_, run, wait := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+		test := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 			Iterations:            null.IntFrom(tc.Iterations),
 			VUs:                   null.IntFrom(tc.VUs),
 			Hosts:                 tb.Dialer.Hosts,
@@ -572,7 +579,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- run() ***REMOVED***()
+		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 		select ***REMOVED***
 		case <-time.After(10 * time.Second):
@@ -580,7 +587,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		case err := <-errC:
 			require.NoError(t, err)
 		***REMOVED***
-		wait()
+		test.wait()
 
 		checkData := func(name string, expected int64) float64 ***REMOVED***
 			data := getMetricSum(mockOutput, name)
@@ -701,7 +708,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	_, run, wait := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		Iterations:            null.IntFrom(3),
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
@@ -711,7 +718,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -719,7 +726,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	case err := <-errC:
 		require.NoError(t, err)
 	***REMOVED***
-	wait()
+	test.wait()
 
 	systemMetrics := []string***REMOVED***
 		metrics.VUsName, metrics.VUsMaxName, metrics.IterationsName, metrics.IterationDurationName,
@@ -796,23 +803,23 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	engine, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
 		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
 	***REMOVED***)
-	defer wait()
+	defer test.wait()
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		require.NoError(t, err)
-		require.False(t, engine.IsTainted())
+		require.False(t, test.engine.IsTainted())
 	***REMOVED***
 ***REMOVED***
 
@@ -850,16 +857,16 @@ func TestSetupException(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	_, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
 		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
 	***REMOVED***)
-	defer wait()
+	defer test.wait()
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -978,18 +985,18 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	engine, run, wait := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED******REMOVED***)
+	test := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED******REMOVED***)
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(12 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		require.NoError(t, err)
-		wait()
-		require.False(t, engine.IsTainted())
+		test.wait()
+		require.False(t, test.engine.IsTainted())
 	***REMOVED***
 
 	// The 3.1 sleep in the default function would cause the first VU to complete 2 full iterations
@@ -1088,18 +1095,18 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			mockOutput := mockoutput.New()
-			engine, run, wait := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, runner.GetOptions())
+			test := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, runner.GetOptions())
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- run() ***REMOVED***()
+			go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 
 			select ***REMOVED***
 			case <-time.After(10 * time.Second):
 				t.Fatal("Test timed out")
 			case err := <-errC:
 				require.NoError(t, err)
-				wait()
-				require.False(t, engine.IsTainted())
+				test.wait()
+				require.False(t, test.engine.IsTainted())
 			***REMOVED***
 
 			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, metrics.IterationsName))
@@ -1179,17 +1186,17 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 			)
 			require.NoError(t, err)
 
-			engine, run, wait := newTestEngine(t, nil, runner, nil, runner.GetOptions())
+			test := newTestEngine(t, nil, runner, nil, runner.GetOptions())
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- run() ***REMOVED***()
+			go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 			select ***REMOVED***
 			case <-time.After(10 * time.Second):
 				t.Fatal("Test timed out")
 			case err := <-errC:
 				require.NoError(t, err)
-				wait()
-				require.False(t, engine.IsTainted())
+				test.wait()
+				require.False(t, test.engine.IsTainted())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -1216,12 +1223,12 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	_, run, wait := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
 	***REMOVED***, registry)
 
-	assert.NoError(t, run())
-	wait()
+	assert.NoError(t, test.run())
+	test.wait()
 
 	var count float64
 	for _, sample := range mockOutput.Samples ***REMOVED***
