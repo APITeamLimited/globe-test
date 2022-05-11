@@ -15,10 +15,12 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/dop251/goja"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.k6.io/k6/lib/testutils/httpmultibin/grpc_any_testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -369,6 +371,54 @@ func TestClient(t *testing.T) ***REMOVED***
 				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
 					samplesBuf := metrics.GetBufferedSamples(samples)
 					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			name: "InvokeAnyProto",
+			initString: codeBlock***REMOVED***code: `
+				var client = new grpc.Client();
+				client.load([], "../../../../lib/testutils/httpmultibin/grpc_any_testing/any_test.proto");`***REMOVED***,
+			setup: func(tb *httpmultibin.HTTPMultiBin) ***REMOVED***
+				tb.GRPCAnyStub.SumFunc = func(ctx context.Context, req *grpc_any_testing.SumRequest) (*grpc_any_testing.SumReply, error) ***REMOVED***
+					var sumRequestData grpc_any_testing.SumRequestData
+					if err := req.Data.UnmarshalTo(&sumRequestData); err != nil ***REMOVED***
+						return nil, err
+					***REMOVED***
+
+					sumReplyData := &grpc_any_testing.SumReplyData***REMOVED***
+						V:   sumRequestData.A + sumRequestData.B,
+						Err: "",
+					***REMOVED***
+					sumReply := &grpc_any_testing.SumReply***REMOVED***
+						Data: &any.Any***REMOVED******REMOVED***,
+					***REMOVED***
+					if err := sumReply.Data.MarshalFrom(sumReplyData); err != nil ***REMOVED***
+						return nil, err
+					***REMOVED***
+
+					return sumReply, nil
+				***REMOVED***
+			***REMOVED***,
+			vuString: codeBlock***REMOVED***
+				code: `
+				client.connect("GRPCBIN_ADDR");
+				var resp = client.invoke("grpc.any.testing.AnyTestService/Sum",  ***REMOVED***
+					data: ***REMOVED***
+						"@type": "type.googleapis.com/grpc.any.testing.SumRequestData",
+						"a": 1,
+						"b": 2,
+					***REMOVED***,
+				***REMOVED***)
+				if (resp.status !== grpc.StatusOK) ***REMOVED***
+					throw new Error("unexpected error: " + JSON.stringify(resp.error) + "or status: " + resp.status)
+				***REMOVED***
+				if (resp.message.data.v !== "3") ***REMOVED***
+					throw new Error("unexpected resp message data v: ", resp.message.data.v)
+				***REMOVED***`,
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := metrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.any.testing.AnyTestService/Sum"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,

@@ -263,7 +263,7 @@ func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]M
 		for i := 0; i < messages.Len(); i++ ***REMOVED***
 			message := messages.Get(i)
 			_, errFind := protoregistry.GlobalTypes.FindMessageByName(message.FullName())
-			if errFind == protoregistry.NotFound ***REMOVED***
+			if errors.Is(errFind, protoregistry.NotFound) ***REMOVED***
 				err = protoregistry.GlobalTypes.RegisterMessage(dynamicpb.NewMessageType(message))
 				if err != nil ***REMOVED***
 					return false
