@@ -62,16 +62,11 @@ type testStruct struct ***REMOVED***
 
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngineWithRegistry( //nolint:golint
-	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options,
+	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output, opts lib.Options,
 	registry *metrics.Registry,
-) testStruct ***REMOVED***
+) *testStruct ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
-	***REMOVED***
-	globalCtx, globalCancel := context.WithCancel(context.Background())
-	var runCancel func()
-	if runCtx == nil ***REMOVED***
-		runCtx, runCancel = context.WithCancel(globalCtx)
 	***REMOVED***
 
 	logger := logrus.New()
@@ -92,28 +87,36 @@ func newTestEngineWithRegistry( //nolint:golint
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 
+	globalCtx, globalCancel := context.WithCancel(context.Background())
+	var runCancel func()
+	var runCtx context.Context
+	if runTimeout != nil ***REMOVED***
+		runCtx, runCancel = context.WithTimeout(globalCtx, *runTimeout)
+	***REMOVED*** else ***REMOVED***
+		runCtx, runCancel = context.WithCancel(globalCtx)
+	***REMOVED***
 	run, waitFn, err := engine.Init(globalCtx, runCtx)
 	require.NoError(t, err)
 
-	return testStruct***REMOVED***
+	var test *testStruct
+	test = &testStruct***REMOVED***
 		engine:    engine,
 		run:       run,
 		runCancel: runCancel,
 		wait: func() ***REMOVED***
-			if runCancel != nil ***REMOVED***
-				runCancel()
-			***REMOVED***
+			test.runCancel()
 			globalCancel()
 			waitFn()
 			engine.OutputManager.StopOutputs()
 		***REMOVED***,
 	***REMOVED***
+	return test
 ***REMOVED***
 
 func newTestEngine(
-	t *testing.T, runCtx context.Context, runner lib.Runner, outputs []output.Output, opts lib.Options, //nolint:revive
-) testStruct ***REMOVED***
-	return newTestEngineWithRegistry(t, runCtx, runner, outputs, opts, metrics.NewRegistry())
+	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output, opts lib.Options,
+) *testStruct ***REMOVED***
+	return newTestEngineWithRegistry(t, runTimeout, runner, outputs, opts, metrics.NewRegistry())
 ***REMOVED***
 
 func TestEngineRun(t *testing.T) ***REMOVED***
@@ -131,10 +134,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		duration := 100 * time.Millisecond
-		ctx, cancel := context.WithTimeout(context.Background(), duration)
-		defer cancel()
-
-		test := newTestEngine(t, ctx, runner, nil, lib.Options***REMOVED******REMOVED***)
+		test := newTestEngine(t, &duration, runner, nil, lib.Options***REMOVED******REMOVED***)
 		defer test.wait()
 
 		startTime := time.Now()
@@ -173,8 +173,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		mockOutput := mockoutput.New()
-		ctx, cancel := context.WithCancel(context.Background())
-		test := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+		test := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***, registry)
@@ -182,7 +181,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		errC := make(chan error)
 		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
 		<-signalChan
-		cancel()
+		test.runCancel()
 		assert.NoError(t, <-errC)
 		test.wait()
 
@@ -200,9 +199,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 func TestEngineAtTime(t *testing.T) ***REMOVED***
 	t.Parallel()
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	test := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(2),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
@@ -213,9 +210,7 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 
 func TestEngineStopped(t *testing.T) ***REMOVED***
 	t.Parallel()
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	test := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
+	test := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(1),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
@@ -236,7 +231,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(_ context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			out <- metrics.Sample***REMOVED***Metric: testMetric***REMOVED***
 			return nil
 		***REMOVED***,
@@ -1209,21 +1204,20 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	testMetric, err := registry.NewMetric("teardown_metric", metrics.Counter)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
+	var test *testStruct
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
-			cancel() // we cancel the runCtx immediately after the test starts
+		Fn: func(_ context.Context, _ *lib.State, _ chan<- metrics.SampleContainer) error ***REMOVED***
+			test.runCancel() // we cancel the run immediately after the test starts
 			return nil
 		***REMOVED***,
-		TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
+		TeardownFn: func(_ context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
 			out <- metrics.Sample***REMOVED***Metric: testMetric, Value: 1***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	test := newTestEngineWithRegistry(t, ctx, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test = newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
 	***REMOVED***, registry)
 
