@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.k6.io/k6/lib/testutils/httpmultibin/grpc_any_testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -36,6 +35,7 @@ import (
 	"go.k6.io/k6/lib/netext/grpcext"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
+	grpcanytesting "go.k6.io/k6/lib/testutils/httpmultibin/grpc_any_testing"
 	"go.k6.io/k6/metrics"
 )
 
@@ -380,17 +380,17 @@ func TestClient(t *testing.T) ***REMOVED***
 				var client = new grpc.Client();
 				client.load([], "../../../../lib/testutils/httpmultibin/grpc_any_testing/any_test.proto");`***REMOVED***,
 			setup: func(tb *httpmultibin.HTTPMultiBin) ***REMOVED***
-				tb.GRPCAnyStub.SumFunc = func(ctx context.Context, req *grpc_any_testing.SumRequest) (*grpc_any_testing.SumReply, error) ***REMOVED***
-					var sumRequestData grpc_any_testing.SumRequestData
+				tb.GRPCAnyStub.SumFunc = func(ctx context.Context, req *grpcanytesting.SumRequest) (*grpcanytesting.SumReply, error) ***REMOVED***
+					var sumRequestData grpcanytesting.SumRequestData
 					if err := req.Data.UnmarshalTo(&sumRequestData); err != nil ***REMOVED***
 						return nil, err
 					***REMOVED***
 
-					sumReplyData := &grpc_any_testing.SumReplyData***REMOVED***
+					sumReplyData := &grpcanytesting.SumReplyData***REMOVED***
 						V:   sumRequestData.A + sumRequestData.B,
 						Err: "",
 					***REMOVED***
-					sumReply := &grpc_any_testing.SumReply***REMOVED***
+					sumReply := &grpcanytesting.SumReply***REMOVED***
 						Data: &any.Any***REMOVED******REMOVED***,
 					***REMOVED***
 					if err := sumReply.Data.MarshalFrom(sumReplyData); err != nil ***REMOVED***
