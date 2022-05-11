@@ -39,6 +39,7 @@ type Sink interface ***REMOVED***
 	Add(s Sample)                              // Add a sample to the sink.
 	Calc()                                     // Make final calculations.
 	Format(t time.Duration) map[string]float64 // Data for thresholds.
+	IsEmpty() bool                             // Check if the Sink is empty.
 ***REMOVED***
 
 type CounterSink struct ***REMOVED***
@@ -52,6 +53,9 @@ func (c *CounterSink) Add(s Sample) ***REMOVED***
 		c.First = s.Time
 	***REMOVED***
 ***REMOVED***
+
+// IsEmpty indicates whether the CounterSink is empty.
+func (c *CounterSink) IsEmpty() bool ***REMOVED*** return c.First.IsZero() ***REMOVED***
 
 func (c *CounterSink) Calc() ***REMOVED******REMOVED***
 
@@ -67,6 +71,9 @@ type GaugeSink struct ***REMOVED***
 	Max, Min float64
 	minSet   bool
 ***REMOVED***
+
+// IsEmpty indicates whether the GaugeSink is empty.
+func (g *GaugeSink) IsEmpty() bool ***REMOVED*** return !g.minSet ***REMOVED***
 
 func (g *GaugeSink) Add(s Sample) ***REMOVED***
 	g.Value = s.Value
@@ -94,6 +101,9 @@ type TrendSink struct ***REMOVED***
 	Sum, Avg float64
 	Med      float64
 ***REMOVED***
+
+// IsEmpty indicates whether the TrendSink is empty.
+func (t *TrendSink) IsEmpty() bool ***REMOVED*** return t.Count == 0 ***REMOVED***
 
 func (t *TrendSink) Add(s Sample) ***REMOVED***
 	t.Values = append(t.Values, s.Value)
@@ -164,6 +174,9 @@ type RateSink struct ***REMOVED***
 	Total int64
 ***REMOVED***
 
+// IsEmpty indicates whether the RateSink is empty.
+func (r *RateSink) IsEmpty() bool ***REMOVED*** return r.Total == 0 ***REMOVED***
+
 func (r *RateSink) Add(s Sample) ***REMOVED***
 	r.Total += 1
 	if s.Value != 0 ***REMOVED***
@@ -178,6 +191,9 @@ func (r RateSink) Format(t time.Duration) map[string]float64 ***REMOVED***
 ***REMOVED***
 
 type DummySink map[string]float64
+
+// IsEmpty indicates whether the DummySink is empty.
+func (d DummySink) IsEmpty() bool ***REMOVED*** return len(d) == 0 ***REMOVED***
 
 func (d DummySink) Add(s Sample) ***REMOVED***
 	panic(errors.New("you can't add samples to a dummy sink"))

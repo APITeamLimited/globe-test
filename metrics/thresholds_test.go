@@ -137,8 +137,8 @@ func TestThreshold_runNoTaint(t *testing.T) ***REMOVED***
 			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
 			sinks:            map[string]float64***REMOVED***"med": 27.2***REMOVED***,
-			wantOk:           false,
-			wantErr:          true,
+			wantOk:           true,
+			wantErr:          false,
 		***REMOVED***,
 		***REMOVED***
 			// The ParseThresholdCondition constructor should ensure that no invalid
@@ -672,22 +672,22 @@ func TestThresholds_Run(t *testing.T) ***REMOVED***
 		wantErr bool
 	***REMOVED******REMOVED***
 		***REMOVED***
-			"Running thresholds of existing sink",
-			args***REMOVED***DummySink***REMOVED***"p(95)": 1234.5***REMOVED***, 0***REMOVED***,
-			true,
-			false,
+			name:    "Running thresholds of existing sink",
+			args:    args***REMOVED***DummySink***REMOVED***"p(95)": 1234.5***REMOVED***, 0***REMOVED***,
+			want:    true,
+			wantErr: false,
 		***REMOVED***,
 		***REMOVED***
-			"Running thresholds of existing sink but failing threshold",
-			args***REMOVED***DummySink***REMOVED***"p(95)": 3000***REMOVED***, 0***REMOVED***,
-			false,
-			false,
+			name:    "Running thresholds of existing sink but failing threshold",
+			args:    args***REMOVED***DummySink***REMOVED***"p(95)": 3000***REMOVED***, 0***REMOVED***,
+			want:    false,
+			wantErr: false,
 		***REMOVED***,
 		***REMOVED***
-			"Running threshold on non existing sink fails",
-			args***REMOVED***DummySink***REMOVED***"dummy": 0***REMOVED***, 0***REMOVED***,
-			false,
-			true,
+			name:    "Running threshold on non existing sink does not fail",
+			args:    args***REMOVED***DummySink***REMOVED***"dummy": 0***REMOVED***, 0***REMOVED***,
+			want:    true,
+			wantErr: false,
 		***REMOVED***,
 	***REMOVED***
 	for _, testCase := range tests ***REMOVED***

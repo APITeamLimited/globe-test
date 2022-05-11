@@ -142,14 +142,16 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
 // EvaluateThresholds processes all of the thresholds.
 //
 // TODO: refactor, make private, optimize
-func (me *MetricsEngine) EvaluateThresholds() (thresholdsTainted, shouldAbort bool) ***REMOVED***
+func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTainted, shouldAbort bool) ***REMOVED***
 	me.MetricsLock.Lock()
 	defer me.MetricsLock.Unlock()
 
 	t := me.executionState.GetCurrentTestRunDuration()
 
 	for _, m := range me.metricsWithThresholds ***REMOVED***
-		if len(m.Thresholds.Thresholds) == 0 ***REMOVED***
+		// If either the metric has no thresholds defined, or its sinks
+		// are empty, let's ignore its thresholds execution at this point.
+		if len(m.Thresholds.Thresholds) == 0 || (ignoreEmptySinks && m.Sink.IsEmpty()) ***REMOVED***
 			continue
 		***REMOVED***
 		m.Tainted = null.BoolFrom(false)
