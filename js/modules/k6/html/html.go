@@ -426,21 +426,22 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 ***REMOVED***
 
 // Map implements ES5 Array.prototype.map
-func (s Selection) Map(v goja.Value) []string ***REMOVED***
+func (s Selection) Map(v goja.Value) []goja.Value ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
 		common.Throw(s.rt, errors.New("the argument to map() must be a function"))
 	***REMOVED***
 
-	fn := func(idx int, sel *goquery.Selection) string ***REMOVED***
+	var values []goja.Value
+	s.sel.Each(func(idx int, sel *goquery.Selection) ***REMOVED***
 		selection := &Selection***REMOVED***sel: sel, URL: s.URL, rt: s.rt***REMOVED***
-		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(selection)); fnErr == nil ***REMOVED***
-			return fnRes.String()
-		***REMOVED***
-		return ""
-	***REMOVED***
 
-	return s.sel.Map(fn)
+		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(selection)); fnErr == nil ***REMOVED***
+			values = append(values, fnRes)
+		***REMOVED***
+	***REMOVED***)
+
+	return values
 ***REMOVED***
 
 func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***

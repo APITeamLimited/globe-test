@@ -66,6 +66,25 @@ const testHTML = `
 </body>
 `
 
+const testXML = `
+<ListAllMyBucketsResult>
+   <Buckets>
+      <Bucket>
+          <CreationDate>1654852823</CreationDate>
+          <Name>firstBucket</Name>
+      </Bucket>
+	  <Bucket>
+	      <CreationDate>1654852825</CreationDate>
+		  <Name>secondBucket</Name>
+	  </Bucket>
+   </Buckets>
+   <Owner>
+      <DisplayName>string</DisplayName>
+      <ID>string</ID>
+   </Owner>
+</ListAllMyBucketsResult>
+`
+
 func getTestModuleInstance(t testing.TB) (*goja.Runtime, *ModuleInstance) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
@@ -409,11 +428,38 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		t.Run("Valid", func(t *testing.T) ***REMOVED***
 			v, err := rt.RunString(`doc.find("#select_multi option").map(function(idx, val) ***REMOVED*** return val.text() ***REMOVED***)`)
 			if assert.NoError(t, err) ***REMOVED***
-				mapped, ok := v.Export().([]string)
+				mapped, ok := v.Export().([]goja.Value)
 				assert.True(t, ok)
 				assert.Equal(t, 3, len(mapped))
-				assert.Equal(t, []string***REMOVED***"option 1", "option 2", "option 3"***REMOVED***, mapped)
+				assert.Equal(t, "option 1", mapped[0].String())
+				assert.Equal(t, "option 2", mapped[1].String())
+				assert.Equal(t, "option 3", mapped[2].String())
 			***REMOVED***
+		***REMOVED***)
+		t.Run("Continues to work with strings", func(t *testing.T) ***REMOVED***
+			_, err := rt.RunString(`
+				const values = doc
+					.find("#select_multi option")
+					.map(function(idx, val) ***REMOVED*** 
+						return val.text()
+					***REMOVED***)
+				
+				if (values.length !== 3) ***REMOVED***
+					throw new Error('Expected 3 values, got ' + values.length)
+				***REMOVED***
+
+				for (let i = 0; i < values.length; i++) ***REMOVED***
+					if (typeof values[i] !== 'string') ***REMOVED***
+						throw new Error('Expected string, got ' + values[i].toString())
+					***REMOVED***
+
+					if (values[i].toString() !== 'option ' + (i + 1)) ***REMOVED***
+						throw new Error('Expected value ' + (i + 1) + ', got ' + values[i])
+					***REMOVED***
+				***REMOVED***
+			`)
+
+			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`doc.find("#select_multi option").map("");`)
@@ -425,11 +471,60 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		t.Run("Map with attr must return string", func(t *testing.T) ***REMOVED***
 			v, err := rt.RunString(`doc.find("#select_multi").map(function(idx, val) ***REMOVED*** return val.attr("name") ***REMOVED***)`)
 			if assert.NoError(t, err) ***REMOVED***
-				mapped, ok := v.Export().([]string)
+				mapped, ok := v.Export().([]goja.Value)
 				assert.True(t, ok)
 				assert.Equal(t, 1, len(mapped))
-				assert.Equal(t, []string***REMOVED***"select_multi"***REMOVED***, mapped)
+				assert.Equal(t, "select_multi", mapped[0].String())
 			***REMOVED***
+		***REMOVED***)
+		t.Run("Valid XML", func(t *testing.T) ***REMOVED***
+			rt := getTestRuntimeWithDoc(t, testXML)
+			testScript := `
+			const buckets = doc
+				.find('Buckets')
+				.children()
+				.map(function (idx, bucket) ***REMOVED***
+					let bucketObj = ***REMOVED******REMOVED***
+					bucket.children().each(function (idx, elem) ***REMOVED***
+						switch (elem.nodeName()) ***REMOVED***
+							case 'name':
+								Object.assign(bucketObj, ***REMOVED*** name: elem.textContent() ***REMOVED***)
+								break
+							case 'creationdate':
+								Object.assign(bucketObj, ***REMOVED*** creationDate: parseInt(elem.textContent(), 10) ***REMOVED***)
+								break
+						***REMOVED***
+					***REMOVED***)
+					return bucketObj
+				***REMOVED***)
+		
+			if (buckets.length !== 2) ***REMOVED***
+				throw new Error('Expected 2 buckets, got ' + buckets.length)
+			***REMOVED***
+		
+			if (buckets[0].name !== 'firstBucket') ***REMOVED***
+				throw new Error('Expected bucket name to be "firstBucket", got ' + buckets[0].name)
+			***REMOVED***
+		
+			if (buckets[0].creationDate !== 1654852823) ***REMOVED***
+				throw new Error(
+					'Expected bucket creation date to be 1654852823, got ' + buckets[0].creationDate
+				)
+			***REMOVED***
+		
+			if (buckets[1].name != 'secondBucket') ***REMOVED***
+				throw new Error('Expected bucket name to be "secondBucket", got ' + buckets[1].name)
+			***REMOVED***
+		
+			if (buckets[1].creationDate !== 1654852825) ***REMOVED***
+				throw new Error(
+					'Expected bucket creation date to be 1654852825, got ' + buckets[1].creationDate
+				)
+			***REMOVED***
+			`
+
+			_, err := rt.RunString(testScript)
+			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Next", func(t *testing.T) ***REMOVED***
