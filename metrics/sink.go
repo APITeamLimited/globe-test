@@ -187,7 +187,12 @@ func (r *RateSink) Add(s Sample) ***REMOVED***
 func (r RateSink) Calc() ***REMOVED******REMOVED***
 
 func (r RateSink) Format(t time.Duration) map[string]float64 ***REMOVED***
-	return map[string]float64***REMOVED***"rate": float64(r.Trues) / float64(r.Total)***REMOVED***
+	var rate float64
+	if r.Total > 0 ***REMOVED***
+		rate = float64(r.Trues) / float64(r.Total)
+	***REMOVED***
+
+	return map[string]float64***REMOVED***"rate": rate***REMOVED***
 ***REMOVED***
 
 type DummySink map[string]float64
