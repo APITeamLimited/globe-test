@@ -908,6 +908,43 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
 			***REMOVED***)
+
+			//nolint:paralleltest
+			t.Run("clear", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				_, err = rt.RunString(sr(`
+				var jar = http.cookieJar();
+				jar.set("HTTPBIN_URL/cookies", "key", "value");
+				var res = http.request("GET", "HTTPBIN_URL/cookies");
+				if (res.json().key != "value") ***REMOVED*** throw new Error("cookie 'key' unexpectedly don't found"); ***REMOVED***
+				jar.clear('HTTPBIN_URL/cookies');
+				res = http.request("GET", "HTTPBIN_URL/cookies");
+				if (res.json().key == "value") ***REMOVED*** throw new Error("wrong clean: unexpected cookie in jar"); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+			***REMOVED***)
+
+			//nolint:paralleltest
+			t.Run("delete", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				_, err = rt.RunString(sr(`
+				var jar = http.cookieJar();
+				jar.set("HTTPBIN_URL/cookies", "key1", "value1");
+				jar.set("HTTPBIN_URL/cookies", "key2", "value2");
+				var res = http.request("GET", "HTTPBIN_URL/cookies");
+				if (res.json().key1 != "value1" || res.json().key2 != "value2") ***REMOVED*** throw new Error("cookie 'keys' unexpectedly don't found"); ***REMOVED***
+				jar.delete('HTTPBIN_URL/cookies', "key1");
+				res = http.request("GET", "HTTPBIN_URL/cookies");
+				if (res.json().key1 == "value1" || res.json().key2 != "value2"  ) ***REMOVED*** throw new Error("wrong clean: unexpected cookie in jar"); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies"), "", 200, "")
+			***REMOVED***)
 		***REMOVED***)
 
 		t.Run("auth", func(t *testing.T) ***REMOVED***

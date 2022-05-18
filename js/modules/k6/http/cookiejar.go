@@ -21,6 +21,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -99,4 +100,37 @@ func (j CookieJar) Set(url, name, value string, opts goja.Value) (bool, error) *
 	***REMOVED***
 	j.Jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
 	return true, nil
+***REMOVED***
+
+// Clear all cookies for a particular URL
+func (j CookieJar) Clear(url string) error ***REMOVED***
+	u, err := neturl.Parse(url)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	cookies := j.Jar.Cookies(u)
+	for _, c := range cookies ***REMOVED***
+		c.MaxAge = -1
+	***REMOVED***
+	j.Jar.SetCookies(u, cookies)
+
+	return nil
+***REMOVED***
+
+// Delete cookies for a particular URL
+func (j CookieJar) Delete(url, name string) error ***REMOVED***
+	if name == "" ***REMOVED***
+		return errors.New("cookie: is null")
+	***REMOVED***
+
+	u, err := neturl.Parse(url)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	c := http.Cookie***REMOVED***Name: name, MaxAge: -1***REMOVED***
+	j.Jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
+
+	return nil
 ***REMOVED***
