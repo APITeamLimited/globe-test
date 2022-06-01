@@ -65,7 +65,7 @@ func (t timeoutError) Hint() string ***REMOVED***
 ***REMOVED***
 
 // ExitCode returns the coresponding exit code value to the place.
-func (t timeoutError) ExitCode() errext.ExitCode ***REMOVED***
+func (t timeoutError) ExitCode() exitcodes.ExitCode ***REMOVED***
 	// TODO: add handleSummary()
 	switch t.place ***REMOVED***
 	case consts.SetupFn:

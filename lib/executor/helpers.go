@@ -30,7 +30,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
-	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/ui/pb"
@@ -125,7 +124,7 @@ func CancelReason(ctx context.Context) error ***REMOVED***
 // cancels the executor context passed with ctx.
 func handleInterrupt(ctx context.Context, err error) bool ***REMOVED***
 	if err != nil ***REMOVED***
-		if common.IsInterruptError(err) ***REMOVED***
+		if errext.IsInterruptError(err) ***REMOVED***
 			cancelExecutorContext(ctx, err)
 			return true
 		***REMOVED***

@@ -208,7 +208,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	err = engineRun()
 	if err != nil ***REMOVED***
 		err = common.UnwrapGojaInterruptedError(err)
-		if common.IsInterruptError(err) ***REMOVED***
+		if errext.IsInterruptError(err) ***REMOVED***
 			// Don't return here since we need to work with --linger,
 			// show the end-of-test summary and exit cleanly.
 			interrupt = err
