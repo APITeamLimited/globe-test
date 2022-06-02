@@ -2,7 +2,6 @@
 package gjson
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -1824,17 +1823,64 @@ func isSimpleName(component string) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func appendJSONString(dst []byte, s string) []byte ***REMOVED***
+var hexchars = [...]byte***REMOVED***
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'a', 'b', 'c', 'd', 'e', 'f',
+***REMOVED***
+
+func appendHex16(dst []byte, x uint16) []byte ***REMOVED***
+	return append(dst,
+		hexchars[x>>12&0xF], hexchars[x>>8&0xF],
+		hexchars[x>>4&0xF], hexchars[x>>0&0xF],
+	)
+***REMOVED***
+
+// AppendJSONString is a convenience function that converts the provided string
+// to a valid JSON string and appends it to dst.
+func AppendJSONString(dst []byte, s string) []byte ***REMOVED***
+	dst = append(dst, make([]byte, len(s)+2)...)
+	dst = append(dst[:len(dst)-len(s)-2], '"')
 	for i := 0; i < len(s); i++ ***REMOVED***
-		if s[i] < ' ' || s[i] == '\\' || s[i] == '"' || s[i] > 126 ***REMOVED***
-			d, _ := json.Marshal(s)
-			return append(dst, string(d)...)
+		if s[i] < ' ' ***REMOVED***
+			dst = append(dst, '\\')
+			switch s[i] ***REMOVED***
+			case '\n':
+				dst = append(dst, 'n')
+			case '\r':
+				dst = append(dst, 'r')
+			case '\t':
+				dst = append(dst, 't')
+			default:
+				dst = append(dst, 'u')
+				dst = appendHex16(dst, uint16(s[i]))
+			***REMOVED***
+		***REMOVED*** else if s[i] == '>' || s[i] == '<' || s[i] == '&' ***REMOVED***
+			dst = append(dst, '\\', 'u')
+			dst = appendHex16(dst, uint16(s[i]))
+		***REMOVED*** else if s[i] == '\\' ***REMOVED***
+			dst = append(dst, '\\', '\\')
+		***REMOVED*** else if s[i] == '"' ***REMOVED***
+			dst = append(dst, '\\', '"')
+		***REMOVED*** else if s[i] > 127 ***REMOVED***
+			// read utf8 character
+			r, n := utf8.DecodeRuneInString(s[i:])
+			if n == 0 ***REMOVED***
+				break
+			***REMOVED***
+			if r == utf8.RuneError && n == 1 ***REMOVED***
+				dst = append(dst, `\ufffd`...)
+			***REMOVED*** else if r == '\u2028' || r == '\u2029' ***REMOVED***
+				dst = append(dst, `\u202`...)
+				dst = append(dst, hexchars[r&0xF])
+			***REMOVED*** else ***REMOVED***
+				dst = append(dst, s[i:i+n]...)
+			***REMOVED***
+			i = i + n - 1
+		***REMOVED*** else ***REMOVED***
+			dst = append(dst, s[i])
 		***REMOVED***
 	***REMOVED***
-	dst = append(dst, '"')
-	dst = append(dst, s...)
-	dst = append(dst, '"')
-	return dst
+	return append(dst, '"')
 ***REMOVED***
 
 type parseContext struct ***REMOVED***
@@ -1924,14 +1970,14 @@ func Get(json, path string) Result ***REMOVED***
 									if sub.name[0] == '"' && Valid(sub.name) ***REMOVED***
 										b = append(b, sub.name...)
 									***REMOVED*** else ***REMOVED***
-										b = appendJSONString(b, sub.name)
+										b = AppendJSONString(b, sub.name)
 									***REMOVED***
 								***REMOVED*** else ***REMOVED***
 									last := nameOfLast(sub.path)
 									if isSimpleName(last) ***REMOVED***
-										b = appendJSONString(b, last)
+										b = AppendJSONString(b, last)
 									***REMOVED*** else ***REMOVED***
-										b = appendJSONString(b, "_")
+										b = AppendJSONString(b, "_")
 									***REMOVED***
 								***REMOVED***
 								b = append(b, ':')
@@ -2974,8 +3020,7 @@ func modFromStr(json, arg string) string ***REMOVED***
 // @tostr converts a string to json
 //   ***REMOVED***"id":1023,"name":"alert"***REMOVED*** -> "***REMOVED***\"id\":1023,\"name\":\"alert\"***REMOVED***"
 func modToStr(str, arg string) string ***REMOVED***
-	data, _ := json.Marshal(str)
-	return string(data)
+	return string(AppendJSONString(nil, str))
 ***REMOVED***
 
 func modGroup(json, arg string) string ***REMOVED***
@@ -3147,6 +3192,20 @@ func revSquash(json string) string ***REMOVED***
 	return json
 ***REMOVED***
 
+// Paths returns the original GJSON paths for a Result where the Result came
+// from a simple query path that returns an array, like:
+//
+//    gjson.Get(json, "friends.#.first")
+//
+// The returned value will be in the form of a JSON array:
+//
+//    ["friends.0.first","friends.1.first","friends.2.first"]
+//
+// The param 'json' must be the original JSON used when calling Get.
+//
+// Returns an empty string if the paths cannot be determined, which can happen
+// when the Result came from a path that contained a multipath, modifier,
+// or a nested query.
 func (t Result) Paths(json string) []string ***REMOVED***
 	if t.Indexes == nil ***REMOVED***
 		return nil
@@ -3162,8 +3221,20 @@ func (t Result) Paths(json string) []string ***REMOVED***
 	return paths
 ***REMOVED***
 
-// Path returns the original GJSON path for Result.
-// The json param must be the original JSON used when calling Get.
+// Path returns the original GJSON path for a Result where the Result came
+// from a simple path that returns a single value, like:
+//
+//    gjson.Get(json, "friends.#(last=Murphy)")
+//
+// The returned value will be in the form of a JSON string:
+//
+//    "friends.0"
+//
+// The param 'json' must be the original JSON used when calling Get.
+//
+// Returns an empty string if the paths cannot be determined, which can happen
+// when the Result came from a path that contained a multipath, modifier,
+// or a nested query.
 func (t Result) Path(json string) string ***REMOVED***
 	var path []byte
 	var comps []string // raw components
