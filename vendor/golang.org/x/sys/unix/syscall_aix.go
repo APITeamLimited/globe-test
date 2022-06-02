@@ -37,6 +37,7 @@ func Creat(path string, mode uint32) (fd int, err error) ***REMOVED***
 ***REMOVED***
 
 //sys	utimes(path string, times *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) error ***REMOVED***
 	if len(tv) != 2 ***REMOVED***
 		return EINVAL
@@ -45,6 +46,7 @@ func Utimes(path string, tv []Timeval) error ***REMOVED***
 ***REMOVED***
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+
 func UtimesNano(path string, ts []Timespec) error ***REMOVED***
 	if len(ts) != 2 ***REMOVED***
 		return EINVAL
@@ -215,18 +217,12 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 	return
 ***REMOVED***
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) ***REMOVED***
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) ***REMOVED***
 	// Recvmsg not implemented on AIX
-	sa := new(SockaddrUnix)
-	return -1, -1, -1, sa, ENOSYS
+	return -1, -1, -1, ENOSYS
 ***REMOVED***
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) ***REMOVED***
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-***REMOVED***
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) ***REMOVED***
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) ***REMOVED***
 	// SendmsgN not implemented on AIX
 	return -1, ENOSYS
 ***REMOVED***
@@ -306,11 +302,13 @@ func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
 ***REMOVED***
 
 //sys	getdirent(fd int, buf []byte) (n int, err error)
+
 func Getdents(fd int, buf []byte) (n int, err error) ***REMOVED***
 	return getdirent(fd, buf)
 ***REMOVED***
 
 //sys	wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) ***REMOVED***
 	var status _C_int
 	var r Pid_t
@@ -378,6 +376,7 @@ func (w WaitStatus) TrapCause() int ***REMOVED*** return -1 ***REMOVED***
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
 //sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+
 func Fsync(fd int) error ***REMOVED***
 	return fsyncRange(fd, O_SYNC, 0, 0)
 ***REMOVED***
@@ -458,8 +457,8 @@ func Fsync(fd int) error ***REMOVED***
 //sys	Listen(s int, n int) (err error)
 //sys	lstat(path string, stat *Stat_t) (err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = pread64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = pread64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
@@ -542,6 +541,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
 //sys	Getsystemcfg(label int) (n uint64)
 
 //sys	umount(target string) (err error)
+
 func Unmount(target string, flags int) (err error) ***REMOVED***
 	if flags != 0 ***REMOVED***
 		// AIX doesn't have any flags for umount.

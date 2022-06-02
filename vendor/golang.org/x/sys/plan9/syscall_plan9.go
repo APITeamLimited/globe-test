@@ -115,6 +115,7 @@ func Write(fd int, p []byte) (n int, err error) ***REMOVED***
 var ioSync int64
 
 //sys	fd2path(fd int, buf []byte) (err error)
+
 func Fd2path(fd int) (path string, err error) ***REMOVED***
 	var buf [512]byte
 
@@ -126,6 +127,7 @@ func Fd2path(fd int) (path string, err error) ***REMOVED***
 ***REMOVED***
 
 //sys	pipe(p *[2]int32) (err error)
+
 func Pipe(p []int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
 		return syscall.ErrorString("bad arg in system call")
@@ -180,6 +182,7 @@ func (w Waitmsg) ExitStatus() int ***REMOVED***
 ***REMOVED***
 
 //sys	await(s []byte) (n int, err error)
+
 func Await(w *Waitmsg) (err error) ***REMOVED***
 	var buf [512]byte
 	var f [5][]byte
@@ -301,42 +304,49 @@ func Getgroups() (gids []int, err error) ***REMOVED***
 ***REMOVED***
 
 //sys	open(path string, mode int) (fd int, err error)
+
 func Open(path string, mode int) (fd int, err error) ***REMOVED***
 	fixwd()
 	return open(path, mode)
 ***REMOVED***
 
 //sys	create(path string, mode int, perm uint32) (fd int, err error)
+
 func Create(path string, mode int, perm uint32) (fd int, err error) ***REMOVED***
 	fixwd()
 	return create(path, mode, perm)
 ***REMOVED***
 
 //sys	remove(path string) (err error)
+
 func Remove(path string) error ***REMOVED***
 	fixwd()
 	return remove(path)
 ***REMOVED***
 
 //sys	stat(path string, edir []byte) (n int, err error)
+
 func Stat(path string, edir []byte) (n int, err error) ***REMOVED***
 	fixwd()
 	return stat(path, edir)
 ***REMOVED***
 
 //sys	bind(name string, old string, flag int) (err error)
+
 func Bind(name string, old string, flag int) (err error) ***REMOVED***
 	fixwd()
 	return bind(name, old, flag)
 ***REMOVED***
 
 //sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
+
 func Mount(fd int, afd int, old string, flag int, aname string) (err error) ***REMOVED***
 	fixwd()
 	return mount(fd, afd, old, flag, aname)
 ***REMOVED***
 
 //sys	wstat(path string, edir []byte) (err error)
+
 func Wstat(path string, edir []byte) (err error) ***REMOVED***
 	fixwd()
 	return wstat(path, edir)

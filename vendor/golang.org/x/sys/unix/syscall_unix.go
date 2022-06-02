@@ -177,6 +177,30 @@ func Write(fd int, p []byte) (n int, err error) ***REMOVED***
 	return
 ***REMOVED***
 
+func Pread(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
+	n, err = pread(fd, p, offset)
+	if raceenabled ***REMOVED***
+		if n > 0 ***REMOVED***
+			raceWriteRange(unsafe.Pointer(&p[0]), n)
+		***REMOVED***
+		if err == nil ***REMOVED***
+			raceAcquire(unsafe.Pointer(&ioSync))
+		***REMOVED***
+	***REMOVED***
+	return
+***REMOVED***
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
+	if raceenabled ***REMOVED***
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	***REMOVED***
+	n, err = pwrite(fd, p, offset)
+	if raceenabled && n > 0 ***REMOVED***
+		raceReadRange(unsafe.Pointer(&p[0]), n)
+	***REMOVED***
+	return
+***REMOVED***
+
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
@@ -311,6 +335,33 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) ***
 		from, err = anyToSockaddr(fd, &rsa)
 	***REMOVED***
 	return
+***REMOVED***
+
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) ***REMOVED***
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	// source address is only specified if the socket is unconnected
+	if rsa.Addr.Family != AF_UNSPEC ***REMOVED***
+		from, err = anyToSockaddr(fd, &rsa)
+	***REMOVED***
+	return
+***REMOVED***
+
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) ***REMOVED***
+	_, err = SendmsgN(fd, p, oob, to, flags)
+	return
+***REMOVED***
+
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) ***REMOVED***
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil ***REMOVED***
+		ptr, salen, err = to.sockaddr()
+		if err != nil ***REMOVED***
+			return 0, err
+		***REMOVED***
+	***REMOVED***
+	return sendmsgN(fd, p, oob, ptr, salen, flags)
 ***REMOVED***
 
 func Send(s int, buf []byte, flags int) (err error) ***REMOVED***

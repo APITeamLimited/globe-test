@@ -10,6 +10,7 @@ import (
 	errorspkg "errors"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -86,10 +87,8 @@ func StringToUTF16(s string) []uint16 ***REMOVED***
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, syscall.EINVAL).
 func UTF16FromString(s string) ([]uint16, error) ***REMOVED***
-	for i := 0; i < len(s); i++ ***REMOVED***
-		if s[i] == 0 ***REMOVED***
-			return nil, syscall.EINVAL
-		***REMOVED***
+	if strings.IndexByte(s, 0) != -1 ***REMOVED***
+		return nil, syscall.EINVAL
 	***REMOVED***
 	return utf16.Encode([]rune(s + "\x00")), nil
 ***REMOVED***
@@ -186,8 +185,8 @@ func NewCallbackCDecl(fn interface***REMOVED******REMOVED***) uintptr ***REMOVED
 //sys	GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error)
 //sys	GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
 //sys	SetNamedPipeHandleState(pipe Handle, state *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32) (err error) = SetNamedPipeHandleState
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error)
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
@@ -363,6 +362,8 @@ func NewCallbackCDecl(fn interface***REMOVED******REMOVED***) uintptr ***REMOVED
 //sys	SetProcessWorkingSetSizeEx(hProcess Handle, dwMinimumWorkingSetSize uintptr, dwMaximumWorkingSetSize uintptr, flags uint32) (err error)
 //sys	GetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error)
 //sys	SetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error)
+//sys	GetActiveProcessorCount(groupNumber uint16) (ret uint32)
+//sys	GetMaximumProcessorCount(groupNumber uint16) (ret uint32)
 
 // Volume Management Functions
 //sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW
@@ -547,12 +548,6 @@ func Read(fd Handle, p []byte) (n int, err error) ***REMOVED***
 		***REMOVED***
 		return 0, e
 	***REMOVED***
-	if raceenabled ***REMOVED***
-		if done > 0 ***REMOVED***
-			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
-		***REMOVED***
-		raceAcquire(unsafe.Pointer(&ioSync))
-	***REMOVED***
 	return int(done), nil
 ***REMOVED***
 
@@ -565,10 +560,29 @@ func Write(fd Handle, p []byte) (n int, err error) ***REMOVED***
 	if e != nil ***REMOVED***
 		return 0, e
 	***REMOVED***
-	if raceenabled && done > 0 ***REMOVED***
-		raceReadRange(unsafe.Pointer(&p[0]), int(done))
-	***REMOVED***
 	return int(done), nil
+***REMOVED***
+
+func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error ***REMOVED***
+	err := readFile(fd, p, done, overlapped)
+	if raceenabled ***REMOVED***
+		if *done > 0 ***REMOVED***
+			raceWriteRange(unsafe.Pointer(&p[0]), int(*done))
+		***REMOVED***
+		raceAcquire(unsafe.Pointer(&ioSync))
+	***REMOVED***
+	return err
+***REMOVED***
+
+func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error ***REMOVED***
+	if raceenabled ***REMOVED***
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	***REMOVED***
+	err := writeFile(fd, p, done, overlapped)
+	if raceenabled && *done > 0 ***REMOVED***
+		raceReadRange(unsafe.Pointer(&p[0]), int(*done))
+	***REMOVED***
+	return err
 ***REMOVED***
 
 var ioSync int64
@@ -609,7 +623,6 @@ var (
 
 func getStdHandle(stdhandle uint32) (fd Handle) ***REMOVED***
 	r, _ := GetStdHandle(stdhandle)
-	CloseOnExec(r)
 	return r
 ***REMOVED***
 

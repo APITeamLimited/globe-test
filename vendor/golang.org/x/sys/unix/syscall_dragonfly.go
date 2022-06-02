@@ -125,12 +125,14 @@ func Pipe2(p []int, flags int) (err error) ***REMOVED***
 ***REMOVED***
 
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
-func Pread(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
+
+func pread(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
 	return extpread(fd, p, 0, offset)
 ***REMOVED***
 
 //sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
-func Pwrite(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
+
+func pwrite(fd int, p []byte, offset int64) (n int, err error) ***REMOVED***
 	return extpwrite(fd, p, 0, offset)
 ***REMOVED***
 
@@ -167,11 +169,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) ***REMOVED***
 		err = e1
 	***REMOVED***
 	return
-***REMOVED***
-
-func setattrlistTimes(path string, times []Timespec, flags int) error ***REMOVED***
-	// used on Darwin for UtimesNano
-	return ENOSYS
 ***REMOVED***
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)

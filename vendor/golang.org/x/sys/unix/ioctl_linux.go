@@ -194,3 +194,26 @@ func ioctlIfreqData(fd int, req uint, value *ifreqData) error ***REMOVED***
 	// identical so pass *IfreqData directly.
 	return ioctlPtr(fd, req, unsafe.Pointer(value))
 ***REMOVED***
+
+// IoctlKCMClone attaches a new file descriptor to a multiplexor by cloning an
+// existing KCM socket, returning a structure containing the file descriptor of
+// the new socket.
+func IoctlKCMClone(fd int) (*KCMClone, error) ***REMOVED***
+	var info KCMClone
+	if err := ioctlPtr(fd, SIOCKCMCLONE, unsafe.Pointer(&info)); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return &info, nil
+***REMOVED***
+
+// IoctlKCMAttach attaches a TCP socket and associated BPF program file
+// descriptor to a multiplexor.
+func IoctlKCMAttach(fd int, info KCMAttach) error ***REMOVED***
+	return ioctlPtr(fd, SIOCKCMATTACH, unsafe.Pointer(&info))
+***REMOVED***
+
+// IoctlKCMUnattach unattaches a TCP socket file descriptor from a multiplexor.
+func IoctlKCMUnattach(fd int, info KCMUnattach) error ***REMOVED***
+	return ioctlPtr(fd, SIOCKCMUNATTACH, unsafe.Pointer(&info))
+***REMOVED***

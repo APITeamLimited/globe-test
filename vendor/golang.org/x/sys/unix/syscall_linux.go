@@ -14,6 +14,7 @@ package unix
 import (
 	"encoding/binary"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -249,6 +250,13 @@ func Getwd() (wd string, err error) ***REMOVED***
 	if n < 1 || n > len(buf) || buf[n-1] != 0 ***REMOVED***
 		return "", EINVAL
 	***REMOVED***
+	// In some cases, Linux can return a path that starts with the
+	// "(unreachable)" prefix, which can potentially be a valid relative
+	// path. To work around that, return ENOENT if path is not absolute.
+	if buf[0] != '/' ***REMOVED***
+		return "", ENOENT
+	***REMOVED***
+
 	return string(buf[0 : n-1]), nil
 ***REMOVED***
 
@@ -357,6 +365,8 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	***REMOVED***
 	return
 ***REMOVED***
+
+//sys	Waitid(idType int, id int, info *Siginfo, options int, rusage *Rusage) (err error)
 
 func Mkfifo(path string, mode uint32) error ***REMOVED***
 	return Mknod(path, mode|S_IFIFO, 0)
@@ -502,24 +512,24 @@ func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
 //
 // Server example:
 //
-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
-//      _ = unix.Bind(fd, &unix.SockaddrRFCOMM***REMOVED***
-//      	Channel: 1,
-//      	Addr:    [6]uint8***REMOVED***0, 0, 0, 0, 0, 0***REMOVED***, // BDADDR_ANY or 00:00:00:00:00:00
-//      ***REMOVED***)
-//      _ = Listen(fd, 1)
-//      nfd, sa, _ := Accept(fd)
-//      fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
-//      Read(nfd, buf)
+//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+//	_ = unix.Bind(fd, &unix.SockaddrRFCOMM***REMOVED***
+//		Channel: 1,
+//		Addr:    [6]uint8***REMOVED***0, 0, 0, 0, 0, 0***REMOVED***, // BDADDR_ANY or 00:00:00:00:00:00
+//	***REMOVED***)
+//	_ = Listen(fd, 1)
+//	nfd, sa, _ := Accept(fd)
+//	fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
+//	Read(nfd, buf)
 //
 // Client example:
 //
-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
-//      _ = Connect(fd, &SockaddrRFCOMM***REMOVED***
-//      	Channel: 1,
-//      	Addr:    [6]byte***REMOVED***0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc***REMOVED***, // CC:BB:AA:33:22:11
-//      ***REMOVED***)
-//      Write(fd, []byte(`hello`))
+//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+//	_ = Connect(fd, &SockaddrRFCOMM***REMOVED***
+//		Channel: 1,
+//		Addr:    [6]byte***REMOVED***0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc***REMOVED***, // CC:BB:AA:33:22:11
+//	***REMOVED***)
+//	Write(fd, []byte(`hello`))
 type SockaddrRFCOMM struct ***REMOVED***
 	// Addr represents a bluetooth address, byte ordering is little-endian.
 	Addr [6]uint8
@@ -546,12 +556,12 @@ func (sa *SockaddrRFCOMM) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVE
 // The SockaddrCAN struct must be bound to the socket file descriptor
 // using Bind before the CAN socket can be used.
 //
-//      // Read one raw CAN frame
-//      fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
-//      addr := &SockaddrCAN***REMOVED***Ifindex: index***REMOVED***
-//      Bind(fd, addr)
-//      frame := make([]byte, 16)
-//      Read(fd, frame)
+//	// Read one raw CAN frame
+//	fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
+//	addr := &SockaddrCAN***REMOVED***Ifindex: index***REMOVED***
+//	Bind(fd, addr)
+//	frame := make([]byte, 16)
+//	Read(fd, frame)
 //
 // The full SocketCAN documentation can be found in the linux kernel
 // archives at: https://www.kernel.org/doc/Documentation/networking/can.txt
@@ -622,13 +632,13 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMO
 // Here is an example of using an AF_ALG socket with SHA1 hashing.
 // The initial socket setup process is as follows:
 //
-//      // Open a socket to perform SHA1 hashing.
-//      fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
-//      addr := &unix.SockaddrALG***REMOVED***Type: "hash", Name: "sha1"***REMOVED***
-//      unix.Bind(fd, addr)
-//      // Note: unix.Accept does not work at this time; must invoke accept()
-//      // manually using unix.Syscall.
-//      hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
+//	// Open a socket to perform SHA1 hashing.
+//	fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
+//	addr := &unix.SockaddrALG***REMOVED***Type: "hash", Name: "sha1"***REMOVED***
+//	unix.Bind(fd, addr)
+//	// Note: unix.Accept does not work at this time; must invoke accept()
+//	// manually using unix.Syscall.
+//	hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
 //
 // Once a file descriptor has been returned from Accept, it may be used to
 // perform SHA1 hashing. The descriptor is not safe for concurrent use, but
@@ -637,39 +647,39 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMO
 // When hashing a small byte slice or string, a single Write and Read may
 // be used:
 //
-//      // Assume hashfd is already configured using the setup process.
-//      hash := os.NewFile(hashfd, "sha1")
-//      // Hash an input string and read the results. Each Write discards
-//      // previous hash state. Read always reads the current state.
-//      b := make([]byte, 20)
-//      for i := 0; i < 2; i++ ***REMOVED***
-//          io.WriteString(hash, "Hello, world.")
-//          hash.Read(b)
-//          fmt.Println(hex.EncodeToString(b))
-//      ***REMOVED***
-//      // Output:
-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
+//	// Assume hashfd is already configured using the setup process.
+//	hash := os.NewFile(hashfd, "sha1")
+//	// Hash an input string and read the results. Each Write discards
+//	// previous hash state. Read always reads the current state.
+//	b := make([]byte, 20)
+//	for i := 0; i < 2; i++ ***REMOVED***
+//	    io.WriteString(hash, "Hello, world.")
+//	    hash.Read(b)
+//	    fmt.Println(hex.EncodeToString(b))
+//	***REMOVED***
+//	// Output:
+//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
+//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
 //
 // For hashing larger byte slices, or byte streams such as those read from
 // a file or socket, use Sendto with MSG_MORE to instruct the kernel to update
 // the hash digest instead of creating a new one for a given chunk and finalizing it.
 //
-//      // Assume hashfd and addr are already configured using the setup process.
-//      hash := os.NewFile(hashfd, "sha1")
-//      // Hash the contents of a file.
-//      f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
-//      b := make([]byte, 4096)
-//      for ***REMOVED***
-//          n, err := f.Read(b)
-//          if err == io.EOF ***REMOVED***
-//              break
-//          ***REMOVED***
-//          unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
-//      ***REMOVED***
-//      hash.Read(b)
-//      fmt.Println(hex.EncodeToString(b))
-//      // Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
+//	// Assume hashfd and addr are already configured using the setup process.
+//	hash := os.NewFile(hashfd, "sha1")
+//	// Hash the contents of a file.
+//	f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
+//	b := make([]byte, 4096)
+//	for ***REMOVED***
+//	    n, err := f.Read(b)
+//	    if err == io.EOF ***REMOVED***
+//	        break
+//	    ***REMOVED***
+//	    unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
+//	***REMOVED***
+//	hash.Read(b)
+//	fmt.Println(hex.EncodeToString(b))
+//	// Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
 //
 // For more information, see: http://www.chronox.de/crypto-API/crypto/userspace-if.html.
 type SockaddrALG struct ***REMOVED***
@@ -1489,10 +1499,9 @@ func KeyctlRestrictKeyring(ringid int, keyType string, restriction string) error
 //sys	keyctlRestrictKeyringByType(cmd int, arg2 int, keyType string, restriction string) (err error) = SYS_KEYCTL
 //sys	keyctlRestrictKeyring(cmd int, arg2 int) (err error) = SYS_KEYCTL
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) ***REMOVED***
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) ***REMOVED***
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 ***REMOVED***
@@ -1523,28 +1532,10 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	***REMOVED***
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC ***REMOVED***
-		from, err = anyToSockaddr(fd, &rsa)
-	***REMOVED***
 	return
 ***REMOVED***
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) ***REMOVED***
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-***REMOVED***
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) ***REMOVED***
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil ***REMOVED***
-		var err error
-		ptr, salen, err = to.sockaddr()
-		if err != nil ***REMOVED***
-			return 0, err
-		***REMOVED***
-	***REMOVED***
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) ***REMOVED***
 	var msg Msghdr
 	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
@@ -1838,6 +1829,9 @@ func Dup2(oldfd, newfd int) error ***REMOVED***
 //sys	Fremovexattr(fd int, attr string) (err error)
 //sys	Fsetxattr(fd int, attr string, dest []byte, flags int) (err error)
 //sys	Fsync(fd int) (err error)
+//sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
+//sys	Fsopen(fsName string, flags int) (fd int, err error)
+//sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
@@ -1868,7 +1862,9 @@ func Getpgrp() (pid int) ***REMOVED***
 //sys	MemfdCreate(name string, flags int) (fd int, err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+//sys	MoveMount(fromDirfd int, fromPathName string, toDirfd int, toPathName string, flags int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+//sys	OpenTree(dfd int, fileName string, flags uint) (r int, err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sysnb	Prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
@@ -2193,7 +2189,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) ***RE
 			gid = Getgid()
 		***REMOVED***
 
-		if uint32(gid) == st.Gid || isGroupMember(gid) ***REMOVED***
+		if uint32(gid) == st.Gid || isGroupMember(int(st.Gid)) ***REMOVED***
 			fmode = (st.Mode >> 3) & 7
 		***REMOVED*** else ***REMOVED***
 			fmode = st.Mode & 7
@@ -2308,17 +2304,63 @@ type RemoteIovec struct ***REMOVED***
 
 //sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
 //sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
+//sys	PidfdSendSignal(pidfd int, sig Signal, info *Siginfo, flags int) (err error) = SYS_PIDFD_SEND_SIGNAL
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
 //sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
 //sys	shmdt(addr uintptr) (err error)
 //sys	shmget(key int, size int, flag int) (id int, err error)
 
+//sys	getitimer(which int, currValue *Itimerval) (err error)
+//sys	setitimer(which int, newValue *Itimerval, oldValue *Itimerval) (err error)
+
+// MakeItimerval creates an Itimerval from interval and value durations.
+func MakeItimerval(interval, value time.Duration) Itimerval ***REMOVED***
+	return Itimerval***REMOVED***
+		Interval: NsecToTimeval(interval.Nanoseconds()),
+		Value:    NsecToTimeval(value.Nanoseconds()),
+	***REMOVED***
+***REMOVED***
+
+// A value which may be passed to the which parameter for Getitimer and
+// Setitimer.
+type ItimerWhich int
+
+// Possible which values for Getitimer and Setitimer.
+const (
+	ItimerReal    ItimerWhich = ITIMER_REAL
+	ItimerVirtual ItimerWhich = ITIMER_VIRTUAL
+	ItimerProf    ItimerWhich = ITIMER_PROF
+)
+
+// Getitimer wraps getitimer(2) to return the current value of the timer
+// specified by which.
+func Getitimer(which ItimerWhich) (Itimerval, error) ***REMOVED***
+	var it Itimerval
+	if err := getitimer(int(which), &it); err != nil ***REMOVED***
+		return Itimerval***REMOVED******REMOVED***, err
+	***REMOVED***
+
+	return it, nil
+***REMOVED***
+
+// Setitimer wraps setitimer(2) to arm or disarm the timer specified by which.
+// It returns the previous value of the timer.
+//
+// If the Itimerval argument is the zero value, the timer will be disarmed.
+func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) ***REMOVED***
+	var prev Itimerval
+	if err := setitimer(int(which), &it, &prev); err != nil ***REMOVED***
+		return Itimerval***REMOVED******REMOVED***, err
+	***REMOVED***
+
+	return prev, nil
+***REMOVED***
+
 /*
  * Unimplemented
  */
 // AfsSyscall
-// Alarm
 // ArchPrctl
 // Brk
 // ClockNanosleep
@@ -2334,7 +2376,6 @@ type RemoteIovec struct ***REMOVED***
 // GetMempolicy
 // GetRobustList
 // GetThreadArea
-// Getitimer
 // Getpmsg
 // IoCancel
 // IoDestroy
@@ -2412,5 +2453,4 @@ type RemoteIovec struct ***REMOVED***
 // Vfork
 // Vhangup
 // Vserver
-// Waitid
 // _Sysctl

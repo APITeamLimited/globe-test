@@ -325,10 +325,9 @@ func GetsockoptString(fd, level, opt int) (string, error) ***REMOVED***
 //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) ***REMOVED***
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) ***REMOVED***
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 ***REMOVED***
@@ -352,29 +351,12 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	***REMOVED***
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC ***REMOVED***
-		from, err = anyToSockaddr(fd, &rsa)
-	***REMOVED***
 	return
 ***REMOVED***
 
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) ***REMOVED***
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-***REMOVED***
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) ***REMOVED***
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil ***REMOVED***
-		ptr, salen, err = to.sockaddr()
-		if err != nil ***REMOVED***
-			return 0, err
-		***REMOVED***
-	***REMOVED***
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) ***REMOVED***
 	var msg Msghdr
 	msg.Name = (*byte)(unsafe.Pointer(ptr))
 	msg.Namelen = uint32(salen)
@@ -571,12 +553,7 @@ func UtimesNano(path string, ts []Timespec) error ***REMOVED***
 	if len(ts) != 2 ***REMOVED***
 		return EINVAL
 	***REMOVED***
-	// Darwin setattrlist can set nanosecond timestamps
-	err := setattrlistTimes(path, ts, 0)
-	if err != ENOSYS ***REMOVED***
-		return err
-	***REMOVED***
-	err = utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+	err := utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 	if err != ENOSYS ***REMOVED***
 		return err
 	***REMOVED***
@@ -595,10 +572,6 @@ func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error ***REM
 	***REMOVED***
 	if len(ts) != 2 ***REMOVED***
 		return EINVAL
-	***REMOVED***
-	err := setattrlistTimes(path, ts, flags)
-	if err != ENOSYS ***REMOVED***
-		return err
 	***REMOVED***
 	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), flags)
 ***REMOVED***

@@ -3172,3 +3172,5 @@ type ModuleInfo struct ***REMOVED***
 	SizeOfImage uint32
 	EntryPoint  uintptr
 ***REMOVED***
+
+const ALL_PROCESSOR_GROUPS = 0xFFFF
