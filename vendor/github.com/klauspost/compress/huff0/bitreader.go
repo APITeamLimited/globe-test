@@ -165,11 +165,6 @@ func (b *bitReaderShifted) peekBitsFast(n uint8) uint16 ***REMOVED***
 	return uint16(b.value >> ((64 - n) & 63))
 ***REMOVED***
 
-// peekTopBits(n) is equvialent to peekBitFast(64 - n)
-func (b *bitReaderShifted) peekTopBits(n uint8) uint16 ***REMOVED***
-	return uint16(b.value >> n)
-***REMOVED***
-
 func (b *bitReaderShifted) advance(n uint8) ***REMOVED***
 	b.bitsRead += n
 	b.value <<= n & 63
@@ -218,11 +213,6 @@ func (b *bitReaderShifted) fill() ***REMOVED***
 		b.bitsRead -= 8
 		b.off--
 	***REMOVED***
-***REMOVED***
-
-// finished returns true if all bits have been read from the bit stream.
-func (b *bitReaderShifted) finished() bool ***REMOVED***
-	return b.off == 0 && b.bitsRead >= 64
 ***REMOVED***
 
 func (b *bitReaderShifted) remaining() uint ***REMOVED***

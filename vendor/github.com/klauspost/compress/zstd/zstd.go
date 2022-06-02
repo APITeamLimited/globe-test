@@ -110,17 +110,6 @@ func printf(format string, a ...interface***REMOVED******REMOVED***) ***REMOVED*
 	***REMOVED***
 ***REMOVED***
 
-// matchLenFast does matching, but will not match the last up to 7 bytes.
-func matchLenFast(a, b []byte) int ***REMOVED***
-	endI := len(a) & (math.MaxInt32 - 7)
-	for i := 0; i < endI; i += 8 ***REMOVED***
-		if diff := load64(a, i) ^ load64(b, i); diff != 0 ***REMOVED***
-			return i + bits.TrailingZeros64(diff)>>3
-		***REMOVED***
-	***REMOVED***
-	return endI
-***REMOVED***
-
 // matchLen returns the maximum length.
 // a must be the shortest of the two.
 // The function also returns whether all bytes matched.

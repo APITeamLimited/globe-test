@@ -2,29 +2,42 @@
 // +build amd64,!appengine,!noasm,gc
 
 // This file contains the specialisation of Decoder.Decompress4X
-// that uses an asm implementation of its main loop.
+// and Decoder.Decompress1X that use an asm implementation of thir main loops.
 package huff0
 
 import (
 	"errors"
 	"fmt"
+
+	"github.com/klauspost/compress/internal/cpuinfo"
 )
 
 // decompress4x_main_loop_x86 is an x86 assembler implementation
 // of Decompress4X when tablelog > 8.
-// go:noescape
-func decompress4x_main_loop_x86(pbr0, pbr1, pbr2, pbr3 *bitReaderShifted,
-	peekBits uint8, buf *byte, tbl *dEntrySingle) uint8
+//go:noescape
+func decompress4x_main_loop_amd64(ctx *decompress4xContext)
 
 // decompress4x_8b_loop_x86 is an x86 assembler implementation
 // of Decompress4X when tablelog <= 8 which decodes 4 entries
 // per loop.
-// go:noescape
-func decompress4x_8b_loop_x86(pbr0, pbr1, pbr2, pbr3 *bitReaderShifted,
-	peekBits uint8, buf *byte, tbl *dEntrySingle) uint8
+//go:noescape
+func decompress4x_8b_main_loop_amd64(ctx *decompress4xContext)
 
 // fallback8BitSize is the size where using Go version is faster.
 const fallback8BitSize = 800
+
+type decompress4xContext struct ***REMOVED***
+	pbr0     *bitReaderShifted
+	pbr1     *bitReaderShifted
+	pbr2     *bitReaderShifted
+	pbr3     *bitReaderShifted
+	peekBits uint8
+	out      *byte
+	dstEvery int
+	tbl      *dEntrySingle
+	decoded  int
+	limit    *byte
+***REMOVED***
 
 // Decompress4X will decompress a 4X encoded stream.
 // The length of the supplied input must match the end of a block exactly.
@@ -42,6 +55,7 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) ***REMOVED***
 	if cap(dst) < fallback8BitSize && use8BitTables ***REMOVED***
 		return d.decompress4X8bit(dst, src)
 	***REMOVED***
+
 	var br [4]bitReaderShifted
 	// Decode "jump table"
 	start := 6
@@ -71,70 +85,28 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) ***REMOVED***
 	const tlMask = tlSize - 1
 	single := d.dt.single[:tlSize]
 
-	// Use temp table to avoid bound checks/append penalty.
-	buf := d.buffer()
-	var off uint8
 	var decoded int
 
-	const debug = false
-
-	// see: bitReaderShifted.peekBitsFast()
-	peekBits := uint8((64 - d.actualTableLog) & 63)
-
-	// Decode 2 values from each decoder/loop.
-	const bufoff = 256
-	for ***REMOVED***
-		if br[0].off < 4 || br[1].off < 4 || br[2].off < 4 || br[3].off < 4 ***REMOVED***
-			break
+	if len(out) > 4*4 && !(br[0].off < 4 || br[1].off < 4 || br[2].off < 4 || br[3].off < 4) ***REMOVED***
+		ctx := decompress4xContext***REMOVED***
+			pbr0:     &br[0],
+			pbr1:     &br[1],
+			pbr2:     &br[2],
+			pbr3:     &br[3],
+			peekBits: uint8((64 - d.actualTableLog) & 63), // see: bitReaderShifted.peekBitsFast()
+			out:      &out[0],
+			dstEvery: dstEvery,
+			tbl:      &single[0],
+			limit:    &out[dstEvery-4], // Always stop decoding when first buffer gets here to avoid writing OOB on last.
 		***REMOVED***
-
 		if use8BitTables ***REMOVED***
-			off = decompress4x_8b_loop_x86(&br[0], &br[1], &br[2], &br[3], peekBits, &buf[0][0], &single[0])
+			decompress4x_8b_main_loop_amd64(&ctx)
 		***REMOVED*** else ***REMOVED***
-			off = decompress4x_main_loop_x86(&br[0], &br[1], &br[2], &br[3], peekBits, &buf[0][0], &single[0])
-		***REMOVED***
-		if debug ***REMOVED***
-			fmt.Print("DEBUG: ")
-			fmt.Printf("off=%d,", off)
-			for i := 0; i < 4; i++ ***REMOVED***
-				fmt.Printf(" br[%d]=***REMOVED***bitsRead=%d, value=%x, off=%d***REMOVED***",
-					i, br[i].bitsRead, br[i].value, br[i].off)
-			***REMOVED***
-			fmt.Println("")
+			decompress4x_main_loop_amd64(&ctx)
 		***REMOVED***
 
-		if off != 0 ***REMOVED***
-			break
-		***REMOVED***
-
-		if bufoff > dstEvery ***REMOVED***
-			d.bufs.Put(buf)
-			return nil, errors.New("corruption detected: stream overrun 1")
-		***REMOVED***
-		copy(out, buf[0][:])
-		copy(out[dstEvery:], buf[1][:])
-		copy(out[dstEvery*2:], buf[2][:])
-		copy(out[dstEvery*3:], buf[3][:])
-		out = out[bufoff:]
-		decoded += bufoff * 4
-		// There must at least be 3 buffers left.
-		if len(out) < dstEvery*3 ***REMOVED***
-			d.bufs.Put(buf)
-			return nil, errors.New("corruption detected: stream overrun 2")
-		***REMOVED***
-	***REMOVED***
-	if off > 0 ***REMOVED***
-		ioff := int(off)
-		if len(out) < dstEvery*3+ioff ***REMOVED***
-			d.bufs.Put(buf)
-			return nil, errors.New("corruption detected: stream overrun 3")
-		***REMOVED***
-		copy(out, buf[0][:off])
-		copy(out[dstEvery:], buf[1][:off])
-		copy(out[dstEvery*2:], buf[2][:off])
-		copy(out[dstEvery*3:], buf[3][:off])
-		decoded += int(off) * 4
-		out = out[off:]
+		decoded = ctx.decoded
+		out = out[decoded/4:]
 	***REMOVED***
 
 	// Decode remaining.
@@ -150,7 +122,6 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) ***REMOVED***
 		for bitsLeft > 0 ***REMOVED***
 			br.fill()
 			if offset >= endsAt ***REMOVED***
-				d.bufs.Put(buf)
 				return nil, errors.New("corruption detected: stream overrun 4")
 			***REMOVED***
 
@@ -164,7 +135,6 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) ***REMOVED***
 			offset++
 		***REMOVED***
 		if offset != endsAt ***REMOVED***
-			d.bufs.Put(buf)
 			return nil, fmt.Errorf("corruption detected: short output block %d, end %d != %d", i, offset, endsAt)
 		***REMOVED***
 		decoded += offset - dstEvery*i
@@ -173,9 +143,86 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
-	d.bufs.Put(buf)
 	if dstSize != decoded ***REMOVED***
 		return nil, errors.New("corruption detected: short output block")
 	***REMOVED***
 	return dst, nil
+***REMOVED***
+
+// decompress4x_main_loop_x86 is an x86 assembler implementation
+// of Decompress1X when tablelog > 8.
+//go:noescape
+func decompress1x_main_loop_amd64(ctx *decompress1xContext)
+
+// decompress4x_main_loop_x86 is an x86 with BMI2 assembler implementation
+// of Decompress1X when tablelog > 8.
+//go:noescape
+func decompress1x_main_loop_bmi2(ctx *decompress1xContext)
+
+type decompress1xContext struct ***REMOVED***
+	pbr      *bitReaderShifted
+	peekBits uint8
+	out      *byte
+	outCap   int
+	tbl      *dEntrySingle
+	decoded  int
+***REMOVED***
+
+// Error reported by asm implementations
+const error_max_decoded_size_exeeded = -1
+
+// Decompress1X will decompress a 1X encoded stream.
+// The cap of the output buffer will be the maximum decompressed size.
+// The length of the supplied input must match the end of a block exactly.
+func (d *Decoder) Decompress1X(dst, src []byte) ([]byte, error) ***REMOVED***
+	if len(d.dt.single) == 0 ***REMOVED***
+		return nil, errors.New("no table loaded")
+	***REMOVED***
+	var br bitReaderShifted
+	err := br.init(src)
+	if err != nil ***REMOVED***
+		return dst, err
+	***REMOVED***
+	maxDecodedSize := cap(dst)
+	dst = dst[:maxDecodedSize]
+
+	const tlSize = 1 << tableLogMax
+	const tlMask = tlSize - 1
+
+	if maxDecodedSize >= 4 ***REMOVED***
+		ctx := decompress1xContext***REMOVED***
+			pbr:      &br,
+			out:      &dst[0],
+			outCap:   maxDecodedSize,
+			peekBits: uint8((64 - d.actualTableLog) & 63), // see: bitReaderShifted.peekBitsFast()
+			tbl:      &d.dt.single[0],
+		***REMOVED***
+
+		if cpuinfo.HasBMI2() ***REMOVED***
+			decompress1x_main_loop_bmi2(&ctx)
+		***REMOVED*** else ***REMOVED***
+			decompress1x_main_loop_amd64(&ctx)
+		***REMOVED***
+		if ctx.decoded == error_max_decoded_size_exeeded ***REMOVED***
+			return nil, ErrMaxDecodedSizeExceeded
+		***REMOVED***
+
+		dst = dst[:ctx.decoded]
+	***REMOVED***
+
+	// br < 8, so uint8 is fine
+	bitsLeft := uint8(br.off)*8 + 64 - br.bitsRead
+	for bitsLeft > 0 ***REMOVED***
+		br.fill()
+		if len(dst) >= maxDecodedSize ***REMOVED***
+			br.close()
+			return nil, ErrMaxDecodedSizeExceeded
+		***REMOVED***
+		v := d.dt.single[br.peekBitsFast(d.actualTableLog)&tlMask]
+		nBits := uint8(v.entry)
+		br.advance(nBits)
+		bitsLeft -= nBits
+		dst = append(dst, uint8(v.entry>>8))
+	***REMOVED***
+	return dst, br.close()
 ***REMOVED***

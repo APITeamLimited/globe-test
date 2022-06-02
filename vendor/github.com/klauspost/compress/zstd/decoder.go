@@ -347,18 +347,20 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 			***REMOVED***
 			frame.history.setDict(&dict)
 		***REMOVED***
-
-		if frame.FrameContentSize != fcsUnknown && frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) ***REMOVED***
-			return dst, ErrDecoderSizeExceeded
+		if frame.WindowSize > d.o.maxWindowSize ***REMOVED***
+			return dst, ErrWindowSizeExceeded
 		***REMOVED***
-		if frame.FrameContentSize < 1<<30 ***REMOVED***
-			// Never preallocate more than 1 GB up front.
+		if frame.FrameContentSize != fcsUnknown ***REMOVED***
+			if frame.FrameContentSize > d.o.maxDecodedSize-uint64(len(dst)) ***REMOVED***
+				return dst, ErrDecoderSizeExceeded
+			***REMOVED***
 			if cap(dst)-len(dst) < int(frame.FrameContentSize) ***REMOVED***
-				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize))
+				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize)+compressedBlockOverAlloc)
 				copy(dst2, dst)
 				dst = dst2
 			***REMOVED***
 		***REMOVED***
+
 		if cap(dst) == 0 ***REMOVED***
 			// Allocate len(input) * 2 by default if nothing is provided
 			// and we didn't get frame content size.
@@ -437,7 +439,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
 		println("got", len(d.current.b), "bytes, error:", d.current.err, "data crc:", tmp)
 	***REMOVED***
 
-	if len(next.b) > 0 ***REMOVED***
+	if !d.o.ignoreChecksum && len(next.b) > 0 ***REMOVED***
 		n, err := d.current.crc.Write(next.b)
 		if err == nil ***REMOVED***
 			if n != len(next.b) ***REMOVED***
@@ -449,7 +451,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
 		got := d.current.crc.Sum64()
 		var tmp [4]byte
 		binary.LittleEndian.PutUint32(tmp[:], uint32(got))
-		if !bytes.Equal(tmp[:], next.d.checkCRC) && !ignoreCRC ***REMOVED***
+		if !d.o.ignoreChecksum && !bytes.Equal(tmp[:], next.d.checkCRC) ***REMOVED***
 			if debugDecoder ***REMOVED***
 				println("CRC Check Failed:", tmp[:], " (got) !=", next.d.checkCRC, "(on stream)")
 			***REMOVED***
@@ -533,9 +535,15 @@ func (d *Decoder) nextBlockSync() (ok bool) ***REMOVED***
 
 		// Update/Check CRC
 		if d.frame.HasCheckSum ***REMOVED***
-			d.frame.crc.Write(d.current.b)
+			if !d.o.ignoreChecksum ***REMOVED***
+				d.frame.crc.Write(d.current.b)
+			***REMOVED***
 			if d.current.d.Last ***REMOVED***
-				d.current.err = d.frame.checkCRC()
+				if !d.o.ignoreChecksum ***REMOVED***
+					d.current.err = d.frame.checkCRC()
+				***REMOVED*** else ***REMOVED***
+					d.current.err = d.frame.consumeCRC()
+				***REMOVED***
 				if d.current.err != nil ***REMOVED***
 					println("CRC error:", d.current.err)
 					return false
@@ -629,60 +637,18 @@ func (d *Decoder) startSyncDecoder(r io.Reader) error ***REMOVED***
 
 // Create Decoder:
 // ASYNC:
-// Spawn 4 go routines.
-// 0: Read frames and decode blocks.
-// 1: Decode block and literals. Receives hufftree and seqdecs, returns seqdecs and huff tree.
-// 2: Wait for recentOffsets if needed. Decode sequences, send recentOffsets.
-// 3: Wait for stream history, execute sequences, send stream history.
+// Spawn 3 go routines.
+// 0: Read frames and decode block literals.
+// 1: Decode sequences.
+// 2: Execute sequences, send to output.
 func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output chan decodeOutput) ***REMOVED***
 	defer d.streamWg.Done()
 	br := readerWrapper***REMOVED***r: r***REMOVED***
 
-	var seqPrepare = make(chan *blockDec, d.o.concurrent)
 	var seqDecode = make(chan *blockDec, d.o.concurrent)
 	var seqExecute = make(chan *blockDec, d.o.concurrent)
 
-	// Async 1: Prepare blocks...
-	go func() ***REMOVED***
-		var hist history
-		var hasErr bool
-		for block := range seqPrepare ***REMOVED***
-			if hasErr ***REMOVED***
-				if block != nil ***REMOVED***
-					seqDecode <- block
-				***REMOVED***
-				continue
-			***REMOVED***
-			if block.async.newHist != nil ***REMOVED***
-				if debugDecoder ***REMOVED***
-					println("Async 1: new history")
-				***REMOVED***
-				hist.reset()
-				if block.async.newHist.dict != nil ***REMOVED***
-					hist.setDict(block.async.newHist.dict)
-				***REMOVED***
-			***REMOVED***
-			if block.err != nil || block.Type != blockTypeCompressed ***REMOVED***
-				hasErr = block.err != nil
-				seqDecode <- block
-				continue
-			***REMOVED***
-
-			remain, err := block.decodeLiterals(block.data, &hist)
-			block.err = err
-			hasErr = block.err != nil
-			if err == nil ***REMOVED***
-				block.async.literals = hist.decoders.literals
-				block.async.seqData = remain
-			***REMOVED*** else if debugDecoder ***REMOVED***
-				println("decodeLiterals error:", err)
-			***REMOVED***
-			seqDecode <- block
-		***REMOVED***
-		close(seqDecode)
-	***REMOVED***()
-
-	// Async 2: Decode sequences...
+	// Async 1: Decode sequences...
 	go func() ***REMOVED***
 		var hist history
 		var hasErr bool
@@ -696,7 +662,7 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 			***REMOVED***
 			if block.async.newHist != nil ***REMOVED***
 				if debugDecoder ***REMOVED***
-					println("Async 2: new history, recent:", block.async.newHist.recentOffsets)
+					println("Async 1: new history, recent:", block.async.newHist.recentOffsets)
 				***REMOVED***
 				hist.decoders = block.async.newHist.decoders
 				hist.recentOffsets = block.async.newHist.recentOffsets
@@ -750,7 +716,7 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 			***REMOVED***
 			if block.async.newHist != nil ***REMOVED***
 				if debugDecoder ***REMOVED***
-					println("Async 3: new history")
+					println("Async 2: new history")
 				***REMOVED***
 				hist.windowSize = block.async.newHist.windowSize
 				hist.allocFrameBuffer = block.async.newHist.allocFrameBuffer
@@ -837,6 +803,33 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 
 decodeStream:
 	for ***REMOVED***
+		var hist history
+		var hasErr bool
+
+		decodeBlock := func(block *blockDec) ***REMOVED***
+			if hasErr ***REMOVED***
+				if block != nil ***REMOVED***
+					seqDecode <- block
+				***REMOVED***
+				return
+			***REMOVED***
+			if block.err != nil || block.Type != blockTypeCompressed ***REMOVED***
+				hasErr = block.err != nil
+				seqDecode <- block
+				return
+			***REMOVED***
+
+			remain, err := block.decodeLiterals(block.data, &hist)
+			block.err = err
+			hasErr = block.err != nil
+			if err == nil ***REMOVED***
+				block.async.literals = hist.decoders.literals
+				block.async.seqData = remain
+			***REMOVED*** else if debugDecoder ***REMOVED***
+				println("decodeLiterals error:", err)
+			***REMOVED***
+			seqDecode <- block
+		***REMOVED***
 		frame := d.frame
 		if debugDecoder ***REMOVED***
 			println("New frame...")
@@ -863,7 +856,7 @@ decodeStream:
 			case <-ctx.Done():
 			case dec := <-d.decoders:
 				dec.sendErr(err)
-				seqPrepare <- dec
+				decodeBlock(dec)
 			***REMOVED***
 			break decodeStream
 		***REMOVED***
@@ -882,6 +875,10 @@ decodeStream:
 				h := frame.history
 				if debugDecoder ***REMOVED***
 					println("Alloc History:", h.allocFrameBuffer)
+				***REMOVED***
+				hist.reset()
+				if h.dict != nil ***REMOVED***
+					hist.setDict(h.dict)
 				***REMOVED***
 				dec.async.newHist = &h
 				dec.async.fcs = frame.FrameContentSize
@@ -909,7 +906,7 @@ decodeStream:
 			***REMOVED***
 			err = dec.err
 			last := dec.Last
-			seqPrepare <- dec
+			decodeBlock(dec)
 			if err != nil ***REMOVED***
 				break decodeStream
 			***REMOVED***
@@ -918,7 +915,7 @@ decodeStream:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	close(seqPrepare)
+	close(seqDecode)
 	wg.Wait()
 	d.frame.history.b = frameHistCache
 ***REMOVED***

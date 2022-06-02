@@ -19,6 +19,7 @@ type decoderOptions struct ***REMOVED***
 	maxDecodedSize uint64
 	maxWindowSize  uint64
 	dicts          []dict
+	ignoreChecksum bool
 ***REMOVED***
 
 func (o *decoderOptions) setDefault() ***REMOVED***
@@ -31,7 +32,7 @@ func (o *decoderOptions) setDefault() ***REMOVED***
 	if o.concurrent > 4 ***REMOVED***
 		o.concurrent = 4
 	***REMOVED***
-	o.maxDecodedSize = 1 << 63
+	o.maxDecodedSize = 64 << 30
 ***REMOVED***
 
 // WithDecoderLowmem will set whether to use a lower amount of memory,
@@ -66,7 +67,7 @@ func WithDecoderConcurrency(n int) DOption ***REMOVED***
 // WithDecoderMaxMemory allows to set a maximum decoded size for in-memory
 // non-streaming operations or maximum window size for streaming operations.
 // This can be used to control memory usage of potentially hostile content.
-// Maximum and default is 1 << 63 bytes.
+// Maximum is 1 << 63 bytes. Default is 64GiB.
 func WithDecoderMaxMemory(n uint64) DOption ***REMOVED***
 	return func(o *decoderOptions) error ***REMOVED***
 		if n == 0 ***REMOVED***
@@ -109,6 +110,14 @@ func WithDecoderMaxWindow(size uint64) DOption ***REMOVED***
 			return errors.New("WithMaxWindowSize must be less than (1<<41) + 7*(1<<38) ~ 3.75TB")
 		***REMOVED***
 		o.maxWindowSize = size
+		return nil
+	***REMOVED***
+***REMOVED***
+
+// IgnoreChecksum allows to forcibly ignore checksum checking.
+func IgnoreChecksum(b bool) DOption ***REMOVED***
+	return func(o *decoderOptions) error ***REMOVED***
+		o.ignoreChecksum = b
 		return nil
 	***REMOVED***
 ***REMOVED***

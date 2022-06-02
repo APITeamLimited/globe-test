@@ -73,6 +73,7 @@ type sequenceDecs struct ***REMOVED***
 	seqSize      int
 	windowSize   int
 	maxBits      uint8
+	maxSyncLen   uint64
 ***REMOVED***
 
 // initialize all 3 decoders from the stream input.
@@ -98,153 +99,13 @@ func (s *sequenceDecs) initialize(br *bitReader, hist *history, out []byte) erro
 	return nil
 ***REMOVED***
 
-// decode sequences from the stream with the provided history.
-func (s *sequenceDecs) decode(seqs []seqVals) error ***REMOVED***
-	br := s.br
-
-	// Grab full sizes tables, to avoid bounds checks.
-	llTable, mlTable, ofTable := s.litLengths.fse.dt[:maxTablesize], s.matchLengths.fse.dt[:maxTablesize], s.offsets.fse.dt[:maxTablesize]
-	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
-	s.seqSize = 0
-	litRemain := len(s.literals)
-	maxBlockSize := maxCompressedBlockSize
-	if s.windowSize < maxBlockSize ***REMOVED***
-		maxBlockSize = s.windowSize
-	***REMOVED***
-	for i := range seqs ***REMOVED***
-		var ll, mo, ml int
-		if br.off > 4+((maxOffsetBits+16+16)>>3) ***REMOVED***
-			// inlined function:
-			// ll, mo, ml = s.nextFast(br, llState, mlState, ofState)
-
-			// Final will not read from stream.
-			var llB, mlB, moB uint8
-			ll, llB = llState.final()
-			ml, mlB = mlState.final()
-			mo, moB = ofState.final()
-
-			// extra bits are stored in reverse order.
-			br.fillFast()
-			mo += br.getBits(moB)
-			if s.maxBits > 32 ***REMOVED***
-				br.fillFast()
-			***REMOVED***
-			ml += br.getBits(mlB)
-			ll += br.getBits(llB)
-
-			if moB > 1 ***REMOVED***
-				s.prevOffset[2] = s.prevOffset[1]
-				s.prevOffset[1] = s.prevOffset[0]
-				s.prevOffset[0] = mo
-			***REMOVED*** else ***REMOVED***
-				// mo = s.adjustOffset(mo, ll, moB)
-				// Inlined for rather big speedup
-				if ll == 0 ***REMOVED***
-					// There is an exception though, when current sequence's literals_length = 0.
-					// In this case, repeated offsets are shifted by one, so an offset_value of 1 means Repeated_Offset2,
-					// an offset_value of 2 means Repeated_Offset3, and an offset_value of 3 means Repeated_Offset1 - 1_byte.
-					mo++
-				***REMOVED***
-
-				if mo == 0 ***REMOVED***
-					mo = s.prevOffset[0]
-				***REMOVED*** else ***REMOVED***
-					var temp int
-					if mo == 3 ***REMOVED***
-						temp = s.prevOffset[0] - 1
-					***REMOVED*** else ***REMOVED***
-						temp = s.prevOffset[mo]
-					***REMOVED***
-
-					if temp == 0 ***REMOVED***
-						// 0 is not valid; input is corrupted; force offset to 1
-						println("WARNING: temp was 0")
-						temp = 1
-					***REMOVED***
-
-					if mo != 1 ***REMOVED***
-						s.prevOffset[2] = s.prevOffset[1]
-					***REMOVED***
-					s.prevOffset[1] = s.prevOffset[0]
-					s.prevOffset[0] = temp
-					mo = temp
-				***REMOVED***
-			***REMOVED***
-			br.fillFast()
-		***REMOVED*** else ***REMOVED***
-			if br.overread() ***REMOVED***
-				if debugDecoder ***REMOVED***
-					printf("reading sequence %d, exceeded available data\n", i)
-				***REMOVED***
-				return io.ErrUnexpectedEOF
-			***REMOVED***
-			ll, mo, ml = s.next(br, llState, mlState, ofState)
-			br.fill()
-		***REMOVED***
-
-		if debugSequences ***REMOVED***
-			println("Seq", i, "Litlen:", ll, "mo:", mo, "(abs) ml:", ml)
-		***REMOVED***
-		// Evaluate.
-		// We might be doing this async, so do it early.
-		if mo == 0 && ml > 0 ***REMOVED***
-			return fmt.Errorf("zero matchoff and matchlen (%d) > 0", ml)
-		***REMOVED***
-		if ml > maxMatchLen ***REMOVED***
-			return fmt.Errorf("match len (%d) bigger than max allowed length", ml)
-		***REMOVED***
-		s.seqSize += ll + ml
-		if s.seqSize > maxBlockSize ***REMOVED***
-			return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
-		***REMOVED***
-		litRemain -= ll
-		if litRemain < 0 ***REMOVED***
-			return fmt.Errorf("unexpected literal count, want %d bytes, but only %d is available", ll, litRemain+ll)
-		***REMOVED***
-		seqs[i] = seqVals***REMOVED***
-			ll: ll,
-			ml: ml,
-			mo: mo,
-		***REMOVED***
-		if i == len(seqs)-1 ***REMOVED***
-			// This is the last sequence, so we shouldn't update state.
-			break
-		***REMOVED***
-
-		// Manually inlined, ~ 5-20% faster
-		// Update all 3 states at once. Approx 20% faster.
-		nBits := llState.nbBits() + mlState.nbBits() + ofState.nbBits()
-		if nBits == 0 ***REMOVED***
-			llState = llTable[llState.newState()&maxTableMask]
-			mlState = mlTable[mlState.newState()&maxTableMask]
-			ofState = ofTable[ofState.newState()&maxTableMask]
-		***REMOVED*** else ***REMOVED***
-			bits := br.get32BitsFast(nBits)
-			lowBits := uint16(bits >> ((ofState.nbBits() + mlState.nbBits()) & 31))
-			llState = llTable[(llState.newState()+lowBits)&maxTableMask]
-
-			lowBits = uint16(bits >> (ofState.nbBits() & 31))
-			lowBits &= bitMask[mlState.nbBits()&15]
-			mlState = mlTable[(mlState.newState()+lowBits)&maxTableMask]
-
-			lowBits = uint16(bits) & bitMask[ofState.nbBits()&15]
-			ofState = ofTable[(ofState.newState()+lowBits)&maxTableMask]
-		***REMOVED***
-	***REMOVED***
-	s.seqSize += litRemain
-	if s.seqSize > maxBlockSize ***REMOVED***
-		return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
-	***REMOVED***
-	err := br.close()
-	if err != nil ***REMOVED***
-		printf("Closing sequences: %v, %+v\n", err, *br)
-	***REMOVED***
-	return err
-***REMOVED***
-
 // execute will execute the decoded sequence with the provided history.
 // The sequence must be evaluated before being sent.
 func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error ***REMOVED***
+	if len(s.dict) == 0 ***REMOVED***
+		return s.executeSimple(seqs, hist)
+	***REMOVED***
+
 	// Ensure we have enough output size...
 	if len(s.out)+s.seqSize > cap(s.out) ***REMOVED***
 		addBytes := s.seqSize + len(s.out)
@@ -327,6 +188,7 @@ func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+
 	// Add final literals
 	copy(out[t:], s.literals)
 	if debugDecoder ***REMOVED***
@@ -341,14 +203,18 @@ func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error ***REMOVED***
 ***REMOVED***
 
 // decode sequences from the stream with the provided history.
-func (s *sequenceDecs) decodeSync(history *history) error ***REMOVED***
+func (s *sequenceDecs) decodeSync(hist []byte) error ***REMOVED***
+	supported, err := s.decodeSyncSimple(hist)
+	if supported ***REMOVED***
+		return err
+	***REMOVED***
+
 	br := s.br
 	seqs := s.nSeqs
 	startSize := len(s.out)
 	// Grab full sizes tables, to avoid bounds checks.
 	llTable, mlTable, ofTable := s.litLengths.fse.dt[:maxTablesize], s.matchLengths.fse.dt[:maxTablesize], s.offsets.fse.dt[:maxTablesize]
 	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
-	hist := history.b[history.ignoreBuffer:]
 	out := s.out
 	maxBlockSize := maxCompressedBlockSize
 	if s.windowSize < maxBlockSize ***REMOVED***
@@ -433,7 +299,7 @@ func (s *sequenceDecs) decodeSync(history *history) error ***REMOVED***
 		***REMOVED***
 		size := ll + ml + len(out)
 		if size-startSize > maxBlockSize ***REMOVED***
-			return fmt.Errorf("output (%d) bigger than max block size (%d)", size, maxBlockSize)
+			return fmt.Errorf("output (%d) bigger than max block size (%d)", size-startSize, maxBlockSize)
 		***REMOVED***
 		if size > cap(out) ***REMOVED***
 			// Not enough size, which can happen under high volume block streaming conditions
@@ -463,13 +329,13 @@ func (s *sequenceDecs) decodeSync(history *history) error ***REMOVED***
 
 		if mo > len(out)+len(hist) || mo > s.windowSize ***REMOVED***
 			if len(s.dict) == 0 ***REMOVED***
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist))
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
 			***REMOVED***
 
 			// we may be in dictionary.
 			dictO := len(s.dict) - (mo - (len(out) + len(hist)))
 			if dictO < 0 || dictO >= len(s.dict) ***REMOVED***
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist))
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
 			***REMOVED***
 			end := dictO + ml
 			if end > len(s.dict) ***REMOVED***
@@ -530,6 +396,7 @@ func (s *sequenceDecs) decodeSync(history *history) error ***REMOVED***
 			ofState = ofTable[ofState.newState()&maxTableMask]
 		***REMOVED*** else ***REMOVED***
 			bits := br.get32BitsFast(nBits)
+
 			lowBits := uint16(bits >> ((ofState.nbBits() + mlState.nbBits()) & 31))
 			llState = llTable[(llState.newState()+lowBits)&maxTableMask]
 
@@ -543,23 +410,13 @@ func (s *sequenceDecs) decodeSync(history *history) error ***REMOVED***
 	***REMOVED***
 
 	// Check if space for literals
-	if len(s.literals)+len(s.out)-startSize > maxBlockSize ***REMOVED***
-		return fmt.Errorf("output (%d) bigger than max block size (%d)", len(s.out), maxBlockSize)
+	if size := len(s.literals) + len(s.out) - startSize; size > maxBlockSize ***REMOVED***
+		return fmt.Errorf("output (%d) bigger than max block size (%d)", size, maxBlockSize)
 	***REMOVED***
 
 	// Add final literals
 	s.out = append(out, s.literals...)
 	return br.close()
-***REMOVED***
-
-// update states, at least 27 bits must be available.
-func (s *sequenceDecs) update(br *bitReader) ***REMOVED***
-	// Max 8 bits
-	s.litLengths.state.next(br)
-	// Max 9 bits
-	s.matchLengths.state.next(br)
-	// Max 8 bits
-	s.offsets.state.next(br)
 ***REMOVED***
 
 var bitMask [16]uint16
@@ -568,87 +425,6 @@ func init() ***REMOVED***
 	for i := range bitMask[:] ***REMOVED***
 		bitMask[i] = uint16((1 << uint(i)) - 1)
 	***REMOVED***
-***REMOVED***
-
-// update states, at least 27 bits must be available.
-func (s *sequenceDecs) updateAlt(br *bitReader) ***REMOVED***
-	// Update all 3 states at once. Approx 20% faster.
-	a, b, c := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
-
-	nBits := a.nbBits() + b.nbBits() + c.nbBits()
-	if nBits == 0 ***REMOVED***
-		s.litLengths.state.state = s.litLengths.state.dt[a.newState()]
-		s.matchLengths.state.state = s.matchLengths.state.dt[b.newState()]
-		s.offsets.state.state = s.offsets.state.dt[c.newState()]
-		return
-	***REMOVED***
-	bits := br.get32BitsFast(nBits)
-	lowBits := uint16(bits >> ((c.nbBits() + b.nbBits()) & 31))
-	s.litLengths.state.state = s.litLengths.state.dt[a.newState()+lowBits]
-
-	lowBits = uint16(bits >> (c.nbBits() & 31))
-	lowBits &= bitMask[b.nbBits()&15]
-	s.matchLengths.state.state = s.matchLengths.state.dt[b.newState()+lowBits]
-
-	lowBits = uint16(bits) & bitMask[c.nbBits()&15]
-	s.offsets.state.state = s.offsets.state.dt[c.newState()+lowBits]
-***REMOVED***
-
-// nextFast will return new states when there are at least 4 unused bytes left on the stream when done.
-func (s *sequenceDecs) nextFast(br *bitReader, llState, mlState, ofState decSymbol) (ll, mo, ml int) ***REMOVED***
-	// Final will not read from stream.
-	ll, llB := llState.final()
-	ml, mlB := mlState.final()
-	mo, moB := ofState.final()
-
-	// extra bits are stored in reverse order.
-	br.fillFast()
-	mo += br.getBits(moB)
-	if s.maxBits > 32 ***REMOVED***
-		br.fillFast()
-	***REMOVED***
-	ml += br.getBits(mlB)
-	ll += br.getBits(llB)
-
-	if moB > 1 ***REMOVED***
-		s.prevOffset[2] = s.prevOffset[1]
-		s.prevOffset[1] = s.prevOffset[0]
-		s.prevOffset[0] = mo
-		return
-	***REMOVED***
-	// mo = s.adjustOffset(mo, ll, moB)
-	// Inlined for rather big speedup
-	if ll == 0 ***REMOVED***
-		// There is an exception though, when current sequence's literals_length = 0.
-		// In this case, repeated offsets are shifted by one, so an offset_value of 1 means Repeated_Offset2,
-		// an offset_value of 2 means Repeated_Offset3, and an offset_value of 3 means Repeated_Offset1 - 1_byte.
-		mo++
-	***REMOVED***
-
-	if mo == 0 ***REMOVED***
-		mo = s.prevOffset[0]
-		return
-	***REMOVED***
-	var temp int
-	if mo == 3 ***REMOVED***
-		temp = s.prevOffset[0] - 1
-	***REMOVED*** else ***REMOVED***
-		temp = s.prevOffset[mo]
-	***REMOVED***
-
-	if temp == 0 ***REMOVED***
-		// 0 is not valid; input is corrupted; force offset to 1
-		println("temp was 0")
-		temp = 1
-	***REMOVED***
-
-	if mo != 1 ***REMOVED***
-		s.prevOffset[2] = s.prevOffset[1]
-	***REMOVED***
-	s.prevOffset[1] = s.prevOffset[0]
-	s.prevOffset[0] = temp
-	mo = temp
-	return
 ***REMOVED***
 
 func (s *sequenceDecs) next(br *bitReader, llState, mlState, ofState decSymbol) (ll, mo, ml int) ***REMOVED***

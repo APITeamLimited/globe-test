@@ -253,10 +253,11 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 		return ErrWindowSizeTooSmall
 	***REMOVED***
 	d.history.windowSize = int(d.WindowSize)
-	if d.o.lowMem && d.history.windowSize < maxBlockSize ***REMOVED***
+	if !d.o.lowMem || d.history.windowSize < maxBlockSize ***REMOVED***
+		// Alloc 2x window size if not low-mem, or very small window size.
 		d.history.allocFrameBuffer = d.history.windowSize * 2
-		// TODO: Maybe use FrameContent size
 	***REMOVED*** else ***REMOVED***
+		// Alloc with one additional block
 		d.history.allocFrameBuffer = d.history.windowSize + maxBlockSize
 	***REMOVED***
 
@@ -290,13 +291,6 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 	if !d.HasCheckSum ***REMOVED***
 		return nil
 	***REMOVED***
-	var tmp [4]byte
-	got := d.crc.Sum64()
-	// Flip to match file order.
-	tmp[0] = byte(got >> 0)
-	tmp[1] = byte(got >> 8)
-	tmp[2] = byte(got >> 16)
-	tmp[3] = byte(got >> 24)
 
 	// We can overwrite upper tmp now
 	want, err := d.rawInput.readSmall(4)
@@ -305,7 +299,19 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 		return err
 	***REMOVED***
 
-	if !bytes.Equal(tmp[:], want) && !ignoreCRC ***REMOVED***
+	if d.o.ignoreChecksum ***REMOVED***
+		return nil
+	***REMOVED***
+
+	var tmp [4]byte
+	got := d.crc.Sum64()
+	// Flip to match file order.
+	tmp[0] = byte(got >> 0)
+	tmp[1] = byte(got >> 8)
+	tmp[2] = byte(got >> 16)
+	tmp[3] = byte(got >> 24)
+
+	if !bytes.Equal(tmp[:], want) ***REMOVED***
 		if debugDecoder ***REMOVED***
 			println("CRC Check Failed:", tmp[:], "!=", want)
 		***REMOVED***
@@ -314,6 +320,19 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 	if debugDecoder ***REMOVED***
 		println("CRC ok", tmp[:])
 	***REMOVED***
+	return nil
+***REMOVED***
+
+// consumeCRC reads the checksum data if the frame has one.
+func (d *frameDec) consumeCRC() error ***REMOVED***
+	if d.HasCheckSum ***REMOVED***
+		_, err := d.rawInput.readSmall(4)
+		if err != nil ***REMOVED***
+			println("CRC missing?", err)
+			return err
+		***REMOVED***
+	***REMOVED***
+
 	return nil
 ***REMOVED***
 
@@ -326,6 +345,19 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMO
 	d.history.ignoreBuffer = len(dst)
 	// Store input length, so we only check new data.
 	crcStart := len(dst)
+	d.history.decoders.maxSyncLen = 0
+	if d.FrameContentSize != fcsUnknown ***REMOVED***
+		d.history.decoders.maxSyncLen = d.FrameContentSize + uint64(len(dst))
+		if d.history.decoders.maxSyncLen > d.o.maxDecodedSize ***REMOVED***
+			return dst, ErrDecoderSizeExceeded
+		***REMOVED***
+		if uint64(cap(dst)) < d.history.decoders.maxSyncLen ***REMOVED***
+			// Alloc for output
+			dst2 := make([]byte, len(dst), d.history.decoders.maxSyncLen+compressedBlockOverAlloc)
+			copy(dst2, dst)
+			dst = dst2
+		***REMOVED***
+	***REMOVED***
 	var err error
 	for ***REMOVED***
 		err = dec.reset(d.rawInput, d.WindowSize)
@@ -360,13 +392,17 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMO
 		if d.FrameContentSize != fcsUnknown && uint64(len(d.history.b)-crcStart) != d.FrameContentSize ***REMOVED***
 			err = ErrFrameSizeMismatch
 		***REMOVED*** else if d.HasCheckSum ***REMOVED***
-			var n int
-			n, err = d.crc.Write(dst[crcStart:])
-			if err == nil ***REMOVED***
-				if n != len(dst)-crcStart ***REMOVED***
-					err = io.ErrShortWrite
-				***REMOVED*** else ***REMOVED***
-					err = d.checkCRC()
+			if d.o.ignoreChecksum ***REMOVED***
+				err = d.consumeCRC()
+			***REMOVED*** else ***REMOVED***
+				var n int
+				n, err = d.crc.Write(dst[crcStart:])
+				if err == nil ***REMOVED***
+					if n != len(dst)-crcStart ***REMOVED***
+						err = io.ErrShortWrite
+					***REMOVED*** else ***REMOVED***
+						err = d.checkCRC()
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***

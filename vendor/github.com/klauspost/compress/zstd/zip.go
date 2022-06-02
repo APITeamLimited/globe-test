@@ -21,23 +21,34 @@ const ZipMethodPKWare = 20
 var zipReaderPool sync.Pool
 
 // newZipReader creates a pooled zip decompressor.
-func newZipReader(r io.Reader) io.ReadCloser ***REMOVED***
-	dec, ok := zipReaderPool.Get().(*Decoder)
-	if ok ***REMOVED***
-		dec.Reset(r)
-	***REMOVED*** else ***REMOVED***
-		d, err := NewReader(r, WithDecoderConcurrency(1), WithDecoderLowmem(true))
-		if err != nil ***REMOVED***
-			panic(err)
-		***REMOVED***
-		dec = d
+func newZipReader(opts ...DOption) func(r io.Reader) io.ReadCloser ***REMOVED***
+	pool := &zipReaderPool
+	if len(opts) > 0 ***REMOVED***
+		opts = append([]DOption***REMOVED***WithDecoderLowmem(true), WithDecoderMaxWindow(128 << 20)***REMOVED***, opts...)
+		// Force concurrency 1
+		opts = append(opts, WithDecoderConcurrency(1))
+		// Create our own pool
+		pool = &sync.Pool***REMOVED******REMOVED***
 	***REMOVED***
-	return &pooledZipReader***REMOVED***dec: dec***REMOVED***
+	return func(r io.Reader) io.ReadCloser ***REMOVED***
+		dec, ok := pool.Get().(*Decoder)
+		if ok ***REMOVED***
+			dec.Reset(r)
+		***REMOVED*** else ***REMOVED***
+			d, err := NewReader(r, opts...)
+			if err != nil ***REMOVED***
+				panic(err)
+			***REMOVED***
+			dec = d
+		***REMOVED***
+		return &pooledZipReader***REMOVED***dec: dec, pool: pool***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 type pooledZipReader struct ***REMOVED***
-	mu  sync.Mutex // guards Close and Read
-	dec *Decoder
+	mu   sync.Mutex // guards Close and Read
+	pool *sync.Pool
+	dec  *Decoder
 ***REMOVED***
 
 func (r *pooledZipReader) Read(p []byte) (n int, err error) ***REMOVED***
@@ -48,8 +59,8 @@ func (r *pooledZipReader) Read(p []byte) (n int, err error) ***REMOVED***
 	***REMOVED***
 	dec, err := r.dec.Read(p)
 	if err == io.EOF ***REMOVED***
-		err = r.dec.Reset(nil)
-		zipReaderPool.Put(r.dec)
+		r.dec.Reset(nil)
+		r.pool.Put(r.dec)
 		r.dec = nil
 	***REMOVED***
 	return dec, err
@@ -61,7 +72,7 @@ func (r *pooledZipReader) Close() error ***REMOVED***
 	var err error
 	if r.dec != nil ***REMOVED***
 		err = r.dec.Reset(nil)
-		zipReaderPool.Put(r.dec)
+		r.pool.Put(r.dec)
 		r.dec = nil
 	***REMOVED***
 	return err
@@ -115,6 +126,9 @@ func ZipCompressor(opts ...EOption) func(w io.Writer) (io.WriteCloser, error) **
 
 // ZipDecompressor returns a decompressor that can be registered with zip libraries.
 // See ZipCompressor for example.
-func ZipDecompressor() func(r io.Reader) io.ReadCloser ***REMOVED***
-	return newZipReader
+// Options can be specified. WithDecoderConcurrency(1) is forced,
+// and by default a 128MB maximum decompression window is specified.
+// The window size can be overridden if required.
+func ZipDecompressor(opts ...DOption) func(r io.Reader) io.ReadCloser ***REMOVED***
+	return newZipReader(opts...)
 ***REMOVED***

@@ -13,12 +13,6 @@ type byteReader struct ***REMOVED***
 	off int
 ***REMOVED***
 
-// init will initialize the reader and set the input.
-func (b *byteReader) init(in []byte) ***REMOVED***
-	b.b = in
-	b.off = 0
-***REMOVED***
-
 // advance the stream b n bytes.
 func (b *byteReader) advance(n uint) ***REMOVED***
 	b.off += int(n)

@@ -11,19 +11,11 @@ import (
 
 type dTable struct ***REMOVED***
 	single []dEntrySingle
-	double []dEntryDouble
 ***REMOVED***
 
 // single-symbols decoding
 type dEntrySingle struct ***REMOVED***
 	entry uint16
-***REMOVED***
-
-// double-symbols decoding
-type dEntryDouble struct ***REMOVED***
-	seq   [4]byte
-	nBits uint8
-	len   uint8
 ***REMOVED***
 
 // Uses special code for all tables that are < 8 bits.
@@ -35,7 +27,7 @@ const use8BitTables = true
 // If no Scratch is provided a new one is allocated.
 // The returned Scratch can be used for encoding or decoding input using this table.
 func ReadTable(in []byte, s *Scratch) (s2 *Scratch, remain []byte, err error) ***REMOVED***
-	s, err = s.prepare(in)
+	s, err = s.prepare(nil)
 	if err != nil ***REMOVED***
 		return s, nil, err
 	***REMOVED***
@@ -234,108 +226,6 @@ func (d *Decoder) buffer() *[4][256]byte ***REMOVED***
 		return buf
 	***REMOVED***
 	return &[4][256]byte***REMOVED******REMOVED***
-***REMOVED***
-
-// Decompress1X will decompress a 1X encoded stream.
-// The cap of the output buffer will be the maximum decompressed size.
-// The length of the supplied input must match the end of a block exactly.
-func (d *Decoder) Decompress1X(dst, src []byte) ([]byte, error) ***REMOVED***
-	if len(d.dt.single) == 0 ***REMOVED***
-		return nil, errors.New("no table loaded")
-	***REMOVED***
-	if use8BitTables && d.actualTableLog <= 8 ***REMOVED***
-		return d.decompress1X8Bit(dst, src)
-	***REMOVED***
-	var br bitReaderShifted
-	err := br.init(src)
-	if err != nil ***REMOVED***
-		return dst, err
-	***REMOVED***
-	maxDecodedSize := cap(dst)
-	dst = dst[:0]
-
-	// Avoid bounds check by always having full sized table.
-	const tlSize = 1 << tableLogMax
-	const tlMask = tlSize - 1
-	dt := d.dt.single[:tlSize]
-
-	// Use temp table to avoid bound checks/append penalty.
-	bufs := d.buffer()
-	buf := &bufs[0]
-	var off uint8
-
-	for br.off >= 8 ***REMOVED***
-		br.fillFast()
-		v := dt[br.peekBitsFast(d.actualTableLog)&tlMask]
-		br.advance(uint8(v.entry))
-		buf[off+0] = uint8(v.entry >> 8)
-
-		v = dt[br.peekBitsFast(d.actualTableLog)&tlMask]
-		br.advance(uint8(v.entry))
-		buf[off+1] = uint8(v.entry >> 8)
-
-		// Refill
-		br.fillFast()
-
-		v = dt[br.peekBitsFast(d.actualTableLog)&tlMask]
-		br.advance(uint8(v.entry))
-		buf[off+2] = uint8(v.entry >> 8)
-
-		v = dt[br.peekBitsFast(d.actualTableLog)&tlMask]
-		br.advance(uint8(v.entry))
-		buf[off+3] = uint8(v.entry >> 8)
-
-		off += 4
-		if off == 0 ***REMOVED***
-			if len(dst)+256 > maxDecodedSize ***REMOVED***
-				br.close()
-				d.bufs.Put(bufs)
-				return nil, ErrMaxDecodedSizeExceeded
-			***REMOVED***
-			dst = append(dst, buf[:]...)
-		***REMOVED***
-	***REMOVED***
-
-	if len(dst)+int(off) > maxDecodedSize ***REMOVED***
-		d.bufs.Put(bufs)
-		br.close()
-		return nil, ErrMaxDecodedSizeExceeded
-	***REMOVED***
-	dst = append(dst, buf[:off]...)
-
-	// br < 8, so uint8 is fine
-	bitsLeft := uint8(br.off)*8 + 64 - br.bitsRead
-	for bitsLeft > 0 ***REMOVED***
-		br.fill()
-		if false && br.bitsRead >= 32 ***REMOVED***
-			if br.off >= 4 ***REMOVED***
-				v := br.in[br.off-4:]
-				v = v[:4]
-				low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
-				br.value = (br.value << 32) | uint64(low)
-				br.bitsRead -= 32
-				br.off -= 4
-			***REMOVED*** else ***REMOVED***
-				for br.off > 0 ***REMOVED***
-					br.value = (br.value << 8) | uint64(br.in[br.off-1])
-					br.bitsRead -= 8
-					br.off--
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-		if len(dst) >= maxDecodedSize ***REMOVED***
-			d.bufs.Put(bufs)
-			br.close()
-			return nil, ErrMaxDecodedSizeExceeded
-		***REMOVED***
-		v := d.dt.single[br.peekBitsFast(d.actualTableLog)&tlMask]
-		nBits := uint8(v.entry)
-		br.advance(nBits)
-		bitsLeft -= nBits
-		dst = append(dst, uint8(v.entry>>8))
-	***REMOVED***
-	d.bufs.Put(bufs)
-	return dst, br.close()
 ***REMOVED***
 
 // decompress1X8Bit will decompress a 1X encoded stream with tablelog <= 8.
@@ -995,7 +885,6 @@ func (d *Decoder) decompress4X8bitExactly(dst, src []byte) ([]byte, error) ***RE
 
 	const shift = 56
 	const tlSize = 1 << 8
-	const tlMask = tlSize - 1
 	single := d.dt.single[:tlSize]
 
 	// Use temp table to avoid bound checks/append penalty.
