@@ -749,6 +749,11 @@ func yaml_parser_fetch_next_token(parser *yaml_parser_t) (ok bool) ***REMOVED***
 		if !ok ***REMOVED***
 			return
 		***REMOVED***
+		if len(parser.tokens) > 0 && parser.tokens[len(parser.tokens)-1].typ == yaml_BLOCK_ENTRY_TOKEN ***REMOVED***
+			// Sequence indicators alone have no line comments. It becomes
+			// a head comment for whatever follows.
+			return
+		***REMOVED***
 		if !yaml_parser_scan_line_comment(parser, comment_mark) ***REMOVED***
 			ok = false
 			return
@@ -2255,10 +2260,9 @@ func yaml_parser_scan_block_scalar(parser *yaml_parser_t, token *yaml_token_t, l
 		***REMOVED***
 	***REMOVED***
 	if parser.buffer[parser.buffer_pos] == '#' ***REMOVED***
-		// TODO Test this and then re-enable it.
-		//if !yaml_parser_scan_line_comment(parser, start_mark) ***REMOVED***
-		//	return false
-		//***REMOVED***
+		if !yaml_parser_scan_line_comment(parser, start_mark) ***REMOVED***
+			return false
+		***REMOVED***
 		for !is_breakz(parser.buffer, parser.buffer_pos) ***REMOVED***
 			skip(parser)
 			if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) ***REMOVED***
@@ -2856,13 +2860,12 @@ func yaml_parser_scan_line_comment(parser *yaml_parser_t, token_mark yaml_mark_t
 						return false
 					***REMOVED***
 					skip_line(parser)
-				***REMOVED*** else ***REMOVED***
-					if parser.mark.index >= seen ***REMOVED***
-						if len(text) == 0 ***REMOVED***
-							start_mark = parser.mark
-						***REMOVED***
-						text = append(text, parser.buffer[parser.buffer_pos])
+				***REMOVED*** else if parser.mark.index >= seen ***REMOVED***
+					if len(text) == 0 ***REMOVED***
+						start_mark = parser.mark
 					***REMOVED***
+					text = read(parser, text)
+				***REMOVED*** else ***REMOVED***
 					skip(parser)
 				***REMOVED***
 			***REMOVED***
@@ -2888,6 +2891,10 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 
 	var token_mark = token.start_mark
 	var start_mark yaml_mark_t
+	var next_indent = parser.indent
+	if next_indent < 0 ***REMOVED***
+		next_indent = 0
+	***REMOVED***
 
 	var recent_empty = false
 	var first_empty = parser.newlines <= 1
@@ -2919,15 +2926,18 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 			continue
 		***REMOVED***
 		c := parser.buffer[parser.buffer_pos+peek]
-		if is_breakz(parser.buffer, parser.buffer_pos+peek) || parser.flow_level > 0 && (c == ']' || c == '***REMOVED***') ***REMOVED***
+		var close_flow = parser.flow_level > 0 && (c == ']' || c == '***REMOVED***')
+		if close_flow || is_breakz(parser.buffer, parser.buffer_pos+peek) ***REMOVED***
 			// Got line break or terminator.
-			if !recent_empty ***REMOVED***
-				if first_empty && (start_mark.line == foot_line || start_mark.column-1 < parser.indent) ***REMOVED***
+			if close_flow || !recent_empty ***REMOVED***
+				if close_flow || first_empty && (start_mark.line == foot_line && token.typ != yaml_VALUE_TOKEN || start_mark.column-1 < next_indent) ***REMOVED***
 					// This is the first empty line and there were no empty lines before,
 					// so this initial part of the comment is a foot of the prior token
 					// instead of being a head for the following one. Split it up.
+					// Alternatively, this might also be the last comment inside a flow
+					// scope, so it must be a footer.
 					if len(text) > 0 ***REMOVED***
-						if start_mark.column-1 < parser.indent ***REMOVED***
+						if start_mark.column-1 < next_indent ***REMOVED***
 							// If dedented it's unrelated to the prior token.
 							token_mark = start_mark
 						***REMOVED***
@@ -2958,7 +2968,7 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 			continue
 		***REMOVED***
 
-		if len(text) > 0 && column < parser.indent+1 && column != start_mark.column ***REMOVED***
+		if len(text) > 0 && (close_flow || column-1 < next_indent && column != start_mark.column) ***REMOVED***
 			// The comment at the different indentation is a foot of the
 			// preceding data rather than a head of the upcoming one.
 			parser.comments = append(parser.comments, yaml_comment_t***REMOVED***
@@ -2999,10 +3009,9 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 					return false
 				***REMOVED***
 				skip_line(parser)
+			***REMOVED*** else if parser.mark.index >= seen ***REMOVED***
+				text = read(parser, text)
 			***REMOVED*** else ***REMOVED***
-				if parser.mark.index >= seen ***REMOVED***
-					text = append(text, parser.buffer[parser.buffer_pos])
-				***REMOVED***
 				skip(parser)
 			***REMOVED***
 		***REMOVED***
@@ -3010,6 +3019,10 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 		peek = 0
 		column = 0
 		line = parser.mark.line
+		next_indent = parser.indent
+		if next_indent < 0 ***REMOVED***
+			next_indent = 0
+		***REMOVED***
 	***REMOVED***
 
 	if len(text) > 0 ***REMOVED***

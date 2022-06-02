@@ -235,10 +235,13 @@ func yaml_emitter_increase_indent(emitter *yaml_emitter_t, flow, indentless bool
 			emitter.indent = 0
 		***REMOVED***
 	***REMOVED*** else if !indentless ***REMOVED***
-		emitter.indent += emitter.best_indent
-		// [Go] If inside a block sequence item, discount the space taken by the indicator.
-		if emitter.best_indent > 2 && emitter.states[len(emitter.states)-1] == yaml_EMIT_BLOCK_SEQUENCE_ITEM_STATE ***REMOVED***
-			emitter.indent -= 2
+		// [Go] This was changed so that indentations are more regular.
+		if emitter.states[len(emitter.states)-1] == yaml_EMIT_BLOCK_SEQUENCE_ITEM_STATE ***REMOVED***
+			// The first indent inside a sequence will just skip the "- " indicator.
+			emitter.indent += 2
+		***REMOVED*** else ***REMOVED***
+			// Everything else aligns to the chosen indentation.
+			emitter.indent = emitter.best_indent*((emitter.indent+emitter.best_indent)/emitter.best_indent)
 		***REMOVED***
 	***REMOVED***
 	return true
@@ -725,15 +728,8 @@ func yaml_emitter_emit_flow_mapping_value(emitter *yaml_emitter_t, event *yaml_e
 // Expect a block item node.
 func yaml_emitter_emit_block_sequence_item(emitter *yaml_emitter_t, event *yaml_event_t, first bool) bool ***REMOVED***
 	if first ***REMOVED***
-		// [Go] The original logic here would not indent the sequence when inside a mapping.
-		// In Go we always indent it, but take the sequence indicator out of the indentation.
-		indentless := emitter.best_indent == 2 && emitter.mapping_context && (emitter.column == 0 || !emitter.indention)
-		original := emitter.indent
-		if !yaml_emitter_increase_indent(emitter, false, indentless) ***REMOVED***
+		if !yaml_emitter_increase_indent(emitter, false, false) ***REMOVED***
 			return false
-		***REMOVED***
-		if emitter.indent > original+2 ***REMOVED***
-			emitter.indent -= 2
 		***REMOVED***
 	***REMOVED***
 	if event.typ == yaml_SEQUENCE_END_EVENT ***REMOVED***
@@ -785,6 +781,13 @@ func yaml_emitter_emit_block_mapping_key(emitter *yaml_emitter_t, event *yaml_ev
 	if !yaml_emitter_write_indent(emitter) ***REMOVED***
 		return false
 	***REMOVED***
+	if len(emitter.line_comment) > 0 ***REMOVED***
+		// [Go] A line comment was provided for the key. That's unusual as the
+		//      scanner associates line comments with the value. Either way,
+		//      save the line comment and render it appropriately later.
+		emitter.key_line_comment = emitter.line_comment
+		emitter.line_comment = nil
+	***REMOVED***
 	if yaml_emitter_check_simple_key(emitter) ***REMOVED***
 		emitter.states = append(emitter.states, yaml_EMIT_BLOCK_MAPPING_SIMPLE_VALUE_STATE)
 		return yaml_emitter_emit_node(emitter, event, false, false, true, true)
@@ -810,6 +813,27 @@ func yaml_emitter_emit_block_mapping_value(emitter *yaml_emitter_t, event *yaml_
 			return false
 		***REMOVED***
 	***REMOVED***
+	if len(emitter.key_line_comment) > 0 ***REMOVED***
+		// [Go] Line comments are generally associated with the value, but when there's
+		//      no value on the same line as a mapping key they end up attached to the
+		//      key itself.
+		if event.typ == yaml_SCALAR_EVENT ***REMOVED***
+			if len(emitter.line_comment) == 0 ***REMOVED***
+				// A scalar is coming and it has no line comments by itself yet,
+				// so just let it handle the line comment as usual. If it has a
+				// line comment, we can't have both so the one from the key is lost.
+				emitter.line_comment = emitter.key_line_comment
+				emitter.key_line_comment = nil
+			***REMOVED***
+		***REMOVED*** else if event.sequence_style() != yaml_FLOW_SEQUENCE_STYLE && (event.typ == yaml_MAPPING_START_EVENT || event.typ == yaml_SEQUENCE_START_EVENT) ***REMOVED***
+			// An indented block follows, so write the comment right now.
+			emitter.line_comment, emitter.key_line_comment = emitter.key_line_comment, emitter.line_comment
+			if !yaml_emitter_process_line_comment(emitter) ***REMOVED***
+				return false
+			***REMOVED***
+			emitter.line_comment, emitter.key_line_comment = emitter.key_line_comment, emitter.line_comment
+		***REMOVED***
+	***REMOVED***
 	emitter.states = append(emitter.states, yaml_EMIT_BLOCK_MAPPING_KEY_STATE)
 	if !yaml_emitter_emit_node(emitter, event, false, false, true, false) ***REMOVED***
 		return false
@@ -821,6 +845,10 @@ func yaml_emitter_emit_block_mapping_value(emitter *yaml_emitter_t, event *yaml_
 		return false
 	***REMOVED***
 	return true
+***REMOVED***
+
+func yaml_emitter_silent_nil_event(emitter *yaml_emitter_t, event *yaml_event_t) bool ***REMOVED***
+	return event.typ == yaml_SCALAR_EVENT && event.implicit && !emitter.canonical && len(emitter.scalar_data.value) == 0
 ***REMOVED***
 
 // Expect a node.
@@ -1866,7 +1894,7 @@ func yaml_emitter_write_literal_scalar(emitter *yaml_emitter_t, value []byte) bo
 	if !yaml_emitter_write_block_scalar_hints(emitter, value) ***REMOVED***
 		return false
 	***REMOVED***
-	if !put_break(emitter) ***REMOVED***
+	if !yaml_emitter_process_line_comment(emitter) ***REMOVED***
 		return false
 	***REMOVED***
 	//emitter.indention = true
@@ -1903,10 +1931,10 @@ func yaml_emitter_write_folded_scalar(emitter *yaml_emitter_t, value []byte) boo
 	if !yaml_emitter_write_block_scalar_hints(emitter, value) ***REMOVED***
 		return false
 	***REMOVED***
-
-	if !put_break(emitter) ***REMOVED***
+	if !yaml_emitter_process_line_comment(emitter) ***REMOVED***
 		return false
 	***REMOVED***
+
 	//emitter.indention = true
 	emitter.whitespace = true
 

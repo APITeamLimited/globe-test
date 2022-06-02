@@ -35,6 +35,7 @@ type parser struct ***REMOVED***
 	doc      *Node
 	anchors  map[string]*Node
 	doneInit bool
+	textless bool
 ***REMOVED***
 
 func newParser(b []byte) *parser ***REMOVED***
@@ -99,7 +100,10 @@ func (p *parser) peek() yaml_event_type_t ***REMOVED***
 	if p.event.typ != yaml_NO_EVENT ***REMOVED***
 		return p.event.typ
 	***REMOVED***
-	if !yaml_parser_parse(&p.parser, &p.event) ***REMOVED***
+	// It's curious choice from the underlying API to generally return a
+	// positive result on success, but on this case return true in an error
+	// scenario. This was the source of bugs in the past (issue #666).
+	if !yaml_parser_parse(&p.parser, &p.event) || p.parser.error != yaml_NO_ERROR ***REMOVED***
 		p.fail()
 	***REMOVED***
 	return p.event.typ
@@ -108,14 +112,18 @@ func (p *parser) peek() yaml_event_type_t ***REMOVED***
 func (p *parser) fail() ***REMOVED***
 	var where string
 	var line int
-	if p.parser.problem_mark.line != 0 ***REMOVED***
+	if p.parser.context_mark.line != 0 ***REMOVED***
+		line = p.parser.context_mark.line
+		// Scanner errors don't iterate line before returning error
+		if p.parser.error == yaml_SCANNER_ERROR ***REMOVED***
+			line++
+		***REMOVED***
+	***REMOVED*** else if p.parser.problem_mark.line != 0 ***REMOVED***
 		line = p.parser.problem_mark.line
 		// Scanner errors don't iterate line before returning error
 		if p.parser.error == yaml_SCANNER_ERROR ***REMOVED***
 			line++
 		***REMOVED***
-	***REMOVED*** else if p.parser.context_mark.line != 0 ***REMOVED***
-		line = p.parser.context_mark.line
 	***REMOVED***
 	if line != 0 ***REMOVED***
 		where = "line " + strconv.Itoa(line) + ": "
@@ -169,17 +177,20 @@ func (p *parser) node(kind Kind, defaultTag, tag, value string) *Node ***REMOVED
 	***REMOVED*** else if kind == ScalarNode ***REMOVED***
 		tag, _ = resolve("", value)
 	***REMOVED***
-	return &Node***REMOVED***
-		Kind:        kind,
-		Tag:         tag,
-		Value:       value,
-		Style:       style,
-		Line:        p.event.start_mark.line + 1,
-		Column:      p.event.start_mark.column + 1,
-		HeadComment: string(p.event.head_comment),
-		LineComment: string(p.event.line_comment),
-		FootComment: string(p.event.foot_comment),
+	n := &Node***REMOVED***
+		Kind:  kind,
+		Tag:   tag,
+		Value: value,
+		Style: style,
 	***REMOVED***
+	if !p.textless ***REMOVED***
+		n.Line = p.event.start_mark.line + 1
+		n.Column = p.event.start_mark.column + 1
+		n.HeadComment = string(p.event.head_comment)
+		n.LineComment = string(p.event.line_comment)
+		n.FootComment = string(p.event.foot_comment)
+	***REMOVED***
+	return n
 ***REMOVED***
 
 func (p *parser) parseChild(parent *Node) *Node ***REMOVED***
@@ -312,6 +323,8 @@ type decoder struct ***REMOVED***
 	decodeCount int
 	aliasCount  int
 	aliasDepth  int
+
+	mergedFields map[interface***REMOVED******REMOVED***]bool
 ***REMOVED***
 
 var (
@@ -497,8 +510,13 @@ func (d *decoder) unmarshal(n *Node, out reflect.Value) (good bool) ***REMOVED**
 		good = d.mapping(n, out)
 	case SequenceNode:
 		good = d.sequence(n, out)
+	case 0:
+		if n.IsZero() ***REMOVED***
+			return d.null(out)
+		***REMOVED***
+		fallthrough
 	default:
-		panic("internal error: unknown node kind: " + strconv.Itoa(int(n.Kind)))
+		failf("cannot decode node with unknown kind %d", n.Kind)
 	***REMOVED***
 	return good
 ***REMOVED***
@@ -533,6 +551,17 @@ func resetMap(out reflect.Value) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (d *decoder) null(out reflect.Value) bool ***REMOVED***
+	if out.CanAddr() ***REMOVED***
+		switch out.Kind() ***REMOVED***
+		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+			out.Set(reflect.Zero(out.Type()))
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
+***REMOVED***
+
 func (d *decoder) scalar(n *Node, out reflect.Value) bool ***REMOVED***
 	var tag string
 	var resolved interface***REMOVED******REMOVED***
@@ -550,14 +579,7 @@ func (d *decoder) scalar(n *Node, out reflect.Value) bool ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if resolved == nil ***REMOVED***
-		if out.CanAddr() ***REMOVED***
-			switch out.Kind() ***REMOVED***
-			case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
-				out.Set(reflect.Zero(out.Type()))
-				return true
-			***REMOVED***
-		***REMOVED***
-		return false
+		return d.null(out)
 	***REMOVED***
 	if resolvedv := reflect.ValueOf(resolved); out.Type() == resolvedv.Type() ***REMOVED***
 		// We've resolved to exactly the type we want, so use that.
@@ -791,16 +813,30 @@ func (d *decoder) mapping(n *Node, out reflect.Value) (good bool) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	mergedFields := d.mergedFields
+	d.mergedFields = nil
+
+	var mergeNode *Node
+
+	mapIsNew := false
 	if out.IsNil() ***REMOVED***
 		out.Set(reflect.MakeMap(outt))
+		mapIsNew = true
 	***REMOVED***
 	for i := 0; i < l; i += 2 ***REMOVED***
 		if isMerge(n.Content[i]) ***REMOVED***
-			d.merge(n.Content[i+1], out)
+			mergeNode = n.Content[i+1]
 			continue
 		***REMOVED***
 		k := reflect.New(kt).Elem()
 		if d.unmarshal(n.Content[i], k) ***REMOVED***
+			if mergedFields != nil ***REMOVED***
+				ki := k.Interface()
+				if mergedFields[ki] ***REMOVED***
+					continue
+				***REMOVED***
+				mergedFields[ki] = true
+			***REMOVED***
 			kkind := k.Kind()
 			if kkind == reflect.Interface ***REMOVED***
 				kkind = k.Elem().Kind()
@@ -809,11 +845,17 @@ func (d *decoder) mapping(n *Node, out reflect.Value) (good bool) ***REMOVED***
 				failf("invalid map key: %#v", k.Interface())
 			***REMOVED***
 			e := reflect.New(et).Elem()
-			if d.unmarshal(n.Content[i+1], e) ***REMOVED***
+			if d.unmarshal(n.Content[i+1], e) || n.Content[i+1].ShortTag() == nullTag && (mapIsNew || !out.MapIndex(k).IsValid()) ***REMOVED***
 				out.SetMapIndex(k, e)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+
+	d.mergedFields = mergedFields
+	if mergeNode != nil ***REMOVED***
+		d.merge(n, mergeNode, out)
+	***REMOVED***
+
 	d.stringMapType = stringMapType
 	d.generalMapType = generalMapType
 	return true
@@ -825,7 +867,8 @@ func isStringMap(n *Node) bool ***REMOVED***
 	***REMOVED***
 	l := len(n.Content)
 	for i := 0; i < l; i += 2 ***REMOVED***
-		if n.Content[i].ShortTag() != strTag ***REMOVED***
+		shortTag := n.Content[i].ShortTag()
+		if shortTag != strTag && shortTag != mergeTag ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -842,7 +885,6 @@ func (d *decoder) mappingStruct(n *Node, out reflect.Value) (good bool) ***REMOV
 	var elemType reflect.Type
 	if sinfo.InlineMap != -1 ***REMOVED***
 		inlineMap = out.Field(sinfo.InlineMap)
-		inlineMap.Set(reflect.New(inlineMap.Type()).Elem())
 		elemType = inlineMap.Type().Elem()
 	***REMOVED***
 
@@ -851,6 +893,9 @@ func (d *decoder) mappingStruct(n *Node, out reflect.Value) (good bool) ***REMOV
 		d.prepare(n, field)
 	***REMOVED***
 
+	mergedFields := d.mergedFields
+	d.mergedFields = nil
+	var mergeNode *Node
 	var doneFields []bool
 	if d.uniqueKeys ***REMOVED***
 		doneFields = make([]bool, len(sinfo.FieldsList))
@@ -860,13 +905,20 @@ func (d *decoder) mappingStruct(n *Node, out reflect.Value) (good bool) ***REMOV
 	for i := 0; i < l; i += 2 ***REMOVED***
 		ni := n.Content[i]
 		if isMerge(ni) ***REMOVED***
-			d.merge(n.Content[i+1], out)
+			mergeNode = n.Content[i+1]
 			continue
 		***REMOVED***
 		if !d.unmarshal(ni, name) ***REMOVED***
 			continue
 		***REMOVED***
-		if info, ok := sinfo.FieldsMap[name.String()]; ok ***REMOVED***
+		sname := name.String()
+		if mergedFields != nil ***REMOVED***
+			if mergedFields[sname] ***REMOVED***
+				continue
+			***REMOVED***
+			mergedFields[sname] = true
+		***REMOVED***
+		if info, ok := sinfo.FieldsMap[sname]; ok ***REMOVED***
 			if d.uniqueKeys ***REMOVED***
 				if doneFields[info.Id] ***REMOVED***
 					d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s already set in type %s", ni.Line, name.String(), out.Type()))
@@ -892,6 +944,11 @@ func (d *decoder) mappingStruct(n *Node, out reflect.Value) (good bool) ***REMOV
 			d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s not found in type %s", ni.Line, name.String(), out.Type()))
 		***REMOVED***
 	***REMOVED***
+
+	d.mergedFields = mergedFields
+	if mergeNode != nil ***REMOVED***
+		d.merge(n, mergeNode, out)
+	***REMOVED***
 	return true
 ***REMOVED***
 
@@ -899,19 +956,29 @@ func failWantMap() ***REMOVED***
 	failf("map merge requires map or sequence of maps as the value")
 ***REMOVED***
 
-func (d *decoder) merge(n *Node, out reflect.Value) ***REMOVED***
-	switch n.Kind ***REMOVED***
+func (d *decoder) merge(parent *Node, merge *Node, out reflect.Value) ***REMOVED***
+	mergedFields := d.mergedFields
+	if mergedFields == nil ***REMOVED***
+		d.mergedFields = make(map[interface***REMOVED******REMOVED***]bool)
+		for i := 0; i < len(parent.Content); i += 2 ***REMOVED***
+			k := reflect.New(ifaceType).Elem()
+			if d.unmarshal(parent.Content[i], k) ***REMOVED***
+				d.mergedFields[k.Interface()] = true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	switch merge.Kind ***REMOVED***
 	case MappingNode:
-		d.unmarshal(n, out)
+		d.unmarshal(merge, out)
 	case AliasNode:
-		if n.Alias != nil && n.Alias.Kind != MappingNode ***REMOVED***
+		if merge.Alias != nil && merge.Alias.Kind != MappingNode ***REMOVED***
 			failWantMap()
 		***REMOVED***
-		d.unmarshal(n, out)
+		d.unmarshal(merge, out)
 	case SequenceNode:
-		// Step backwards as earlier nodes take precedence.
-		for i := len(n.Content) - 1; i >= 0; i-- ***REMOVED***
-			ni := n.Content[i]
+		for i := 0; i < len(merge.Content); i++ ***REMOVED***
+			ni := merge.Content[i]
 			if ni.Kind == AliasNode ***REMOVED***
 				if ni.Alias != nil && ni.Alias.Kind != MappingNode ***REMOVED***
 					failWantMap()
@@ -924,6 +991,8 @@ func (d *decoder) merge(n *Node, out reflect.Value) ***REMOVED***
 	default:
 		failWantMap()
 	***REMOVED***
+
+	d.mergedFields = mergedFields
 ***REMOVED***
 
 func isMerge(n *Node) bool ***REMOVED***
