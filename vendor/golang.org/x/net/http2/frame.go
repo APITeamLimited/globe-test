@@ -1532,7 +1532,8 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (*MetaHeadersFrame, error) ***
 			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
 		***REMOVED***
 		if !httpguts.ValidHeaderFieldValue(hf.Value) ***REMOVED***
-			invalid = headerFieldValueError(hf.Value)
+			// Don't include the value in the error, because it may be sensitive.
+			invalid = headerFieldValueError(hf.Name)
 		***REMOVED***
 		isPseudo := strings.HasPrefix(hf.Name, ":")
 		if isPseudo ***REMOVED***

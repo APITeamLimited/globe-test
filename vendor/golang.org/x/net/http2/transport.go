@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	mathrand "math/rand"
@@ -501,12 +500,14 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 			if req, err = shouldRetryRequest(req, err); err == nil ***REMOVED***
 				// After the first retry, do exponential backoff with 10% jitter.
 				if retry == 0 ***REMOVED***
+					t.vlogf("RoundTrip retrying after failure: %v", err)
 					continue
 				***REMOVED***
 				backoff := float64(uint(1) << (uint(retry) - 1))
 				backoff += backoff * (0.1 * mathrand.Float64())
 				select ***REMOVED***
 				case <-time.After(time.Second * time.Duration(backoff)):
+					t.vlogf("RoundTrip retrying after failure: %v", err)
 					continue
 				case <-req.Context().Done():
 					err = req.Context().Err()
@@ -732,10 +733,13 @@ func (cc *ClientConn) healthCheck() ***REMOVED***
 	// trigger the healthCheck again if there is no frame received.
 	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
+	cc.vlogf("http2: Transport sending health check")
 	err := cc.Ping(ctx)
 	if err != nil ***REMOVED***
+		cc.vlogf("http2: Transport health check failure: %v", err)
 		cc.closeForLostPing()
-		return
+	***REMOVED*** else ***REMOVED***
+		cc.vlogf("http2: Transport health check success")
 	***REMOVED***
 ***REMOVED***
 
@@ -1765,7 +1769,8 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 		***REMOVED***
 		for _, v := range vv ***REMOVED***
 			if !httpguts.ValidHeaderFieldValue(v) ***REMOVED***
-				return nil, fmt.Errorf("invalid HTTP header value %q for header %q", v, k)
+				// Don't include the value in the error, because it may be sensitive.
+				return nil, fmt.Errorf("invalid HTTP header value for header %q", k)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -2898,7 +2903,12 @@ func (t *Transport) logf(format string, args ...interface***REMOVED******REMOVED
 	log.Printf(format, args...)
 ***REMOVED***
 
-var noBody io.ReadCloser = ioutil.NopCloser(bytes.NewReader(nil))
+var noBody io.ReadCloser = noBodyReader***REMOVED******REMOVED***
+
+type noBodyReader struct***REMOVED******REMOVED***
+
+func (noBodyReader) Close() error             ***REMOVED*** return nil ***REMOVED***
+func (noBodyReader) Read([]byte) (int, error) ***REMOVED*** return 0, io.EOF ***REMOVED***
 
 type missingBody struct***REMOVED******REMOVED***
 

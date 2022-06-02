@@ -17,23 +17,23 @@ package idna
 //
 // The per-rune values have the following format:
 //
-//   if mapped ***REMOVED***
-//     if inlinedXOR ***REMOVED***
-//       15..13 inline XOR marker
-//       12..11 unused
-//       10..3  inline XOR mask
-//     ***REMOVED*** else ***REMOVED***
-//       15..3  index into xor or mapping table
-//     ***REMOVED***
-//   ***REMOVED*** else ***REMOVED***
-//       15..14 unused
-//       13     mayNeedNorm
-//       12..11 attributes
-//       10..8  joining type
-//        7..3  category type
-//   ***REMOVED***
-//      2  use xor pattern
-//   1..0  mapped category
+//	if mapped ***REMOVED***
+//	  if inlinedXOR ***REMOVED***
+//	    15..13 inline XOR marker
+//	    12..11 unused
+//	    10..3  inline XOR mask
+//	  ***REMOVED*** else ***REMOVED***
+//	    15..3  index into xor or mapping table
+//	  ***REMOVED***
+//	***REMOVED*** else ***REMOVED***
+//	    15..14 unused
+//	    13     mayNeedNorm
+//	    12..11 attributes
+//	    10..8  joining type
+//	     7..3  category type
+//	***REMOVED***
+//	   2  use xor pattern
+//	1..0  mapped category
 //
 // See the definitions below for a more detailed description of the various
 // bits.
