@@ -48,7 +48,11 @@ func (g *callIDGenerator) reset() ***REMOVED***
 var idGen callIDGenerator
 
 // MethodLogger is the sub-logger for each method.
-type MethodLogger struct ***REMOVED***
+type MethodLogger interface ***REMOVED***
+	Log(LogEntryConfig)
+***REMOVED***
+
+type methodLogger struct ***REMOVED***
 	headerMaxLen, messageMaxLen uint64
 
 	callID          uint64
@@ -57,8 +61,8 @@ type MethodLogger struct ***REMOVED***
 	sink Sink // TODO(blog): make this plugable.
 ***REMOVED***
 
-func newMethodLogger(h, m uint64) *MethodLogger ***REMOVED***
-	return &MethodLogger***REMOVED***
+func newMethodLogger(h, m uint64) *methodLogger ***REMOVED***
+	return &methodLogger***REMOVED***
 		headerMaxLen:  h,
 		messageMaxLen: m,
 
@@ -69,8 +73,10 @@ func newMethodLogger(h, m uint64) *MethodLogger ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Log creates a proto binary log entry, and logs it to the sink.
-func (ml *MethodLogger) Log(c LogEntryConfig) ***REMOVED***
+// Build is an internal only method for building the proto message out of the
+// input event. It's made public to enable other library to reuse as much logic
+// in methodLogger as possible.
+func (ml *methodLogger) Build(c LogEntryConfig) *pb.GrpcLogEntry ***REMOVED***
 	m := c.toProto()
 	timestamp, _ := ptypes.TimestampProto(time.Now())
 	m.Timestamp = timestamp
@@ -85,11 +91,15 @@ func (ml *MethodLogger) Log(c LogEntryConfig) ***REMOVED***
 	case *pb.GrpcLogEntry_Message:
 		m.PayloadTruncated = ml.truncateMessage(pay.Message)
 	***REMOVED***
-
-	ml.sink.Write(m)
+	return m
 ***REMOVED***
 
-func (ml *MethodLogger) truncateMetadata(mdPb *pb.Metadata) (truncated bool) ***REMOVED***
+// Log creates a proto binary log entry, and logs it to the sink.
+func (ml *methodLogger) Log(c LogEntryConfig) ***REMOVED***
+	ml.sink.Write(ml.Build(c))
+***REMOVED***
+
+func (ml *methodLogger) truncateMetadata(mdPb *pb.Metadata) (truncated bool) ***REMOVED***
 	if ml.headerMaxLen == maxUInt ***REMOVED***
 		return false
 	***REMOVED***
@@ -119,7 +129,7 @@ func (ml *MethodLogger) truncateMetadata(mdPb *pb.Metadata) (truncated bool) ***
 	return truncated
 ***REMOVED***
 
-func (ml *MethodLogger) truncateMessage(msgPb *pb.Message) (truncated bool) ***REMOVED***
+func (ml *methodLogger) truncateMessage(msgPb *pb.Message) (truncated bool) ***REMOVED***
 	if ml.messageMaxLen == maxUInt ***REMOVED***
 		return false
 	***REMOVED***

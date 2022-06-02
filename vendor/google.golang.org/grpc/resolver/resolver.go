@@ -27,6 +27,7 @@ import (
 
 	"google.golang.org/grpc/attributes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/internal/pretty"
 	"google.golang.org/grpc/serviceconfig"
 )
 
@@ -139,11 +140,16 @@ type Address struct ***REMOVED***
 
 // Equal returns whether a and o are identical.  Metadata is compared directly,
 // not with any recursive introspection.
-func (a *Address) Equal(o Address) bool ***REMOVED***
+func (a Address) Equal(o Address) bool ***REMOVED***
 	return a.Addr == o.Addr && a.ServerName == o.ServerName &&
 		a.Attributes.Equal(o.Attributes) &&
 		a.BalancerAttributes.Equal(o.BalancerAttributes) &&
 		a.Type == o.Type && a.Metadata == o.Metadata
+***REMOVED***
+
+// String returns JSON formatted string representation of the address.
+func (a Address) String() string ***REMOVED***
+	return pretty.ToJSON(a)
 ***REMOVED***
 
 // BuildOptions includes additional information for the builder to create

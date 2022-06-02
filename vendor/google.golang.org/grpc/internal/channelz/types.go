@@ -686,11 +686,32 @@ const (
 type RefChannelType int
 
 const (
+	// RefUnknown indicates an unknown entity type, the zero value for this type.
+	RefUnknown RefChannelType = iota
 	// RefChannel indicates the referenced entity is a Channel.
-	RefChannel RefChannelType = iota
+	RefChannel
 	// RefSubChannel indicates the referenced entity is a SubChannel.
 	RefSubChannel
+	// RefServer indicates the referenced entity is a Server.
+	RefServer
+	// RefListenSocket indicates the referenced entity is a ListenSocket.
+	RefListenSocket
+	// RefNormalSocket indicates the referenced entity is a NormalSocket.
+	RefNormalSocket
 )
+
+var refChannelTypeToString = map[RefChannelType]string***REMOVED***
+	RefUnknown:      "Unknown",
+	RefChannel:      "Channel",
+	RefSubChannel:   "SubChannel",
+	RefServer:       "Server",
+	RefListenSocket: "ListenSocket",
+	RefNormalSocket: "NormalSocket",
+***REMOVED***
+
+func (r RefChannelType) String() string ***REMOVED***
+	return refChannelTypeToString[r]
+***REMOVED***
 
 func (c *channelTrace) dumpData() *ChannelTrace ***REMOVED***
 	c.mu.Lock()

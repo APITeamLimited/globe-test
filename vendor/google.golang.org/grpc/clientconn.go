@@ -159,23 +159,20 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		***REMOVED***
 	***REMOVED***()
 
-	if channelz.IsOn() ***REMOVED***
-		if cc.dopts.channelzParentID != 0 ***REMOVED***
-			cc.channelzID = channelz.RegisterChannel(&channelzChannel***REMOVED***cc***REMOVED***, cc.dopts.channelzParentID, target)
-			channelz.AddTraceEvent(logger, cc.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
-				Desc:     "Channel Created",
-				Severity: channelz.CtInfo,
-				Parent: &channelz.TraceEventDesc***REMOVED***
-					Desc:     fmt.Sprintf("Nested Channel(id:%d) created", cc.channelzID),
-					Severity: channelz.CtInfo,
-				***REMOVED***,
-			***REMOVED***)
-		***REMOVED*** else ***REMOVED***
-			cc.channelzID = channelz.RegisterChannel(&channelzChannel***REMOVED***cc***REMOVED***, 0, target)
-			channelz.Info(logger, cc.channelzID, "Channel Created")
-		***REMOVED***
-		cc.csMgr.channelzID = cc.channelzID
+	pid := cc.dopts.channelzParentID
+	cc.channelzID = channelz.RegisterChannel(&channelzChannel***REMOVED***cc***REMOVED***, pid, target)
+	ted := &channelz.TraceEventDesc***REMOVED***
+		Desc:     "Channel created",
+		Severity: channelz.CtInfo,
 	***REMOVED***
+	if cc.dopts.channelzParentID != nil ***REMOVED***
+		ted.Parent = &channelz.TraceEventDesc***REMOVED***
+			Desc:     fmt.Sprintf("Nested Channel(id:%d) created", cc.channelzID.Int()),
+			Severity: channelz.CtInfo,
+		***REMOVED***
+	***REMOVED***
+	channelz.AddTraceEvent(logger, cc.channelzID, 1, ted)
+	cc.csMgr.channelzID = cc.channelzID
 
 	if cc.dopts.copts.TransportCredentials == nil && cc.dopts.copts.CredsBundle == nil ***REMOVED***
 		return nil, errNoTransportSecurity
@@ -281,7 +278,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	if creds := cc.dopts.copts.TransportCredentials; creds != nil ***REMOVED***
 		credsClone = creds.Clone()
 	***REMOVED***
-	cc.balancerBuildOpts = balancer.BuildOptions***REMOVED***
+	cc.balancerWrapper = newCCBalancerWrapper(cc, balancer.BuildOptions***REMOVED***
 		DialCreds:        credsClone,
 		CredsBundle:      cc.dopts.copts.CredsBundle,
 		Dialer:           cc.dopts.copts.Dialer,
@@ -289,7 +286,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		CustomUserAgent:  cc.dopts.copts.UserAgent,
 		ChannelzParentID: cc.channelzID,
 		Target:           cc.parsedTarget,
-	***REMOVED***
+	***REMOVED***)
 
 	// Build the resolver.
 	rWrapper, err := newCCResolverWrapper(cc, resolverBuilder)
@@ -398,7 +395,7 @@ type connectivityStateManager struct ***REMOVED***
 	mu         sync.Mutex
 	state      connectivity.State
 	notifyChan chan struct***REMOVED******REMOVED***
-	channelzID int64
+	channelzID *channelz.Identifier
 ***REMOVED***
 
 // updateState updates the connectivity.State of ClientConn.
@@ -464,34 +461,36 @@ var _ ClientConnInterface = (*ClientConn)(nil)
 // handshakes. It also handles errors on established connections by
 // re-resolving the name and reconnecting.
 type ClientConn struct ***REMOVED***
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx    context.Context    // Initialized using the background context at dial time.
+	cancel context.CancelFunc // Cancelled on close.
 
-	target       string
-	parsedTarget resolver.Target
-	authority    string
-	dopts        dialOptions
-	csMgr        *connectivityStateManager
+	// The following are initialized at dial time, and are read-only after that.
+	target          string               // User's dial target.
+	parsedTarget    resolver.Target      // See parseTargetAndFindResolver().
+	authority       string               // See determineAuthority().
+	dopts           dialOptions          // Default and user specified dial options.
+	channelzID      *channelz.Identifier // Channelz identifier for the channel.
+	balancerWrapper *ccBalancerWrapper   // Uses gracefulswitch.balancer underneath.
 
-	balancerBuildOpts balancer.BuildOptions
-	blockingpicker    *pickerWrapper
-
+	// The following provide their own synchronization, and therefore don't
+	// require cc.mu to be held to access them.
+	csMgr              *connectivityStateManager
+	blockingpicker     *pickerWrapper
 	safeConfigSelector iresolver.SafeConfigSelector
+	czData             *channelzData
+	retryThrottler     atomic.Value // Updated from service config.
 
-	mu              sync.RWMutex
-	resolverWrapper *ccResolverWrapper
-	sc              *ServiceConfig
-	conns           map[*addrConn]struct***REMOVED******REMOVED***
-	// Keepalive parameter can be updated if a GoAway is received.
-	mkp             keepalive.ClientParameters
-	curBalancerName string
-	balancerWrapper *ccBalancerWrapper
-	retryThrottler  atomic.Value
-
+	// firstResolveEvent is used to track whether the name resolver sent us at
+	// least one update. RPCs block on this event.
 	firstResolveEvent *grpcsync.Event
 
-	channelzID int64 // channelz unique identification number
-	czData     *channelzData
+	// mu protects the following fields.
+	// TODO: split mu so the same mutex isn't used for everything.
+	mu              sync.RWMutex
+	resolverWrapper *ccResolverWrapper         // Initialized in Dial; cleared in Close.
+	sc              *ServiceConfig             // Latest service config received from the resolver.
+	conns           map[*addrConn]struct***REMOVED******REMOVED***     // Set to nil on close.
+	mkp             keepalive.ClientParameters // May be updated upon receipt of a GoAway.
 
 	lceMu               sync.Mutex // protects lastConnectionError
 	lastConnectionError error
@@ -536,14 +535,7 @@ func (cc *ClientConn) GetState() connectivity.State ***REMOVED***
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a later
 // release.
 func (cc *ClientConn) Connect() ***REMOVED***
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	if cc.balancerWrapper != nil && cc.balancerWrapper.exitIdle() ***REMOVED***
-		return
-	***REMOVED***
-	for ac := range cc.conns ***REMOVED***
-		go ac.connect()
-	***REMOVED***
+	cc.balancerWrapper.exitIdle()
 ***REMOVED***
 
 func (cc *ClientConn) scWatcher() ***REMOVED***
@@ -623,9 +615,7 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 		// with the new addresses.
 		cc.maybeApplyDefaultServiceConfig(nil)
 
-		if cc.balancerWrapper != nil ***REMOVED***
-			cc.balancerWrapper.resolverError(err)
-		***REMOVED***
+		cc.balancerWrapper.resolverError(err)
 
 		// No addresses are valid with err set; return early.
 		cc.mu.Unlock()
@@ -653,16 +643,10 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 			cc.applyServiceConfigAndBalancer(sc, configSelector, s.Addresses)
 		***REMOVED*** else ***REMOVED***
 			ret = balancer.ErrBadResolverState
-			if cc.balancerWrapper == nil ***REMOVED***
-				var err error
-				if s.ServiceConfig.Err != nil ***REMOVED***
-					err = status.Errorf(codes.Unavailable, "error parsing service config: %v", s.ServiceConfig.Err)
-				***REMOVED*** else ***REMOVED***
-					err = status.Errorf(codes.Unavailable, "illegal service config type: %T", s.ServiceConfig.Config)
-				***REMOVED***
-				cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***cc.sc***REMOVED***)
-				cc.blockingpicker.updatePicker(base.NewErrPicker(err))
-				cc.csMgr.updateState(connectivity.TransientFailure)
+			if cc.sc == nil ***REMOVED***
+				// Apply the failing LB only if we haven't received valid service config
+				// from the name resolver in the past.
+				cc.applyFailingLB(s.ServiceConfig)
 				cc.mu.Unlock()
 				return ret
 			***REMOVED***
@@ -670,24 +654,12 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 	***REMOVED***
 
 	var balCfg serviceconfig.LoadBalancingConfig
-	if cc.dopts.balancerBuilder == nil && cc.sc != nil && cc.sc.lbConfig != nil ***REMOVED***
+	if cc.sc != nil && cc.sc.lbConfig != nil ***REMOVED***
 		balCfg = cc.sc.lbConfig.cfg
 	***REMOVED***
-
-	cbn := cc.curBalancerName
 	bw := cc.balancerWrapper
 	cc.mu.Unlock()
-	if cbn != grpclbName ***REMOVED***
-		// Filter any grpclb addresses since we don't have the grpclb balancer.
-		for i := 0; i < len(s.Addresses); ***REMOVED***
-			if s.Addresses[i].Type == resolver.GRPCLB ***REMOVED***
-				copy(s.Addresses[i:], s.Addresses[i+1:])
-				s.Addresses = s.Addresses[:len(s.Addresses)-1]
-				continue
-			***REMOVED***
-			i++
-		***REMOVED***
-	***REMOVED***
+
 	uccsErr := bw.updateClientConnState(&balancer.ClientConnState***REMOVED***ResolverState: s, BalancerConfig: balCfg***REMOVED***)
 	if ret == nil ***REMOVED***
 		ret = uccsErr // prefer ErrBadResolver state since any other error is
@@ -696,56 +668,28 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 	return ret
 ***REMOVED***
 
-// switchBalancer starts the switching from current balancer to the balancer
-// with the given name.
-//
-// It will NOT send the current address list to the new balancer. If needed,
-// caller of this function should send address list to the new balancer after
-// this function returns.
+// applyFailingLB is akin to configuring an LB policy on the channel which
+// always fails RPCs. Here, an actual LB policy is not configured, but an always
+// erroring picker is configured, which returns errors with information about
+// what was invalid in the received service config. A config selector with no
+// service config is configured, and the connectivity state of the channel is
+// set to TransientFailure.
 //
 // Caller must hold cc.mu.
-func (cc *ClientConn) switchBalancer(name string) ***REMOVED***
-	if strings.EqualFold(cc.curBalancerName, name) ***REMOVED***
-		return
-	***REMOVED***
-
-	channelz.Infof(logger, cc.channelzID, "ClientConn switching balancer to %q", name)
-	if cc.dopts.balancerBuilder != nil ***REMOVED***
-		channelz.Info(logger, cc.channelzID, "ignoring balancer switching: Balancer DialOption used instead")
-		return
-	***REMOVED***
-	if cc.balancerWrapper != nil ***REMOVED***
-		// Don't hold cc.mu while closing the balancers. The balancers may call
-		// methods that require cc.mu (e.g. cc.NewSubConn()). Holding the mutex
-		// would cause a deadlock in that case.
-		cc.mu.Unlock()
-		cc.balancerWrapper.close()
-		cc.mu.Lock()
-	***REMOVED***
-
-	builder := balancer.Get(name)
-	if builder == nil ***REMOVED***
-		channelz.Warningf(logger, cc.channelzID, "Channel switches to new LB policy %q due to fallback from invalid balancer name", PickFirstBalancerName)
-		channelz.Infof(logger, cc.channelzID, "failed to get balancer builder for: %v, using pick_first instead", name)
-		builder = newPickfirstBuilder()
+func (cc *ClientConn) applyFailingLB(sc *serviceconfig.ParseResult) ***REMOVED***
+	var err error
+	if sc.Err != nil ***REMOVED***
+		err = status.Errorf(codes.Unavailable, "error parsing service config: %v", sc.Err)
 	***REMOVED*** else ***REMOVED***
-		channelz.Infof(logger, cc.channelzID, "Channel switches to new LB policy %q", name)
+		err = status.Errorf(codes.Unavailable, "illegal service config type: %T", sc.Config)
 	***REMOVED***
-
-	cc.curBalancerName = builder.Name()
-	cc.balancerWrapper = newCCBalancerWrapper(cc, builder, cc.balancerBuildOpts)
+	cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***nil***REMOVED***)
+	cc.blockingpicker.updatePicker(base.NewErrPicker(err))
+	cc.csMgr.updateState(connectivity.TransientFailure)
 ***REMOVED***
 
 func (cc *ClientConn) handleSubConnStateChange(sc balancer.SubConn, s connectivity.State, err error) ***REMOVED***
-	cc.mu.Lock()
-	if cc.conns == nil ***REMOVED***
-		cc.mu.Unlock()
-		return
-	***REMOVED***
-	// TODO(bar switching) send updates to all balancer wrappers when balancer
-	// gracefully switching is supported.
-	cc.balancerWrapper.handleSubConnStateChange(sc, s, err)
-	cc.mu.Unlock()
+	cc.balancerWrapper.updateSubConnState(sc, s, err)
 ***REMOVED***
 
 // newAddrConn creates an addrConn for addrs and adds it to cc.conns.
@@ -768,17 +712,21 @@ func (cc *ClientConn) newAddrConn(addrs []resolver.Address, opts balancer.NewSub
 		cc.mu.Unlock()
 		return nil, ErrClientConnClosing
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		ac.channelzID = channelz.RegisterSubChannel(ac, cc.channelzID, "")
-		channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
-			Desc:     "Subchannel Created",
-			Severity: channelz.CtInfo,
-			Parent: &channelz.TraceEventDesc***REMOVED***
-				Desc:     fmt.Sprintf("Subchannel(id:%d) created", ac.channelzID),
-				Severity: channelz.CtInfo,
-			***REMOVED***,
-		***REMOVED***)
+
+	var err error
+	ac.channelzID, err = channelz.RegisterSubChannel(ac, cc.channelzID, "")
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
+	channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
+		Desc:     "Subchannel created",
+		Severity: channelz.CtInfo,
+		Parent: &channelz.TraceEventDesc***REMOVED***
+			Desc:     fmt.Sprintf("Subchannel(id:%d) created", ac.channelzID.Int()),
+			Severity: channelz.CtInfo,
+		***REMOVED***,
+	***REMOVED***)
+
 	cc.conns[ac] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	cc.mu.Unlock()
 	return ac, nil
@@ -853,15 +801,30 @@ func (ac *addrConn) connect() error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func equalAddresses(a, b []resolver.Address) bool ***REMOVED***
+	if len(a) != len(b) ***REMOVED***
+		return false
+	***REMOVED***
+	for i, v := range a ***REMOVED***
+		if !v.Equal(b[i]) ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+	return true
+***REMOVED***
+
 // tryUpdateAddrs tries to update ac.addrs with the new addresses list.
-//
-// If ac is Connecting, it returns false. The caller should tear down the ac and
-// create a new one. Note that the backoff will be reset when this happens.
 //
 // If ac is TransientFailure, it updates ac.addrs and returns true. The updated
 // addresses will be picked up by retry in the next iteration after backoff.
 //
 // If ac is Shutdown or Idle, it updates ac.addrs and returns true.
+//
+// If the addresses is the same as the old list, it does nothing and returns
+// true.
+//
+// If ac is Connecting, it returns false. The caller should tear down the ac and
+// create a new one. Note that the backoff will be reset when this happens.
 //
 // If ac is Ready, it checks whether current connected address of ac is in the
 // new addrs list.
@@ -876,6 +839,10 @@ func (ac *addrConn) tryUpdateAddrs(addrs []resolver.Address) bool ***REMOVED***
 		ac.state == connectivity.TransientFailure ||
 		ac.state == connectivity.Idle ***REMOVED***
 		ac.addrs = addrs
+		return true
+	***REMOVED***
+
+	if equalAddresses(ac.addrs, addrs) ***REMOVED***
 		return true
 	***REMOVED***
 
@@ -959,14 +926,10 @@ func (cc *ClientConn) healthCheckConfig() *healthCheckConfig ***REMOVED***
 ***REMOVED***
 
 func (cc *ClientConn) getTransport(ctx context.Context, failfast bool, method string) (transport.ClientTransport, func(balancer.DoneInfo), error) ***REMOVED***
-	t, done, err := cc.blockingpicker.pick(ctx, failfast, balancer.PickInfo***REMOVED***
+	return cc.blockingpicker.pick(ctx, failfast, balancer.PickInfo***REMOVED***
 		Ctx:            ctx,
 		FullMethodName: method,
 	***REMOVED***)
-	if err != nil ***REMOVED***
-		return nil, nil, toRPCErr(err)
-	***REMOVED***
-	return t, done, nil
 ***REMOVED***
 
 func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSelector iresolver.ConfigSelector, addrs []resolver.Address) ***REMOVED***
@@ -991,35 +954,26 @@ func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSel
 		cc.retryThrottler.Store((*retryThrottler)(nil))
 	***REMOVED***
 
-	if cc.dopts.balancerBuilder == nil ***REMOVED***
-		// Only look at balancer types and switch balancer if balancer dial
-		// option is not set.
-		var newBalancerName string
-		if cc.sc != nil && cc.sc.lbConfig != nil ***REMOVED***
-			newBalancerName = cc.sc.lbConfig.name
-		***REMOVED*** else ***REMOVED***
-			var isGRPCLB bool
-			for _, a := range addrs ***REMOVED***
-				if a.Type == resolver.GRPCLB ***REMOVED***
-					isGRPCLB = true
-					break
-				***REMOVED***
-			***REMOVED***
-			if isGRPCLB ***REMOVED***
-				newBalancerName = grpclbName
-			***REMOVED*** else if cc.sc != nil && cc.sc.LB != nil ***REMOVED***
-				newBalancerName = *cc.sc.LB
-			***REMOVED*** else ***REMOVED***
-				newBalancerName = PickFirstBalancerName
+	var newBalancerName string
+	if cc.sc != nil && cc.sc.lbConfig != nil ***REMOVED***
+		newBalancerName = cc.sc.lbConfig.name
+	***REMOVED*** else ***REMOVED***
+		var isGRPCLB bool
+		for _, a := range addrs ***REMOVED***
+			if a.Type == resolver.GRPCLB ***REMOVED***
+				isGRPCLB = true
+				break
 			***REMOVED***
 		***REMOVED***
-		cc.switchBalancer(newBalancerName)
-	***REMOVED*** else if cc.balancerWrapper == nil ***REMOVED***
-		// Balancer dial option was set, and this is the first time handling
-		// resolved addresses. Build a balancer with dopts.balancerBuilder.
-		cc.curBalancerName = cc.dopts.balancerBuilder.Name()
-		cc.balancerWrapper = newCCBalancerWrapper(cc, cc.dopts.balancerBuilder, cc.balancerBuildOpts)
+		if isGRPCLB ***REMOVED***
+			newBalancerName = grpclbName
+		***REMOVED*** else if cc.sc != nil && cc.sc.LB != nil ***REMOVED***
+			newBalancerName = *cc.sc.LB
+		***REMOVED*** else ***REMOVED***
+			newBalancerName = PickFirstBalancerName
+		***REMOVED***
 	***REMOVED***
+	cc.balancerWrapper.switchTo(newBalancerName)
 ***REMOVED***
 
 func (cc *ClientConn) resolveNow(o resolver.ResolveNowOptions) ***REMOVED***
@@ -1070,11 +1024,11 @@ func (cc *ClientConn) Close() error ***REMOVED***
 	rWrapper := cc.resolverWrapper
 	cc.resolverWrapper = nil
 	bWrapper := cc.balancerWrapper
-	cc.balancerWrapper = nil
 	cc.mu.Unlock()
 
+	// The order of closing matters here since the balancer wrapper assumes the
+	// picker is closed before it is closed.
 	cc.blockingpicker.close()
-
 	if bWrapper != nil ***REMOVED***
 		bWrapper.close()
 	***REMOVED***
@@ -1085,22 +1039,22 @@ func (cc *ClientConn) Close() error ***REMOVED***
 	for ac := range conns ***REMOVED***
 		ac.tearDown(ErrClientConnClosing)
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		ted := &channelz.TraceEventDesc***REMOVED***
-			Desc:     "Channel Deleted",
+	ted := &channelz.TraceEventDesc***REMOVED***
+		Desc:     "Channel deleted",
+		Severity: channelz.CtInfo,
+	***REMOVED***
+	if cc.dopts.channelzParentID != nil ***REMOVED***
+		ted.Parent = &channelz.TraceEventDesc***REMOVED***
+			Desc:     fmt.Sprintf("Nested channel(id:%d) deleted", cc.channelzID.Int()),
 			Severity: channelz.CtInfo,
 		***REMOVED***
-		if cc.dopts.channelzParentID != 0 ***REMOVED***
-			ted.Parent = &channelz.TraceEventDesc***REMOVED***
-				Desc:     fmt.Sprintf("Nested channel(id:%d) deleted", cc.channelzID),
-				Severity: channelz.CtInfo,
-			***REMOVED***
-		***REMOVED***
-		channelz.AddTraceEvent(logger, cc.channelzID, 0, ted)
-		// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add trace reference to
-		// the entity being deleted, and thus prevent it from being deleted right away.
-		channelz.RemoveEntry(cc.channelzID)
 	***REMOVED***
+	channelz.AddTraceEvent(logger, cc.channelzID, 0, ted)
+	// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add
+	// trace reference to the entity being deleted, and thus prevent it from being
+	// deleted right away.
+	channelz.RemoveEntry(cc.channelzID)
+
 	return nil
 ***REMOVED***
 
@@ -1130,7 +1084,7 @@ type addrConn struct ***REMOVED***
 	backoffIdx   int // Needs to be stateful for resetConnectBackoff.
 	resetBackoff chan struct***REMOVED******REMOVED***
 
-	channelzID int64 // channelz unique identification number.
+	channelzID *channelz.Identifier
 	czData     *channelzData
 ***REMOVED***
 
@@ -1284,6 +1238,7 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 		ac.mu.Lock()
 		defer ac.mu.Unlock()
 		defer connClosed.Fire()
+		defer hcancel()
 		if !hcStarted || hctx.Err() != nil ***REMOVED***
 			// We didn't start the health check or set the state to READY, so
 			// no need to do anything else here.
@@ -1294,7 +1249,6 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 			// state, since there may be a new transport in this addrConn.
 			return
 		***REMOVED***
-		hcancel()
 		ac.transport = nil
 		// Refresh the name resolver
 		ac.cc.resolveNow(resolver.ResolveNowOptions***REMOVED******REMOVED***)
@@ -1312,14 +1266,13 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 
 	connectCtx, cancel := context.WithDeadline(ac.ctx, connectDeadline)
 	defer cancel()
-	if channelz.IsOn() ***REMOVED***
-		copts.ChannelzParentID = ac.channelzID
-	***REMOVED***
+	copts.ChannelzParentID = ac.channelzID
 
 	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, func() ***REMOVED*** prefaceReceived.Fire() ***REMOVED***, onGoAway, onClose)
 	if err != nil ***REMOVED***
 		// newTr is either nil, or closed.
-		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v. Err: %v", addr, err)
+		hcancel()
+		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %s. Err: %v", addr, err)
 		return err
 	***REMOVED***
 
@@ -1332,7 +1285,7 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 		newTr.Close(transport.ErrConnClosing)
 		if connectCtx.Err() == context.DeadlineExceeded ***REMOVED***
 			err := errors.New("failed to receive server preface within timeout")
-			channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v: %v", addr, err)
+			channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %s: %v", addr, err)
 			return err
 		***REMOVED***
 		return nil
@@ -1497,19 +1450,18 @@ func (ac *addrConn) tearDown(err error) ***REMOVED***
 		curTr.GracefulClose()
 		ac.mu.Lock()
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
-			Desc:     "Subchannel Deleted",
+	channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
+		Desc:     "Subchannel deleted",
+		Severity: channelz.CtInfo,
+		Parent: &channelz.TraceEventDesc***REMOVED***
+			Desc:     fmt.Sprintf("Subchannel(id:%d) deleted", ac.channelzID.Int()),
 			Severity: channelz.CtInfo,
-			Parent: &channelz.TraceEventDesc***REMOVED***
-				Desc:     fmt.Sprintf("Subchanel(id:%d) deleted", ac.channelzID),
-				Severity: channelz.CtInfo,
-			***REMOVED***,
-		***REMOVED***)
-		// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add trace reference to
-		// the entity being deleted, and thus prevent it from being deleted right away.
-		channelz.RemoveEntry(ac.channelzID)
-	***REMOVED***
+		***REMOVED***,
+	***REMOVED***)
+	// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add
+	// trace reference to the entity being deleted, and thus prevent it from
+	// being deleted right away.
+	channelz.RemoveEntry(ac.channelzID)
 	ac.mu.Unlock()
 ***REMOVED***
 

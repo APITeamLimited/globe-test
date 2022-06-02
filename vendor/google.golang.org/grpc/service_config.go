@@ -381,6 +381,9 @@ func init() ***REMOVED***
 //
 // If any of them is NOT *ServiceConfig, return false.
 func equalServiceConfig(a, b serviceconfig.Config) bool ***REMOVED***
+	if a == nil && b == nil ***REMOVED***
+		return true
+	***REMOVED***
 	aa, ok := a.(*ServiceConfig)
 	if !ok ***REMOVED***
 		return false

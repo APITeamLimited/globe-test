@@ -89,7 +89,7 @@ func (l *logger) fillMethodLoggerWithConfigString(config string) error ***REMOVE
 		if err != nil ***REMOVED***
 			return fmt.Errorf("invalid config: %q, %v", config, err)
 		***REMOVED***
-		if err := l.setDefaultMethodLogger(&methodLoggerConfig***REMOVED***hdr: hdr, msg: msg***REMOVED***); err != nil ***REMOVED***
+		if err := l.setDefaultMethodLogger(&MethodLoggerConfig***REMOVED***Header: hdr, Message: msg***REMOVED***); err != nil ***REMOVED***
 			return fmt.Errorf("invalid config: %v", err)
 		***REMOVED***
 		return nil
@@ -104,11 +104,11 @@ func (l *logger) fillMethodLoggerWithConfigString(config string) error ***REMOVE
 		return fmt.Errorf("invalid header/message length config: %q, %v", suffix, err)
 	***REMOVED***
 	if m == "*" ***REMOVED***
-		if err := l.setServiceMethodLogger(s, &methodLoggerConfig***REMOVED***hdr: hdr, msg: msg***REMOVED***); err != nil ***REMOVED***
+		if err := l.setServiceMethodLogger(s, &MethodLoggerConfig***REMOVED***Header: hdr, Message: msg***REMOVED***); err != nil ***REMOVED***
 			return fmt.Errorf("invalid config: %v", err)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if err := l.setMethodMethodLogger(s+"/"+m, &methodLoggerConfig***REMOVED***hdr: hdr, msg: msg***REMOVED***); err != nil ***REMOVED***
+		if err := l.setMethodMethodLogger(s+"/"+m, &MethodLoggerConfig***REMOVED***Header: hdr, Message: msg***REMOVED***); err != nil ***REMOVED***
 			return fmt.Errorf("invalid config: %v", err)
 		***REMOVED***
 	***REMOVED***

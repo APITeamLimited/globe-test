@@ -26,77 +26,54 @@ import (
 
 var logger = grpclog.Component("channelz")
 
+func withParens(id *Identifier) string ***REMOVED***
+	return "[" + id.String() + "] "
+***REMOVED***
+
 // Info logs and adds a trace event if channelz is on.
-func Info(l grpclog.DepthLoggerV2, id int64, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     fmt.Sprint(args...),
-			Severity: CtInfo,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.InfoDepth(1, args...)
-	***REMOVED***
+func Info(l grpclog.DepthLoggerV2, id *Identifier, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprint(args...),
+		Severity: CtInfo,
+	***REMOVED***)
 ***REMOVED***
 
 // Infof logs and adds a trace event if channelz is on.
-func Infof(l grpclog.DepthLoggerV2, id int64, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	msg := fmt.Sprintf(format, args...)
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     msg,
-			Severity: CtInfo,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.InfoDepth(1, msg)
-	***REMOVED***
+func Infof(l grpclog.DepthLoggerV2, id *Identifier, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprintf(format, args...),
+		Severity: CtInfo,
+	***REMOVED***)
 ***REMOVED***
 
 // Warning logs and adds a trace event if channelz is on.
-func Warning(l grpclog.DepthLoggerV2, id int64, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     fmt.Sprint(args...),
-			Severity: CtWarning,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.WarningDepth(1, args...)
-	***REMOVED***
+func Warning(l grpclog.DepthLoggerV2, id *Identifier, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprint(args...),
+		Severity: CtWarning,
+	***REMOVED***)
 ***REMOVED***
 
 // Warningf logs and adds a trace event if channelz is on.
-func Warningf(l grpclog.DepthLoggerV2, id int64, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	msg := fmt.Sprintf(format, args...)
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     msg,
-			Severity: CtWarning,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.WarningDepth(1, msg)
-	***REMOVED***
+func Warningf(l grpclog.DepthLoggerV2, id *Identifier, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprintf(format, args...),
+		Severity: CtWarning,
+	***REMOVED***)
 ***REMOVED***
 
 // Error logs and adds a trace event if channelz is on.
-func Error(l grpclog.DepthLoggerV2, id int64, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     fmt.Sprint(args...),
-			Severity: CtError,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.ErrorDepth(1, args...)
-	***REMOVED***
+func Error(l grpclog.DepthLoggerV2, id *Identifier, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprint(args...),
+		Severity: CtError,
+	***REMOVED***)
 ***REMOVED***
 
 // Errorf logs and adds a trace event if channelz is on.
-func Errorf(l grpclog.DepthLoggerV2, id int64, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	msg := fmt.Sprintf(format, args...)
-	if IsOn() ***REMOVED***
-		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
-			Desc:     msg,
-			Severity: CtError,
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		l.ErrorDepth(1, msg)
-	***REMOVED***
+func Errorf(l grpclog.DepthLoggerV2, id *Identifier, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
+		Desc:     fmt.Sprintf(format, args...),
+		Severity: CtError,
+	***REMOVED***)
 ***REMOVED***

@@ -44,79 +44,107 @@ func (*pickfirstBuilder) Name() string ***REMOVED***
 ***REMOVED***
 
 type pickfirstBalancer struct ***REMOVED***
-	state connectivity.State
-	cc    balancer.ClientConn
-	sc    balancer.SubConn
+	state   connectivity.State
+	cc      balancer.ClientConn
+	subConn balancer.SubConn
 ***REMOVED***
 
 func (b *pickfirstBalancer) ResolverError(err error) ***REMOVED***
-	switch b.state ***REMOVED***
-	case connectivity.TransientFailure, connectivity.Idle, connectivity.Connecting:
-		// Set a failing picker if we don't have a good picker.
-		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.TransientFailure,
-			Picker: &picker***REMOVED***err: fmt.Errorf("name resolver error: %v", err)***REMOVED***,
-		***REMOVED***)
-	***REMOVED***
 	if logger.V(2) ***REMOVED***
 		logger.Infof("pickfirstBalancer: ResolverError called with error %v", err)
 	***REMOVED***
+	if b.subConn == nil ***REMOVED***
+		b.state = connectivity.TransientFailure
+	***REMOVED***
+
+	if b.state != connectivity.TransientFailure ***REMOVED***
+		// The picker will not change since the balancer does not currently
+		// report an error.
+		return
+	***REMOVED***
+	b.cc.UpdateState(balancer.State***REMOVED***
+		ConnectivityState: connectivity.TransientFailure,
+		Picker:            &picker***REMOVED***err: fmt.Errorf("name resolver error: %v", err)***REMOVED***,
+	***REMOVED***)
 ***REMOVED***
 
-func (b *pickfirstBalancer) UpdateClientConnState(cs balancer.ClientConnState) error ***REMOVED***
-	if len(cs.ResolverState.Addresses) == 0 ***REMOVED***
+func (b *pickfirstBalancer) UpdateClientConnState(state balancer.ClientConnState) error ***REMOVED***
+	if len(state.ResolverState.Addresses) == 0 ***REMOVED***
+		// The resolver reported an empty address list. Treat it like an error by
+		// calling b.ResolverError.
+		if b.subConn != nil ***REMOVED***
+			// Remove the old subConn. All addresses were removed, so it is no longer
+			// valid.
+			b.cc.RemoveSubConn(b.subConn)
+			b.subConn = nil
+		***REMOVED***
 		b.ResolverError(errors.New("produced zero addresses"))
 		return balancer.ErrBadResolverState
 	***REMOVED***
-	if b.sc == nil ***REMOVED***
-		var err error
-		b.sc, err = b.cc.NewSubConn(cs.ResolverState.Addresses, balancer.NewSubConnOptions***REMOVED******REMOVED***)
-		if err != nil ***REMOVED***
-			if logger.V(2) ***REMOVED***
-				logger.Errorf("pickfirstBalancer: failed to NewSubConn: %v", err)
-			***REMOVED***
-			b.state = connectivity.TransientFailure
-			b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.TransientFailure,
-				Picker: &picker***REMOVED***err: fmt.Errorf("error creating connection: %v", err)***REMOVED***,
-			***REMOVED***)
-			return balancer.ErrBadResolverState
-		***REMOVED***
-		b.state = connectivity.Idle
-		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.Idle, Picker: &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: b.sc***REMOVED******REMOVED******REMOVED***)
-		b.sc.Connect()
-	***REMOVED*** else ***REMOVED***
-		b.cc.UpdateAddresses(b.sc, cs.ResolverState.Addresses)
-		b.sc.Connect()
+
+	if b.subConn != nil ***REMOVED***
+		b.cc.UpdateAddresses(b.subConn, state.ResolverState.Addresses)
+		return nil
 	***REMOVED***
+
+	subConn, err := b.cc.NewSubConn(state.ResolverState.Addresses, balancer.NewSubConnOptions***REMOVED******REMOVED***)
+	if err != nil ***REMOVED***
+		if logger.V(2) ***REMOVED***
+			logger.Errorf("pickfirstBalancer: failed to NewSubConn: %v", err)
+		***REMOVED***
+		b.state = connectivity.TransientFailure
+		b.cc.UpdateState(balancer.State***REMOVED***
+			ConnectivityState: connectivity.TransientFailure,
+			Picker:            &picker***REMOVED***err: fmt.Errorf("error creating connection: %v", err)***REMOVED***,
+		***REMOVED***)
+		return balancer.ErrBadResolverState
+	***REMOVED***
+	b.subConn = subConn
+	b.state = connectivity.Idle
+	b.cc.UpdateState(balancer.State***REMOVED***
+		ConnectivityState: connectivity.Idle,
+		Picker:            &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: b.subConn***REMOVED******REMOVED***,
+	***REMOVED***)
+	b.subConn.Connect()
 	return nil
 ***REMOVED***
 
-func (b *pickfirstBalancer) UpdateSubConnState(sc balancer.SubConn, s balancer.SubConnState) ***REMOVED***
+func (b *pickfirstBalancer) UpdateSubConnState(subConn balancer.SubConn, state balancer.SubConnState) ***REMOVED***
 	if logger.V(2) ***REMOVED***
-		logger.Infof("pickfirstBalancer: UpdateSubConnState: %p, %v", sc, s)
+		logger.Infof("pickfirstBalancer: UpdateSubConnState: %p, %v", subConn, state)
 	***REMOVED***
-	if b.sc != sc ***REMOVED***
+	if b.subConn != subConn ***REMOVED***
 		if logger.V(2) ***REMOVED***
-			logger.Infof("pickfirstBalancer: ignored state change because sc is not recognized")
+			logger.Infof("pickfirstBalancer: ignored state change because subConn is not recognized")
 		***REMOVED***
 		return
 	***REMOVED***
-	b.state = s.ConnectivityState
-	if s.ConnectivityState == connectivity.Shutdown ***REMOVED***
-		b.sc = nil
+	b.state = state.ConnectivityState
+	if state.ConnectivityState == connectivity.Shutdown ***REMOVED***
+		b.subConn = nil
 		return
 	***REMOVED***
 
-	switch s.ConnectivityState ***REMOVED***
+	switch state.ConnectivityState ***REMOVED***
 	case connectivity.Ready:
-		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: sc***REMOVED******REMOVED******REMOVED***)
+		b.cc.UpdateState(balancer.State***REMOVED***
+			ConnectivityState: state.ConnectivityState,
+			Picker:            &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: subConn***REMOVED******REMOVED***,
+		***REMOVED***)
 	case connectivity.Connecting:
-		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &picker***REMOVED***err: balancer.ErrNoSubConnAvailable***REMOVED******REMOVED***)
+		b.cc.UpdateState(balancer.State***REMOVED***
+			ConnectivityState: state.ConnectivityState,
+			Picker:            &picker***REMOVED***err: balancer.ErrNoSubConnAvailable***REMOVED***,
+		***REMOVED***)
 	case connectivity.Idle:
-		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &idlePicker***REMOVED***sc: sc***REMOVED******REMOVED***)
+		b.cc.UpdateState(balancer.State***REMOVED***
+			ConnectivityState: state.ConnectivityState,
+			Picker:            &idlePicker***REMOVED***subConn: subConn***REMOVED***,
+		***REMOVED***)
 	case connectivity.TransientFailure:
 		b.cc.UpdateState(balancer.State***REMOVED***
-			ConnectivityState: s.ConnectivityState,
-			Picker:            &picker***REMOVED***err: s.ConnectionError***REMOVED***,
+			ConnectivityState: state.ConnectivityState,
+			Picker:            &picker***REMOVED***err: state.ConnectionError***REMOVED***,
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -125,8 +153,8 @@ func (b *pickfirstBalancer) Close() ***REMOVED***
 ***REMOVED***
 
 func (b *pickfirstBalancer) ExitIdle() ***REMOVED***
-	if b.sc != nil && b.state == connectivity.Idle ***REMOVED***
-		b.sc.Connect()
+	if b.subConn != nil && b.state == connectivity.Idle ***REMOVED***
+		b.subConn.Connect()
 	***REMOVED***
 ***REMOVED***
 
@@ -135,18 +163,18 @@ type picker struct ***REMOVED***
 	err    error
 ***REMOVED***
 
-func (p *picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
+func (p *picker) Pick(balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
 	return p.result, p.err
 ***REMOVED***
 
 // idlePicker is used when the SubConn is IDLE and kicks the SubConn into
 // CONNECTING when Pick is called.
 type idlePicker struct ***REMOVED***
-	sc balancer.SubConn
+	subConn balancer.SubConn
 ***REMOVED***
 
-func (i *idlePicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
-	i.sc.Connect()
+func (i *idlePicker) Pick(balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
+	i.subConn.Connect()
 	return balancer.PickResult***REMOVED******REMOVED***, balancer.ErrNoSubConnAvailable
 ***REMOVED***
 

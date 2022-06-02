@@ -440,6 +440,13 @@ func legacyMerge(in piface.MergeInput) piface.MergeOutput ***REMOVED***
 	if !ok ***REMOVED***
 		return piface.MergeOutput***REMOVED******REMOVED***
 	***REMOVED***
+	if !in.Source.IsValid() ***REMOVED***
+		// Legacy Marshal methods may not function on nil messages.
+		// Check for a typed nil source only after we confirm that
+		// legacy Marshal/Unmarshal methods are present, for
+		// consistency.
+		return piface.MergeOutput***REMOVED***Flags: piface.MergeComplete***REMOVED***
+	***REMOVED***
 	b, err := marshaler.Marshal()
 	if err != nil ***REMOVED***
 		return piface.MergeOutput***REMOVED******REMOVED***

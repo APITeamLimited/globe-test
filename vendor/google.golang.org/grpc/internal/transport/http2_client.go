@@ -132,7 +132,7 @@ type http2Client struct ***REMOVED***
 	kpDormant bool
 
 	// Fields below are for channelz metric collection.
-	channelzID int64 // channelz unique identification number
+	channelzID *channelz.Identifier
 	czData     *channelzData
 
 	onGoAway func(GoAwayReason)
@@ -351,8 +351,9 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		***REMOVED***
 		t.statsHandler.HandleConn(t.ctx, connBegin)
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		t.channelzID = channelz.RegisterNormalSocket(t, opts.ChannelzParentID, fmt.Sprintf("%s -> %s", t.localAddr, t.remoteAddr))
+	t.channelzID, err = channelz.RegisterNormalSocket(t, opts.ChannelzParentID, fmt.Sprintf("%s -> %s", t.localAddr, t.remoteAddr))
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 	if t.keepaliveEnabled ***REMOVED***
 		t.kpDormancyCond = sync.NewCond(&t.mu)
@@ -630,8 +631,8 @@ func (t *http2Client) getCallAuthData(ctx context.Context, audience string, call
 // the wire.  However, there are two notable exceptions:
 //
 // 1. If the stream headers violate the max header list size allowed by the
-//    server.  In this case there is no reason to retry at all, as it is
-//    assumed the RPC would continue to fail on subsequent attempts.
+//    server.  It's possible this could succeed on another transport, even if
+//    it's unlikely, but do not transparently retry.
 // 2. If the credentials errored when requesting their headers.  In this case,
 //    it's possible a retry can fix the problem, but indefinitely transparently
 //    retrying is not appropriate as it is likely the credentials, if they can
@@ -639,8 +640,7 @@ func (t *http2Client) getCallAuthData(ctx context.Context, audience string, call
 type NewStreamError struct ***REMOVED***
 	Err error
 
-	DoNotRetry            bool
-	DoNotTransparentRetry bool
+	AllowTransparentRetry bool
 ***REMOVED***
 
 func (e NewStreamError) Error() string ***REMOVED***
@@ -649,11 +649,11 @@ func (e NewStreamError) Error() string ***REMOVED***
 
 // NewStream creates a stream and registers it into the transport as "active"
 // streams.  All non-nil errors returned will be *NewStreamError.
-func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Stream, err error) ***REMOVED***
+func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream, error) ***REMOVED***
 	ctx = peer.NewContext(ctx, t.getPeer())
 	headerFields, err := t.createHeaderFields(ctx, callHdr)
 	if err != nil ***REMOVED***
-		return nil, &NewStreamError***REMOVED***Err: err, DoNotTransparentRetry: true***REMOVED***
+		return nil, &NewStreamError***REMOVED***Err: err, AllowTransparentRetry: false***REMOVED***
 	***REMOVED***
 	s := t.newStream(ctx, callHdr)
 	cleanup := func(err error) ***REMOVED***
@@ -753,13 +753,14 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 			return true
 		***REMOVED***, hdr)
 		if err != nil ***REMOVED***
-			return nil, &NewStreamError***REMOVED***Err: err***REMOVED***
+			// Connection closed.
+			return nil, &NewStreamError***REMOVED***Err: err, AllowTransparentRetry: true***REMOVED***
 		***REMOVED***
 		if success ***REMOVED***
 			break
 		***REMOVED***
 		if hdrListSizeErr != nil ***REMOVED***
-			return nil, &NewStreamError***REMOVED***Err: hdrListSizeErr, DoNotRetry: true***REMOVED***
+			return nil, &NewStreamError***REMOVED***Err: hdrListSizeErr***REMOVED***
 		***REMOVED***
 		firstTry = false
 		select ***REMOVED***
@@ -767,9 +768,9 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 		case <-ctx.Done():
 			return nil, &NewStreamError***REMOVED***Err: ContextErr(ctx.Err())***REMOVED***
 		case <-t.goAway:
-			return nil, &NewStreamError***REMOVED***Err: errStreamDrain***REMOVED***
+			return nil, &NewStreamError***REMOVED***Err: errStreamDrain, AllowTransparentRetry: true***REMOVED***
 		case <-t.ctx.Done():
-			return nil, &NewStreamError***REMOVED***Err: ErrConnClosing***REMOVED***
+			return nil, &NewStreamError***REMOVED***Err: ErrConnClosing, AllowTransparentRetry: true***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if t.statsHandler != nil ***REMOVED***
@@ -898,9 +899,7 @@ func (t *http2Client) Close(err error) ***REMOVED***
 	t.controlBuf.finish()
 	t.cancel()
 	t.conn.Close()
-	if channelz.IsOn() ***REMOVED***
-		channelz.RemoveEntry(t.channelzID)
-	***REMOVED***
+	channelz.RemoveEntry(t.channelzID)
 	// Append info about previous goaways if there were any, since this may be important
 	// for understanding the root cause for this connection to be closed.
 	_, goAwayDebugMessage := t.GetGoAwayReason()

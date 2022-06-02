@@ -21,7 +21,6 @@ package transport
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -36,6 +35,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 	"google.golang.org/grpc/internal/grpcutil"
+	"google.golang.org/grpc/internal/syscall"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -52,10 +52,10 @@ import (
 var (
 	// ErrIllegalHeaderWrite indicates that setting header is illegal because of
 	// the stream's state.
-	ErrIllegalHeaderWrite = errors.New("transport: the stream is done or WriteHeader was already called")
+	ErrIllegalHeaderWrite = status.Error(codes.Internal, "transport: SendHeader called multiple times")
 	// ErrHeaderListSizeLimitViolation indicates that the header list size is larger
 	// than the limit set by peer.
-	ErrHeaderListSizeLimitViolation = errors.New("transport: trying to send header list size larger than the limit set by peer")
+	ErrHeaderListSizeLimitViolation = status.Error(codes.Internal, "transport: trying to send header list size larger than the limit set by peer")
 )
 
 // serverConnectionCounter counts the number of connections a server has seen
@@ -117,7 +117,7 @@ type http2Server struct ***REMOVED***
 	idle time.Time
 
 	// Fields below are for channelz metric collection.
-	channelzID int64 // channelz unique identification number
+	channelzID *channelz.Identifier
 	czData     *channelzData
 	bufferPool *bufferPool
 
@@ -231,6 +231,11 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 	if kp.Timeout == 0 ***REMOVED***
 		kp.Timeout = defaultServerKeepaliveTimeout
 	***REMOVED***
+	if kp.Time != infinity ***REMOVED***
+		if err = syscall.SetTCPUserTimeout(conn, kp.Timeout); err != nil ***REMOVED***
+			return nil, connectionErrorf(false, err, "transport: failed to set TCP_USER_TIMEOUT: %v", err)
+		***REMOVED***
+	***REMOVED***
 	kep := config.KeepalivePolicy
 	if kep.MinTime == 0 ***REMOVED***
 		kep.MinTime = defaultKeepalivePolicyMinTime
@@ -275,12 +280,12 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 		connBegin := &stats.ConnBegin***REMOVED******REMOVED***
 		t.stats.HandleConn(t.ctx, connBegin)
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		t.channelzID = channelz.RegisterNormalSocket(t, config.ChannelzParentID, fmt.Sprintf("%s -> %s", t.remoteAddr, t.localAddr))
+	t.channelzID, err = channelz.RegisterNormalSocket(t, config.ChannelzParentID, fmt.Sprintf("%s -> %s", t.remoteAddr, t.localAddr))
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
 	t.connectionID = atomic.AddUint64(&serverConnectionCounter, 1)
-
 	t.framer.writer.Flush()
 
 	defer func() ***REMOVED***
@@ -443,6 +448,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 			streamID:       streamID,
 			contentSubtype: s.contentSubtype,
 			status:         status.New(codes.Internal, errMsg),
+			rst:            !frame.StreamEnded(),
 		***REMOVED***)
 		return false
 	***REMOVED***
@@ -516,14 +522,16 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 	***REMOVED***
 	if httpMethod != http.MethodPost ***REMOVED***
 		t.mu.Unlock()
+		errMsg := fmt.Sprintf("http2Server.operateHeaders parsed a :method field: %v which should be POST", httpMethod)
 		if logger.V(logLevel) ***REMOVED***
-			logger.Infof("transport: http2Server.operateHeaders parsed a :method field: %v which should be POST", httpMethod)
+			logger.Infof("transport: %v", errMsg)
 		***REMOVED***
-		t.controlBuf.put(&cleanupStream***REMOVED***
-			streamID: streamID,
-			rst:      true,
-			rstCode:  http2.ErrCodeProtocol,
-			onWrite:  func() ***REMOVED******REMOVED***,
+		t.controlBuf.put(&earlyAbortStream***REMOVED***
+			httpStatus:     405,
+			streamID:       streamID,
+			contentSubtype: s.contentSubtype,
+			status:         status.New(codes.Internal, errMsg),
+			rst:            !frame.StreamEnded(),
 		***REMOVED***)
 		s.cancel()
 		return false
@@ -544,6 +552,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 				streamID:       s.id,
 				contentSubtype: s.contentSubtype,
 				status:         stat,
+				rst:            !frame.StreamEnded(),
 			***REMOVED***)
 			return false
 		***REMOVED***
@@ -925,11 +934,25 @@ func (t *http2Server) checkForHeaderListSize(it interface***REMOVED******REMOVED
 	return true
 ***REMOVED***
 
+func (t *http2Server) streamContextErr(s *Stream) error ***REMOVED***
+	select ***REMOVED***
+	case <-t.done:
+		return ErrConnClosing
+	default:
+	***REMOVED***
+	return ContextErr(s.ctx.Err())
+***REMOVED***
+
 // WriteHeader sends the header metadata md back to the client.
 func (t *http2Server) WriteHeader(s *Stream, md metadata.MD) error ***REMOVED***
-	if s.updateHeaderSent() || s.getState() == streamDone ***REMOVED***
+	if s.updateHeaderSent() ***REMOVED***
 		return ErrIllegalHeaderWrite
 	***REMOVED***
+
+	if s.getState() == streamDone ***REMOVED***
+		return t.streamContextErr(s)
+	***REMOVED***
+
 	s.hdrMu.Lock()
 	if md.Len() > 0 ***REMOVED***
 		if s.header.Len() > 0 ***REMOVED***
@@ -940,7 +963,7 @@ func (t *http2Server) WriteHeader(s *Stream, md metadata.MD) error ***REMOVED***
 	***REMOVED***
 	if err := t.writeHeaderLocked(s); err != nil ***REMOVED***
 		s.hdrMu.Unlock()
-		return err
+		return status.Convert(err).Err()
 	***REMOVED***
 	s.hdrMu.Unlock()
 	return nil
@@ -1056,23 +1079,12 @@ func (t *http2Server) WriteStatus(s *Stream, st *status.Status) error ***REMOVED
 func (t *http2Server) Write(s *Stream, hdr []byte, data []byte, opts *Options) error ***REMOVED***
 	if !s.isHeaderSent() ***REMOVED*** // Headers haven't been written yet.
 		if err := t.WriteHeader(s, nil); err != nil ***REMOVED***
-			if _, ok := err.(ConnectionError); ok ***REMOVED***
-				return err
-			***REMOVED***
-			// TODO(mmukhi, dfawley): Make sure this is the right code to return.
-			return status.Errorf(codes.Internal, "transport: %v", err)
+			return err
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		// Writing headers checks for this condition.
 		if s.getState() == streamDone ***REMOVED***
-			// TODO(mmukhi, dfawley): Should the server write also return io.EOF?
-			s.cancel()
-			select ***REMOVED***
-			case <-t.done:
-				return ErrConnClosing
-			default:
-			***REMOVED***
-			return ContextErr(s.ctx.Err())
+			return t.streamContextErr(s)
 		***REMOVED***
 	***REMOVED***
 	df := &dataFrame***REMOVED***
@@ -1082,12 +1094,7 @@ func (t *http2Server) Write(s *Stream, hdr []byte, data []byte, opts *Options) e
 		onEachWrite: t.setResetPingStrikes,
 	***REMOVED***
 	if err := s.wq.get(int32(len(hdr) + len(data))); err != nil ***REMOVED***
-		select ***REMOVED***
-		case <-t.done:
-			return ErrConnClosing
-		default:
-		***REMOVED***
-		return ContextErr(s.ctx.Err())
+		return t.streamContextErr(s)
 	***REMOVED***
 	return t.controlBuf.put(df)
 ***REMOVED***
@@ -1210,9 +1217,7 @@ func (t *http2Server) Close() ***REMOVED***
 	if err := t.conn.Close(); err != nil && logger.V(logLevel) ***REMOVED***
 		logger.Infof("transport: error closing conn during Close: %v", err)
 	***REMOVED***
-	if channelz.IsOn() ***REMOVED***
-		channelz.RemoveEntry(t.channelzID)
-	***REMOVED***
+	channelz.RemoveEntry(t.channelzID)
 	// Cancel all active streams.
 	for _, s := range streams ***REMOVED***
 		s.cancel()
@@ -1225,10 +1230,6 @@ func (t *http2Server) Close() ***REMOVED***
 
 // deleteStream deletes the stream s from transport's active streams.
 func (t *http2Server) deleteStream(s *Stream, eosReceived bool) ***REMOVED***
-	// In case stream sending and receiving are invoked in separate
-	// goroutines (e.g., bi-directional streaming), cancel needs to be
-	// called to interrupt the potential blocking on other goroutines.
-	s.cancel()
 
 	t.mu.Lock()
 	if _, ok := t.activeStreams[s.id]; ok ***REMOVED***
@@ -1250,6 +1251,11 @@ func (t *http2Server) deleteStream(s *Stream, eosReceived bool) ***REMOVED***
 
 // finishStream closes the stream and puts the trailing headerFrame into controlbuf.
 func (t *http2Server) finishStream(s *Stream, rst bool, rstCode http2.ErrCode, hdr *headerFrame, eosReceived bool) ***REMOVED***
+	// In case stream sending and receiving are invoked in separate
+	// goroutines (e.g., bi-directional streaming), cancel needs to be
+	// called to interrupt the potential blocking on other goroutines.
+	s.cancel()
+
 	oldState := s.swapState(streamDone)
 	if oldState == streamDone ***REMOVED***
 		// If the stream was already done, return.
@@ -1269,6 +1275,11 @@ func (t *http2Server) finishStream(s *Stream, rst bool, rstCode http2.ErrCode, h
 
 // closeStream clears the footprint of a stream when the stream is not needed any more.
 func (t *http2Server) closeStream(s *Stream, rst bool, rstCode http2.ErrCode, eosReceived bool) ***REMOVED***
+	// In case stream sending and receiving are invoked in separate
+	// goroutines (e.g., bi-directional streaming), cancel needs to be
+	// called to interrupt the potential blocking on other goroutines.
+	s.cancel()
+
 	s.swapState(streamDone)
 	t.deleteStream(s, eosReceived)
 

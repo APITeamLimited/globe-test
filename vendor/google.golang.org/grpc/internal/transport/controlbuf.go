@@ -137,6 +137,7 @@ type earlyAbortStream struct ***REMOVED***
 	streamID       uint32
 	contentSubtype string
 	status         *status.Status
+	rst            bool
 ***REMOVED***
 
 func (*earlyAbortStream) isTransportResponseFrame() bool ***REMOVED*** return false ***REMOVED***
@@ -785,6 +786,11 @@ func (l *loopyWriter) earlyAbortStreamHandler(eas *earlyAbortStream) error ***RE
 
 	if err := l.writeHeader(eas.streamID, true, headerFields, nil); err != nil ***REMOVED***
 		return err
+	***REMOVED***
+	if eas.rst ***REMOVED***
+		if err := l.framer.fr.WriteRSTStream(eas.streamID, http2.ErrCodeNo); err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***

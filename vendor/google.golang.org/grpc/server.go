@@ -134,7 +134,7 @@ type Server struct ***REMOVED***
 	channelzRemoveOnce sync.Once
 	serveWG            sync.WaitGroup // counts active Serve goroutines for GracefulStop
 
-	channelzID int64 // channelz unique identification number
+	channelzID *channelz.Identifier
 	czData     *channelzData
 
 	serverWorkerChannels []chan *serverWorkerData
@@ -584,9 +584,8 @@ func NewServer(opt ...ServerOption) *Server ***REMOVED***
 		s.initServerWorkers()
 	***REMOVED***
 
-	if channelz.IsOn() ***REMOVED***
-		s.channelzID = channelz.RegisterServer(&channelzServer***REMOVED***s***REMOVED***, "")
-	***REMOVED***
+	s.channelzID = channelz.RegisterServer(&channelzServer***REMOVED***s***REMOVED***, "")
+	channelz.Info(logger, s.channelzID, "Server created")
 	return s
 ***REMOVED***
 
@@ -712,7 +711,7 @@ var ErrServerStopped = errors.New("grpc: the server has been stopped")
 
 type listenSocket struct ***REMOVED***
 	net.Listener
-	channelzID int64
+	channelzID *channelz.Identifier
 ***REMOVED***
 
 func (l *listenSocket) ChannelzMetric() *channelz.SocketInternalMetric ***REMOVED***
@@ -724,9 +723,8 @@ func (l *listenSocket) ChannelzMetric() *channelz.SocketInternalMetric ***REMOVE
 
 func (l *listenSocket) Close() error ***REMOVED***
 	err := l.Listener.Close()
-	if channelz.IsOn() ***REMOVED***
-		channelz.RemoveEntry(l.channelzID)
-	***REMOVED***
+	channelz.RemoveEntry(l.channelzID)
+	channelz.Info(logger, l.channelzID, "ListenSocket deleted")
 	return err
 ***REMOVED***
 
@@ -759,11 +757,6 @@ func (s *Server) Serve(lis net.Listener) error ***REMOVED***
 	ls := &listenSocket***REMOVED***Listener: lis***REMOVED***
 	s.lis[ls] = true
 
-	if channelz.IsOn() ***REMOVED***
-		ls.channelzID = channelz.RegisterListenSocket(ls, s.channelzID, lis.Addr().String())
-	***REMOVED***
-	s.mu.Unlock()
-
 	defer func() ***REMOVED***
 		s.mu.Lock()
 		if s.lis != nil && s.lis[ls] ***REMOVED***
@@ -773,8 +766,16 @@ func (s *Server) Serve(lis net.Listener) error ***REMOVED***
 		s.mu.Unlock()
 	***REMOVED***()
 
-	var tempDelay time.Duration // how long to sleep on accept failure
+	var err error
+	ls.channelzID, err = channelz.RegisterListenSocket(ls, s.channelzID, lis.Addr().String())
+	if err != nil ***REMOVED***
+		s.mu.Unlock()
+		return err
+	***REMOVED***
+	s.mu.Unlock()
+	channelz.Info(logger, ls.channelzID, "ListenSocket created")
 
+	var tempDelay time.Duration // how long to sleep on accept failure
 	for ***REMOVED***
 		rawConn, err := lis.Accept()
 		if err != nil ***REMOVED***
@@ -1709,11 +1710,7 @@ func (s *Server) Stop() ***REMOVED***
 		s.done.Fire()
 	***REMOVED***()
 
-	s.channelzRemoveOnce.Do(func() ***REMOVED***
-		if channelz.IsOn() ***REMOVED***
-			channelz.RemoveEntry(s.channelzID)
-		***REMOVED***
-	***REMOVED***)
+	s.channelzRemoveOnce.Do(func() ***REMOVED*** channelz.RemoveEntry(s.channelzID) ***REMOVED***)
 
 	s.mu.Lock()
 	listeners := s.lis
@@ -1751,11 +1748,7 @@ func (s *Server) GracefulStop() ***REMOVED***
 	s.quit.Fire()
 	defer s.done.Fire()
 
-	s.channelzRemoveOnce.Do(func() ***REMOVED***
-		if channelz.IsOn() ***REMOVED***
-			channelz.RemoveEntry(s.channelzID)
-		***REMOVED***
-	***REMOVED***)
+	s.channelzRemoveOnce.Do(func() ***REMOVED*** channelz.RemoveEntry(s.channelzID) ***REMOVED***)
 	s.mu.Lock()
 	if s.conns == nil ***REMOVED***
 		s.mu.Unlock()
@@ -1808,12 +1801,26 @@ func (s *Server) getCodec(contentSubtype string) baseCodec ***REMOVED***
 	return codec
 ***REMOVED***
 
-// SetHeader sets the header metadata.
-// When called multiple times, all the provided metadata will be merged.
-// All the metadata will be sent out when one of the following happens:
-//  - grpc.SendHeader() is called;
-//  - The first response is sent out;
-//  - An RPC status is sent out (error or success).
+// SetHeader sets the header metadata to be sent from the server to the client.
+// The context provided must be the context passed to the server's handler.
+//
+// Streaming RPCs should prefer the SetHeader method of the ServerStream.
+//
+// When called multiple times, all the provided metadata will be merged.  All
+// the metadata will be sent out when one of the following happens:
+//
+// - grpc.SendHeader is called, or for streaming handlers, stream.SendHeader.
+// - The first response message is sent.  For unary handlers, this occurs when
+//   the handler returns; for streaming handlers, this can happen when stream's
+//   SendMsg method is called.
+// - An RPC status is sent out (error or success).  This occurs when the handler
+//   returns.
+//
+// SetHeader will fail if called after any of the events above.
+//
+// The error returned is compatible with the status package.  However, the
+// status code will often not match the RPC status as seen by the client
+// application, and therefore, should not be relied upon for this purpose.
 func SetHeader(ctx context.Context, md metadata.MD) error ***REMOVED***
 	if md.Len() == 0 ***REMOVED***
 		return nil
@@ -1825,8 +1832,14 @@ func SetHeader(ctx context.Context, md metadata.MD) error ***REMOVED***
 	return stream.SetHeader(md)
 ***REMOVED***
 
-// SendHeader sends header metadata. It may be called at most once.
-// The provided md and headers set by SetHeader() will be sent.
+// SendHeader sends header metadata. It may be called at most once, and may not
+// be called after any event that causes headers to be sent (see SetHeader for
+// a complete list).  The provided md and headers set by SetHeader() will be
+// sent.
+//
+// The error returned is compatible with the status package.  However, the
+// status code will often not match the RPC status as seen by the client
+// application, and therefore, should not be relied upon for this purpose.
 func SendHeader(ctx context.Context, md metadata.MD) error ***REMOVED***
 	stream := ServerTransportStreamFromContext(ctx)
 	if stream == nil ***REMOVED***
@@ -1840,6 +1853,10 @@ func SendHeader(ctx context.Context, md metadata.MD) error ***REMOVED***
 
 // SetTrailer sets the trailer metadata that will be sent when an RPC returns.
 // When called more than once, all the provided metadata will be merged.
+//
+// The error returned is compatible with the status package.  However, the
+// status code will often not match the RPC status as seen by the client
+// application, and therefore, should not be relied upon for this purpose.
 func SetTrailer(ctx context.Context, md metadata.MD) error ***REMOVED***
 	if md.Len() == 0 ***REMOVED***
 		return nil

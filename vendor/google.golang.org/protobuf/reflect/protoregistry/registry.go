@@ -94,7 +94,8 @@ type Files struct ***REMOVED***
 	// Note that enum values are in the top-level since that are in the same
 	// scope as the parent enum.
 	descsByName map[protoreflect.FullName]interface***REMOVED******REMOVED***
-	filesByPath map[string]protoreflect.FileDescriptor
+	filesByPath map[string][]protoreflect.FileDescriptor
+	numFiles    int
 ***REMOVED***
 
 type packageDescriptor struct ***REMOVED***
@@ -117,17 +118,16 @@ func (r *Files) RegisterFile(file protoreflect.FileDescriptor) error ***REMOVED*
 		r.descsByName = map[protoreflect.FullName]interface***REMOVED******REMOVED******REMOVED***
 			"": &packageDescriptor***REMOVED******REMOVED***,
 		***REMOVED***
-		r.filesByPath = make(map[string]protoreflect.FileDescriptor)
+		r.filesByPath = make(map[string][]protoreflect.FileDescriptor)
 	***REMOVED***
 	path := file.Path()
-	if prev := r.filesByPath[path]; prev != nil ***REMOVED***
+	if prev := r.filesByPath[path]; len(prev) > 0 ***REMOVED***
 		r.checkGenProtoConflict(path)
 		err := errors.New("file %q is already registered", file.Path())
-		err = amendErrorWithCaller(err, prev, file)
-		if r == GlobalFiles && ignoreConflict(file, err) ***REMOVED***
-			err = nil
+		err = amendErrorWithCaller(err, prev[0], file)
+		if !(r == GlobalFiles && ignoreConflict(file, err)) ***REMOVED***
+			return err
 		***REMOVED***
-		return err
 	***REMOVED***
 
 	for name := file.Package(); name != ""; name = name.Parent() ***REMOVED***
@@ -168,7 +168,8 @@ func (r *Files) RegisterFile(file protoreflect.FileDescriptor) error ***REMOVED*
 	rangeTopLevelDescriptors(file, func(d protoreflect.Descriptor) ***REMOVED***
 		r.descsByName[d.FullName()] = d
 	***REMOVED***)
-	r.filesByPath[path] = file
+	r.filesByPath[path] = append(r.filesByPath[path], file)
+	r.numFiles++
 	return nil
 ***REMOVED***
 
@@ -308,6 +309,7 @@ func (s *nameSuffix) Pop() (name protoreflect.Name) ***REMOVED***
 // FindFileByPath looks up a file by the path.
 //
 // This returns (nil, NotFound) if not found.
+// This returns an error if multiple files have the same path.
 func (r *Files) FindFileByPath(path string) (protoreflect.FileDescriptor, error) ***REMOVED***
 	if r == nil ***REMOVED***
 		return nil, NotFound
@@ -316,13 +318,19 @@ func (r *Files) FindFileByPath(path string) (protoreflect.FileDescriptor, error)
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	***REMOVED***
-	if fd, ok := r.filesByPath[path]; ok ***REMOVED***
-		return fd, nil
+	fds := r.filesByPath[path]
+	switch len(fds) ***REMOVED***
+	case 0:
+		return nil, NotFound
+	case 1:
+		return fds[0], nil
+	default:
+		return nil, errors.New("multiple files named %q", path)
 	***REMOVED***
-	return nil, NotFound
 ***REMOVED***
 
-// NumFiles reports the number of registered files.
+// NumFiles reports the number of registered files,
+// including duplicate files with the same name.
 func (r *Files) NumFiles() int ***REMOVED***
 	if r == nil ***REMOVED***
 		return 0
@@ -331,10 +339,11 @@ func (r *Files) NumFiles() int ***REMOVED***
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	***REMOVED***
-	return len(r.filesByPath)
+	return r.numFiles
 ***REMOVED***
 
 // RangeFiles iterates over all registered files while f returns true.
+// If multiple files have the same name, RangeFiles iterates over all of them.
 // The iteration order is undefined.
 func (r *Files) RangeFiles(f func(protoreflect.FileDescriptor) bool) ***REMOVED***
 	if r == nil ***REMOVED***
@@ -344,9 +353,11 @@ func (r *Files) RangeFiles(f func(protoreflect.FileDescriptor) bool) ***REMOVED*
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	***REMOVED***
-	for _, file := range r.filesByPath ***REMOVED***
-		if !f(file) ***REMOVED***
-			return
+	for _, files := range r.filesByPath ***REMOVED***
+		for _, file := range files ***REMOVED***
+			if !f(file) ***REMOVED***
+				return
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
