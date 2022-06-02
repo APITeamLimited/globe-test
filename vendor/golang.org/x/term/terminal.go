@@ -935,7 +935,7 @@ func (s *stRingBuffer) Add(a string) ***REMOVED***
 // next most recent, and so on. If such an element doesn't exist then ok is
 // false.
 func (s *stRingBuffer) NthPreviousEntry(n int) (value string, ok bool) ***REMOVED***
-	if n >= s.size ***REMOVED***
+	if n < 0 || n >= s.size ***REMOVED***
 		return "", false
 	***REMOVED***
 	index := s.head - n
