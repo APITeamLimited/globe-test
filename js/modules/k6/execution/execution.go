@@ -325,7 +325,11 @@ func (o *tagsDynamicObject) Get(key string) goja.Value ***REMOVED***
 // In any other case, if the Throw option is set then an error is raised
 // otherwise just a Warning is written.
 func (o *tagsDynamicObject) Set(key string, val goja.Value) bool ***REMOVED***
-	switch val.ExportType().Kind() ***REMOVED*** //nolint:exhaustive
+	kind := reflect.Invalid
+	if typ := val.ExportType(); typ != nil ***REMOVED***
+		kind = typ.Kind()
+	***REMOVED***
+	switch kind ***REMOVED***
 	case
 		reflect.String,
 		reflect.Bool,
@@ -335,12 +339,12 @@ func (o *tagsDynamicObject) Set(key string, val goja.Value) bool ***REMOVED***
 		o.State.Tags.Set(key, val.String())
 		return true
 	default:
-		err := fmt.Errorf("only String, Boolean and Number types are accepted as a Tag value")
+		reason := "only String, Boolean and Number types are accepted as a Tag value"
 		if o.State.Options.Throw.Bool ***REMOVED***
-			common.Throw(o.Runtime, err)
+			common.Throw(o.Runtime, fmt.Errorf(reason))
 			return false
 		***REMOVED***
-		o.State.Logger.Warnf("the execution.vu.tags.Set('%s') operation has been discarded because %s", key, err.Error())
+		o.State.Logger.Warnf("the execution.vu.tags.Set('%s') operation has been discarded because %s", key, reason)
 		return false
 	***REMOVED***
 ***REMOVED***

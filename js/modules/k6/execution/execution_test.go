@@ -170,6 +170,21 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			require.Len(t, entries, 1)
 			assert.Contains(t, entries[0].Message, "discarded")
 		***REMOVED***)
+
+		t.Run("DiscardNullOrUndefined", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			cases := []string***REMOVED***"null", "undefined"***REMOVED***
+			tenv := setupTagsExecEnv(t)
+			for _, val := range cases ***REMOVED***
+				_, err := tenv.Runtime.RunString(`exec.vu.tags["any"] = ` + val)
+				require.NoError(t, err)
+
+				entries := tenv.LogHook.Drain()
+				require.Len(t, entries, 1)
+				assert.Contains(t, entries[0].Message, "discarded")
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
 
