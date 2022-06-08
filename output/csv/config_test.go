@@ -39,6 +39,7 @@ func TestNewConfig(t *testing.T) ***REMOVED***
 	config := NewConfig()
 	assert.Equal(t, "file.csv", config.FileName.String)
 	assert.Equal(t, "1s", config.SaveInterval.String())
+	assert.Equal(t, TimeFormat("unix"), config.TimeFormat)
 ***REMOVED***
 
 func TestApply(t *testing.T) ***REMOVED***
@@ -46,23 +47,28 @@ func TestApply(t *testing.T) ***REMOVED***
 		***REMOVED***
 			FileName:     null.StringFrom(""),
 			SaveInterval: types.NullDurationFrom(2 * time.Second),
+			TimeFormat:   "unix",
 		***REMOVED***,
 		***REMOVED***
 			FileName:     null.StringFrom("newPath"),
 			SaveInterval: types.NewNullDuration(time.Duration(1), false),
+			TimeFormat:   "unix",
 		***REMOVED***,
 	***REMOVED***
 	expected := []struct ***REMOVED***
 		FileName     string
 		SaveInterval string
+		TimeFormat   TimeFormat
 	***REMOVED******REMOVED***
 		***REMOVED***
 			FileName:     "",
 			SaveInterval: "2s",
+			TimeFormat:   TimeFormat("unix"),
 		***REMOVED***,
 		***REMOVED***
 			FileName:     "newPath",
 			SaveInterval: "1s",
+			TimeFormat:   TimeFormat("unix"),
 		***REMOVED***,
 	***REMOVED***
 
@@ -75,6 +81,7 @@ func TestApply(t *testing.T) ***REMOVED***
 
 			assert.Equal(t, expected.FileName, baseConfig.FileName.String)
 			assert.Equal(t, expected.SaveInterval, baseConfig.SaveInterval.String())
+			assert.Equal(t, expected.TimeFormat, baseConfig.TimeFormat)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -125,6 +132,12 @@ func TestParseArg(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"filename=test.csv,save_interval=5s": ***REMOVED***
 			expectedErr: true,
+		***REMOVED***,
+		"fileName=test.csv,timeFormat=rfc3399": ***REMOVED***
+			config: Config***REMOVED***
+				FileName:   null.StringFrom("test.csv"),
+				TimeFormat: "rfc3399",
+			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 

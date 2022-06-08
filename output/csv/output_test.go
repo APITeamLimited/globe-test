@@ -73,6 +73,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 		sample      *metrics.Sample
 		resTags     []string
 		ignoredTags []string
+		timeFormat  string
 	***REMOVED******REMOVED***
 		***REMOVED***
 			testname: "One res tag, one ignored tag, one extra tag",
@@ -88,6 +89,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			resTags:     []string***REMOVED***"tag1"***REMOVED***,
 			ignoredTags: []string***REMOVED***"tag2"***REMOVED***,
+			timeFormat:  "",
 		***REMOVED***,
 		***REMOVED***
 			testname: "Two res tags, three extra tags",
@@ -105,9 +107,10 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			resTags:     []string***REMOVED***"tag1", "tag2"***REMOVED***,
 			ignoredTags: []string***REMOVED******REMOVED***,
+			timeFormat:  "",
 		***REMOVED***,
 		***REMOVED***
-			testname: "Two res tags, two ignored",
+			testname: "Two res tags, two ignored, with RFC3399 timestamp",
 			sample: &metrics.Sample***REMOVED***
 				Time:   time.Unix(1562324644, 0),
 				Metric: testMetric,
@@ -123,6 +126,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			resTags:     []string***REMOVED***"tag1", "tag3"***REMOVED***,
 			ignoredTags: []string***REMOVED***"tag4", "tag6"***REMOVED***,
+			timeFormat:  "rfc3399",
 		***REMOVED***,
 	***REMOVED***
 
@@ -158,7 +162,7 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 		***REMOVED***
 			baseRow: []string***REMOVED***
 				"my_metric",
-				"1562324644",
+				"2019-07-05T11:04:04Z",
 				"1.000000",
 				"val1",
 				"val3",
@@ -173,10 +177,11 @@ func TestSampleToRow(t *testing.T) ***REMOVED***
 	for i := range testData ***REMOVED***
 		testname, sample := testData[i].testname, testData[i].sample
 		resTags, ignoredTags := testData[i].resTags, testData[i].ignoredTags
+		timeFormat := TimeFormat(testData[i].timeFormat)
 		expectedRow := expected[i]
 
 		t.Run(testname, func(t *testing.T) ***REMOVED***
-			row := SampleToRow(sample, resTags, ignoredTags, make([]string, 3+len(resTags)+1))
+			row := SampleToRow(sample, resTags, ignoredTags, make([]string, 3+len(resTags)+1), timeFormat)
 			for ind, cell := range expectedRow.baseRow ***REMOVED***
 				assert.Equal(t, cell, row[ind])
 			***REMOVED***
@@ -225,6 +230,7 @@ func TestRun(t *testing.T) ***REMOVED***
 		samples        []metrics.SampleContainer
 		fileName       string
 		fileReaderFunc func(fileName string, fs afero.Fs) string
+		timeFormat     string
 		outputContent  string
 	***REMOVED******REMOVED***
 		***REMOVED***
@@ -253,6 +259,7 @@ func TestRun(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			fileName:       "test",
 			fileReaderFunc: readUnCompressedFile,
+			timeFormat:     "",
 			outputContent:  "metric_name,timestamp,metric_value,check,error,extra_tags\n" + "my_metric,1562324643,1.000000,val1,val3,url=val2\n" + "my_metric,1562324644,1.000000,val1,val3,tag4=val4&url=val2\n",
 		***REMOVED***,
 		***REMOVED***
@@ -281,7 +288,37 @@ func TestRun(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			fileName:       "test.gz",
 			fileReaderFunc: readCompressedFile,
+			timeFormat:     "unix",
 			outputContent:  "metric_name,timestamp,metric_value,check,error,extra_tags\n" + "my_metric,1562324643,1.000000,val1,val3,url=val2\n" + "my_metric,1562324644,1.000000,val1,val3,name=val4&url=val2\n",
+		***REMOVED***,
+		***REMOVED***
+			samples: []metrics.SampleContainer***REMOVED***
+				metrics.Sample***REMOVED***
+					Time:   time.Unix(1562324644, 0),
+					Metric: testMetric,
+					Value:  1,
+					Tags: metrics.NewSampleTags(map[string]string***REMOVED***
+						"check": "val1",
+						"url":   "val2",
+						"error": "val3",
+					***REMOVED***),
+				***REMOVED***,
+				metrics.Sample***REMOVED***
+					Time:   time.Unix(1562324644, 0),
+					Metric: testMetric,
+					Value:  1,
+					Tags: metrics.NewSampleTags(map[string]string***REMOVED***
+						"check": "val1",
+						"url":   "val2",
+						"error": "val3",
+						"name":  "val4",
+					***REMOVED***),
+				***REMOVED***,
+			***REMOVED***,
+			fileName:       "test",
+			fileReaderFunc: readUnCompressedFile,
+			timeFormat:     "rfc3399",
+			outputContent:  "metric_name,timestamp,metric_value,check,error,extra_tags\n" + "my_metric,2019-07-05T11:04:04Z,1.000000,val1,val3,url=val2\n" + "my_metric,2019-07-05T11:04:04Z,1.000000,val1,val3,name=val4&url=val2\n",
 		***REMOVED***,
 	***REMOVED***
 
@@ -295,6 +332,9 @@ func TestRun(t *testing.T) ***REMOVED***
 				SystemTags: metrics.NewSystemTagSet(metrics.TagError | metrics.TagCheck),
 			***REMOVED***,
 		***REMOVED***)
+
+		output.timeFormat = TimeFormat(data.timeFormat)
+
 		require.NoError(t, err)
 		require.NotNil(t, output)
 

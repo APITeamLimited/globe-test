@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -54,6 +55,7 @@ type Output struct ***REMOVED***
 	ignoredTags  []string
 	row          []string
 	saveInterval time.Duration
+	timeFormat   TimeFormat
 ***REMOVED***
 
 // New Creates new instance of CSV output
@@ -97,6 +99,7 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 			csvWriter:    stdoutWriter,
 			row:          make([]string, 3+len(resTags)+1),
 			saveInterval: saveInterval,
+			timeFormat:   config.TimeFormat,
 			closeFn:      func() error ***REMOVED*** return nil ***REMOVED***,
 			logger:       logger,
 			params:       params,
@@ -114,6 +117,7 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 		ignoredTags:  ignoredTags,
 		row:          make([]string, 3+len(resTags)+1),
 		saveInterval: saveInterval,
+		timeFormat:   config.TimeFormat,
 		logger:       logger,
 		params:       params,
 	***REMOVED***
@@ -182,7 +186,7 @@ func (o *Output) flushMetrics() ***REMOVED***
 		for _, sc := range samples ***REMOVED***
 			for _, sample := range sc.GetSamples() ***REMOVED***
 				sample := sample
-				row := SampleToRow(&sample, o.resTags, o.ignoredTags, o.row)
+				row := SampleToRow(&sample, o.resTags, o.ignoredTags, o.row, o.timeFormat)
 				err := o.csvWriter.Write(row)
 				if err != nil ***REMOVED***
 					o.logger.WithField("filename", o.fname).Error("CSV: Error writing to file")
@@ -200,9 +204,17 @@ func MakeHeader(tags []string) []string ***REMOVED***
 ***REMOVED***
 
 // SampleToRow converts sample into array of strings
-func SampleToRow(sample *metrics.Sample, resTags []string, ignoredTags []string, row []string) []string ***REMOVED***
+func SampleToRow(sample *metrics.Sample, resTags []string, ignoredTags []string, row []string,
+	timeFormat TimeFormat,
+) []string ***REMOVED***
 	row[0] = sample.Metric.Name
-	row[1] = fmt.Sprintf("%d", sample.Time.Unix())
+
+	if timeFormat == RFC3399 ***REMOVED***
+		row[1] = sample.Time.Format(time.RFC3339)
+	***REMOVED*** else ***REMOVED***
+		row[1] = strconv.FormatInt(sample.Time.Unix(), 10)
+	***REMOVED***
+
 	row[2] = fmt.Sprintf("%f", sample.Value)
 	sampleTags := sample.Tags.CloneTags()
 
