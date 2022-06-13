@@ -38,15 +38,25 @@ type Config struct ***REMOVED***
 	// Samples.
 	FileName     null.String        `json:"file_name" envconfig:"K6_CSV_FILENAME"`
 	SaveInterval types.NullDuration `json:"save_interval" envconfig:"K6_CSV_SAVE_INTERVAL"`
-	TimeFormat   TimeFormat         `json:"time_format" envconfig:"K6_CSV_TIME_FORMAT"`
+	TimeFormat   null.String        `json:"time_format" envconfig:"K6_CSV_TIME_FORMAT"`
 ***REMOVED***
+
+// TimeFormat custom enum type
+//go:generate enumer -type=TimeFormat -transform=snake -trimprefix TimeFormat -output time_format_gen.go
+type TimeFormat uint8
+
+// valid defined values for TimeFormat
+const (
+	TimeFormatUnix TimeFormat = iota
+	TimeFormatRFC3339
+)
 
 // NewConfig creates a new Config instance with default values for some fields.
 func NewConfig() Config ***REMOVED***
 	return Config***REMOVED***
-		FileName:     null.StringFrom("file.csv"),
-		SaveInterval: types.NullDurationFrom(1 * time.Second),
-		TimeFormat:   Unix,
+		FileName:     null.NewString("file.csv", false),
+		SaveInterval: types.NewNullDuration(1*time.Second, false),
+		TimeFormat:   null.NewString("unix", false),
 	***REMOVED***
 ***REMOVED***
 
@@ -58,18 +68,18 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.SaveInterval.Valid ***REMOVED***
 		c.SaveInterval = cfg.SaveInterval
 	***REMOVED***
-	c.TimeFormat = cfg.TimeFormat
+	if cfg.TimeFormat.Valid ***REMOVED***
+		c.TimeFormat = cfg.TimeFormat
+	***REMOVED***
 	return c
 ***REMOVED***
 
 // ParseArg takes an arg string and converts it to a config
 func ParseArg(arg string, logger *logrus.Logger) (Config, error) ***REMOVED***
-	c := Config***REMOVED******REMOVED***
+	c := NewConfig()
 
 	if !strings.Contains(arg, "=") ***REMOVED***
 		c.FileName = null.StringFrom(arg)
-		c.SaveInterval = types.NullDurationFrom(1 * time.Second)
-		c.TimeFormat = Unix
 		return c, nil
 	***REMOVED***
 
@@ -94,10 +104,7 @@ func ParseArg(arg string, logger *logrus.Logger) (Config, error) ***REMOVED***
 		case "fileName":
 			c.FileName = null.StringFrom(r[1])
 		case "timeFormat":
-			c.TimeFormat = TimeFormat(r[1])
-			if !c.TimeFormat.IsValid() ***REMOVED***
-				return c, fmt.Errorf("unknown value %q as argument for csv output timeFormat, expected 'unix' or 'rfc3399'", arg)
-			***REMOVED***
+			c.TimeFormat = null.StringFrom(r[1])
 
 		default:
 			return c, fmt.Errorf("unknown key %q as argument for csv output", r[0])
