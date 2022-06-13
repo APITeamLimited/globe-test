@@ -109,7 +109,7 @@ exports.default = function() ***REMOVED***
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			entries := hook.Drain()
 			assert.Len(t, entries, 0)
 		***REMOVED***)

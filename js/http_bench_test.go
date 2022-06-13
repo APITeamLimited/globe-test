@@ -45,9 +45,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 			***REMOVED***
 		`), lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
-	if !assert.NoError(b, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(b, err)
 	err = r.SetOptions(lib.Options***REMOVED***
 		Throw:          null.BoolFrom(true),
 		MaxRedirects:   null.IntFrom(10),
@@ -63,16 +61,13 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 	initVU, err := r.NewVU(1, 1, ch)
-	if !assert.NoError(b, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ ***REMOVED***
-		err = vu.RunOnce()
-		assert.NoError(b, err)
+		assert.NoError(b, vu.RunOnce())
 	***REMOVED***
 ***REMOVED***
 
@@ -88,9 +83,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 			***REMOVED***
 		`))
-	if !assert.NoError(b, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(b, err)
 	err = r.SetOptions(lib.Options***REMOVED***
 		Throw:          null.BoolFrom(true),
 		MaxRedirects:   null.IntFrom(10),
@@ -106,15 +99,12 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 	initVU, err := r.NewVU(1, 1, ch)
-	if !assert.NoError(b, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ ***REMOVED***
-		err = vu.RunOnce()
-		assert.NoError(b, err)
+		assert.NoError(b, vu.RunOnce())
 	***REMOVED***
 ***REMOVED***

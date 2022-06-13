@@ -83,53 +83,52 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "")
-		assert.EqualError(t, err, "no exported functions in script")
+		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "\x00")
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 	***REMOVED***)
 	t.Run("Error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
 		exception := new(scriptException)
-		assert.ErrorAs(t, err, &exception)
-		assert.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:1:7(2)\n")
+		require.ErrorAs(t, err, &exception)
+		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:1:7(2)\n")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `exports = null`)
-		assert.EqualError(t, err, "exports must be an object")
+		require.EqualError(t, err, "exports must be an object")
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`)
-		assert.EqualError(t, err, "no exported functions in script")
+		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default null;`)
-		assert.EqualError(t, err, "no exported functions in script")
+		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`)
-		assert.EqualError(t, err, "no exported functions in script")
+		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	***REMOVED***)
 	t.Run("stdin", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`)
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, "file://-", b.Filename.String())
-			assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
-		***REMOVED***
+		require.NoError(t, err)
+		assert.Equal(t, "file://-", b.Filename.String())
+		assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
 	***REMOVED***)
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -144,7 +143,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					throw new Error("global is not defined");
 				***REMOVED***`, rtOpts)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -153,7 +152,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 			_, err := getSimpleBundle(t, "/script.js",
 				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/err", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -186,7 +185,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					t.Parallel()
 					rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
 					_, err := getSimpleBundle(t, "/script.js", tc.code, rtOpts)
-					assert.EqualError(t, err, tc.expErr)
+					require.EqualError(t, err, tc.expErr)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
@@ -199,7 +198,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				export let options = ***REMOVED******REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -215,7 +214,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						export let options = %s;
 						export default function() ***REMOVED******REMOVED***;
 					`, data.Expr))
-					assert.EqualError(t, err, data.Error)
+					require.EqualError(t, err, data.Error)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
@@ -228,9 +227,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.BoolFrom(true), b.Options.Paused)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, null.BoolFrom(true), b.Options.Paused)
 		***REMOVED***)
 		t.Run("VUs", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -240,9 +238,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(100), b.Options.VUs)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, null.IntFrom(100), b.Options.VUs)
 		***REMOVED***)
 		t.Run("Duration", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -252,9 +249,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -264,9 +260,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(100), b.Options.Iterations)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, null.IntFrom(100), b.Options.Iterations)
 		***REMOVED***)
 		t.Run("Stages", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -276,9 +271,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Len(t, b.Options.Stages, 0)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Len(t, b.Options.Stages, 0)
 
 			t.Run("Empty", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -290,11 +284,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED******REMOVED***, b.Options.Stages[0])
-					***REMOVED***
-				***REMOVED***
+				require.NoError(t, err)
+				require.Len(t, b.Options.Stages, 1)
+				require.Equal(t, lib.Stage***REMOVED******REMOVED***, b.Options.Stages[0])
 			***REMOVED***)
 			t.Run("Target", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -306,11 +298,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-					***REMOVED***
-				***REMOVED***
+				require.NoError(t, err)
+				require.Len(t, b.Options.Stages, 1)
+				require.Equal(t, lib.Stage***REMOVED***Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
 			***REMOVED***)
 			t.Run("Duration", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -322,11 +312,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
-					***REMOVED***
-				***REMOVED***
+				require.NoError(t, err)
+				require.Len(t, b.Options.Stages, 1)
+				require.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
 			***REMOVED***)
 			t.Run("DurationAndTarget", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -338,11 +326,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-					***REMOVED***
-				***REMOVED***
+				require.NoError(t, err)
+				require.Len(t, b.Options.Stages, 1)
+				require.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
 			***REMOVED***)
 			t.Run("RampUpAndPlateau", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -355,12 +341,10 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					if assert.Len(t, b.Options.Stages, 2) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
-					***REMOVED***
-				***REMOVED***
+				require.NoError(t, err)
+				require.Len(t, b.Options.Stages, 2)
+				assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+				assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
@@ -371,9 +355,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(10), b.Options.MaxRedirects)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, null.IntFrom(10), b.Options.MaxRedirects)
 		***REMOVED***)
 		t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -383,9 +366,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
-			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
 		***REMOVED***)
 		t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -401,11 +383,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					script = fmt.Sprintf(script, suiteName)
 
 					b, err := getSimpleBundle(t, "/script.js", script)
-					if assert.NoError(t, err) ***REMOVED***
-						if assert.Len(t, *b.Options.TLSCipherSuites, 1) ***REMOVED***
-							assert.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
-						***REMOVED***
-					***REMOVED***
+					require.NoError(t, err)
+					require.Len(t, *b.Options.TLSCipherSuites, 1)
+					require.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
@@ -422,10 +402,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
-					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
-				***REMOVED***
+				require.NoError(t, err)
+				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
+				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
 				t.Parallel()
@@ -435,10 +414,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
-				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
-					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS10))
-				***REMOVED***
+				require.NoError(t, err)
+				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
+				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS10))
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
@@ -451,11 +429,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
-			if assert.NoError(t, err) ***REMOVED***
-				if assert.Len(t, b.Options.Thresholds["http_req_duration"].Thresholds, 1) ***REMOVED***
-					assert.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
-				***REMOVED***
-			***REMOVED***
+			require.NoError(t, err)
+			require.Len(t, b.Options.Thresholds["http_req_duration"].Thresholds, 1)
+			require.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
 		***REMOVED***)
 
 		t.Run("Unknown field", func(t *testing.T) ***REMOVED***
@@ -480,8 +456,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			entries := hook.Drain()
 			require.Len(t, entries, 1)
 			assert.Equal(t, logrus.WarnLevel, entries[0].Level)
-			require.Contains(t, entries[0].Message, "There were unknown fields")
-			require.Contains(t, entries[0].Data["error"].(error).Error(), "unknown field \"something\"")
+			assert.Contains(t, entries[0].Message, "There were unknown fields")
+			assert.Contains(t, entries[0].Data["error"].(error).Error(), "unknown field \"something\"")
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -504,19 +480,19 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 
 	logger := testutils.NewLogger(t)
 	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
-		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+		require.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
 		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
-		assert.Equal(t, "hi!", val.Export())
+		require.Equal(t, "hi!", val.Export())
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
 		b, err := NewBundleFromArchive(logger, arc, rtOpts, metrics.NewRegistry())
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), expError)
+			require.Contains(t, err.Error(), expError)
 		***REMOVED*** else ***REMOVED***
 			require.NoError(t, err)
 			checkBundle(t, b)
@@ -602,7 +578,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
-		assert.Equal(t, int64(999), val.Export())
+		require.Equal(t, int64(999), val.Export())
 	***REMOVED***)
 ***REMOVED***
 
@@ -730,7 +706,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 
 					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
 					if tCase.isError ***REMOVED***
-						assert.Error(t, err)
+						require.Error(t, err)
 						return
 					***REMOVED***
 					require.NoError(t, err)
@@ -746,7 +722,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
-							assert.Equal(t, "hi", v.Export())
+							require.Equal(t, "hi", v.Export())
 						***REMOVED***)
 					***REMOVED***
 				***REMOVED***
@@ -781,9 +757,8 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 		require.NoError(t, err)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, true, v.Export())
-		***REMOVED***
+		require.NoError(t, err)
+		require.Equal(t, true, v.Export())
 	***REMOVED***)
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
@@ -803,9 +778,8 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		bi.Runtime.Set("val", false)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, false, v.Export())
-		***REMOVED***
+		require.NoError(t, err)
+		require.Equal(t, false, v.Export())
 	***REMOVED***)
 
 	t.Run("Options", func(t *testing.T) ***REMOVED***
@@ -826,18 +800,18 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		// Ensure `options` properties are correctly marshalled
 		jsOptions := bi.Runtime.Get("options").ToObject(bi.Runtime)
 		vus := jsOptions.Get("vus").Export()
-		assert.Equal(t, int64(5), vus)
+		require.Equal(t, int64(5), vus)
 		tdt := jsOptions.Get("teardownTimeout").Export()
-		assert.Equal(t, "1s", tdt)
+		require.Equal(t, "1s", tdt)
 
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
 		bi2, err := b.Instantiate(logger, 0, newModuleVUImpl())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
-		assert.Equal(t, int64(10), vus)
+		require.Equal(t, int64(10), vus)
 		b.Options.VUs = optOrig
 	***REMOVED***)
 ***REMOVED***
@@ -866,14 +840,13 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			assert.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
-			assert.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
+			require.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
+			require.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
 
 			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
-			if assert.NoError(t, err) ***REMOVED***
-				_, err := bi.exports[consts.DefaultFn](goja.Undefined())
-				assert.NoError(t, err)
-			***REMOVED***
+			require.NoError(t, err)
+			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -911,7 +884,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
 					_, err := bi.exports[consts.DefaultFn](goja.Undefined())
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
@@ -954,7 +927,7 @@ func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 
 			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
 			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, fs, rtOpts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			arc := b.makeArchive()
 
@@ -965,11 +938,11 @@ func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 			assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
 
 			exclaimData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/exclaim.js")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tc.exclaim, string(exclaimData))
 
 			fileData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/file.txt")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, `hi`, string(fileData))
 			assert.Equal(t, consts.Version, arc.K6Version)
 			assert.Equal(t, tc.cm.String(), arc.CompatibilityMode)

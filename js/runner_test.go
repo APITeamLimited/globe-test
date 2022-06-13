@@ -73,14 +73,14 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 			var counter = 0;
 			exports.default = function() ***REMOVED*** counter++; ***REMOVED***
 		`)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		t.Run("NewVU", func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			vuc, ok := initVU.(*VU)
-			assert.True(t, ok)
+			require.True(t, ok)
 			assert.Equal(t, int64(0), vuc.Runtime.Get("counter").Export())
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -88,7 +88,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			t.Run("RunOnce", func(t *testing.T) ***REMOVED***
 				err = vu.RunOnce()
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, int64(1), vuc.Runtime.Get("counter").Export())
 			***REMOVED***)
 		***REMOVED***)
@@ -104,9 +104,8 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
-	if assert.NoError(t, err) ***REMOVED***
-		assert.NotNil(t, r1.GetDefaultGroup())
-	***REMOVED***
+	require.NoError(t, err)
+	assert.NotNil(t, r1.GetDefaultGroup())
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
@@ -116,9 +115,8 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 		***REMOVED***, r1.MakeArchive())
-	if assert.NoError(t, err) ***REMOVED***
-		assert.NotNil(t, r2.GetDefaultGroup())
-	***REMOVED***
+	require.NoError(t, err)
+	assert.NotNil(t, r2.GetDefaultGroup())
 ***REMOVED***
 
 func TestRunnerOptions(t *testing.T) ***REMOVED***
@@ -187,13 +185,11 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 
 			samples := make(chan metrics.SampleContainer, 100)
 			initVU, err := r.NewVU(1, 1, samples)
-			if assert.NoError(t, err) ***REMOVED***
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-				err := vu.RunOnce()
-				assert.NoError(t, err)
-			***REMOVED***
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			require.NoError(t, vu.RunOnce())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -246,13 +242,11 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			samples := make(chan metrics.SampleContainer, 100)
 
 			initVU, err := r.NewVU(1, 1, samples)
-			if assert.NoError(t, err) ***REMOVED***
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-				err := vu.RunOnce()
-				assert.NoError(t, err)
-			***REMOVED***
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			require.NoError(t, vu.RunOnce())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -381,15 +375,11 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 			defer cancel()
 			samples := make(chan metrics.SampleContainer, 100)
 
-			if !assert.NoError(t, r.Setup(ctx, samples)) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, r.Setup(ctx, samples))
 			initVU, err := r.NewVU(1, 1, samples)
-			if assert.NoError(t, err) ***REMOVED***
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-				err := vu.RunOnce()
-				assert.NoError(t, err)
-			***REMOVED***
+			require.NoError(t, err)
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			require.NoError(t, vu.RunOnce())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -448,13 +438,11 @@ func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
 			initVU, err := r.NewVU(1, 1, samples)
-			if assert.NoError(t, err) ***REMOVED***
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-				err := vu.RunOnce()
-				assert.NoError(t, err)
-			***REMOVED***
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			require.NoError(t, vu.RunOnce())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -493,7 +481,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			t.Run(mod, func(t *testing.T) ***REMOVED***
 				t.Run("Source", func(t *testing.T) ***REMOVED***
 					_, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`import "%s"; exports.default = function() ***REMOVED******REMOVED***`, mod), rtOpts)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED***
@@ -597,7 +585,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 			defer cancel()
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, fnCalled, "fn() not called")
 		***REMOVED***)
 	***REMOVED***
@@ -639,7 +627,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 			defer cancel()
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "context canceled")
 		***REMOVED***)
 	***REMOVED***
@@ -690,7 +678,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 				go func() ***REMOVED***
 					close(ch)
 					vuErr := vu.RunOnce()
-					assert.Error(t, vuErr)
+					require.Error(t, vuErr)
 					assert.Contains(t, vuErr.Error(), "context canceled")
 				***REMOVED***()
 				<-ch
@@ -760,7 +748,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 			defer cancel()
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, fnOuterCalled, "fnOuter() not called")
 			assert.True(t, fnInnerCalled, "fnInner() not called")
 			assert.True(t, fnNestedCalled, "fnNested() not called")
@@ -802,7 +790,7 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 			defer cancel()
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			sampleCount := 0
 			for i, sampleC := range metrics.GetBufferedSamples(samples) ***REMOVED***
 				for j, s := range sampleC.GetSamples() ***REMOVED***
@@ -888,7 +876,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
-						assert.NoError(t, err)
+						require.NoError(t, err)
 					***REMOVED***
 				***REMOVED***)
 			***REMOVED***
@@ -1196,7 +1184,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
-						assert.NoError(t, err)
+						require.NoError(t, err)
 					***REMOVED***
 				***REMOVED***)
 			***REMOVED***
@@ -1209,15 +1197,15 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner(t, "/script.js", `
 			exports.default = function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
 		`)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	err = vu.RunOnce()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "only available in the init stage")
 ***REMOVED***
 
@@ -1227,15 +1215,15 @@ func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
 			var sneaky = open;
 			exports.default = function() ***REMOVED*** sneaky("/tmp/foo") ***REMOVED***
 		`)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	err = vu.RunOnce()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "only available in the init stage")
 ***REMOVED***
 
@@ -1260,7 +1248,7 @@ func TestVUDoesOpenUnderV0Condition(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 ***REMOVED***
 
 func TestVUDoesNotOpenUnderConditions(t *testing.T) ***REMOVED***
@@ -1284,7 +1272,7 @@ func TestVUDoesNotOpenUnderConditions(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
 ***REMOVED***
 
@@ -1308,7 +1296,7 @@ func TestVUDoesNonExistingPathnUnderConditions(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
 ***REMOVED***
 
@@ -1361,8 +1349,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			for i := 0; i < 2; i++ ***REMOVED***
-				err = vu.RunOnce()
-				assert.NoError(t, err)
+				require.NoError(t, vu.RunOnce())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -1423,10 +1410,10 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -1463,7 +1450,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -1614,17 +1601,16 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 					t.Parallel()
 					r.Logger, _ = logtest.NewNullLogger()
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
-					if assert.NoError(t, err) ***REMOVED***
-						ctx, cancel := context.WithCancel(context.Background())
-						defer cancel()
-						vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-						err := vu.RunOnce()
-						if len(data.errMsg) > 0 ***REMOVED***
-							require.Error(t, err)
-							assert.Contains(t, err.Error(), data.errMsg)
-						***REMOVED*** else ***REMOVED***
-							assert.NoError(t, err)
-						***REMOVED***
+					require.NoError(t, err)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					err = vu.RunOnce()
+					if len(data.errMsg) > 0 ***REMOVED***
+						require.Error(t, err)
+						assert.Contains(t, err.Error(), data.errMsg)
+					***REMOVED*** else ***REMOVED***
+						require.NoError(t, err)
 					***REMOVED***
 				***REMOVED***)
 			***REMOVED***
@@ -1646,12 +1632,11 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 						console.log(test);
 					***REMOVED***
 				`))
-	if assert.Error(t, err) ***REMOVED***
-		assert.Contains(
-			t,
-			err.Error(),
-			k6http.ErrHTTPForbiddenInInitContext.Error())
-	***REMOVED***
+	require.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		k6http.ErrHTTPForbiddenInInitContext.Error())
 ***REMOVED***
 
 func TestInitContextForbidden(t *testing.T) ***REMOVED***
@@ -1729,12 +1714,11 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 		t.Run(test[0], func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(test[1]))
-			if assert.Error(t, err) ***REMOVED***
-				assert.Contains(
-					t,
-					err.Error(),
-					test[2])
-			***REMOVED***
+			require.Error(t, err)
+			assert.Contains(
+				t,
+				err.Error(),
+				test[2])
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -2068,7 +2052,7 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 			// require.True(t, strings.HasSuffix(entries[0].Message, "Goja stack:\nfile:///script.js:3:4(12)"))
 
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			entries = hook.Drain()
 			require.Len(t, entries, 1)
@@ -2483,7 +2467,7 @@ func TestExecutionInfo(t *testing.T) ***REMOVED***
 			execState := execScheduler.GetState()
 			execState.ModCurrentlyActiveVUsCount(+1)
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

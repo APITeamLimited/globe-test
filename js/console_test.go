@@ -32,16 +32,16 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 	_ = rt.Set("console", &console***REMOVED***logger***REMOVED***)
 
 	_, err := rt.RunString(`console.log("a")`)
-	assert.NoError(t, err)
-	if entry := hook.LastEntry(); assert.NotNil(t, entry) ***REMOVED***
-		assert.Equal(t, "a", entry.Message)
-	***REMOVED***
+	require.NoError(t, err)
+	entry := hook.LastEntry()
+	require.NotNil(t, entry)
+	assert.Equal(t, "a", entry.Message)
 
 	_, err = rt.RunString(`console.log("b")`)
-	assert.NoError(t, err)
-	if entry := hook.LastEntry(); assert.NotNil(t, entry) ***REMOVED***
-		assert.Equal(t, "b", entry.Message)
-	***REMOVED***
+	require.NoError(t, err)
+	entry = hook.LastEntry()
+	require.NotNil(t, entry)
+	require.Equal(t, "b", entry.Message)
 ***REMOVED***
 
 func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
@@ -105,7 +105,7 @@ func TestConsoleLogWithGojaNativeObject(t *testing.T) ***REMOVED***
 
 	entry := hook.LastEntry()
 	require.NotNil(t, entry, "nothing logged")
-	assert.JSONEq(t, `***REMOVED***"text":"nativeObject"***REMOVED***`, entry.Message)
+	require.JSONEq(t, `***REMOVED***"text":"nativeObject"***REMOVED***`, entry.Message)
 ***REMOVED***
 
 func TestConsoleLogObjectsWithGoTypes(t *testing.T) ***REMOVED***
@@ -206,7 +206,7 @@ func TestConsoleLog(t *testing.T) ***REMOVED***
 
 			samples := make(chan metrics.SampleContainer, 100)
 			initVU, err := r.newVU(1, 1, samples)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -219,7 +219,7 @@ func TestConsoleLog(t *testing.T) ***REMOVED***
 			hook := logtest.NewLocal(logger)
 
 			err = vu.RunOnce()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			entry := hook.LastEntry()
 
@@ -259,11 +259,11 @@ func TestConsoleLevels(t *testing.T) ***REMOVED***
 						`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 						name, args,
 					))
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					samples := make(chan metrics.SampleContainer, 100)
 					initVU, err := r.newVU(1, 1, samples)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -276,7 +276,7 @@ func TestConsoleLevels(t *testing.T) ***REMOVED***
 					hook := logtest.NewLocal(logger)
 
 					err = vu.RunOnce()
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					entry := hook.LastEntry()
 					require.NotNil(t, entry, "nothing logged")
@@ -351,16 +351,16 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 									`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,
 								))
-							assert.NoError(t, err)
+							require.NoError(t, err)
 
 							err = r.SetOptions(lib.Options***REMOVED***
 								ConsoleOutput: null.StringFrom(logFilename),
 							***REMOVED***)
-							assert.NoError(t, err)
+							require.NoError(t, err)
 
 							samples := make(chan metrics.SampleContainer, 100)
 							initVU, err := r.newVU(1, 1, samples)
-							assert.NoError(t, err)
+							require.NoError(t, err)
 
 							ctx, cancel := context.WithCancel(context.Background())
 							defer cancel()
@@ -371,40 +371,39 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							hook := logtest.NewLocal(logger)
 
 							err = vu.RunOnce()
-							assert.NoError(t, err)
+							require.NoError(t, err)
 
 							// Test if the file was created.
 							_, err = os.Stat(logFilename)
-							assert.NoError(t, err)
+							require.NoError(t, err)
 
 							entry := hook.LastEntry()
-							if assert.NotNil(t, entry, "nothing logged") ***REMOVED***
-								assert.Equal(t, level, entry.Level)
-								assert.Equal(t, result.Message, entry.Message)
+							require.NotNil(t, entry, "nothing logged")
+							assert.Equal(t, level, entry.Level)
+							assert.Equal(t, result.Message, entry.Message)
 
-								data := result.Data
-								if data == nil ***REMOVED***
-									data = make(logrus.Fields)
-								***REMOVED***
-								assert.Equal(t, data, entry.Data)
-
-								// Test if what we logged to the hook is the same as what we logged
-								// to the file.
-								entryStr, err := entry.String()
-								assert.NoError(t, err)
-
-								f, err := os.Open(logFilename)
-								assert.NoError(t, err)
-
-								fileContent, err := ioutil.ReadAll(f)
-								assert.NoError(t, err)
-
-								expectedStr := entryStr
-								if !deleteFile ***REMOVED***
-									expectedStr = preExistingText + expectedStr
-								***REMOVED***
-								assert.Equal(t, expectedStr, string(fileContent))
+							data := result.Data
+							if data == nil ***REMOVED***
+								data = make(logrus.Fields)
 							***REMOVED***
+							require.Equal(t, data, entry.Data)
+
+							// Test if what we logged to the hook is the same as what we logged
+							// to the file.
+							entryStr, err := entry.String()
+							require.NoError(t, err)
+
+							f, err = os.Open(logFilename) //nolint:gosec
+							require.NoError(t, err)
+
+							fileContent, err := ioutil.ReadAll(f)
+							require.NoError(t, err)
+
+							expectedStr := entryStr
+							if !deleteFile ***REMOVED***
+								expectedStr = preExistingText + expectedStr
+							***REMOVED***
+							require.Equal(t, expectedStr, string(fileContent))
 						***REMOVED***)
 					***REMOVED***
 				***REMOVED***)
