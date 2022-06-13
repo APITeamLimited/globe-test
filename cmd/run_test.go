@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -280,6 +281,65 @@ func TestInvalidOptionsThresholdErrExitCode(t *testing.T) ***REMOVED***
 
 			testState.expectedExitCode = int(tc.expExitCode)
 			newRootCommand(testState.globalState).execute()
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestThresholdsRuntimeBehavior(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		name                 string
+		testFilename         string
+		expExitCode          exitcodes.ExitCode
+		expStdoutContains    string
+		expStdoutNotContains string
+		extraArgs            []string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:              "#2518: submetrics without values should be rendered under their parent metric #2518",
+			testFilename:      "thresholds/thresholds_on_submetric_without_samples.js",
+			expExitCode:       0,
+			expStdoutContains: "     one..................: 0   0/s\n       ***REMOVED*** tag:xyz ***REMOVED***........: 0   0/s\n",
+		***REMOVED***,
+		***REMOVED***
+			name:         "#2512: parsing threshold names containing parsable tokens should be valid",
+			testFilename: "thresholds/name_contains_tokens.js",
+			expExitCode:  0,
+		***REMOVED***,
+		***REMOVED***
+			name:                 "#2520: thresholds over metrics without values should avoid division by zero and displaying NaN values",
+			testFilename:         "thresholds/empty_sink_no_nan.js",
+			expExitCode:          0,
+			expStdoutContains:    "rate.................: 0.00%",
+			expStdoutNotContains: "NaN",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			testScript, err := ioutil.ReadFile(path.Join("testdata", tc.testFilename))
+			require.NoError(t, err)
+
+			testState := newGlobalTestState(t)
+			require.NoError(t, afero.WriteFile(testState.fs, filepath.Join(testState.cwd, tc.testFilename), testScript, 0o644))
+
+			testState.args = []string***REMOVED***"k6", "run", tc.testFilename***REMOVED***
+			testState.expectedExitCode = int(tc.expExitCode)
+			newRootCommand(testState.globalState).execute()
+
+			if tc.expStdoutContains != "" ***REMOVED***
+				assert.Contains(t, testState.stdOut.String(), tc.expStdoutContains)
+			***REMOVED***
+
+			if tc.expStdoutNotContains != "" ***REMOVED***
+				log.Println(testState.stdOut.String())
+				assert.NotContains(t, testState.stdOut.String(), tc.expStdoutNotContains)
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
