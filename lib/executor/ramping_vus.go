@@ -243,8 +243,7 @@ func (vlvc RampingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple, zeroEn
 		fromVUs = stageEndVUs
 	***REMOVED***
 
-	if zeroEnd && steps[len(steps)-1].PlannedVUs != 0 ***REMOVED***
-		// If the last PlannedVUs value wasn't 0, add a last step with 0
+	if zeroEnd ***REMOVED***
 		steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: timeTillEnd, PlannedVUs: 0***REMOVED***)
 	***REMOVED***
 	return steps
@@ -458,8 +457,8 @@ func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []
 		steps = vlvc.reserveVUsForGracefulRampDowns(steps, executorEndOffset)
 	***REMOVED***
 
-	// If the last PlannedVUs value wasn't 0, add a last step with 0
-	if steps[len(steps)-1].PlannedVUs != 0 ***REMOVED***
+	// add one step for the end of the gracefulStop
+	if steps[len(steps)-1].PlannedVUs != 0 || steps[len(steps)-1].TimeOffset != executorEndOffset ***REMOVED***
 		steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: executorEndOffset, PlannedVUs: 0***REMOVED***)
 	***REMOVED***
 
