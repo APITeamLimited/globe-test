@@ -560,8 +560,6 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 		***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
 	***REMOVED***
-	expRawStepsZeroEnd := expRawStepsNoZeroEnd // no need to copy
-	expRawStepsZeroEnd = append(expRawStepsZeroEnd, lib.ExecutionStep***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 0***REMOVED***)
 	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsNoZeroEnd)
 	endOffset, isFinal := lib.GetEndOffset(rawStepsNoZeroEnd)
@@ -569,9 +567,9 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 	assert.Equal(t, true, isFinal)
 
 	rawStepsZeroEnd := conf.getRawExecutionSteps(et, true)
-	assert.Equal(t, expRawStepsZeroEnd, rawStepsZeroEnd)
+	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsZeroEnd)
 	endOffset, isFinal = lib.GetEndOffset(rawStepsZeroEnd)
-	assert.Equal(t, 23*time.Second, endOffset)
+	assert.Equal(t, 20*time.Second, endOffset)
 	assert.Equal(t, true, isFinal)
 
 	// GracefulStop and GracefulRampDown equal to the default 30 sec
@@ -580,7 +578,6 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
 		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 0***REMOVED***,
-		***REMOVED***TimeOffset: 53 * time.Second, PlannedVUs: 0***REMOVED***,
 	***REMOVED***, conf.GetExecutionRequirements(et))
 
 	// Try a longer GracefulStop than the GracefulRampDown
@@ -590,7 +587,6 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
 		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 0***REMOVED***,
-		***REMOVED***TimeOffset: 103 * time.Second, PlannedVUs: 0***REMOVED***,
 	***REMOVED***, conf.GetExecutionRequirements(et))
 
 	// Try a much shorter GracefulStop than the GracefulRampDown
@@ -612,86 +608,6 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 	// Try a zero GracefulStop and GracefulRampDown, i.e. raw steps with 0 end cap
 	conf.GracefulRampDown = types.NullDurationFrom(0 * time.Second)
 	assert.Equal(t, rawStepsZeroEnd, conf.GetExecutionRequirements(et))
-***REMOVED***
-
-func TestRampingVUsConfigExecutionPlanZerosAtEnd(t *testing.T) ***REMOVED***
-	t.Parallel()
-	et, err := lib.NewExecutionTuple(nil, nil)
-	require.NoError(t, err)
-	conf := NewRampingVUsConfig("test")
-	conf.StartVUs = null.IntFrom(1)
-	conf.Stages = []Stage***REMOVED***
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-	***REMOVED***
-
-	expRawStepsNoZeroEnd := []lib.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***
-	expRawStepsZeroEnd := expRawStepsNoZeroEnd // no need to copy
-	expRawStepsZeroEnd = append(expRawStepsZeroEnd, lib.ExecutionStep***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 0***REMOVED***)
-	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
-	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsNoZeroEnd)
-	endOffset, isFinal := lib.GetEndOffset(rawStepsNoZeroEnd)
-	assert.Equal(t, 9*time.Second, endOffset)
-	assert.Equal(t, true, isFinal)
-
-	rawStepsZeroEnd := conf.getRawExecutionSteps(et, true)
-	assert.Equal(t, expRawStepsZeroEnd, rawStepsZeroEnd)
-	endOffset, isFinal = lib.GetEndOffset(rawStepsZeroEnd)
-	assert.Equal(t, 14*time.Second, endOffset)
-	assert.Equal(t, true, isFinal)
-***REMOVED***
-
-func TestRampingVUsConfigExecutionPlanZeroGracefuls(t *testing.T) ***REMOVED***
-	t.Parallel()
-
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		StartVUs:         null.IntFrom(0),
-		GracefulRampDown: types.NullDurationFrom(0 * time.Second),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
-				Duration: types.NullDurationFrom(1 * time.Second),
-				Target:   null.IntFrom(2),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-
-	et, err := lib.NewExecutionTuple(nil, nil)
-	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
-	var done int64
-	ctx, cancel, executor, _ := setupExecutor(
-		t, config, es,
-		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
-			atomic.AddInt64(&done, 1)
-			<-ctx.Done()
-
-			return nil
-		***REMOVED***),
-	)
-	defer cancel()
-	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
-
-	select ***REMOVED***
-	case err := <-errCh:
-		require.NoError(t, err)
-	case <-time.After(2 * time.Second): // way too much time
-		t.Fatal("Execution should've ended already")
-	***REMOVED***
-	require.Equal(t, int64(1), atomic.LoadInt64(&done))
 ***REMOVED***
 
 func TestRampingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
