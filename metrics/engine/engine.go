@@ -90,6 +90,41 @@ func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Me
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+
+	if sm.Metric.Observed ***REMOVED***
+		// Do not repeat warnings for the same sub-metrics
+		return sm.Metric, nil
+	***REMOVED***
+
+	// TODO: reword these from "will be deprecated" to "were deprecated" and
+	// maybe make them errors, not warnings, when we introduce un-indexable tags
+
+	if _, ok := sm.Tags.Get("url"); ok ***REMOVED***
+		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'url' metric tag, "+
+			"are deprecated and will not be supported in future k6 releases. "+
+			"To prevent breaking changes and reduce bugs, use the 'name' metric tag instead, see"+
+			"URL grouping (https://k6.io/docs/using-k6/http-requests/#url-grouping) for more information.", name,
+		)
+	***REMOVED***
+
+	if _, ok := sm.Tags.Get("error"); ok ***REMOVED***
+		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'error' metric tag, "+
+			"are deprecated and will not be supported in future k6 releases. "+
+			"To prevent breaking changes and reduce bugs, use the 'error_code' metric tag instead", name,
+		)
+	***REMOVED***
+	if _, ok := sm.Tags.Get("vu"); ok ***REMOVED***
+		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'vu' metric tag, "+
+			"are deprecated and will not be supported in future k6 releases.", name,
+		)
+	***REMOVED***
+
+	if _, ok := sm.Tags.Get("iter"); ok ***REMOVED***
+		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'iter' metric tag, "+
+			"are deprecated and will not be supported in future k6 releases.", name,
+		)
+	***REMOVED***
+
 	return sm.Metric, nil
 ***REMOVED***
 

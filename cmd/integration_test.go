@@ -282,6 +282,42 @@ func TestSSLKEYLOGFILE(t *testing.T) ***REMOVED***
 	require.Regexp(t, "^CLIENT_[A-Z_]+ [0-9a-f]+ [0-9a-f]+\n", string(sslloglines))
 ***REMOVED***
 
+func TestThresholdDeprecationWarnings(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	// TODO: adjust this test after we actually make url, error, iter and vu non-indexable
+
+	ts := newGlobalTestState(t)
+	ts.args = []string***REMOVED***"k6", "run", "--system-tags", "url,error,vu,iter", "-"***REMOVED***
+	ts.stdIn = bytes.NewReader([]byte(`
+		export const options = ***REMOVED***
+			thresholds: ***REMOVED***
+				'http_req_duration***REMOVED***url:https://test.k6.io***REMOVED***': ['p(95)<500', 'p(99)<1000'],
+				'http_req_duration***REMOVED***error:foo***REMOVED***': ['p(99)<1000'],
+				'iterations***REMOVED***vu:1,iter:0***REMOVED***': ['count == 1'],
+			***REMOVED***,
+		***REMOVED***;
+
+		export default function () ***REMOVED*** ***REMOVED***`,
+	))
+
+	newRootCommand(ts.globalState).execute()
+
+	logs := ts.loggerHook.Drain()
+	assert.True(t, testutils.LogContains(logs, logrus.WarnLevel,
+		"Thresholds like 'http_req_duration***REMOVED***url:https://test.k6.io***REMOVED***', based on the high-cardinality 'url' metric tag, are deprecated",
+	))
+	assert.True(t, testutils.LogContains(logs, logrus.WarnLevel,
+		"Thresholds like 'http_req_duration***REMOVED***error:foo***REMOVED***', based on the high-cardinality 'error' metric tag, are deprecated",
+	))
+	assert.True(t, testutils.LogContains(logs, logrus.WarnLevel,
+		"Thresholds like 'iterations***REMOVED***vu:1,iter:0***REMOVED***', based on the high-cardinality 'vu' metric tag, are deprecated",
+	))
+	assert.True(t, testutils.LogContains(logs, logrus.WarnLevel,
+		"Thresholds like 'iterations***REMOVED***vu:1,iter:0***REMOVED***', based on the high-cardinality 'iter' metric tag, are deprecated",
+	))
+***REMOVED***
+
 // TODO: add a hell of a lot more integration tests, including some that spin up
 // a test HTTP server and actually check if k6 hits it
 
