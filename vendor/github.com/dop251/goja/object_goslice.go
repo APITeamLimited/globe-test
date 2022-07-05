@@ -15,6 +15,20 @@ type objectGoSlice struct ***REMOVED***
 	lengthProp valueProperty
 ***REMOVED***
 
+func (r *Runtime) newObjectGoSlice(data *[]interface***REMOVED******REMOVED***) *objectGoSlice ***REMOVED***
+	obj := &Object***REMOVED***runtime: r***REMOVED***
+	a := &objectGoSlice***REMOVED***
+		baseObject: baseObject***REMOVED***
+			val: obj,
+		***REMOVED***,
+		data: data,
+	***REMOVED***
+	obj.self = a
+	a.init()
+
+	return a
+***REMOVED***
+
 func (o *objectGoSlice) init() ***REMOVED***
 	o.baseObject.init()
 	o.class = classArray
@@ -29,11 +43,14 @@ func (o *objectGoSlice) updateLen() ***REMOVED***
 	o.lengthProp.value = intToValue(int64(len(*o.data)))
 ***REMOVED***
 
+func (o *objectGoSlice) _getIdx(idx int) Value ***REMOVED***
+	return o.val.runtime.ToValue((*o.data)[idx])
+***REMOVED***
+
 func (o *objectGoSlice) getStr(name unistring.String, receiver Value) Value ***REMOVED***
 	var ownProp Value
 	if idx := strToGoIdx(name); idx >= 0 && idx < len(*o.data) ***REMOVED***
-		v := (*o.data)[idx]
-		ownProp = o.val.runtime.ToValue(v)
+		ownProp = o._getIdx(idx)
 	***REMOVED*** else if name == "length" ***REMOVED***
 		ownProp = &o.lengthProp
 	***REMOVED***
@@ -43,8 +60,7 @@ func (o *objectGoSlice) getStr(name unistring.String, receiver Value) Value ***R
 
 func (o *objectGoSlice) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
 	if idx := int64(idx); idx >= 0 && idx < int64(len(*o.data)) ***REMOVED***
-		v := (*o.data)[idx]
-		return o.val.runtime.ToValue(v)
+		return o._getIdx(int(idx))
 	***REMOVED***
 	if o.prototype != nil ***REMOVED***
 		if receiver == nil ***REMOVED***
@@ -58,9 +74,8 @@ func (o *objectGoSlice) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
 func (o *objectGoSlice) getOwnPropStr(name unistring.String) Value ***REMOVED***
 	if idx := strToGoIdx(name); idx >= 0 ***REMOVED***
 		if idx < len(*o.data) ***REMOVED***
-			v := o.val.runtime.ToValue((*o.data)[idx])
 			return &valueProperty***REMOVED***
-				value:      v,
+				value:      o._getIdx(idx),
 				writable:   true,
 				enumerable: true,
 			***REMOVED***
@@ -75,9 +90,8 @@ func (o *objectGoSlice) getOwnPropStr(name unistring.String) Value ***REMOVED***
 
 func (o *objectGoSlice) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 	if idx := int64(idx); idx >= 0 && idx < int64(len(*o.data)) ***REMOVED***
-		v := o.val.runtime.ToValue((*o.data)[idx])
 		return &valueProperty***REMOVED***
-			value:      v,
+			value:      o._getIdx(int(idx)),
 			writable:   true,
 			enumerable: true,
 		***REMOVED***
@@ -311,20 +325,26 @@ func (o *objectGoSlice) equal(other objectImpl) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (o *objectGoSlice) sortLen() int64 ***REMOVED***
-	return int64(len(*o.data))
+func (o *objectGoSlice) esValue() Value ***REMOVED***
+	return o.val
 ***REMOVED***
 
-func (o *objectGoSlice) sortGet(i int64) Value ***REMOVED***
+func (o *objectGoSlice) reflectValue() reflect.Value ***REMOVED***
+	return reflect.ValueOf(o.data).Elem()
+***REMOVED***
+
+func (o *objectGoSlice) setReflectValue(value reflect.Value) ***REMOVED***
+	o.data = value.Addr().Interface().(*[]interface***REMOVED******REMOVED***)
+***REMOVED***
+
+func (o *objectGoSlice) sortLen() int ***REMOVED***
+	return len(*o.data)
+***REMOVED***
+
+func (o *objectGoSlice) sortGet(i int) Value ***REMOVED***
 	return o.getIdx(valueInt(i), nil)
 ***REMOVED***
 
-func (o *objectGoSlice) swap(i, j int64) ***REMOVED***
-	ii := valueInt(i)
-	jj := valueInt(j)
-	x := o.getIdx(ii, nil)
-	y := o.getIdx(jj, nil)
-
-	o.setOwnIdx(ii, y, false)
-	o.setOwnIdx(jj, x, false)
+func (o *objectGoSlice) swap(i int, j int) ***REMOVED***
+	(*o.data)[i], (*o.data)[j] = (*o.data)[j], (*o.data)[i]
 ***REMOVED***

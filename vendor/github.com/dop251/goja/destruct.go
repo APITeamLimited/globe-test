@@ -36,15 +36,15 @@ func (d *destructKeyedSource) recordKey(key Value) ***REMOVED***
 	d.usedKeys[key] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 ***REMOVED***
 
-func (d *destructKeyedSource) sortLen() int64 ***REMOVED***
+func (d *destructKeyedSource) sortLen() int ***REMOVED***
 	return d.w().sortLen()
 ***REMOVED***
 
-func (d *destructKeyedSource) sortGet(i int64) Value ***REMOVED***
+func (d *destructKeyedSource) sortGet(i int) Value ***REMOVED***
 	return d.w().sortGet(i)
 ***REMOVED***
 
-func (d *destructKeyedSource) swap(i int64, i2 int64) ***REMOVED***
+func (d *destructKeyedSource) swap(i int, i2 int) ***REMOVED***
 	d.w().swap(i, i2)
 ***REMOVED***
 

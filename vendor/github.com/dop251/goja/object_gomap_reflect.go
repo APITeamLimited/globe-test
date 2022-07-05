@@ -41,7 +41,7 @@ func (o *objectGoMapReflect) _get(n Value) Value ***REMOVED***
 		return nil
 	***REMOVED***
 	if v := o.value.MapIndex(key); v.IsValid() ***REMOVED***
-		return o.val.runtime.toValue(v.Interface(), v)
+		return o.val.runtime.ToValue(v.Interface())
 	***REMOVED***
 
 	return nil
@@ -53,7 +53,7 @@ func (o *objectGoMapReflect) _getStr(name string) Value ***REMOVED***
 		return nil
 	***REMOVED***
 	if v := o.value.MapIndex(key); v.IsValid() ***REMOVED***
-		return o.val.runtime.toValue(v.Interface(), v)
+		return o.val.runtime.ToValue(v.Interface())
 	***REMOVED***
 
 	return nil
@@ -263,11 +263,4 @@ func (o *objectGoMapReflect) stringKeys(_ bool, accum []Value) []Value ***REMOVE
 	***REMOVED***
 
 	return accum
-***REMOVED***
-
-func (o *objectGoMapReflect) equal(other objectImpl) bool ***REMOVED***
-	if other, ok := other.(*objectGoMapReflect); ok ***REMOVED***
-		return o.value.Interface() == other.value.Interface()
-	***REMOVED***
-	return false
 ***REMOVED***

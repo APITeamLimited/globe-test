@@ -923,15 +923,15 @@ func (o *baseObject) preventExtensions(bool) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (o *baseObject) sortLen() int64 ***REMOVED***
-	return toLength(o.val.self.getStr("length", nil))
+func (o *baseObject) sortLen() int ***REMOVED***
+	return toIntStrict(toLength(o.val.self.getStr("length", nil)))
 ***REMOVED***
 
-func (o *baseObject) sortGet(i int64) Value ***REMOVED***
+func (o *baseObject) sortGet(i int) Value ***REMOVED***
 	return o.val.self.getIdx(valueInt(i), nil)
 ***REMOVED***
 
-func (o *baseObject) swap(i, j int64) ***REMOVED***
+func (o *baseObject) swap(i int, j int) ***REMOVED***
 	ii := valueInt(i)
 	jj := valueInt(j)
 
@@ -1026,12 +1026,12 @@ func genericExportToArrayOrSlice(o *Object, dst reflect.Value, typ reflect.Type,
 		if ex != nil ***REMOVED***
 			return ex
 		***REMOVED***
-		if dst.Len() != len(values) ***REMOVED***
-			if typ.Kind() == reflect.Array ***REMOVED***
+		if typ.Kind() == reflect.Array ***REMOVED***
+			if dst.Len() != len(values) ***REMOVED***
 				return fmt.Errorf("cannot convert an iterable into an array, lengths mismatch (have %d, need %d)", len(values), dst.Len())
-			***REMOVED*** else ***REMOVED***
-				dst.Set(reflect.MakeSlice(typ, len(values), len(values)))
 			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			dst.Set(reflect.MakeSlice(typ, len(values), len(values)))
 		***REMOVED***
 		ctx.putTyped(o, typ, dst.Interface())
 		for i, val := range values ***REMOVED***

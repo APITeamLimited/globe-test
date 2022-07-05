@@ -65,12 +65,12 @@ func (so *setObject) export(ctx *objectExportCtx) interface***REMOVED******REMOV
 
 func (so *setObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
 	l := so.m.size
-	if dst.Len() != l ***REMOVED***
-		if typ.Kind() == reflect.Array ***REMOVED***
+	if typ.Kind() == reflect.Array ***REMOVED***
+		if dst.Len() != l ***REMOVED***
 			return fmt.Errorf("cannot convert a Set into an array, lengths mismatch: have %d, need %d)", l, dst.Len())
-		***REMOVED*** else ***REMOVED***
-			dst.Set(reflect.MakeSlice(typ, l, l))
 		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		dst.Set(reflect.MakeSlice(typ, l, l))
 	***REMOVED***
 	ctx.putTyped(so.val, typ, dst.Interface())
 	iter := so.m.newIter()

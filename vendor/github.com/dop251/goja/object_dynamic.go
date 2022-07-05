@@ -132,15 +132,15 @@ func (r *Runtime) NewDynamicArray(a DynamicArray) *Object ***REMOVED***
 	return v
 ***REMOVED***
 
-func (*dynamicObject) sortLen() int64 ***REMOVED***
+func (*dynamicObject) sortLen() int ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (*dynamicObject) sortGet(i int64) Value ***REMOVED***
+func (*dynamicObject) sortGet(i int) Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (*dynamicObject) swap(i int64, i2 int64) ***REMOVED***
+func (*dynamicObject) swap(i int, i2 int) ***REMOVED***
 ***REMOVED***
 
 func (*dynamicObject) className() string ***REMOVED***
@@ -526,15 +526,15 @@ func (*baseDynamicObject) _putProp(name unistring.String, value Value, writable,
 func (*baseDynamicObject) _putSym(s *Symbol, prop Value) ***REMOVED***
 ***REMOVED***
 
-func (a *dynamicArray) sortLen() int64 ***REMOVED***
-	return int64(a.a.Len())
+func (a *dynamicArray) sortLen() int ***REMOVED***
+	return a.a.Len()
 ***REMOVED***
 
-func (a *dynamicArray) sortGet(i int64) Value ***REMOVED***
-	return a.a.Get(int(i))
+func (a *dynamicArray) sortGet(i int) Value ***REMOVED***
+	return a.a.Get(i)
 ***REMOVED***
 
-func (a *dynamicArray) swap(i int64, j int64) ***REMOVED***
+func (a *dynamicArray) swap(i int, j int) ***REMOVED***
 	x := a.sortGet(i)
 	y := a.sortGet(j)
 	a.a.Set(int(i), y)

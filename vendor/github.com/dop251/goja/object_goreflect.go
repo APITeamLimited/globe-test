@@ -76,11 +76,34 @@ type reflectTypeInfo struct ***REMOVED***
 	FieldNames, MethodNames []string
 ***REMOVED***
 
+type reflectValueWrapper interface ***REMOVED***
+	esValue() Value
+	reflectValue() reflect.Value
+	setReflectValue(reflect.Value)
+***REMOVED***
+
+func isContainer(k reflect.Kind) bool ***REMOVED***
+	switch k ***REMOVED***
+	case reflect.Struct, reflect.Slice, reflect.Array:
+		return true
+	***REMOVED***
+	return false
+***REMOVED***
+
+func copyReflectValueWrapper(w reflectValueWrapper) ***REMOVED***
+	v := w.reflectValue()
+	c := reflect.New(v.Type()).Elem()
+	c.Set(v)
+	w.setReflectValue(c)
+***REMOVED***
+
 type objectGoReflect struct ***REMOVED***
 	baseObject
 	origValue, value reflect.Value
 
 	valueTypeInfo, origValueTypeInfo *reflectTypeInfo
+
+	valueCache map[string]reflectValueWrapper
 
 	toJson func() interface***REMOVED******REMOVED***
 ***REMOVED***
@@ -104,7 +127,7 @@ func (o *objectGoReflect) init() ***REMOVED***
 		o.class = classObject
 		o.prototype = o.val.runtime.global.ObjectPrototype
 		if !o.value.CanAddr() ***REMOVED***
-			value := reflect.Indirect(reflect.New(o.value.Type()))
+			value := reflect.New(o.value.Type()).Elem()
 			value.Set(o.value)
 			o.origValue = value
 			o.value = value
@@ -140,8 +163,7 @@ func (o *objectGoReflect) getStr(name unistring.String, receiver Value) Value **
 
 func (o *objectGoReflect) _getField(jsName string) reflect.Value ***REMOVED***
 	if info, exists := o.valueTypeInfo.Fields[jsName]; exists ***REMOVED***
-		v := o.value.FieldByIndex(info.Index)
-		return v
+		return o.value.FieldByIndex(info.Index)
 	***REMOVED***
 
 	return reflect.Value***REMOVED******REMOVED***
@@ -155,15 +177,58 @@ func (o *objectGoReflect) _getMethod(jsName string) reflect.Value ***REMOVED***
 	return reflect.Value***REMOVED******REMOVED***
 ***REMOVED***
 
+func (o *objectGoReflect) elemToValue(ev reflect.Value) (Value, reflectValueWrapper) ***REMOVED***
+	if isContainer(ev.Kind()) ***REMOVED***
+		if ev.Type() == reflectTypeArray ***REMOVED***
+			a := o.val.runtime.newObjectGoSlice(ev.Addr().Interface().(*[]interface***REMOVED******REMOVED***))
+			return a.val, a
+		***REMOVED***
+		ret := o.val.runtime.reflectValueToValue(ev)
+		if obj, ok := ret.(*Object); ok ***REMOVED***
+			if w, ok := obj.self.(reflectValueWrapper); ok ***REMOVED***
+				return ret, w
+			***REMOVED***
+		***REMOVED***
+		panic("reflectValueToValue() returned a value which is not a reflectValueWrapper")
+	***REMOVED***
+
+	for ev.Kind() == reflect.Interface ***REMOVED***
+		ev = ev.Elem()
+	***REMOVED***
+
+	if ev.Kind() == reflect.Invalid ***REMOVED***
+		return _null, nil
+	***REMOVED***
+
+	return o.val.runtime.ToValue(ev.Interface()), nil
+***REMOVED***
+
+func (o *objectGoReflect) _getFieldValue(name string) Value ***REMOVED***
+	if v := o.valueCache[name]; v != nil ***REMOVED***
+		return v.esValue()
+	***REMOVED***
+	if v := o._getField(name); v.IsValid() ***REMOVED***
+		res, w := o.elemToValue(v)
+		if w != nil ***REMOVED***
+			if o.valueCache == nil ***REMOVED***
+				o.valueCache = make(map[string]reflectValueWrapper)
+			***REMOVED***
+			o.valueCache[name] = w
+		***REMOVED***
+		return res
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func (o *objectGoReflect) _get(name string) Value ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
-		if v := o._getField(name); v.IsValid() ***REMOVED***
-			return o.val.runtime.toValue(v.Interface(), v)
+		if ret := o._getFieldValue(name); ret != nil ***REMOVED***
+			return ret
 		***REMOVED***
 	***REMOVED***
 
 	if v := o._getMethod(name); v.IsValid() ***REMOVED***
-		return o.val.runtime.toValue(v.Interface(), v)
+		return o.val.runtime.reflectValueToValue(v)
 	***REMOVED***
 
 	return nil
@@ -172,10 +237,10 @@ func (o *objectGoReflect) _get(name string) Value ***REMOVED***
 func (o *objectGoReflect) getOwnPropStr(name unistring.String) Value ***REMOVED***
 	n := name.String()
 	if o.value.Kind() == reflect.Struct ***REMOVED***
-		if v := o._getField(n); v.IsValid() ***REMOVED***
+		if v := o._getFieldValue(n); v != nil ***REMOVED***
 			return &valueProperty***REMOVED***
-				value:      o.val.runtime.toValue(v.Interface(), v),
-				writable:   v.CanSet(),
+				value:      v,
+				writable:   true,
 				enumerable: true,
 			***REMOVED***
 		***REMOVED***
@@ -183,7 +248,7 @@ func (o *objectGoReflect) getOwnPropStr(name unistring.String) Value ***REMOVED*
 
 	if v := o._getMethod(n); v.IsValid() ***REMOVED***
 		return &valueProperty***REMOVED***
-			value:      o.val.runtime.toValue(v.Interface(), v),
+			value:      o.val.runtime.reflectValueToValue(v),
 			enumerable: true,
 		***REMOVED***
 	***REMOVED***
@@ -215,14 +280,21 @@ func (o *objectGoReflect) setForeignIdx(idx valueInt, val, receiver Value, throw
 func (o *objectGoReflect) _put(name string, val Value, throw bool) (has, ok bool) ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
-			if !v.CanSet() ***REMOVED***
-				o.val.runtime.typeErrorResult(throw, "Cannot assign to a non-addressable or read-only property %s of a host object", name)
-				return true, false
+			cached := o.valueCache[name]
+			if cached != nil ***REMOVED***
+				copyReflectValueWrapper(cached)
 			***REMOVED***
+
 			err := o.val.runtime.toReflectValue(val, v, &objectExportCtx***REMOVED******REMOVED***)
 			if err != nil ***REMOVED***
+				if cached != nil ***REMOVED***
+					cached.setReflectValue(v)
+				***REMOVED***
 				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
 				return true, false
+			***REMOVED***
+			if cached != nil ***REMOVED***
+				delete(o.valueCache, name)
 			***REMOVED***
 			return true, true
 		***REMOVED***
@@ -413,9 +485,28 @@ func (o *objectGoReflect) exportType() reflect.Type ***REMOVED***
 
 func (o *objectGoReflect) equal(other objectImpl) bool ***REMOVED***
 	if other, ok := other.(*objectGoReflect); ok ***REMOVED***
-		return o.value.Interface() == other.value.Interface()
+		k1, k2 := o.value.Kind(), other.value.Kind()
+		if k1 == k2 ***REMOVED***
+			if isContainer(k1) ***REMOVED***
+				return o.value == other.value
+			***REMOVED***
+			return o.value.Interface() == other.value.Interface()
+		***REMOVED***
 	***REMOVED***
 	return false
+***REMOVED***
+
+func (o *objectGoReflect) reflectValue() reflect.Value ***REMOVED***
+	return o.value
+***REMOVED***
+
+func (o *objectGoReflect) setReflectValue(v reflect.Value) ***REMOVED***
+	o.value = v
+	o.origValue = v
+***REMOVED***
+
+func (o *objectGoReflect) esValue() Value ***REMOVED***
+	return o.val
 ***REMOVED***
 
 func (r *Runtime) buildFieldInfo(t reflect.Type, index []int, info *reflectTypeInfo) ***REMOVED***

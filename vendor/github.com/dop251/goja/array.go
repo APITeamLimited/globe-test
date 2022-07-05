@@ -178,11 +178,11 @@ func (a *arrayObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 	return a.baseObject.getOwnPropStr(idx.string())
 ***REMOVED***
 
-func (a *arrayObject) sortLen() int64 ***REMOVED***
-	return int64(len(a.values))
+func (a *arrayObject) sortLen() int ***REMOVED***
+	return len(a.values)
 ***REMOVED***
 
-func (a *arrayObject) sortGet(i int64) Value ***REMOVED***
+func (a *arrayObject) sortGet(i int) Value ***REMOVED***
 	v := a.values[i]
 	if p, ok := v.(*valueProperty); ok ***REMOVED***
 		v = p.get(a.val)
@@ -190,7 +190,7 @@ func (a *arrayObject) sortGet(i int64) Value ***REMOVED***
 	return v
 ***REMOVED***
 
-func (a *arrayObject) swap(i, j int64) ***REMOVED***
+func (a *arrayObject) swap(i int, j int) ***REMOVED***
 	a.values[i], a.values[j] = a.values[j], a.values[i]
 ***REMOVED***
 
@@ -511,12 +511,12 @@ func (a *arrayObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, 
 	r := a.val.runtime
 	if iter := a.getSym(SymIterator, nil); iter == r.global.arrayValues || iter == nil ***REMOVED***
 		l := toIntStrict(int64(a.length))
-		if dst.Len() != l ***REMOVED***
-			if typ.Kind() == reflect.Array ***REMOVED***
+		if typ.Kind() == reflect.Array ***REMOVED***
+			if dst.Len() != l ***REMOVED***
 				return fmt.Errorf("cannot convert an Array into an array, lengths mismatch (have %d, need %d)", l, dst.Len())
-			***REMOVED*** else ***REMOVED***
-				dst.Set(reflect.MakeSlice(typ, l, l))
 			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			dst.Set(reflect.MakeSlice(typ, l, l))
 		***REMOVED***
 		ctx.putTyped(a.val, typ, dst.Interface())
 		for i := 0; i < l; i++ ***REMOVED***

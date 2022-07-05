@@ -352,9 +352,16 @@ func (r *Runtime) arrayproto_sort(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	var s sortable
 	if r.checkStdArrayObj(o) != nil ***REMOVED***
+		s = o.self
+	***REMOVED*** else if _, ok := o.self.(reflectValueWrapper); ok ***REMOVED***
+		s = o.self
+	***REMOVED***
+
+	if s != nil ***REMOVED***
 		ctx := arraySortCtx***REMOVED***
-			obj:     o.self,
+			obj:     s,
 			compare: compareFn,
 		***REMOVED***
 
@@ -1443,9 +1450,9 @@ func (r *Runtime) initArray() ***REMOVED***
 ***REMOVED***
 
 type sortable interface ***REMOVED***
-	sortLen() int64
-	sortGet(int64) Value
-	swap(int64, int64)
+	sortLen() int
+	sortGet(int) Value
+	swap(int, int)
 ***REMOVED***
 
 type arraySortCtx struct ***REMOVED***
@@ -1500,13 +1507,13 @@ func (a *arraySortCtx) sortCompare(x, y Value) int ***REMOVED***
 // sort.Interface
 
 func (a *arraySortCtx) Len() int ***REMOVED***
-	return int(a.obj.sortLen())
+	return a.obj.sortLen()
 ***REMOVED***
 
 func (a *arraySortCtx) Less(j, k int) bool ***REMOVED***
-	return a.sortCompare(a.obj.sortGet(int64(j)), a.obj.sortGet(int64(k))) < 0
+	return a.sortCompare(a.obj.sortGet(j), a.obj.sortGet(k)) < 0
 ***REMOVED***
 
 func (a *arraySortCtx) Swap(j, k int) ***REMOVED***
-	a.obj.swap(int64(j), int64(k))
+	a.obj.swap(j, k)
 ***REMOVED***
