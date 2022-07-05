@@ -82,7 +82,7 @@ func (m authenicateMessage) MarshalBinary() ([]byte, error) ***REMOVED***
 
 //ProcessChallenge crafts an AUTHENTICATE message in response to the CHALLENGE message
 //that was received from the server
-func ProcessChallenge(challengeMessageData []byte, user, password string) ([]byte, error) ***REMOVED***
+func ProcessChallenge(challengeMessageData []byte, user, password string, domainNeeded bool) ([]byte, error) ***REMOVED***
 	if user == "" && password == "" ***REMOVED***
 		return nil, errors.New("Anonymous authentication not supported")
 	***REMOVED***
@@ -97,6 +97,10 @@ func ProcessChallenge(challengeMessageData []byte, user, password string) ([]byt
 	***REMOVED***
 	if cm.NegotiateFlags.Has(negotiateFlagNTLMSSPNEGOTIATEKEYEXCH) ***REMOVED***
 		return nil, errors.New("Key exchange requested but not supported (NTLMSSP_NEGOTIATE_KEY_EXCH)")
+	***REMOVED***
+	
+	if !domainNeeded ***REMOVED***
+		cm.TargetName = ""
 	***REMOVED***
 
 	am := authenicateMessage***REMOVED***

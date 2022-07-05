@@ -10,15 +10,22 @@ import (
 )
 
 // GetDomain : parse domain name from based on slashes in the input
-func GetDomain(user string) (string, string) ***REMOVED***
+// Need to check for upn as well
+func GetDomain(user string) (string, string, bool) ***REMOVED***
 	domain := ""
+	domainNeeded := false
 
 	if strings.Contains(user, "\\") ***REMOVED***
 		ucomponents := strings.SplitN(user, "\\", 2)
 		domain = ucomponents[0]
 		user = ucomponents[1]
+		domainNeeded = true
+	***REMOVED*** else if strings.Contains(user, "@") ***REMOVED***
+		domainNeeded = false
+	***REMOVED*** else ***REMOVED***
+		domainNeeded = true
 	***REMOVED***
-	return user, domain
+	return user, domain, domainNeeded
 ***REMOVED***
 
 //Negotiator is a http.Roundtripper decorator that automatically
@@ -91,7 +98,7 @@ func (l Negotiator) RoundTrip(req *http.Request) (res *http.Response, err error)
 
 		// get domain from username
 		domain := ""
-		u, domain = GetDomain(u)
+		u, domain, domainNeeded := GetDomain(u)
 
 		// send negotiate
 		negotiateMessage, err := NewNegotiateMessage(domain, "")
@@ -125,7 +132,7 @@ func (l Negotiator) RoundTrip(req *http.Request) (res *http.Response, err error)
 		res.Body.Close()
 
 		// send authenticate
-		authenticateMessage, err := ProcessChallenge(challengeMessage, u, p)
+		authenticateMessage, err := ProcessChallenge(challengeMessage, u, p, domainNeeded)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
