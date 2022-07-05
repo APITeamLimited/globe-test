@@ -1864,6 +1864,32 @@ func WithinDurationf(t TestingT, expected time.Time, actual time.Time, delta tim
 	t.FailNow()
 ***REMOVED***
 
+// WithinRange asserts that a time is within a time range (inclusive).
+//
+//   assert.WithinRange(t, time.Now(), time.Now().Add(-time.Second), time.Now().Add(time.Second))
+func WithinRange(t TestingT, actual time.Time, start time.Time, end time.Time, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if assert.WithinRange(t, actual, start, end, msgAndArgs...) ***REMOVED***
+		return
+	***REMOVED***
+	t.FailNow()
+***REMOVED***
+
+// WithinRangef asserts that a time is within a time range (inclusive).
+//
+//   assert.WithinRangef(t, time.Now(), time.Now().Add(-time.Second), time.Now().Add(time.Second), "error message %s", "formatted")
+func WithinRangef(t TestingT, actual time.Time, start time.Time, end time.Time, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if assert.WithinRangef(t, actual, start, end, msg, args...) ***REMOVED***
+		return
+	***REMOVED***
+	t.FailNow()
+***REMOVED***
+
 // YAMLEq asserts that two YAML strings are equivalent.
 func YAMLEq(t TestingT, expected string, actual string, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***

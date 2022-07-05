@@ -1,6 +1,7 @@
 package assert
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"time"
@@ -32,7 +33,8 @@ var (
 
 	stringType = reflect.TypeOf("")
 
-	timeType = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
+	timeType  = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
+	bytesType = reflect.TypeOf([]byte***REMOVED******REMOVED***)
 )
 
 func compare(obj1, obj2 interface***REMOVED******REMOVED***, kind reflect.Kind) (CompareType, bool) ***REMOVED***
@@ -322,6 +324,26 @@ func compare(obj1, obj2 interface***REMOVED******REMOVED***, kind reflect.Kind) 
 			***REMOVED***
 
 			return compare(timeObj1.UnixNano(), timeObj2.UnixNano(), reflect.Int64)
+		***REMOVED***
+	case reflect.Slice:
+		***REMOVED***
+			// We only care about the []byte type.
+			if !canConvert(obj1Value, bytesType) ***REMOVED***
+				break
+			***REMOVED***
+
+			// []byte can be compared!
+			bytesObj1, ok := obj1.([]byte)
+			if !ok ***REMOVED***
+				bytesObj1 = obj1Value.Convert(bytesType).Interface().([]byte)
+
+			***REMOVED***
+			bytesObj2, ok := obj2.([]byte)
+			if !ok ***REMOVED***
+				bytesObj2 = obj2Value.Convert(bytesType).Interface().([]byte)
+			***REMOVED***
+
+			return CompareType(bytes.Compare(bytesObj1, bytesObj2)), true
 		***REMOVED***
 	***REMOVED***
 

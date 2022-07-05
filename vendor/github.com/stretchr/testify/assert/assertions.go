@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -144,7 +145,8 @@ func CallerInfo() []string ***REMOVED***
 		if len(parts) > 1 ***REMOVED***
 			dir := parts[len(parts)-2]
 			if (dir != "assert" && dir != "mock" && dir != "require") || file == "mock_test.go" ***REMOVED***
-				callers = append(callers, fmt.Sprintf("%s:%d", file, line))
+				path, _ := filepath.Abs(file)
+				callers = append(callers, fmt.Sprintf("%s:%d", path, line))
 			***REMOVED***
 		***REMOVED***
 
@@ -563,16 +565,17 @@ func isEmpty(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	switch objValue.Kind() ***REMOVED***
 	// collection types are empty when they have no element
-	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice:
+	case reflect.Chan, reflect.Map, reflect.Slice:
 		return objValue.Len() == 0
-		// pointers are empty if nil or if the value they point to is empty
+	// pointers are empty if nil or if the value they point to is empty
 	case reflect.Ptr:
 		if objValue.IsNil() ***REMOVED***
 			return true
 		***REMOVED***
 		deref := objValue.Elem().Interface()
 		return isEmpty(deref)
-		// for all other types, compare against the zero value
+	// for all other types, compare against the zero value
+	// array types are empty when they match their zero-initialized state
 	default:
 		zero := reflect.Zero(objValue.Type())
 		return reflect.DeepEqual(object, zero.Interface())
@@ -815,7 +818,6 @@ func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAnd
 		return true // we consider nil to be equal to the nil set
 	***REMOVED***
 
-	subsetValue := reflect.ValueOf(subset)
 	defer func() ***REMOVED***
 		if e := recover(); e != nil ***REMOVED***
 			ok = false
@@ -825,12 +827,30 @@ func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAnd
 	listKind := reflect.TypeOf(list).Kind()
 	subsetKind := reflect.TypeOf(subset).Kind()
 
-	if listKind != reflect.Array && listKind != reflect.Slice ***REMOVED***
+	if listKind != reflect.Array && listKind != reflect.Slice && listKind != reflect.Map ***REMOVED***
 		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", list, listKind), msgAndArgs...)
 	***REMOVED***
 
-	if subsetKind != reflect.Array && subsetKind != reflect.Slice ***REMOVED***
+	if subsetKind != reflect.Array && subsetKind != reflect.Slice && listKind != reflect.Map ***REMOVED***
 		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", subset, subsetKind), msgAndArgs...)
+	***REMOVED***
+
+	subsetValue := reflect.ValueOf(subset)
+	if subsetKind == reflect.Map && listKind == reflect.Map ***REMOVED***
+		listValue := reflect.ValueOf(list)
+		subsetKeys := subsetValue.MapKeys()
+
+		for i := 0; i < len(subsetKeys); i++ ***REMOVED***
+			subsetKey := subsetKeys[i]
+			subsetElement := subsetValue.MapIndex(subsetKey).Interface()
+			listElement := listValue.MapIndex(subsetKey).Interface()
+
+			if !ObjectsAreEqual(subsetElement, listElement) ***REMOVED***
+				return Fail(t, fmt.Sprintf("\"%s\" does not contain \"%s\"", list, subsetElement), msgAndArgs...)
+			***REMOVED***
+		***REMOVED***
+
+		return true
 	***REMOVED***
 
 	for i := 0; i < subsetValue.Len(); i++ ***REMOVED***
@@ -859,7 +879,6 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 		return Fail(t, "nil is the empty set which is a subset of every set", msgAndArgs...)
 	***REMOVED***
 
-	subsetValue := reflect.ValueOf(subset)
 	defer func() ***REMOVED***
 		if e := recover(); e != nil ***REMOVED***
 			ok = false
@@ -869,12 +888,30 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 	listKind := reflect.TypeOf(list).Kind()
 	subsetKind := reflect.TypeOf(subset).Kind()
 
-	if listKind != reflect.Array && listKind != reflect.Slice ***REMOVED***
+	if listKind != reflect.Array && listKind != reflect.Slice && listKind != reflect.Map ***REMOVED***
 		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", list, listKind), msgAndArgs...)
 	***REMOVED***
 
-	if subsetKind != reflect.Array && subsetKind != reflect.Slice ***REMOVED***
+	if subsetKind != reflect.Array && subsetKind != reflect.Slice && listKind != reflect.Map ***REMOVED***
 		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", subset, subsetKind), msgAndArgs...)
+	***REMOVED***
+
+	subsetValue := reflect.ValueOf(subset)
+	if subsetKind == reflect.Map && listKind == reflect.Map ***REMOVED***
+		listValue := reflect.ValueOf(list)
+		subsetKeys := subsetValue.MapKeys()
+
+		for i := 0; i < len(subsetKeys); i++ ***REMOVED***
+			subsetKey := subsetKeys[i]
+			subsetElement := subsetValue.MapIndex(subsetKey).Interface()
+			listElement := listValue.MapIndex(subsetKey).Interface()
+
+			if !ObjectsAreEqual(subsetElement, listElement) ***REMOVED***
+				return true
+			***REMOVED***
+		***REMOVED***
+
+		return Fail(t, fmt.Sprintf("%q is a subset of %q", subset, list), msgAndArgs...)
 	***REMOVED***
 
 	for i := 0; i < subsetValue.Len(); i++ ***REMOVED***
@@ -1104,6 +1141,27 @@ func WithinDuration(t TestingT, expected, actual time.Time, delta time.Duration,
 	dt := expected.Sub(actual)
 	if dt < -delta || dt > delta ***REMOVED***
 		return Fail(t, fmt.Sprintf("Max difference between %v and %v allowed is %v, but difference was %v", expected, actual, delta, dt), msgAndArgs...)
+	***REMOVED***
+
+	return true
+***REMOVED***
+
+// WithinRange asserts that a time is within a time range (inclusive).
+//
+//   assert.WithinRange(t, time.Now(), time.Now().Add(-time.Second), time.Now().Add(time.Second))
+func WithinRange(t TestingT, actual, start, end time.Time, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	if end.Before(start) ***REMOVED***
+		return Fail(t, "Start should be before end", msgAndArgs...)
+	***REMOVED***
+
+	if actual.Before(start) ***REMOVED***
+		return Fail(t, fmt.Sprintf("Time %v expected to be in time range %v to %v, but is before the range", actual, start, end), msgAndArgs...)
+	***REMOVED*** else if actual.After(end) ***REMOVED***
+		return Fail(t, fmt.Sprintf("Time %v expected to be in time range %v to %v, but is after the range", actual, start, end), msgAndArgs...)
 	***REMOVED***
 
 	return true
