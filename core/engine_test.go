@@ -273,13 +273,27 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
-		test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
+		done := make(chan struct***REMOVED******REMOVED***)
+		runner := &minirunner.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+				out <- metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+				close(done)
+				return nil
+			***REMOVED***,
+		***REMOVED***
+		test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED******REMOVED***, registry)
 
-		test.engine.OutputManager.AddMetricSamples(
-			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
-		)
+		go func() ***REMOVED***
+			assert.NoError(t, test.run())
+		***REMOVED***()
 
-		test.engine.Stop()
+		select ***REMOVED***
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Test should have completed within 10 seconds")
+		***REMOVED***
+
 		test.wait()
 
 		assert.IsType(t, &metrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
@@ -295,17 +309,30 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
-		test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***
+		done := make(chan struct***REMOVED******REMOVED***)
+		runner := &minirunner.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+				out <- metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED***
+				close(done)
+				return nil
+			***REMOVED***,
+		***REMOVED***
+		test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***
 			Thresholds: map[string]metrics.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***, registry)
 
-		test.engine.OutputManager.AddMetricSamples(
-			[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
-		)
+		go func() ***REMOVED***
+			assert.NoError(t, test.run())
+		***REMOVED***()
 
-		test.engine.Stop()
+		select ***REMOVED***
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Test should have completed within 10 seconds")
+		***REMOVED***
 		test.wait()
 
 		assert.Len(t, test.engine.MetricsEngine.ObservedMetrics, 2)
@@ -334,12 +361,28 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 
 	thresholds := map[string]metrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
-	test := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
+	done := make(chan struct***REMOVED******REMOVED***)
+	runner := &minirunner.MiniRunner***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+			out <- metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+			close(done)
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***
+		Thresholds: thresholds,
+	***REMOVED***, registry)
 
-	test.engine.OutputManager.AddMetricSamples(
-		[]metrics.SampleContainer***REMOVED***metrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
-	)
-	test.engine.Stop()
+	go func() ***REMOVED***
+		assert.NoError(t, test.run())
+	***REMOVED***()
+
+	select ***REMOVED***
+	case <-done:
+		return
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Test should have completed within 10 seconds")
+	***REMOVED***
 	test.wait()
 	assert.True(t, test.engine.thresholdsTainted)
 ***REMOVED***
