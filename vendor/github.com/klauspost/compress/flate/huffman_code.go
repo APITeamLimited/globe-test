@@ -16,9 +16,18 @@ const (
 )
 
 // hcode is a huffman code with a bit code and bit length.
-type hcode struct ***REMOVED***
-	code uint16
-	len  uint8
+type hcode uint32
+
+func (h hcode) len() uint8 ***REMOVED***
+	return uint8(h)
+***REMOVED***
+
+func (h hcode) code64() uint64 ***REMOVED***
+	return uint64(h >> 8)
+***REMOVED***
+
+func (h hcode) zero() bool ***REMOVED***
+	return h == 0
 ***REMOVED***
 
 type huffmanEncoder struct ***REMOVED***
@@ -58,8 +67,11 @@ type levelInfo struct ***REMOVED***
 
 // set sets the code and length of an hcode.
 func (h *hcode) set(code uint16, length uint8) ***REMOVED***
-	h.len = length
-	h.code = code
+	*h = hcode(length) | (hcode(code) << 8)
+***REMOVED***
+
+func newhcode(code uint16, length uint8) hcode ***REMOVED***
+	return hcode(length) | (hcode(code) << 8)
 ***REMOVED***
 
 func reverseBits(number uint16, bitLength byte) uint16 ***REMOVED***
@@ -100,7 +112,7 @@ func generateFixedLiteralEncoding() *huffmanEncoder ***REMOVED***
 			bits = ch + 192 - 280
 			size = 8
 		***REMOVED***
-		codes[ch] = hcode***REMOVED***code: reverseBits(bits, size), len: size***REMOVED***
+		codes[ch] = newhcode(reverseBits(bits, size), size)
 	***REMOVED***
 	return h
 ***REMOVED***
@@ -109,7 +121,7 @@ func generateFixedOffsetEncoding() *huffmanEncoder ***REMOVED***
 	h := newHuffmanEncoder(30)
 	codes := h.codes
 	for ch := range codes ***REMOVED***
-		codes[ch] = hcode***REMOVED***code: reverseBits(uint16(ch), 5), len: 5***REMOVED***
+		codes[ch] = newhcode(reverseBits(uint16(ch), 5), 5)
 	***REMOVED***
 	return h
 ***REMOVED***
@@ -121,7 +133,7 @@ func (h *huffmanEncoder) bitLength(freq []uint16) int ***REMOVED***
 	var total int
 	for i, f := range freq ***REMOVED***
 		if f != 0 ***REMOVED***
-			total += int(f) * int(h.codes[i].len)
+			total += int(f) * int(h.codes[i].len())
 		***REMOVED***
 	***REMOVED***
 	return total
@@ -130,7 +142,7 @@ func (h *huffmanEncoder) bitLength(freq []uint16) int ***REMOVED***
 func (h *huffmanEncoder) bitLengthRaw(b []byte) int ***REMOVED***
 	var total int
 	for _, f := range b ***REMOVED***
-		total += int(h.codes[f].len)
+		total += int(h.codes[f].len())
 	***REMOVED***
 	return total
 ***REMOVED***
@@ -141,10 +153,10 @@ func (h *huffmanEncoder) canReuseBits(freq []uint16) int ***REMOVED***
 	for i, f := range freq ***REMOVED***
 		if f != 0 ***REMOVED***
 			code := h.codes[i]
-			if code.len == 0 ***REMOVED***
+			if code.zero() ***REMOVED***
 				return math.MaxInt32
 			***REMOVED***
-			total += int(f) * int(code.len)
+			total += int(f) * int(code.len())
 		***REMOVED***
 	***REMOVED***
 	return total
@@ -308,7 +320,7 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 
 		sortByLiteral(chunk)
 		for _, node := range chunk ***REMOVED***
-			h.codes[node.literal] = hcode***REMOVED***code: reverseBits(code, uint8(n)), len: uint8(n)***REMOVED***
+			h.codes[node.literal] = newhcode(reverseBits(code, uint8(n)), uint8(n))
 			code++
 		***REMOVED***
 		list = list[0 : len(list)-int(bits)]
@@ -330,7 +342,7 @@ func (h *huffmanEncoder) generate(freq []uint16, maxBits int32) ***REMOVED***
 			list[count] = literalNode***REMOVED***uint16(i), f***REMOVED***
 			count++
 		***REMOVED*** else ***REMOVED***
-			codes[i].len = 0
+			codes[i] = 0
 		***REMOVED***
 	***REMOVED***
 	list[count] = literalNode***REMOVED******REMOVED***
@@ -364,21 +376,37 @@ func atLeastOne(v float32) float32 ***REMOVED***
 	return v
 ***REMOVED***
 
-// Unassigned values are assigned '1' in the histogram.
-func fillHist(b []uint16) ***REMOVED***
-	for i, v := range b ***REMOVED***
-		if v == 0 ***REMOVED***
-			b[i] = 1
+func histogram(b []byte, h []uint16) ***REMOVED***
+	if true && len(b) >= 8<<10 ***REMOVED***
+		// Split for bigger inputs
+		histogramSplit(b, h)
+	***REMOVED*** else ***REMOVED***
+		h = h[:256]
+		for _, t := range b ***REMOVED***
+			h[t]++
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func histogram(b []byte, h []uint16, fill bool) ***REMOVED***
+func histogramSplit(b []byte, h []uint16) ***REMOVED***
+	// Tested, and slightly faster than 2-way.
+	// Writing to separate arrays and combining is also slightly slower.
 	h = h[:256]
-	for _, t := range b ***REMOVED***
-		h[t]++
+	for len(b)&3 != 0 ***REMOVED***
+		h[b[0]]++
+		b = b[1:]
 	***REMOVED***
-	if fill ***REMOVED***
-		fillHist(h)
+	n := len(b) / 4
+	x, y, z, w := b[:n], b[n:], b[n+n:], b[n+n+n:]
+	y, z, w = y[:len(x)], z[:len(x)], w[:len(x)]
+	for i, t := range x ***REMOVED***
+		v0 := &h[t]
+		v1 := &h[y[i]]
+		v3 := &h[w[i]]
+		v2 := &h[z[i]]
+		*v0++
+		*v1++
+		*v2++
+		*v3++
 	***REMOVED***
 ***REMOVED***

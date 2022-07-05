@@ -169,7 +169,7 @@ func (w *huffmanBitWriter) canReuse(t *tokens) (ok bool) ***REMOVED***
 	b := w.offsetEncoding.codes
 	b = b[:len(a)]
 	for i, v := range a ***REMOVED***
-		if v != 0 && b[i].len == 0 ***REMOVED***
+		if v != 0 && b[i].zero() ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -178,7 +178,7 @@ func (w *huffmanBitWriter) canReuse(t *tokens) (ok bool) ***REMOVED***
 	b = w.literalEncoding.codes[256:literalCount]
 	b = b[:len(a)]
 	for i, v := range a ***REMOVED***
-		if v != 0 && b[i].len == 0 ***REMOVED***
+		if v != 0 && b[i].zero() ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -186,7 +186,7 @@ func (w *huffmanBitWriter) canReuse(t *tokens) (ok bool) ***REMOVED***
 	a = t.litHist[:256]
 	b = w.literalEncoding.codes[:len(a)]
 	for i, v := range a ***REMOVED***
-		if v != 0 && b[i].len == 0 ***REMOVED***
+		if v != 0 && b[i].zero() ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
@@ -280,12 +280,12 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litE
 	// Copy the concatenated code sizes to codegen. Put a marker at the end.
 	cgnl := codegen[:numLiterals]
 	for i := range cgnl ***REMOVED***
-		cgnl[i] = uint8(litEnc.codes[i].len)
+		cgnl[i] = litEnc.codes[i].len()
 	***REMOVED***
 
 	cgnl = codegen[numLiterals : numLiterals+numOffsets]
 	for i := range cgnl ***REMOVED***
-		cgnl[i] = uint8(offEnc.codes[i].len)
+		cgnl[i] = offEnc.codes[i].len()
 	***REMOVED***
 	codegen[numLiterals+numOffsets] = badCode
 
@@ -428,8 +428,8 @@ func (w *huffmanBitWriter) storedSize(in []byte) (int, bool) ***REMOVED***
 
 func (w *huffmanBitWriter) writeCode(c hcode) ***REMOVED***
 	// The function does not get inlined if we "& 63" the shift.
-	w.bits |= uint64(c.code) << (w.nbits & 63)
-	w.nbits += c.len
+	w.bits |= c.code64() << (w.nbits & 63)
+	w.nbits += c.len()
 	if w.nbits >= 48 ***REMOVED***
 		w.writeOutBits()
 	***REMOVED***
@@ -477,7 +477,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 	w.writeBits(int32(numCodegens-4), 4)
 
 	for i := 0; i < numCodegens; i++ ***REMOVED***
-		value := uint(w.codegenEncoding.codes[codegenOrder[i]].len)
+		value := uint(w.codegenEncoding.codes[codegenOrder[i]].len())
 		w.writeBits(int32(value), 3)
 	***REMOVED***
 
@@ -670,7 +670,7 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens *tokens, eof bool, input []b
 		// Estimate size for using a new table.
 		// Use the previous header size as the best estimate.
 		newSize := w.lastHeader + tokens.EstimatedBits()
-		newSize += int(w.literalEncoding.codes[endBlockMarker].len) + newSize>>w.logNewTablePenalty
+		newSize += int(w.literalEncoding.codes[endBlockMarker].len()) + newSize>>w.logNewTablePenalty
 
 		// The estimated size is calculated as an optimal table.
 		// We add a penalty to make it more realistic and re-use a bit more.
@@ -854,8 +854,8 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 		if t < 256 ***REMOVED***
 			//w.writeCode(lits[t.literal()])
 			c := lits[t]
-			bits |= uint64(c.code) << (nbits & 63)
-			nbits += c.len
+			bits |= c.code64() << (nbits & 63)
+			nbits += c.len()
 			if nbits >= 48 ***REMOVED***
 				binary.LittleEndian.PutUint64(w.bytes[nbytes:], bits)
 				//*(*uint64)(unsafe.Pointer(&w.bytes[nbytes])) = bits
@@ -882,8 +882,8 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 		***REMOVED*** else ***REMOVED***
 			// inlined
 			c := lengths[lengthCode]
-			bits |= uint64(c.code) << (nbits & 63)
-			nbits += c.len
+			bits |= c.code64() << (nbits & 63)
+			nbits += c.len()
 			if nbits >= 48 ***REMOVED***
 				binary.LittleEndian.PutUint64(w.bytes[nbytes:], bits)
 				//*(*uint64)(unsafe.Pointer(&w.bytes[nbytes])) = bits
@@ -931,8 +931,8 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 		***REMOVED*** else ***REMOVED***
 			// inlined
 			c := offs[offsetCode]
-			bits |= uint64(c.code) << (nbits & 63)
-			nbits += c.len
+			bits |= c.code64() << (nbits & 63)
+			nbits += c.len()
 			if nbits >= 48 ***REMOVED***
 				binary.LittleEndian.PutUint64(w.bytes[nbytes:], bits)
 				//*(*uint64)(unsafe.Pointer(&w.bytes[nbytes])) = bits
@@ -1009,8 +1009,6 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) ***
 		***REMOVED***
 	***REMOVED***
 
-	// Fill is rarely better...
-	const fill = false
 	const numLiterals = endBlockMarker + 1
 	const numOffsets = 1
 
@@ -1019,7 +1017,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) ***
 	// Assume header is around 70 bytes:
 	// https://stackoverflow.com/a/25454430
 	const guessHeaderSizeBits = 70 * 8
-	histogram(input, w.literalFreq[:numLiterals], fill)
+	histogram(input, w.literalFreq[:numLiterals])
 	ssize, storable := w.storedSize(input)
 	if storable && len(input) > 1024 ***REMOVED***
 		// Quick check for incompressible content.
@@ -1045,19 +1043,14 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) ***
 	***REMOVED***
 	w.literalFreq[endBlockMarker] = 1
 	w.tmpLitEncoding.generate(w.literalFreq[:numLiterals], 15)
-	if fill ***REMOVED***
-		// Clear fill...
-		for i := range w.literalFreq[:numLiterals] ***REMOVED***
-			w.literalFreq[i] = 0
-		***REMOVED***
-		histogram(input, w.literalFreq[:numLiterals], false)
-	***REMOVED***
 	estBits := w.tmpLitEncoding.canReuseBits(w.literalFreq[:numLiterals])
-	estBits += w.lastHeader
-	if w.lastHeader == 0 ***REMOVED***
-		estBits += guessHeaderSizeBits
+	if estBits < math.MaxInt32 ***REMOVED***
+		estBits += w.lastHeader
+		if w.lastHeader == 0 ***REMOVED***
+			estBits += guessHeaderSizeBits
+		***REMOVED***
+		estBits += estBits >> w.logNewTablePenalty
 	***REMOVED***
-	estBits += estBits >> w.logNewTablePenalty
 
 	// Store bytes, if we don't get a reasonable improvement.
 	if storable && ssize <= estBits ***REMOVED***
@@ -1134,12 +1127,12 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) ***
 			nbytes = 0
 		***REMOVED***
 		a, b := encoding[input[0]], encoding[input[1]]
-		bits |= uint64(a.code) << (nbits & 63)
-		bits |= uint64(b.code) << ((nbits + a.len) & 63)
+		bits |= a.code64() << (nbits & 63)
+		bits |= b.code64() << ((nbits + a.len()) & 63)
 		c := encoding[input[2]]
-		nbits += b.len + a.len
-		bits |= uint64(c.code) << (nbits & 63)
-		nbits += c.len
+		nbits += b.len() + a.len()
+		bits |= c.code64() << (nbits & 63)
+		nbits += c.len()
 		input = input[3:]
 	***REMOVED***
 
@@ -1165,10 +1158,11 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) ***
 		***REMOVED***
 		// Bitwriting inlined, ~30% speedup
 		c := encoding[t]
-		bits |= uint64(c.code) << (nbits & 63)
-		nbits += c.len
+		bits |= c.code64() << (nbits & 63)
+
+		nbits += c.len()
 		if debugDeflate ***REMOVED***
-			count += int(c.len)
+			count += int(c.len())
 		***REMOVED***
 	***REMOVED***
 	// Restore...
