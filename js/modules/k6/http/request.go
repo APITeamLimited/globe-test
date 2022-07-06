@@ -437,22 +437,24 @@ func (c *Client) prepareBatchObject(requests map[string]interface***REMOVED*****
 
 // Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
 // objects. Batch returns an array of responses and/or error
-func (c *Client) Batch(reqsV goja.Value) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+func (c *Client) Batch(reqsV ...goja.Value) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	state := c.moduleInstance.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrBatchForbiddenInInitContext
 	***REMOVED***
 
+	if len(reqsV) == 0 ***REMOVED***
+		return nil, fmt.Errorf("no argument was provided to http.batch()")
+	***REMOVED*** else if len(reqsV) > 1 ***REMOVED***
+		return nil, fmt.Errorf("http.batch() accepts only an array or an object of requests")
+	***REMOVED***
 	var (
 		err       error
 		batchReqs []httpext.BatchParsedHTTPRequest
 		results   interface***REMOVED******REMOVED*** // either []*Response or map[string]*Response
 	)
 
-	if reqsV == nil ***REMOVED***
-		return nil, errors.New("no argument was provided to http.batch()")
-	***REMOVED***
-	switch v := reqsV.Export().(type) ***REMOVED***
+	switch v := reqsV[0].Export().(type) ***REMOVED***
 	case []interface***REMOVED******REMOVED***:
 		batchReqs, results, err = c.prepareBatchArray(v)
 	case map[string]interface***REMOVED******REMOVED***:
