@@ -88,7 +88,7 @@ type InitContext struct ***REMOVED***
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
 	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode lib.CompatibilityMode,
-	ctxPtr *context.Context, filesystems map[string]afero.Fs, pwd *url.URL,
+	filesystems map[string]afero.Fs, pwd *url.URL,
 ) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
 		compiler:          c,
@@ -99,7 +99,7 @@ func NewInitContext(
 		logger:            logger,
 		modules:           getJSModules(),
 		moduleVUImpl: &moduleVUImpl***REMOVED***
-			ctx:     *ctxPtr,
+			ctx:     context.Background(),
 			runtime: rt,
 		***REMOVED***,
 	***REMOVED***
@@ -160,9 +160,7 @@ type moduleVUImpl struct ***REMOVED***
 ***REMOVED***
 
 func newModuleVUImpl() *moduleVUImpl ***REMOVED***
-	return &moduleVUImpl***REMOVED***
-		ctx: context.Background(),
-	***REMOVED***
+	return &moduleVUImpl***REMOVED******REMOVED***
 ***REMOVED***
 
 func (m *moduleVUImpl) Context() context.Context ***REMOVED***

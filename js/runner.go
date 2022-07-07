@@ -399,7 +399,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		<-ctx.Done()
 		vu.Runtime.Interrupt(context.Canceled)
 	***REMOVED***()
-	*vu.Context = ctx
+	vu.moduleVUImpl.ctx = ctx
 
 	wrapper := strings.Replace(summaryWrapperLambdaCode, "/*JSLIB_SUMMARY_CODE*/", jslibSummaryCode, 1)
 	handleSummaryWrapperRaw, err := vu.Runtime.RunString(wrapper)
@@ -539,7 +539,7 @@ func (r *Runner) runPart(
 		<-ctx.Done()
 		vu.Runtime.Interrupt(context.Canceled)
 	***REMOVED***()
-	*vu.Context = ctx
+	vu.moduleVUImpl.ctx = ctx
 
 	group, err := r.GetDefaultGroup().Group(name)
 	if err != nil ***REMOVED***
@@ -666,7 +666,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	***REMOVED***
 
 	ctx := params.RunContext
-	*u.Context = ctx
+	u.moduleVUImpl.ctx = ctx
 
 	u.state.GetScenarioVUIter = func() uint64 ***REMOVED***
 		return u.scenarioIter[params.Scenario]
