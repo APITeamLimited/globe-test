@@ -159,10 +159,6 @@ type moduleVUImpl struct ***REMOVED***
 	eventLoop *eventloop.EventLoop
 ***REMOVED***
 
-func newModuleVUImpl() *moduleVUImpl ***REMOVED***
-	return &moduleVUImpl***REMOVED******REMOVED***
-***REMOVED***
-
 func (m *moduleVUImpl) Context() context.Context ***REMOVED***
 	return m.ctx
 ***REMOVED***

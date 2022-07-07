@@ -68,6 +68,8 @@ type BundleInstance struct ***REMOVED***
 	env map[string]string
 
 	exports map[string]goja.Callable
+
+	moduleVUImpl *moduleVUImpl
 ***REMOVED***
 
 // NewBundle creates a new bundle from a source file and a filesystem.
@@ -250,22 +252,21 @@ func (b *Bundle) getExports(logger logrus.FieldLogger, rt *goja.Runtime, options
 ***REMOVED***
 
 // Instantiate creates a new runtime from this bundle.
-func (b *Bundle) Instantiate(
-	logger logrus.FieldLogger, vuID uint64, vuImpl *moduleVUImpl,
-) (bi *BundleInstance, instErr error) ***REMOVED***
+func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64) (*BundleInstance, error) ***REMOVED***
 	// Instantiate the bundle into a new VM using a bound init context. This uses a context with a
 	// runtime, but no state, to allow module-provided types to function within the init context.
-	vuImpl.runtime = goja.New()
+	vuImpl := &moduleVUImpl***REMOVED***runtime: goja.New()***REMOVED***
 	init := newBoundInitContext(b.BaseInitContext, vuImpl)
 	if err := b.instantiate(logger, vuImpl.runtime, init, vuID); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	rt := vuImpl.runtime
-	bi = &BundleInstance***REMOVED***
-		Runtime: rt,
-		exports: make(map[string]goja.Callable),
-		env:     b.RuntimeOptions.Env,
+	bi := &BundleInstance***REMOVED***
+		Runtime:      rt,
+		exports:      make(map[string]goja.Callable),
+		env:          b.RuntimeOptions.Env,
+		moduleVUImpl: vuImpl,
 	***REMOVED***
 
 	// Grab any exported functions that could be executed. These were
@@ -284,6 +285,8 @@ func (b *Bundle) Instantiate(
 	***REMOVED*** else ***REMOVED***
 		jsOptionsObj = jsOptions.ToObject(rt)
 	***REMOVED***
+
+	var instErr error
 	b.Options.ForEachSpecified("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
 		if err := jsOptionsObj.Set(key, val); err != nil ***REMOVED***
 			instErr = err

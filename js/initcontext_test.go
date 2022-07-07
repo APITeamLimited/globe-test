@@ -67,7 +67,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			`)
 			require.NoError(t, err, "bundle error")
 
-			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+			bi, err := b.Instantiate(logger, 0)
 			assert.NoError(t, err, "instance error")
 
 			exports := bi.Runtime.Get("exports").ToObject(bi.Runtime)
@@ -93,7 +93,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				`)
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+			bi, err := b.Instantiate(logger, 0)
 			require.NoError(t, err)
 
 			exports := bi.Runtime.Get("exports").ToObject(bi.Runtime)
@@ -203,7 +203,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
-						_, err = b.Instantiate(logger, 0, newModuleVUImpl())
+						_, err = b.Instantiate(logger, 0)
 						require.NoError(t, err)
 					***REMOVED***)
 				***REMOVED***
@@ -227,7 +227,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			b, err := getSimpleBundle(t, "/script.js", data, fs)
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+			bi, err := b.Instantiate(logger, 0)
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			assert.NoError(t, err)
@@ -256,7 +256,7 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		return nil, err
 	***REMOVED***
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, newModuleVUImpl())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -372,8 +372,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	vuImpl := newModuleVUImpl()
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, vuImpl)
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
 	require.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -385,7 +384,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	vuImpl.state = &lib.State***REMOVED***
+	bi.moduleVUImpl.state = &lib.State***REMOVED***
 		Options: lib.Options***REMOVED******REMOVED***,
 		Logger:  logger,
 		Group:   root,
@@ -407,7 +406,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	vuImpl.ctx = ctx
+	bi.moduleVUImpl.ctx = ctx
 
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
@@ -520,8 +519,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	vuImpl := newModuleVUImpl()
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, vuImpl)
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
 	require.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -533,7 +531,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	vuImpl.state = &lib.State***REMOVED***
+	bi.moduleVUImpl.state = &lib.State***REMOVED***
 		Options: lib.Options***REMOVED******REMOVED***,
 		Logger:  logger,
 		Group:   root,
@@ -555,7 +553,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	vuImpl.ctx = ctx
+	bi.moduleVUImpl.ctx = ctx
 
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
@@ -572,7 +570,7 @@ func TestInitContextVU(t *testing.T) ***REMOVED***
 		export default function() ***REMOVED*** return vu; ***REMOVED***
 	`)
 	require.NoError(t, err)
-	bi, err := b.Instantiate(testutils.NewLogger(t), 5, newModuleVUImpl())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 5)
 	require.NoError(t, err)
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
@@ -605,7 +603,7 @@ export default function()***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+	bi, err := b.Instantiate(logger, 0)
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -636,7 +634,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+	bi, err := b.Instantiate(logger, 0)
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -668,7 +666,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+	bi, err := b.Instantiate(logger, 0)
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -699,7 +697,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+	bi, err := b.Instantiate(logger, 0)
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)

@@ -481,7 +481,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	logger := testutils.NewLogger(t)
 	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
 		require.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -574,7 +574,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		***REMOVED***
 		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
 		require.NoError(t, err)
-		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -718,7 +718,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
 						b := b
 						t.Run(source, func(t *testing.T) ***REMOVED***
-							bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+							bi, err := b.Instantiate(logger, 0)
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
@@ -754,7 +754,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -774,7 +774,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		bi.Runtime.Set("val", false)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
@@ -795,7 +795,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		// Ensure `options` properties are correctly marshalled
 		jsOptions := bi.Runtime.Get("options").ToObject(bi.Runtime)
@@ -807,7 +807,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
-		bi2, err := b.Instantiate(logger, 0, newModuleVUImpl())
+		bi2, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
@@ -843,7 +843,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			require.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
 			require.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
 
-			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
+			bi, err := b.Instantiate(logger, 0)
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			require.NoError(t, err)
@@ -879,7 +879,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for i := 0; i < vus; i++ ***REMOVED***
-				bi, err := b.Instantiate(logger, uint64(i), newModuleVUImpl())
+				bi, err := b.Instantiate(logger, uint64(i))
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
