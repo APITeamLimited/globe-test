@@ -8,6 +8,7 @@ import (
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
 	metrics "go.k6.io/k6/metrics"
+	null_v3 "gopkg.in/guregu/null.v3"
 	time "time"
 )
 
@@ -187,15 +188,7 @@ func easyjson42239ddeDecodeGoK6IoK6OutputJson1(in *jlexer.Lexer, out *metricEnve
 		case "type":
 			out.Type = string(in.String())
 		case "data":
-			if in.IsNull() ***REMOVED***
-				in.Skip()
-				out.Data = nil
-			***REMOVED*** else ***REMOVED***
-				if out.Data == nil ***REMOVED***
-					out.Data = new(metrics.Metric)
-				***REMOVED***
-				easyjson42239ddeDecodeGoK6IoK6Metrics(in, out.Data)
-			***REMOVED***
+			easyjson42239ddeDecode1(in, &out.Data)
 		case "metric":
 			out.Metric = string(in.String())
 		default:
@@ -220,11 +213,7 @@ func easyjson42239ddeEncodeGoK6IoK6OutputJson1(out *jwriter.Writer, in metricEnv
 	***REMOVED***
 		const prefix string = ",\"data\":"
 		out.RawString(prefix)
-		if in.Data == nil ***REMOVED***
-			out.RawString("null")
-		***REMOVED*** else ***REMOVED***
-			easyjson42239ddeEncodeGoK6IoK6Metrics(out, *in.Data)
-		***REMOVED***
+		easyjson42239ddeEncode1(out, in.Data)
 	***REMOVED***
 	***REMOVED***
 		const prefix string = ",\"metric\":"
@@ -243,7 +232,14 @@ func (v metricEnvelope) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
 func (v *metricEnvelope) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
 	easyjson42239ddeDecodeGoK6IoK6OutputJson1(l, v)
 ***REMOVED***
-func easyjson42239ddeDecodeGoK6IoK6Metrics(in *jlexer.Lexer, out *metrics.Metric) ***REMOVED***
+func easyjson42239ddeDecode1(in *jlexer.Lexer, out *struct ***REMOVED***
+	Name       string               `json:"name"`
+	Type       metrics.MetricType   `json:"type"`
+	Contains   metrics.ValueType    `json:"contains"`
+	Tainted    null_v3.Bool         `json:"tainted"`
+	Thresholds metrics.Thresholds   `json:"thresholds"`
+	Submetrics []*metrics.Submetric `json:"submetrics"`
+***REMOVED***) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -304,7 +300,7 @@ func easyjson42239ddeDecodeGoK6IoK6Metrics(in *jlexer.Lexer, out *metrics.Metric
 						if v1 == nil ***REMOVED***
 							v1 = new(metrics.Submetric)
 						***REMOVED***
-						easyjson42239ddeDecodeGoK6IoK6Metrics1(in, v1)
+						easyjson42239ddeDecodeGoK6IoK6Metrics(in, v1)
 					***REMOVED***
 					out.Submetrics = append(out.Submetrics, v1)
 					in.WantComma()
@@ -321,7 +317,14 @@ func easyjson42239ddeDecodeGoK6IoK6Metrics(in *jlexer.Lexer, out *metrics.Metric
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjson42239ddeEncodeGoK6IoK6Metrics(out *jwriter.Writer, in metrics.Metric) ***REMOVED***
+func easyjson42239ddeEncode1(out *jwriter.Writer, in struct ***REMOVED***
+	Name       string               `json:"name"`
+	Type       metrics.MetricType   `json:"type"`
+	Contains   metrics.ValueType    `json:"contains"`
+	Tainted    null_v3.Bool         `json:"tainted"`
+	Thresholds metrics.Thresholds   `json:"thresholds"`
+	Submetrics []*metrics.Submetric `json:"submetrics"`
+***REMOVED***) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -364,7 +367,7 @@ func easyjson42239ddeEncodeGoK6IoK6Metrics(out *jwriter.Writer, in metrics.Metri
 				if v3 == nil ***REMOVED***
 					out.RawString("null")
 				***REMOVED*** else ***REMOVED***
-					easyjson42239ddeEncodeGoK6IoK6Metrics1(out, *v3)
+					easyjson42239ddeEncodeGoK6IoK6Metrics(out, *v3)
 				***REMOVED***
 			***REMOVED***
 			out.RawByte(']')
@@ -372,7 +375,7 @@ func easyjson42239ddeEncodeGoK6IoK6Metrics(out *jwriter.Writer, in metrics.Metri
 	***REMOVED***
 	out.RawByte('***REMOVED***')
 ***REMOVED***
-func easyjson42239ddeDecodeGoK6IoK6Metrics1(in *jlexer.Lexer, out *metrics.Submetric) ***REMOVED***
+func easyjson42239ddeDecodeGoK6IoK6Metrics(in *jlexer.Lexer, out *metrics.Submetric) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -417,7 +420,7 @@ func easyjson42239ddeDecodeGoK6IoK6Metrics1(in *jlexer.Lexer, out *metrics.Subme
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjson42239ddeEncodeGoK6IoK6Metrics1(out *jwriter.Writer, in metrics.Submetric) ***REMOVED***
+func easyjson42239ddeEncodeGoK6IoK6Metrics(out *jwriter.Writer, in metrics.Submetric) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first

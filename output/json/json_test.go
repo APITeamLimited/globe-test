@@ -47,7 +47,7 @@ func getValidator(t testing.TB, expected []string) func(io.Reader) ***REMOVED***
 				t.Errorf("Read unexpected line number %d, expected only %d entries", i, len(expected))
 				continue
 			***REMOVED***
-			assert.Equal(t, expected[i-1], string(s.Bytes()))
+			assert.JSONEq(t, expected[i-1], string(s.Bytes()))
 		***REMOVED***
 		assert.NoError(t, s.Err())
 		assert.Equal(t, len(expected), i)
@@ -58,6 +58,9 @@ func generateTestMetricSamples(t testing.TB) ([]metrics.SampleContainer, func(io
 	registry := metrics.NewRegistry()
 
 	metric1, err := registry.NewMetric("my_metric1", metrics.Gauge)
+	require.NoError(t, err)
+
+	_, err = metric1.AddSubmetric("a:1,b:2")
 	require.NoError(t, err)
 
 	metric2, err := registry.NewMetric("my_metric2", metrics.Counter, metrics.Data)
@@ -79,7 +82,7 @@ func generateTestMetricSamples(t testing.TB) ([]metrics.SampleContainer, func(io
 		metrics.Sample***REMOVED***Time: time3, Metric: metric2, Value: float64(5), Tags: metrics.NewSampleTags(map[string]string***REMOVED***"tag3": "val3"***REMOVED***)***REMOVED***,
 	***REMOVED***
 	expected := []string***REMOVED***
-		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01","p(99)<250"],"submetrics":null***REMOVED***,"metric":"my_metric1"***REMOVED***`,
+		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01","p(99)<250"],"submetrics":[***REMOVED***"name":"my_metric1***REMOVED***a:1,b:2***REMOVED***","suffix":"a:1,b:2","tags":***REMOVED***"a":"1","b":"2"***REMOVED******REMOVED***]***REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":1,"tags":***REMOVED***"tag1":"val1"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":2,"tags":***REMOVED***"tag2":"val2"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric2","type":"counter","contains":"data","tainted":null,"thresholds":[],"submetrics":null***REMOVED***,"metric":"my_metric2"***REMOVED***`,
@@ -192,12 +195,6 @@ func TestWrapSampleWithSamplePointer(t *testing.T) ***REMOVED***
 	assert.NotEqual(t, out, (*sampleEnvelope)(nil))
 ***REMOVED***
 
-func TestWrapMetricWithMetricPointer(t *testing.T) ***REMOVED***
-	t.Parallel()
-	out := wrapMetric(&metrics.Metric***REMOVED******REMOVED***)
-	assert.NotEqual(t, out, (*metricEnvelope)(nil))
-***REMOVED***
-
 func setThresholds(t *testing.T, out output.Output) ***REMOVED***
 	t.Helper()
 
@@ -205,6 +202,5 @@ func setThresholds(t *testing.T, out output.Output) ***REMOVED***
 	require.True(t, ok)
 
 	ts := metrics.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
-
 	jout.SetThresholds(map[string]metrics.Thresholds***REMOVED***"my_metric1": ts***REMOVED***)
 ***REMOVED***

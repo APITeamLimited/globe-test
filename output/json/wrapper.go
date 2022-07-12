@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"go.k6.io/k6/metrics"
+	"gopkg.in/guregu/null.v3"
 )
 
 //go:generate easyjson -pkg -no_std_marshalers -gen_build_flags -mod=mod .
@@ -32,8 +33,8 @@ import (
 type sampleEnvelope struct ***REMOVED***
 	Type string `json:"type"`
 	Data struct ***REMOVED***
-		Time  time.Time         `json:"time"`
-		Value float64           `json:"value"`
+		Time  time.Time           `json:"time"`
+		Value float64             `json:"value"`
 		Tags  *metrics.SampleTags `json:"tags"`
 	***REMOVED*** `json:"data"`
 	Metric string `json:"metric"`
@@ -54,15 +55,14 @@ func wrapSample(sample metrics.Sample) sampleEnvelope ***REMOVED***
 
 //easyjson:json
 type metricEnvelope struct ***REMOVED***
-	Type   string        `json:"type"`
-	Data   *metrics.Metric `json:"data"`
-	Metric string        `json:"metric"`
-***REMOVED***
-
-func wrapMetric(metric *metrics.Metric) metricEnvelope ***REMOVED***
-	return metricEnvelope***REMOVED***
-		Type:   "Metric",
-		Metric: metric.Name,
-		Data:   metric,
-	***REMOVED***
+	Type string `json:"type"`
+	Data struct ***REMOVED***
+		Name       string               `json:"name"`
+		Type       metrics.MetricType   `json:"type"`
+		Contains   metrics.ValueType    `json:"contains"`
+		Tainted    null.Bool            `json:"tainted"`
+		Thresholds metrics.Thresholds   `json:"thresholds"`
+		Submetrics []*metrics.Submetric `json:"submetrics"`
+	***REMOVED*** `json:"data"`
+	Metric string `json:"metric"`
 ***REMOVED***
