@@ -1,7 +1,14 @@
 name: Build
 on:
-  # Enable manually triggering this workflow via the API or web UI
   workflow_dispatch:
+    inputs:
+      k6_version:
+        description: 'The version of the release, it must use the semantic versioning format with the v prefix. It is a development release so it is suggested to append a build metadata (e.g. v0.38.0-dev).'
+        required: true
+      go_version:
+        description: 'Go version for building binaries'
+        default: '1.x'
+        required: true
   push:
     branches:
       - master
@@ -19,37 +26,54 @@ env:
   LI_DOCKER_IMAGE_ID: "loadimpact/k6"
   DOCKER_IMAGE_ID: "grafana/k6"
   GHCR_IMAGE_ID: $***REMOVED******REMOVED*** github.repository ***REMOVED******REMOVED***
+  DEFAULT_GO_VERSION: "1.18.x"
 
 jobs:
   configure:
     runs-on: ubuntu-latest
     outputs:
-      version: $***REMOVED******REMOVED*** steps.get_version.outputs.version ***REMOVED******REMOVED***
+      k6_version: $***REMOVED******REMOVED*** steps.get_k6_version.outputs.k6_version ***REMOVED******REMOVED***
+      go_version: $***REMOVED******REMOVED*** steps.get_go_version.outputs.go_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        if: $***REMOVED******REMOVED*** ! startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Get version
-        id: get_version
+      - name: Get the k6 version
+        id: get_k6_version
         run: |
-          set -x
-          if [[ "$GITHUB_REF" =~ ^refs/tags/v.+$ ]]; then
+          set -x # Show exactly what commands are executed
+          if [[ "$***REMOVED******REMOVED*** github.event_name ***REMOVED******REMOVED***" == "workflow_dispatch" ]] && [[ "$***REMOVED******REMOVED*** github.event.inputs.k6_version ***REMOVED******REMOVED***" != "" ]]; then
+            VERSION="$***REMOVED******REMOVED*** github.event.inputs.k6_version ***REMOVED******REMOVED***"
+            echo "Building custom dev build with version '$***REMOVED***VERSION***REMOVED***' from manual workflow_dispatch..."
+          elif [[ "$***REMOVED***GITHUB_REF***REMOVED***" =~ ^refs/tags/v.+$ ]]; then
             VERSION="$***REMOVED***GITHUB_REF##*/***REMOVED***"
-            echo "Building real version tag '$GITHUB_REF', parsed '$VERSION' as the actual version..."
+            echo "Building real version tag '$***REMOVED***GITHUB_REF***REMOVED***', parsed '$***REMOVED***VERSION***REMOVED***' as the actual version..."
           else
             VERSION="$(git describe --tags --always --long --dirty)"
-            echo "Building a non-version ref '$GITHUB_REF', use '$VERSION' as the version instead..."
+            echo "Building a non-version ref '$***REMOVED***GITHUB_REF***REMOVED***', use '$***REMOVED***VERSION***REMOVED***' as the version instead..."
           fi
           echo "VERSION=$***REMOVED***VERSION***REMOVED***"
-          echo "::set-output name=version::$***REMOVED***VERSION***REMOVED***"
+          echo "::set-output name=k6_version::$***REMOVED***VERSION***REMOVED***"
+      - name: Get the used Go version
+        id: get_go_version
+        run: |
+          set -x # Show exactly what commands are executed
+          if [[ "$***REMOVED******REMOVED*** github.event_name ***REMOVED******REMOVED***" == "workflow_dispatch" ]] && [[ "$***REMOVED******REMOVED*** github.event.inputs.go_version ***REMOVED******REMOVED***" != "" ]]; then
+            GO_VERSION="$***REMOVED******REMOVED*** github.event.inputs.go_version ***REMOVED******REMOVED***"
+            echo "Using custom Go version '$***REMOVED***GO_VERSION***REMOVED***' from manual workflow_dispatch..."
+          else
+            GO_VERSION="$***REMOVED***DEFAULT_GO_VERSION***REMOVED***"
+            echo "Using the default Go version '$***REMOVED***GO_VERSION***REMOVED***'..."
+          fi
+          echo "GO_VERSION=$***REMOVED***GO_VERSION***REMOVED***"
+          echo "::set-output name=go_version::$***REMOVED***GO_VERSION***REMOVED***"
 
   build:
     runs-on: ubuntu-latest
     needs: [configure]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -58,7 +82,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18.x
+          go-version: $***REMOVED******REMOVED*** needs.configure.outputs.go_version ***REMOVED******REMOVED***
       - name: Install nfpm (dep and rpm package builder)
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.16.0
@@ -108,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [configure]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -170,7 +194,7 @@ jobs:
         shell: pwsh
     needs: [configure, build]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -206,11 +230,11 @@ jobs:
 
       - name: Sign Windows binary and .msi package
         # GH secrets are unavaileble when building from project forks, so this
-        # will fail for external PRs, even if we wanted to do it. And we
-        # don't. qWe are only only going to sign packages that are built from
-        # master or a version tag, so we have enough assurance that package
-        # signing works, but don't sign every PR build.
-        if: $***REMOVED******REMOVED*** github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
+        # will fail for external PRs, even if we wanted to do it. And we don't.
+        # We are only going to sign packages that are built from master or a
+        # version tag, or manually triggered dev builds, so we have enough
+        # assurance that package signing works, but don't sign every PR build.
+        if: $***REMOVED******REMOVED*** github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' ***REMOVED******REMOVED***
         run: |
           # Convert base64 certificate to PFX
           $bytes = [Convert]::FromBase64String("$***REMOVED******REMOVED*** secrets.WIN_SIGN_CERT ***REMOVED******REMOVED***")
@@ -240,10 +264,10 @@ jobs:
   # Disabled until #1997 and #1998 are addressed.
   # publish-macos:
   #   runs-on: macos-latest
-  #   needs: [deps, lint, test-current-cov, configure, build]
-  #   if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
+  #   needs: [configure, build]
+  #   if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
   #   env:
-  #     VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+  #     VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
   #     HOMEBREW_GITHUB_API_TOKEN: $***REMOVED******REMOVED*** secrets.HOMEBREW_GITHUB_API_TOKEN ***REMOVED******REMOVED***
   #   steps:
   #     - name: Download source code archive
@@ -259,9 +283,9 @@ jobs:
   publish-github:
     runs-on: ubuntu-latest
     needs: [configure, build, package-windows]
-    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
+    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -291,9 +315,9 @@ jobs:
   publish-packages:
     runs-on: ubuntu-latest
     needs: [configure, build, package-windows]
-    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
+    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

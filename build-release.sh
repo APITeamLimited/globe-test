@@ -51,7 +51,7 @@ package() ***REMOVED***
     deb|rpm)
         # nfpm can't substitute env vars in file paths, so we have to cd...
         cd "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***"
-        set -x
+        set -x # Show exactly what command was executed
         nfpm package --config ../../packaging/nfpm.yaml --packager "$***REMOVED***FMT***REMOVED***" \
             --target "../k6-$***REMOVED***VERSION***REMOVED***-linux-$***REMOVED***GOARCH***REMOVED***.$***REMOVED***FMT***REMOVED***"
         set +x
