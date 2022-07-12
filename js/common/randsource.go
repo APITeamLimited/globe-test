@@ -36,7 +36,7 @@ import (
 func NewRandSource() goja.RandSource ***REMOVED***
 	var seed int64
 	if err := binary.Read(crand.Reader, binary.LittleEndian, &seed); err != nil ***REMOVED***
-		panic(fmt.Errorf("could not read random bytes: %v", err))
+		panic(fmt.Errorf("could not read random bytes: %w", err))
 	***REMOVED***
-	return rand.New(rand.NewSource(seed)).Float64
+	return rand.New(rand.NewSource(seed)).Float64 //nolint:gosec
 ***REMOVED***

@@ -34,7 +34,7 @@ import (
 
 // Throw a JS error; avoids re-wrapping GoErrors.
 func Throw(rt *goja.Runtime, err error) ***REMOVED***
-	if e, ok := err.(*goja.Exception); ok ***REMOVED***
+	if e, ok := err.(*goja.Exception); ok ***REMOVED*** //nolint:errorlint // we don't really want to unwrap here
 		panic(e)
 	***REMOVED***
 	panic(rt.ToValue(err))
