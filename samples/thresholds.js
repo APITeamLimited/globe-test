@@ -21,7 +21,7 @@ export let options = ***REMOVED***
         // Declare a threshold over HTTP response times for all data points
         // where the URL tag is equal to "http://httpbin.org/post",
         // the max should not cross 1000ms
-        "http_req_duration***REMOVED***url:http://httpbin.org/post***REMOVED***": ["max<1000"],
+        "http_req_duration***REMOVED***name:http://httpbin.org/post***REMOVED***": ["max<1000"],
     ***REMOVED***
 ***REMOVED***;
 
