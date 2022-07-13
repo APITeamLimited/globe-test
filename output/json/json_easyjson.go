@@ -8,7 +8,6 @@ import (
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
 	metrics "go.k6.io/k6/metrics"
-	null_v3 "gopkg.in/guregu/null.v3"
 	time "time"
 )
 
@@ -236,7 +235,6 @@ func easyjson42239ddeDecode1(in *jlexer.Lexer, out *struct ***REMOVED***
 	Name       string               `json:"name"`
 	Type       metrics.MetricType   `json:"type"`
 	Contains   metrics.ValueType    `json:"contains"`
-	Tainted    null_v3.Bool         `json:"tainted"`
 	Thresholds metrics.Thresholds   `json:"thresholds"`
 	Submetrics []*metrics.Submetric `json:"submetrics"`
 ***REMOVED***) ***REMOVED***
@@ -267,10 +265,6 @@ func easyjson42239ddeDecode1(in *jlexer.Lexer, out *struct ***REMOVED***
 		case "contains":
 			if data := in.UnsafeBytes(); in.Ok() ***REMOVED***
 				in.AddError((out.Contains).UnmarshalText(data))
-			***REMOVED***
-		case "tainted":
-			if data := in.Raw(); in.Ok() ***REMOVED***
-				in.AddError((out.Tainted).UnmarshalJSON(data))
 			***REMOVED***
 		case "thresholds":
 			if data := in.Raw(); in.Ok() ***REMOVED***
@@ -321,7 +315,6 @@ func easyjson42239ddeEncode1(out *jwriter.Writer, in struct ***REMOVED***
 	Name       string               `json:"name"`
 	Type       metrics.MetricType   `json:"type"`
 	Contains   metrics.ValueType    `json:"contains"`
-	Tainted    null_v3.Bool         `json:"tainted"`
 	Thresholds metrics.Thresholds   `json:"thresholds"`
 	Submetrics []*metrics.Submetric `json:"submetrics"`
 ***REMOVED***) ***REMOVED***
@@ -342,11 +335,6 @@ func easyjson42239ddeEncode1(out *jwriter.Writer, in struct ***REMOVED***
 		const prefix string = ",\"contains\":"
 		out.RawString(prefix)
 		out.Raw((in.Contains).MarshalJSON())
-	***REMOVED***
-	***REMOVED***
-		const prefix string = ",\"tainted\":"
-		out.RawString(prefix)
-		out.Raw((in.Tainted).MarshalJSON())
 	***REMOVED***
 	***REMOVED***
 		const prefix string = ",\"thresholds\":"
