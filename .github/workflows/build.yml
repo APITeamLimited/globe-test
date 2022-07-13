@@ -1,7 +1,14 @@
-name: CI
+name: Build
 on:
-  # Enable manually triggering this workflow via the API or web UI
   workflow_dispatch:
+    inputs:
+      k6_version:
+        description: 'The version of the release, it must use the semantic versioning format with the v prefix. It is a development release so it is suggested to append a build metadata (e.g. v0.38.0-dev).'
+        required: true
+      go_version:
+        description: 'Go version for building binaries'
+        default: '1.x'
+        required: true
   push:
     branches:
       - master
@@ -19,165 +26,77 @@ env:
   LI_DOCKER_IMAGE_ID: "loadimpact/k6"
   DOCKER_IMAGE_ID: "grafana/k6"
   GHCR_IMAGE_ID: $***REMOVED******REMOVED*** github.repository ***REMOVED******REMOVED***
+  DEFAULT_GO_VERSION: "1.18.x"
 
 jobs:
-  test-prev:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: [1.17.x]
-        platform: [ubuntu-latest, windows-2019]
-    runs-on: $***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: $***REMOVED******REMOVED*** matrix.go-version ***REMOVED******REMOVED***
-      - name: Run tests
-        run: |
-          set -x
-          go version
-          export GOMAXPROCS=2
-          args=("-p" "2" "-race")
-          # Run with less concurrency on Windows to minimize flakiness.
-          if [[ "$***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***" == windows* ]]; then
-            unset args[2]
-            args[1]="1"
-            export GOMAXPROCS=1
-          fi
-          go test "$***REMOVED***args[@]***REMOVED***" -timeout 800s ./...
-
-  test-tip:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.x
-      - name: Install Go tip
-        run: |
-          go install golang.org/dl/gotip@latest
-          gotip download
-          echo "GOROOT=$HOME/sdk/gotip" >> "$GITHUB_ENV"
-          echo "GOPATH=$HOME/go" >> "$GITHUB_ENV"
-          echo "$HOME/go/bin" >> "$GITHUB_PATH"
-          echo "$HOME/sdk/gotip/bin" >> "$GITHUB_PATH"
-      - name: Run tests
-        run: |
-          set -x
-          which go
-          go version
-          export GOMAXPROCS=2
-          args=("-p" "2" "-race")
-          go test "$***REMOVED***args[@]***REMOVED***" -timeout 800s ./...
-
-  test-current-cov:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: [1.18.x]
-        platform: [ubuntu-latest, windows-2019]
-    runs-on: $***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: $***REMOVED******REMOVED*** matrix.go-version ***REMOVED******REMOVED***
-      - name: Run tests with code coverage
-        run: |
-          go version
-          export GOMAXPROCS=2
-          args=("-p" "2" "-race")
-          # Run with less concurrency on Windows to minimize flakiness.
-          if [[ "$***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***" == windows* ]]; then
-            unset args[2]
-            args[1]="1"
-            export GOMAXPROCS=1
-          fi
-          echo "mode: set" > coverage.txt
-          for pkg in $(go list ./... | grep -v vendor); do
-              list=$(go list -test -f  '***REMOVED******REMOVED*** join .Deps  "\n"***REMOVED******REMOVED***' $pkg | grep go.k6.io/k6 | grep -v vendor || true)
-              if [ -n "$list" ]; then
-                  list=$(echo "$list" | cut -f1 -d ' ' | sort -u | paste -sd, -)
-              fi
-
-              go test "$***REMOVED***args[@]***REMOVED***" -timeout 800s --coverpkg="$list" -coverprofile=$(echo $pkg | tr / -).coverage $pkg
-          done
-          grep -h -v "^mode:" *.coverage >> coverage.txt
-          rm -f *.coverage
-      - name: Upload coverage to Codecov
-        env:
-          CODECOV_BASH_VERSION: 1.0.1
-          CODECOV_BASH_SHA512SUM: d075b412a362a9a2b7aedfec3b8b9a9a927b3b99e98c7c15a2b76ef09862aeb005e91d76a5fd71b511141496d0fd23d1b42095f722ebcd509d768fba030f159e
-          CODECOV_TOKEN: $***REMOVED******REMOVED*** secrets.CODECOV_TOKEN ***REMOVED******REMOVED***
-        run: |
-          curl -fsSLO "https://raw.githubusercontent.com/codecov/codecov-bash/$***REMOVED***CODECOV_BASH_VERSION***REMOVED***/codecov"
-          echo "$CODECOV_BASH_SHA512SUM codecov" | sha512sum -c -
-          platform="$***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***"
-          bash ./codecov -F "$***REMOVED***platform%%-****REMOVED***"
-      - name: Generate coverage HTML report
-        run: go tool cover -html=coverage.txt -o coverage.html
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-coverage-report-$***REMOVED******REMOVED*** matrix.platform ***REMOVED******REMOVED***
-          path: coverage.html
-
   configure:
     runs-on: ubuntu-latest
     outputs:
-      version: $***REMOVED******REMOVED*** steps.get_version.outputs.version ***REMOVED******REMOVED***
+      k6_version: $***REMOVED******REMOVED*** steps.get_k6_version.outputs.k6_version ***REMOVED******REMOVED***
+      go_version: $***REMOVED******REMOVED*** steps.get_go_version.outputs.go_version ***REMOVED******REMOVED***
     steps:
-      - name: Get version
-        id: get_version
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get the k6 version
+        id: get_k6_version
         run: |
-          VERSION="$***REMOVED***GITHUB_REF##*/***REMOVED***"
+          set -x # Show exactly what commands are executed
+          if [[ "$***REMOVED******REMOVED*** github.event_name ***REMOVED******REMOVED***" == "workflow_dispatch" ]] && [[ "$***REMOVED******REMOVED*** github.event.inputs.k6_version ***REMOVED******REMOVED***" != "" ]]; then
+            VERSION="$***REMOVED******REMOVED*** github.event.inputs.k6_version ***REMOVED******REMOVED***"
+            echo "Building custom dev build with version '$***REMOVED***VERSION***REMOVED***' from manual workflow_dispatch..."
+          elif [[ "$***REMOVED***GITHUB_REF***REMOVED***" =~ ^refs/tags/v.+$ ]]; then
+            VERSION="$***REMOVED***GITHUB_REF##*/***REMOVED***"
+            echo "Building real version tag '$***REMOVED***GITHUB_REF***REMOVED***', parsed '$***REMOVED***VERSION***REMOVED***' as the actual version..."
+          else
+            VERSION="$(git describe --tags --always --long --dirty)"
+            echo "Building a non-version ref '$***REMOVED***GITHUB_REF***REMOVED***', use '$***REMOVED***VERSION***REMOVED***' as the version instead..."
+          fi
           echo "VERSION=$***REMOVED***VERSION***REMOVED***"
-          echo "::set-output name=version::$***REMOVED***VERSION***REMOVED***"
+          echo "::set-output name=k6_version::$***REMOVED***VERSION***REMOVED***"
+      - name: Get the used Go version
+        id: get_go_version
+        run: |
+          set -x # Show exactly what commands are executed
+          if [[ "$***REMOVED******REMOVED*** github.event_name ***REMOVED******REMOVED***" == "workflow_dispatch" ]] && [[ "$***REMOVED******REMOVED*** github.event.inputs.go_version ***REMOVED******REMOVED***" != "" ]]; then
+            GO_VERSION="$***REMOVED******REMOVED*** github.event.inputs.go_version ***REMOVED******REMOVED***"
+            echo "Using custom Go version '$***REMOVED***GO_VERSION***REMOVED***' from manual workflow_dispatch..."
+          else
+            GO_VERSION="$***REMOVED***DEFAULT_GO_VERSION***REMOVED***"
+            echo "Using the default Go version '$***REMOVED***GO_VERSION***REMOVED***'..."
+          fi
+          echo "GO_VERSION=$***REMOVED***GO_VERSION***REMOVED***"
+          echo "::set-output name=go_version::$***REMOVED***GO_VERSION***REMOVED***"
 
   build:
     runs-on: ubuntu-latest
-    needs: [configure, test-current-cov]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [configure]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          # We plan to move to 1.18.x after the release of the first patch.
-          go-version: 1.18.x
-      - name: Install package builders
-        env:
-          GO111MODULE: 'off'
+          go-version: $***REMOVED******REMOVED*** needs.configure.outputs.go_version ***REMOVED******REMOVED***
+      - name: Install nfpm (dep and rpm package builder)
         run: |
-          gopath="$(go env GOPATH)"
-          go get github.com/Masterminds/glide
-          go get -d github.com/mh-cbon/go-bin-deb \
-              && (cd "$gopath/src/github.com/mh-cbon/go-bin-deb" \
-              && glide install \
-              && go install)
-          go get -d github.com/mh-cbon/go-bin-rpm \
-              && (cd "$gopath/src/github.com/mh-cbon/go-bin-rpm" \
-              && glide install \
-              && go install)
-          sudo apt-get update -y
-          sudo apt-get install -y fakeroot rpm
-      - name: Generate Windows binary metadata
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.16.0
+      - name: Install goversioninfo (.syso file creator)
         run: |
-          (cd && GO111MODULE=on go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.2.0)
-          IFS=. read -a version <<< "$(echo $VERSION | sed 's:[^0-9\.]::g')"
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.0
+      - name: Generate Windows binary metadata (.syso files)
+        run: |
+          IFS=. read -a version_parts <<< "$***REMOVED***VERSION#v***REMOVED***"
+          IFS=- read -a version_patch <<< "$***REMOVED***version_parts[2]***REMOVED***"
+
           # Need a blank versioninfo.json for the CLI overrides to work.
           echo '***REMOVED******REMOVED***' > versioninfo.json
+          set -x
           goversioninfo -64 \
             -platform-specific=true \
             -charset="1200" \
@@ -189,14 +108,19 @@ jobs:
             -original-name="k6.exe" \
             -product-name="k6" \
             -translation="0x0409" \
-            -ver-major="$***REMOVED***version[0]***REMOVED***" \
-            -ver-minor="$***REMOVED***version[1]***REMOVED***" \
-            -ver-patch="$***REMOVED***version[2]***REMOVED***" \
+            -ver-major="$***REMOVED***version_parts[0]***REMOVED***" \
+            -ver-minor="$***REMOVED***version_parts[1]***REMOVED***" \
+            -ver-patch="$***REMOVED***version_patch[0]***REMOVED***" \
+            -special-build=$(IFS='-'; echo "$***REMOVED***version_patch[*]:1***REMOVED***";) \
             -product-version="$***REMOVED***VERSION#v***REMOVED***"
+
+          set +x
+          ls -lah | grep -i syso
+
       - name: Build
         run: |
           go version
-          ./build-release.sh
+          ./build-release.sh "dist" "$***REMOVED***VERSION***REMOVED***"
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -206,12 +130,14 @@ jobs:
 
   build-docker:
     runs-on: ubuntu-latest
-    needs: [test-current-cov, configure]
+    needs: [configure]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Build
         run: docker build -t $DOCKER_IMAGE_ID .
       - name: Check
@@ -228,9 +154,7 @@ jobs:
             docker run $DOCKER_IMAGE_ID resume --help
 
       - name: Publish
-        if: |
-          github.ref == 'refs/heads/master' ||
-          startsWith(github.ref, 'refs/tags/v')
+        if: $***REMOVED******REMOVED*** github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') ***REMOVED******REMOVED***
         run: |
           VERSION="$***REMOVED***VERSION#v***REMOVED***"
           echo "Publish GHCR ($DOCKER_IMAGE_ID:$VERSION)"
@@ -268,13 +192,12 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    needs: [test-current-cov, configure, build]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [configure, build]
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install pandoc
         uses: crazy-max/ghaction-chocolatey@b6061d587628735be315d74358228b83a7dba9a7
         with:
@@ -296,51 +219,55 @@ jobs:
           rmdir .\packaging\k6-$env:VERSION-windows-amd64\
       - name: Add signtool to PATH
         run: echo "$***REMOVED***env:ProgramFiles(x86)***REMOVED***\Windows Kits\10\bin\x64" | Out-File -FilePath $env:GITHUB_PATH -Append
-      - name: Convert base64 certificate to PFX
-        run: |
-          $bytes = [Convert]::FromBase64String("$***REMOVED******REMOVED*** secrets.WIN_SIGN_CERT ***REMOVED******REMOVED***")
-          [IO.File]::WriteAllBytes("k6.pfx", $bytes)
-      - name: Sign Windows binary
-        run: signtool sign /f k6.pfx /p "$***REMOVED******REMOVED*** secrets.WIN_SIGN_PASS ***REMOVED******REMOVED***" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "packaging\k6.exe"
-      - name: Create MSI package
+
+      - name: Create the MSI package
         run: |
           $env:VERSION = $env:VERSION -replace 'v(\d+\.\d+\.\d+).*','$1'
           pandoc -s -f markdown -t rtf -o packaging\LICENSE.rtf LICENSE.md
           cd .\packaging
           candle.exe -arch x64 "-dVERSION=$env:VERSION" k6.wxs
           light.exe -ext WixUIExtension k6.wixobj
-      - name: Sign MSI package
-        run: signtool sign /f k6.pfx /p "$***REMOVED******REMOVED*** secrets.WIN_SIGN_PASS ***REMOVED******REMOVED***" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "packaging\k6.msi"
-      - name: Cleanup signing artifacts
-        run: del k6.pfx
-      - name: Prepare Chocolatey package
+
+      - name: Sign Windows binary and .msi package
+        # GH secrets are unavaileble when building from project forks, so this
+        # will fail for external PRs, even if we wanted to do it. And we don't.
+        # We are only going to sign packages that are built from master or a
+        # version tag, or manually triggered dev builds, so we have enough
+        # assurance that package signing works, but don't sign every PR build.
+        if: $***REMOVED******REMOVED*** github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' ***REMOVED******REMOVED***
         run: |
-          $env:VERSION = $env:VERSION.TrimStart("v", " ")
-          cd .\packaging
-          (Get-Content '.\k6.portable.nuspec' -Raw).Replace("<version>__REPLACE__</version>", "<version>$env:VERSION</version>") | Out-File '.\k6.portable.nuspec'
-      - name: Create Chocolatey package
-        uses: crazy-max/ghaction-chocolatey@b6061d587628735be315d74358228b83a7dba9a7
-        with:
-          args: pack --verbose --outputdirectory .\packaging .\packaging\k6.portable.nuspec
+          # Convert base64 certificate to PFX
+          $bytes = [Convert]::FromBase64String("$***REMOVED******REMOVED*** secrets.WIN_SIGN_CERT ***REMOVED******REMOVED***")
+          [IO.File]::WriteAllBytes("k6.pfx", $bytes)
+
+          # Sign the Windows binary
+          signtool sign /f k6.pfx /p "$***REMOVED******REMOVED*** secrets.WIN_SIGN_PASS ***REMOVED******REMOVED***" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "packaging\k6.exe"
+
+          # Sign the MSI package
+          signtool sign /f k6.pfx /p "$***REMOVED******REMOVED*** secrets.WIN_SIGN_PASS ***REMOVED******REMOVED***" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "packaging\k6.msi"
+
+          # Cleanup signing artifacts
+          del k6.pfx
+
       - name: Rename MSI package
         # To keep it consistent with the other artifacts
         run: move "packaging\k6.msi" "packaging\k6-$env:VERSION-windows-amd64.msi"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: binaries-windows
           path: |
             packaging/k6-*.msi
-            packaging/k6.*.nupkg
           retention-days: 7
 
   # Disabled until #1997 and #1998 are addressed.
   # publish-macos:
   #   runs-on: macos-latest
-  #   needs: [deps, lint, test-current-cov, configure, build]
-  #   if: startsWith(github.ref, 'refs/tags/v')
+  #   needs: [configure, build]
+  #   if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
   #   env:
-  #     VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+  #     VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
   #     HOMEBREW_GITHUB_API_TOKEN: $***REMOVED******REMOVED*** secrets.HOMEBREW_GITHUB_API_TOKEN ***REMOVED******REMOVED***
   #   steps:
   #     - name: Download source code archive
@@ -355,13 +282,13 @@ jobs:
 
   publish-github:
     runs-on: ubuntu-latest
-    needs: [configure, test-current-cov, build, package-windows]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [configure, build, package-windows]
+    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -372,8 +299,6 @@ jobs:
         with:
           name: binaries-windows
           path: dist
-      - name: Remove Chocolatey package
-        run: rm dist/k6*.nupkg
       - name: Generate checksum file
         run: cd dist && sha256sum * > "k6-$***REMOVED***VERSION***REMOVED***-checksums.txt"
       - name: Create release
@@ -390,12 +315,12 @@ jobs:
   publish-packages:
     runs-on: ubuntu-latest
     needs: [configure, build, package-windows]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: $***REMOVED******REMOVED*** startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' ***REMOVED******REMOVED***
     env:
-      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
+      VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.k6_version ***REMOVED******REMOVED***
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
