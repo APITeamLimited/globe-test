@@ -1,4 +1,4 @@
-package eventloop
+package eventloop_test
 
 import (
 	"errors"
@@ -8,12 +8,13 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/require"
+	"go.k6.io/k6/js/eventloop"
 	"go.k6.io/k6/js/modulestest"
 )
 
 func TestBasicEventLoop(t *testing.T) ***REMOVED***
 	t.Parallel()
-	loop := New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
 	var ran int
 	f := func() error ***REMOVED*** //nolint:unparam
 		ran++
@@ -33,7 +34,7 @@ func TestBasicEventLoop(t *testing.T) ***REMOVED***
 
 func TestEventLoopRegistered(t *testing.T) ***REMOVED***
 	t.Parallel()
-	loop := New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
 	var ran int
 	f := func() error ***REMOVED***
 		ran++
@@ -58,7 +59,7 @@ func TestEventLoopRegistered(t *testing.T) ***REMOVED***
 func TestEventLoopWaitOnRegistered(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var ran int
-	loop := New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
 	f := func() error ***REMOVED***
 		ran++
 		r := loop.RegisterCallback()
@@ -85,7 +86,7 @@ func TestEventLoopWaitOnRegistered(t *testing.T) ***REMOVED***
 func TestEventLoopReuse(t *testing.T) ***REMOVED***
 	t.Parallel()
 	sleepTime := time.Millisecond * 500
-	loop := New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
 	f := func() error ***REMOVED***
 		for i := 0; i < 100; i++ ***REMOVED***
 			bad := i == 17
@@ -119,7 +120,7 @@ func TestEventLoopReuse(t *testing.T) ***REMOVED***
 
 func TestEventLoopPanicOnDoubleCallback(t *testing.T) ***REMOVED***
 	t.Parallel()
-	loop := New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
 	var ran int
 	f := func() error ***REMOVED***
 		ran++
