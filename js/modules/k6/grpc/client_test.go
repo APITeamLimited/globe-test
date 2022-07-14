@@ -61,36 +61,16 @@ func TestClient(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	type testState struct ***REMOVED***
-		rt      *goja.Runtime
-		vuState *lib.State
-		env     *common.InitEnvironment
+		*modulestest.Runtime
 		httpBin *httpmultibin.HTTPMultiBin
 		samples chan metrics.SampleContainer
 	***REMOVED***
 	setup := func(t *testing.T) testState ***REMOVED***
 		t.Helper()
 
-		root, err := lib.NewGroup("", nil)
-		require.NoError(t, err)
 		tb := httpmultibin.NewHTTPMultiBin(t)
 		samples := make(chan metrics.SampleContainer, 1000)
-		state := &lib.State***REMOVED***
-			Group:     root,
-			Dialer:    tb.Dialer,
-			TLSConfig: tb.TLSClientConfig,
-			Samples:   samples,
-			Options: lib.Options***REMOVED***
-				SystemTags: metrics.NewSystemTagSet(
-					metrics.TagName,
-					metrics.TagURL,
-				),
-				UserAgent: null.StringFrom("k6-test"),
-			***REMOVED***,
-			BuiltinMetrics: metrics.RegisterBuiltinMetrics(
-				metrics.NewRegistry(),
-			),
-			Tags: lib.NewTagMap(nil),
-		***REMOVED***
+		testRuntime := modulestest.NewRuntime(t)
 
 		cwd, err := os.Getwd()
 		require.NoError(t, err)
@@ -105,15 +85,14 @@ func TestClient(t *testing.T) ***REMOVED***
 				"file": fs,
 			***REMOVED***,
 		***REMOVED***
+		testRuntime.InitContext(initEnv)
 
 		rt := goja.New()
 		rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
 		return testState***REMOVED***
-			rt:      rt,
+			Runtime: testRuntime,
 			httpBin: tb,
-			vuState: state,
-			env:     initEnv,
 			samples: samples,
 		***REMOVED***
 	***REMOVED***
@@ -716,17 +695,9 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			ts := setup(t)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			mvu := &modulestest.VU***REMOVED***
-				RuntimeField: ts.rt,
-				InitEnvField: ts.env,
-				CtxField:     ctx,
-			***REMOVED***
-
-			m, ok := New().NewModuleInstance(mvu).(*ModuleInstance)
+			m, ok := New().NewModuleInstance(ts.VU).(*ModuleInstance)
 			require.True(t, ok)
-			require.NoError(t, ts.rt.Set("grpc", m.Exports().Named))
+			require.NoError(t, ts.VU.Runtime().Set("grpc", m.Exports().Named))
 
 			// setup necessary environment if needed by a test
 			if tt.setup != nil ***REMOVED***
@@ -734,13 +705,32 @@ func TestClient(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			replace := func(code string) (goja.Value, error) ***REMOVED***
-				return ts.rt.RunString(ts.httpBin.Replacer.Replace(code))
+				return ts.VU.Runtime().RunString(ts.httpBin.Replacer.Replace(code))
 			***REMOVED***
 
 			val, err := replace(tt.initString.code)
 			assertResponse(t, tt.initString, err, val, ts)
 
-			mvu.StateField = ts.vuState
+			root, err := lib.NewGroup("", nil)
+			require.NoError(t, err)
+			state := &lib.State***REMOVED***
+				Group:     root,
+				Dialer:    ts.httpBin.Dialer,
+				TLSConfig: ts.httpBin.TLSClientConfig,
+				Samples:   ts.samples,
+				Options: lib.Options***REMOVED***
+					SystemTags: metrics.NewSystemTagSet(
+						metrics.TagName,
+						metrics.TagURL,
+					),
+					UserAgent: null.StringFrom("k6-test"),
+				***REMOVED***,
+				BuiltinMetrics: metrics.RegisterBuiltinMetrics(
+					metrics.NewRegistry(),
+				),
+				Tags: lib.NewTagMap(nil),
+			***REMOVED***
+			ts.MoveToVUContext(state)
 			val, err = replace(tt.vuString.code)
 			assertResponse(t, tt.vuString, err, val, ts)
 		***REMOVED***)

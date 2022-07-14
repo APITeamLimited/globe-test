@@ -96,23 +96,19 @@ func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers 
 ***REMOVED***
 
 type testState struct ***REMOVED***
-	ctxPtr  *context.Context
-	rt      *goja.Runtime
+	*modulestest.Runtime
 	tb      *httpmultibin.HTTPMultiBin
-	state   *lib.State
 	samples chan metrics.SampleContainer
 ***REMOVED***
 
 func newTestState(t testing.TB) testState ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
+	testRuntime := modulestest.NewRuntime(t)
+	samples := make(chan metrics.SampleContainer, 1000)
+
 	root, err := lib.NewGroup("", nil)
 	require.NoError(t, err)
-
-	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-
-	samples := make(chan metrics.SampleContainer, 1000)
 
 	state := &lib.State***REMOVED***
 		Group:  root,
@@ -133,18 +129,13 @@ func newTestState(t testing.TB) testState ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     tb.Context,
-		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-		RuntimeField: rt,
-		StateField:   state,
-	***REMOVED***)
-	require.NoError(t, rt.Set("ws", m.Exports().Default))
+	m := New().NewModuleInstance(testRuntime.VU)
+	require.NoError(t, testRuntime.VU.RuntimeField.Set("ws", m.Exports().Default))
+	testRuntime.MoveToVUContext(state)
 
 	return testState***REMOVED***
-		rt:      rt,
+		Runtime: testRuntime,
 		tb:      tb,
-		state:   state,
 		samples: samples,
 	***REMOVED***
 ***REMOVED***
@@ -1049,7 +1040,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***))
 
-		_, err := ts.rt.RunString(sr(`
+		_, err := ts.VU.Runtime().RunString(sr(`
 		// if client supports compression, it has to send the header
 		// 'Sec-Websocket-Extensions:permessage-deflate; server_no_context_takeover; client_no_context_takeover' to server.
 		// if compression is negotiated successfully, server will reply with header
@@ -1131,7 +1122,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 					***REMOVED***
 				***REMOVED***))
 
-				_, err := ts.rt.RunString(sr(`
+				_, err := ts.VU.Runtime().RunString(sr(`
 					var res = ws.connect("WSBIN_URL/ws-compression-param", ***REMOVED***"compression":"` + testCase.compression + `"***REMOVED***, function(socket)***REMOVED***
 						socket.close()
 					***REMOVED***);
@@ -1214,14 +1205,14 @@ func BenchmarkCompression(b *testing.B) ***REMOVED***
 	b.ResetTimer()
 	b.Run("compression-enabled", func(b *testing.B) ***REMOVED***
 		for i := 0; i < b.N; i++ ***REMOVED***
-			if _, err := ts.rt.RunString(testCodes[0]); err != nil ***REMOVED***
+			if _, err := ts.VU.Runtime().RunString(testCodes[0]); err != nil ***REMOVED***
 				b.Error(err)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	b.Run("compression-disabled", func(b *testing.B) ***REMOVED***
 		for i := 0; i < b.N; i++ ***REMOVED***
-			if _, err := ts.rt.RunString(testCodes[1]); err != nil ***REMOVED***
+			if _, err := ts.VU.Runtime().RunString(testCodes[1]); err != nil ***REMOVED***
 				b.Error(err)
 			***REMOVED***
 		***REMOVED***
@@ -1250,17 +1241,11 @@ func TestCookieJar(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***))
 
-	mii := &modulestest.VU***REMOVED***
-		RuntimeField: ts.rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
-		CtxField:     context.Background(),
-		StateField:   ts.state,
-	***REMOVED***
-	err := ts.rt.Set("http", httpModule.New().NewModuleInstance(mii).Exports().Default)
+	err := ts.VU.Runtime().Set("http", httpModule.New().NewModuleInstance(ts.VU).Exports().Default)
 	require.NoError(t, err)
-	ts.state.CookieJar, _ = cookiejar.New(nil)
+	ts.VU.State().CookieJar, _ = cookiejar.New(nil)
 
-	_, err = ts.rt.RunString(sr(`
+	_, err = ts.VU.Runtime().RunString(sr(`
 		var res = ws.connect("WSBIN_URL/ws-echo-someheader", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***)
