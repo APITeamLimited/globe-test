@@ -541,7 +541,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
+func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint:tparallel
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	sr := tb.Replacer.Replace
@@ -552,10 +552,10 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	samples := make(chan metrics.SampleContainer, 1000)
-	state := &lib.State***REMOVED*** //nolint: exhaustivestruct
+	state := &lib.State***REMOVED*** //nolint:exhaustivestruct
 		Group:  root,
 		Dialer: tb.Dialer,
-		Options: lib.Options***REMOVED*** //nolint: exhaustivestruct
+		Options: lib.Options***REMOVED*** //nolint:exhaustivestruct
 			SystemTags: metrics.NewSystemTagSet(
 				metrics.TagURL,
 				metrics.TagProto,
@@ -619,7 +619,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 		***REMOVED***"function() ***REMOVED******REMOVED***", "Function"***REMOVED***,
 	***REMOVED***
 
-	for _, tc := range errTestCases ***REMOVED*** //nolint: paralleltest
+	for _, tc := range errTestCases ***REMOVED*** //nolint:paralleltest
 		tc := tc
 		t.Run(fmt.Sprintf("err_%s", tc.expErrType), func(t *testing.T) ***REMOVED***
 			_, err = rt.RunString(fmt.Sprintf(sr(`

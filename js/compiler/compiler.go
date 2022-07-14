@@ -88,11 +88,11 @@ var (
 	maxSrcLenForBabelSourceMap     = 250 * 1024 //nolint:gochecknoglobals
 	maxSrcLenForBabelSourceMapOnce sync.Once    //nolint:gochecknoglobals
 
-	onceBabelCode      sync.Once     // nolint:gochecknoglobals
-	globalBabelCode    *goja.Program // nolint:gochecknoglobals
-	globalBabelCodeErr error         // nolint:gochecknoglobals
-	onceBabel          sync.Once     // nolint:gochecknoglobals
-	globalBabel        *babel        // nolint:gochecknoglobals
+	onceBabelCode      sync.Once     //nolint:gochecknoglobals
+	globalBabelCode    *goja.Program //nolint:gochecknoglobals
+	errGlobalBabelCode error         //nolint:gochecknoglobals
+	onceBabel          sync.Once     //nolint:gochecknoglobals
+	globalBabel        *babel        //nolint:gochecknoglobals
 )
 
 const (
@@ -265,10 +265,10 @@ type babel struct ***REMOVED***
 
 func newBabel() (*babel, error) ***REMOVED***
 	onceBabelCode.Do(func() ***REMOVED***
-		globalBabelCode, globalBabelCodeErr = goja.Compile("<internal/k6/compiler/lib/babel.min.js>", babelSrc, false)
+		globalBabelCode, errGlobalBabelCode = goja.Compile("<internal/k6/compiler/lib/babel.min.js>", babelSrc, false)
 	***REMOVED***)
-	if globalBabelCodeErr != nil ***REMOVED***
-		return nil, globalBabelCodeErr
+	if errGlobalBabelCode != nil ***REMOVED***
+		return nil, errGlobalBabelCode
 	***REMOVED***
 	vm := goja.New()
 	_, err := vm.RunProgram(globalBabelCode)

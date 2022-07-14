@@ -41,7 +41,7 @@ import (
 const DefaultScenarioName = "default"
 
 // DefaultSummaryTrendStats are the default trend columns shown in the test summary output
-// nolint: gochecknoglobals
+//nolint:gochecknoglobals
 var DefaultSummaryTrendStats = []string***REMOVED***"avg", "min", "med", "max", "p(90)", "p(95)"***REMOVED***
 
 // Describes a TLS version. Serialised to/from JSON as a string, eg. "tls1.2".
@@ -192,7 +192,7 @@ func decryptPrivateKey(privKey, password string) ([]byte, error) ***REMOVED***
 	   being used here because it is deprecated due to it not supporting *good* crypography
 	   ultimately though we want to support something so we will be using it for now.
 	*/
-	decryptedKey, err := x509.DecryptPEMBlock(block, []byte(password)) // nolint: staticcheck
+	decryptedKey, err := x509.DecryptPEMBlock(block, []byte(password)) //nolint:staticcheck
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

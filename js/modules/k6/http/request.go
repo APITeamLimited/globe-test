@@ -107,7 +107,7 @@ func (c *Client) responseFromHTTPext(resp *httpext.Response) *Response ***REMOVE
 ***REMOVED***
 
 // TODO: break this function up
-//nolint: gocyclo, cyclop, funlen, gocognit
+//nolint:gocyclo, cyclop, funlen, gocognit
 func (c *Client) parseRequest(
 	method string, reqURL, body interface***REMOVED******REMOVED***, params goja.Value,
 ) (*httpext.ParsedHTTPRequest, error) ***REMOVED***

@@ -2283,7 +2283,7 @@ func TestMinIterationDurationIsCancellable(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestForceHTTP1Feature(t *testing.T) ***REMOVED***
 	cases := map[string]struct ***REMOVED***
 		godebug               string

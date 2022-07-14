@@ -444,7 +444,6 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 func TestBrowserified(t *testing.T) ***REMOVED***
 	t.Parallel()
 	fs := afero.NewMemMapFs()
-	//nolint: lll
 	require.NoError(t, afero.WriteFile(fs, "/browserified.js", []byte(`
 		(function(f)***REMOVED***if(typeof exports==="object"&&typeof module!=="undefined")***REMOVED***module.exports=f()***REMOVED***else if(typeof define==="function"&&define.amd)***REMOVED***define([],f)***REMOVED***else***REMOVED***var g;if(typeof window!=="undefined")***REMOVED***g=window***REMOVED***else if(typeof global!=="undefined")***REMOVED***g=global***REMOVED***else if(typeof self!=="undefined")***REMOVED***g=self***REMOVED***else***REMOVED***g=this***REMOVED***g.npmlibs = f()***REMOVED******REMOVED***)(function()***REMOVED***var define,module,exports;return (function()***REMOVED***function r(e,n,t)***REMOVED***function o(i,f)***REMOVED***if(!n[i])***REMOVED***if(!e[i])***REMOVED***var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a***REMOVED***var p=n[i]=***REMOVED***exports:***REMOVED******REMOVED******REMOVED***;e[i][0].call(p.exports,function(r)***REMOVED***var n=e[i][1][r];return o(n||r)***REMOVED***,p,p.exports,r,e,n,t)***REMOVED***return n[i].exports***REMOVED***for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o***REMOVED***return r***REMOVED***)()(***REMOVED***1:[function(require,module,exports)***REMOVED***
 		module.exports.A = function () ***REMOVED***

@@ -254,7 +254,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	***REMOVED***
 	metric := test.engine.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) ***REMOVED***
-		sink := metric.Sink.(*metrics.TrendSink) // nolint: forcetypeassert
+		sink := metric.Sink.(*metrics.TrendSink) //nolint:forcetypeassert
 		if assert.NotNil(t, sink) ***REMOVED***
 			numOutputSamples := len(cSamples)
 			numEngineSamples := len(sink.Values)
@@ -1153,7 +1153,6 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-//nolint: funlen
 func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 	t.Parallel()
 	setupScript := `
