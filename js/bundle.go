@@ -67,9 +67,9 @@ type BundleInstance struct ***REMOVED***
 	// TODO: maybe just have a reference to the Bundle? or save and pass rtOpts?
 	env map[string]string
 
-	exports map[string]goja.Callable
-
+	exports      map[string]goja.Callable
 	moduleVUImpl *moduleVUImpl
+	pgm          programWithSource
 ***REMOVED***
 
 // NewBundle creates a new bundle from a source file and a filesystem.
@@ -90,7 +90,7 @@ func NewBundle(
 		Strict:            true,
 		SourceMapLoader:   generateSourceMapLoader(logger, filesystems),
 	***REMOVED***
-	pgm, _, err := c.Compile(code, src.URL.String(), true)
+	pgm, _, err := c.Compile(code, src.URL.String(), false)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -142,7 +142,7 @@ func NewBundleFromArchive(
 		CompatibilityMode: compatMode,
 		SourceMapLoader:   generateSourceMapLoader(logger, arc.Filesystems),
 	***REMOVED***
-	pgm, _, err := c.Compile(string(arc.Data), arc.FilenameURL.String(), true)
+	pgm, _, err := c.Compile(string(arc.Data), arc.FilenameURL.String(), false)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -208,7 +208,8 @@ func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 
 // getExports validates and extracts exported objects
 func (b *Bundle) getExports(logger logrus.FieldLogger, rt *goja.Runtime, options bool) error ***REMOVED***
-	exportsV := rt.Get("exports")
+	pgm := b.BaseInitContext.programs[b.Filename.String()] // this is the main script and it's always present
+	exportsV := pgm.module.Get("exports")
 	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) ***REMOVED***
 		return errors.New("exports must be an object")
 	***REMOVED***
@@ -262,26 +263,31 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64) (*BundleIns
 	***REMOVED***
 
 	rt := vuImpl.runtime
+	pgm := init.programs[b.Filename.String()] // this is the main script and it's always present
 	bi := &BundleInstance***REMOVED***
 		Runtime:      rt,
 		exports:      make(map[string]goja.Callable),
 		env:          b.RuntimeOptions.Env,
 		moduleVUImpl: vuImpl,
+		pgm:          pgm,
 	***REMOVED***
 
 	// Grab any exported functions that could be executed. These were
 	// already pre-validated in cmd.validateScenarioConfig(), just get them here.
-	exports := rt.Get("exports").ToObject(rt)
+	exports := pgm.module.Get("exports").ToObject(rt)
 	for k := range b.exports ***REMOVED***
 		fn, _ := goja.AssertFunction(exports.Get(k))
 		bi.exports[k] = fn
 	***REMOVED***
 
-	jsOptions := rt.Get("options")
+	jsOptions := exports.Get("options")
 	var jsOptionsObj *goja.Object
 	if jsOptions == nil || goja.IsNull(jsOptions) || goja.IsUndefined(jsOptions) ***REMOVED***
 		jsOptionsObj = rt.NewObject()
-		rt.Set("options", jsOptionsObj)
+		err := exports.Set("options", jsOptionsObj)
+		if err != nil ***REMOVED***
+			return nil, fmt.Errorf("couldn't set exported options with merged values: %w", err)
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		jsOptionsObj = jsOptions.ToObject(rt)
 	***REMOVED***
@@ -298,15 +304,22 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64) (*BundleIns
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
+
+func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) programWithSource ***REMOVED***
+	pgm := programWithSource***REMOVED***
+		pgm:     b.Program,
+		src:     b.Source,
+		exports: rt.NewObject(),
+		module:  rt.NewObject(),
+	***REMOVED***
+	_ = pgm.module.Set("exports", pgm.exports)
+	init.programs[b.Filename.String()] = pgm
+	return pgm
+***REMOVED***
+
 func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64) (err error) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
-
-	exports := rt.NewObject()
-	rt.Set("exports", exports)
-	module := rt.NewObject()
-	_ = module.Set("exports", exports)
-	rt.Set("module", module)
 
 	env := make(map[string]string, len(b.RuntimeOptions.Env))
 	for key, value := range b.RuntimeOptions.Env ***REMOVED***
@@ -330,10 +343,21 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	init.moduleVUImpl.ctx = context.Background()
 	init.moduleVUImpl.initEnv = initenv
 	init.moduleVUImpl.eventLoop = eventloop.New(init.moduleVUImpl)
+	pgm := b.initializeProgramObject(rt, init)
+
 	err = common.RunWithPanicCatching(logger, rt, func() error ***REMOVED***
 		return init.moduleVUImpl.eventLoop.Start(func() error ***REMOVED***
-			_, errRun := rt.RunProgram(b.Program)
-			return errRun
+			f, errRun := rt.RunProgram(b.Program)
+			if errRun != nil ***REMOVED***
+				return errRun
+			***REMOVED***
+			if call, ok := goja.AssertFunction(f); ok ***REMOVED***
+				if _, errRun = call(pgm.exports, pgm.module, pgm.exports); errRun != nil ***REMOVED***
+					return errRun
+				***REMOVED***
+				return nil
+			***REMOVED***
+			panic("Somehow a commonjs main module is not wrapped in a function")
 		***REMOVED***)
 	***REMOVED***)
 
@@ -344,6 +368,12 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		***REMOVED***
 		return err
 	***REMOVED***
+	exportsV := pgm.module.Get("exports")
+	if goja.IsNull(exportsV) ***REMOVED***
+		return errors.New("exports must be an object")
+	***REMOVED***
+	pgm.exports = exportsV.ToObject(rt)
+	init.programs[b.Filename.String()] = pgm
 	unbindInit()
 	init.moduleVUImpl.ctx = nil
 	init.moduleVUImpl.initEnv = nil

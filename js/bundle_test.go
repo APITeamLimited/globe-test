@@ -96,11 +96,11 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
 		exception := new(scriptException)
 		require.ErrorAs(t, err, &exception)
-		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:1:7(2)\n")
+		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:2:7(3)\n\tat native\n")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `exports = null`)
+		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`)
 		require.EqualError(t, err, "exports must be an object")
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
@@ -169,13 +169,13 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				// ES2015 modules are not supported
 				***REMOVED***
 					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:1 Unexpected reserved word",
+					"file:///script.js: Line 2:1 Unexpected reserved word (and 2 more errors)",
 				***REMOVED***,
 				// BigInt is not supported
 				***REMOVED***
 					"BigInt", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; BigInt(1231412444)`,
-					"ReferenceError: BigInt is not defined\n\tat file:///script.js:1:47(6)\n",
+					"ReferenceError: BigInt is not defined\n\tat file:///script.js:2:47(7)\n\tat native\n",
 				***REMOVED***,
 			***REMOVED***
 
@@ -761,27 +761,6 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		require.Equal(t, true, v.Export())
 	***REMOVED***)
 
-	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
-		t.Parallel()
-		b, err := getSimpleBundle(t, "/script.js", `
-		export let options = ***REMOVED***
-			vus: 5,
-			teardownTimeout: '1s',
-		***REMOVED***;
-		let val = true;
-		export default function() ***REMOVED*** return val; ***REMOVED***
-	`)
-		require.NoError(t, err)
-		logger := testutils.NewLogger(t)
-
-		bi, err := b.Instantiate(logger, 0)
-		require.NoError(t, err)
-		bi.Runtime.Set("val", false)
-		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
-		require.NoError(t, err)
-		require.Equal(t, false, v.Export())
-	***REMOVED***)
-
 	t.Run("Options", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		b, err := getSimpleBundle(t, "/script.js", `
@@ -798,7 +777,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		// Ensure `options` properties are correctly marshalled
-		jsOptions := bi.Runtime.Get("options").ToObject(bi.Runtime)
+		jsOptions := bi.pgm.exports.Get("options").ToObject(bi.Runtime)
 		vus := jsOptions.Get("vus").Export()
 		require.Equal(t, int64(5), vus)
 		tdt := jsOptions.Get("teardownTimeout").Export()
@@ -809,7 +788,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		b.Options.VUs = null.IntFrom(10)
 		bi2, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
-		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
+		jsOptions = bi2.pgm.exports.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
 		require.Equal(t, int64(10), vus)
 		b.Options.VUs = optOrig

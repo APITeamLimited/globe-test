@@ -382,13 +382,11 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 	***REMOVED***
 
 	handleSummaryFn := goja.Undefined()
-	if exported := vu.Runtime.Get("exports").ToObject(vu.Runtime); exported != nil ***REMOVED***
-		fn := exported.Get(consts.HandleSummaryFn)
-		if _, ok := goja.AssertFunction(fn); ok ***REMOVED***
-			handleSummaryFn = fn
-		***REMOVED*** else if fn != nil ***REMOVED***
-			return nil, fmt.Errorf("exported identifier %s must be a function", consts.HandleSummaryFn)
-		***REMOVED***
+	fn := vu.getExported(consts.HandleSummaryFn)
+	if _, ok := goja.AssertFunction(fn); ok ***REMOVED***
+		handleSummaryFn = fn
+	***REMOVED*** else if fn != nil ***REMOVED***
+		return nil, fmt.Errorf("exported identifier %s must be a function", consts.HandleSummaryFn)
 	***REMOVED***
 
 	ctx, cancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.HandleSummaryFn))
@@ -522,11 +520,7 @@ func (r *Runner) runPart(
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
-	exp := vu.Runtime.Get("exports").ToObject(vu.Runtime)
-	if exp == nil ***REMOVED***
-		return goja.Undefined(), nil
-	***REMOVED***
-	fn, ok := goja.AssertFunction(exp.Get(name))
+	fn, ok := goja.AssertFunction(vu.getExported(name))
 	if !ok ***REMOVED***
 		return goja.Undefined(), nil
 	***REMOVED***
@@ -767,6 +761,10 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 	***REMOVED***
 
 	return err
+***REMOVED***
+
+func (u *VU) getExported(name string) goja.Value ***REMOVED***
+	return u.BundleInstance.pgm.module.Get("exports").ToObject(u.Runtime).Get(name)
 ***REMOVED***
 
 // if isDefault is true, cancel also needs to be provided and it should cancel the provided context

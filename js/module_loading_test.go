@@ -25,6 +25,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -313,10 +314,10 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 	// This is mostly the example from https://hacks.mozilla.org/2018/03/es-modules-a-cartoon-deep-dive/
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/counter.js", []byte(`
-			let message = require("./main.js").message;
+			let main = require("./main.js");
 			exports.count = 5;
 			export function a() ***REMOVED***
-				return message;
+				return main.message;
 			***REMOVED***
 	`), os.ModePerm))
 
@@ -604,4 +605,108 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestOptionsAreGloballyReadable(t *testing.T) ***REMOVED***
+	t.Parallel()
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/A.js", []byte(`
+        export function A() ***REMOVED***
+        // we can technically get a field set from outside of js this way
+            return options.someField;
+        ***REMOVED***`), os.ModePerm))
+	r1, err := getSimpleRunner(t, "/script.js", `
+     import ***REMOVED*** A ***REMOVED*** from "./A.js";
+     export let options = ***REMOVED***
+       someField: "here is an option",
+     ***REMOVED***
+
+        export default function(data) ***REMOVED***
+            var caught = false;
+            try***REMOVED***
+                if (A() == "here is an option") ***REMOVED***
+                  throw "oops"
+                ***REMOVED***
+            ***REMOVED*** catch(e) ***REMOVED***
+                if (e.message != "options is not defined") ***REMOVED***
+                    throw e;
+                ***REMOVED***
+                caught = true;
+            ***REMOVED***
+            if (!caught) ***REMOVED***
+                throw "expected exception"
+            ***REMOVED***
+        ***REMOVED*** `, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
+	require.NoError(t, err)
+
+	arc := r1.MakeArchive()
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	r2, err := NewFromArchive(&lib.RuntimeState***REMOVED***
+		Logger:         testutils.NewLogger(t),
+		BuiltinMetrics: builtinMetrics,
+		Registry:       registry,
+	***REMOVED***, arc)
+	require.NoError(t, err)
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			ch := newDevNullSampleChannel()
+			defer close(ch)
+			initVU, err := r.NewVU(1, 1, ch)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			require.NoError(t, err)
+			err = vu.RunOnce()
+			require.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestOptionsAreNotGloballyWritable(t *testing.T) ***REMOVED***
+	t.Parallel()
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/A.js", []byte(`
+    export function A() ***REMOVED***
+        // this requires that this is defined
+        options.minIterationDuration = "1h"
+    ***REMOVED***`), os.ModePerm))
+	r1, err := getSimpleRunner(t, "/script.js", `
+    import ***REMOVED***A***REMOVED*** from "/A.js"
+    export let options = ***REMOVED***minIterationDuration: "5m"***REMOVED***
+
+    export default () =>***REMOVED******REMOVED***
+    var caught = false;
+    try***REMOVED***
+        A()
+    ***REMOVED*** catch(e) ***REMOVED***
+        if (e.message != "options is not defined") ***REMOVED***
+            throw e;
+        ***REMOVED***
+        caught = true;
+    ***REMOVED***
+
+    if (!caught) ***REMOVED***
+        throw "expected exception"
+    ***REMOVED***`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
+	require.NoError(t, err)
+
+	// here it exists
+	require.EqualValues(t, time.Minute*5, r1.GetOptions().MinIterationDuration.Duration)
+	arc := r1.MakeArchive()
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	r2, err := NewFromArchive(&lib.RuntimeState***REMOVED***
+		Logger:         testutils.NewLogger(t),
+		BuiltinMetrics: builtinMetrics,
+		Registry:       registry,
+	***REMOVED***, arc)
+	require.NoError(t, err)
+
+	require.EqualValues(t, time.Minute*5, r2.GetOptions().MinIterationDuration.Duration)
 ***REMOVED***

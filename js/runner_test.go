@@ -70,8 +70,8 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		r, err := getSimpleRunner(t, "/script.js", `
-			var counter = 0;
-			exports.default = function() ***REMOVED*** counter++; ***REMOVED***
+			exports.counter = 0;
+			exports.default = function() ***REMOVED*** exports.counter++; ***REMOVED***
 		`)
 		require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			vuc, ok := initVU.(*VU)
 			require.True(t, ok)
-			assert.Equal(t, int64(0), vuc.Runtime.Get("counter").Export())
+			assert.Equal(t, int64(0), vuc.pgm.exports.Get("counter").Export())
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -89,7 +89,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 			t.Run("RunOnce", func(t *testing.T) ***REMOVED***
 				err = vu.RunOnce()
 				require.NoError(t, err)
-				assert.Equal(t, int64(1), vuc.Runtime.Get("counter").Export())
+				assert.Equal(t, int64(1), vuc.pgm.exports.Get("counter").Export())
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
@@ -97,7 +97,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		_, err := getSimpleRunner(t, "/script.js", `blarg`)
-		assert.EqualError(t, err, "ReferenceError: blarg is not defined\n\tat file:///script.js:1:1(0)\n")
+		assert.EqualError(t, err, "ReferenceError: blarg is not defined\n\tat file:///script.js:2:1(1)\n\tat native\n")
 	***REMOVED***)
 ***REMOVED***
 
@@ -155,11 +155,8 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	optionVariants := []string***REMOVED***
-		"",
-		"var options = null;",
-		"var options = undefined;",
-		"var options = ***REMOVED******REMOVED***;",
-		"var options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
+		"export var options = ***REMOVED******REMOVED***;",
+		"export var options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
 	***REMOVED***
 
 	for i, variant := range optionVariants ***REMOVED***
