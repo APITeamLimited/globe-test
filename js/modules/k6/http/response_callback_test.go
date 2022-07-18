@@ -34,7 +34,7 @@ import (
 
 func TestExpectedStatuses(t *testing.T) ***REMOVED***
 	t.Parallel()
-	rt, _ := getTestModuleInstance(t, nil, nil)
+	rt, _, _ := getTestModuleInstance(t)
 
 	cases := map[string]struct ***REMOVED***
 		code, err string

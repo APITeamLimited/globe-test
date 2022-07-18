@@ -31,7 +31,7 @@ import (
 
 func TestHTTPFile(t *testing.T) ***REMOVED***
 	t.Parallel()
-	rt, mi := getTestModuleInstance(t, nil, nil)
+	rt, mi, _ := getTestModuleInstance(t)
 	input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
 
 	testCases := []struct ***REMOVED***

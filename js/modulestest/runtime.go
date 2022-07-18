@@ -39,8 +39,8 @@ func NewRuntime(t testing.TB) *Runtime ***REMOVED***
 	return result
 ***REMOVED***
 
-// InitContext will set the InitContext of the Runtime
-func (r *Runtime) InitContext(i *common.InitEnvironment) ***REMOVED***
+// SetInitContext will set the SetInitContext of the Runtime
+func (r *Runtime) SetInitContext(i *common.InitEnvironment) ***REMOVED***
 	r.VU.InitEnvField = i
 ***REMOVED***
 

@@ -25,49 +25,14 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-type execEnv struct ***REMOVED***
-	Runtime *goja.Runtime
-	Module  *ModuleInstance
-	LogHook *testutils.SimpleLogrusHook
-***REMOVED***
-
-func setupTagsExecEnv(t *testing.T) execEnv ***REMOVED***
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
-	testLog := logrus.New()
-	testLog.AddHook(logHook)
-	testLog.SetOutput(ioutil.Discard)
-
-	state := &lib.State***REMOVED***
-		Options: lib.Options***REMOVED***
-			SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
-		***REMOVED***,
-		Tags: lib.NewTagMap(map[string]string***REMOVED***
-			"vu": "42",
-		***REMOVED***),
-		Logger: testLog,
-	***REMOVED***
-
-	var (
-		rt  = goja.New()
-		ctx = context.Background()
-	)
-
-	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
-			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
-			StateField:   state,
-		***REMOVED***,
-	).(*ModuleInstance)
+func setupTagsExecEnv(t *testing.T) *modulestest.Runtime ***REMOVED***
+	testRuntime := modulestest.NewRuntime(t)
+	testRuntime.SetInitContext(&common.InitEnvironment***REMOVED******REMOVED***)
+	m, ok := New().NewModuleInstance(testRuntime.VU).(*ModuleInstance)
 	require.True(t, ok)
-	require.NoError(t, rt.Set("exec", m.Exports().Default))
+	require.NoError(t, testRuntime.VU.Runtime().Set("exec", m.Exports().Default))
 
-	return execEnv***REMOVED***
-		Module:  m,
-		Runtime: rt,
-		LogHook: logHook,
-	***REMOVED***
+	return testRuntime
 ***REMOVED***
 
 func TestVUTags(t *testing.T) ***REMOVED***
@@ -77,12 +42,13 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tag, err := tenv.Runtime.RunString(`exec.vu.tags["vu"]`)
+		tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+		tag, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "42", tag.String())
 
 		// not found
-		tag, err = tenv.Runtime.RunString(`exec.vu.tags["not-existing-tag"]`)
+		tag, err = tenv.VU.Runtime().RunString(`exec.vu.tags["not-existing-tag"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "undefined", tag.String())
 	***REMOVED***)
@@ -91,10 +57,18 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		state := tenv.Module.vu.State()
+		tenv.MoveToVUContext(&lib.State***REMOVED***
+			Options: lib.Options***REMOVED***
+				SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+			***REMOVED***,
+			Tags: lib.NewTagMap(map[string]string***REMOVED***
+				"vu": "42",
+			***REMOVED***),
+		***REMOVED***)
+		state := tenv.VU.State()
 		state.Tags.Set("custom-tag", "mytag1")
 
-		encoded, err := tenv.Runtime.RunString(`JSON.stringify(exec.vu.tags)`)
+		encoded, err := tenv.VU.Runtime().RunString(`JSON.stringify(exec.vu.tags)`)
 		require.NoError(t, err)
 		assert.JSONEq(t, `***REMOVED***"vu":"42","custom-tag":"mytag1"***REMOVED***`, encoded.String())
 	***REMOVED***)
@@ -118,12 +92,13 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			tenv := setupTagsExecEnv(t)
+			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 
 			for _, tc := range tests ***REMOVED***
-				_, err := tenv.Runtime.RunString(fmt.Sprintf(`exec.vu.tags["mytag"] = %v`, tc.v))
+				_, err := tenv.VU.Runtime().RunString(fmt.Sprintf(`exec.vu.tags["mytag"] = %v`, tc.v))
 				require.NoError(t, err)
 
-				val, err := tenv.Runtime.RunString(`exec.vu.tags["mytag"]`)
+				val, err := tenv.VU.Runtime().RunString(`exec.vu.tags["mytag"]`)
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.exp, val.String())
@@ -134,10 +109,11 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
+			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 
-			_, err := tenv.Runtime.RunString(`exec.vu.tags["vu"] = "vu101"`)
+			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"] = "vu101"`)
 			require.NoError(t, err)
-			val, err := tenv.Runtime.RunString(`exec.vu.tags["vu"]`)
+			val, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 			require.NoError(t, err)
 			assert.Equal(t, "vu101", val.String())
 		***REMOVED***)
@@ -146,7 +122,9 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			state := tenv.Module.vu.State()
+			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+
+			state := tenv.VU.State()
 			state.Options.Throw = null.BoolFrom(true)
 			require.NotNil(t, state)
 
@@ -156,7 +134,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			for _, val := range cases ***REMOVED***
-				_, err := tenv.Runtime.RunString(`exec.vu.tags["custom-tag"] = ` + val)
+				_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = ` + val)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "TypeError:")
 				assert.Contains(t, err.Error(), "only String, Boolean and Number")
@@ -165,12 +143,25 @@ func TestVUTags(t *testing.T) ***REMOVED***
 
 		t.Run("DiscardWrongTypeOnlyWarning", func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+			testLog := logrus.New()
+			testLog.AddHook(logHook)
+			testLog.SetOutput(ioutil.Discard)
 
 			tenv := setupTagsExecEnv(t)
-			_, err := tenv.Runtime.RunString(`exec.vu.tags["custom-tag"] = [1, 3, 5]`)
+			tenv.MoveToVUContext(&lib.State***REMOVED***
+				Options: lib.Options***REMOVED***
+					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+				***REMOVED***,
+				Tags: lib.NewTagMap(map[string]string***REMOVED***
+					"vu": "42",
+				***REMOVED***),
+				Logger: testLog,
+			***REMOVED***)
+			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = [1, 3, 5]`)
 			require.NoError(t, err)
 
-			entries := tenv.LogHook.Drain()
+			entries := logHook.Drain()
 			require.Len(t, entries, 1)
 			assert.Contains(t, entries[0].Message, "discarded")
 		***REMOVED***)
@@ -178,13 +169,25 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		t.Run("DiscardNullOrUndefined", func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
+			logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+			testLog := logrus.New()
+			testLog.AddHook(logHook)
+			testLog.SetOutput(ioutil.Discard)
+
 			cases := []string***REMOVED***"null", "undefined"***REMOVED***
 			tenv := setupTagsExecEnv(t)
+			tenv.MoveToVUContext(&lib.State***REMOVED***
+				Options: lib.Options***REMOVED***
+					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+				***REMOVED***,
+				Tags:   lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***),
+				Logger: testLog,
+			***REMOVED***)
 			for _, val := range cases ***REMOVED***
-				_, err := tenv.Runtime.RunString(`exec.vu.tags["custom-tag"] = ` + val)
+				_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = ` + val)
 				require.NoError(t, err)
 
-				entries := tenv.LogHook.Drain()
+				entries := logHook.Drain()
 				require.Len(t, entries, 1)
 				assert.Contains(t, entries[0].Message, "discarded")
 			***REMOVED***
@@ -379,7 +382,6 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 			CtxField:     ctx,
 			StateField:   state,
 		***REMOVED***,
@@ -400,7 +402,6 @@ func TestOptionsTestSetPropertyDenied(t *testing.T) ***REMOVED***
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 			CtxField:     context.Background(),
 			StateField: &lib.State***REMOVED***
 				Options: lib.Options***REMOVED***
@@ -426,7 +427,6 @@ func TestScenarioNoAvailableInInitContext(t *testing.T) ***REMOVED***
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 			CtxField:     context.Background(),
 			StateField: &lib.State***REMOVED***
 				Options: lib.Options***REMOVED***

@@ -47,11 +47,13 @@ func (m *VU) Context() context.Context ***REMOVED***
 
 // InitEnv returns internally set field to conform to modules.VU interface
 func (m *VU) InitEnv() *common.InitEnvironment ***REMOVED***
+	m.checkIntegrity()
 	return m.InitEnvField
 ***REMOVED***
 
 // State returns internally set field to conform to modules.VU interface
 func (m *VU) State() *lib.State ***REMOVED***
+	m.checkIntegrity()
 	return m.StateField
 ***REMOVED***
 
@@ -63,4 +65,10 @@ func (m *VU) Runtime() *goja.Runtime ***REMOVED***
 // RegisterCallback is not really implemented
 func (m *VU) RegisterCallback() func(f func() error) ***REMOVED***
 	return m.RegisterCallbackField()
+***REMOVED***
+
+func (m *VU) checkIntegrity() ***REMOVED***
+	if m.InitEnvField != nil && m.StateField != nil ***REMOVED***
+		panic("there is a bug in the test: InitEnvField and StateField are not allowed at the same time")
+	***REMOVED***
 ***REMOVED***
