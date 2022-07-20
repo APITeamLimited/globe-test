@@ -118,10 +118,16 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 	if lt.runtimeOptions.KeyWriter.Valid ***REMOVED***
 		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
 			lt.runtimeOptions.KeyWriter.String)
-		keyfileName := filepath.Join(lt.pwd, lt.runtimeOptions.KeyWriter.String)
-		f, err := lt.fs.OpenFile(keyfileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+		keylogFilename := lt.runtimeOptions.KeyWriter.String
+		// if path is absolute - no point doing anything
+		if !filepath.IsAbs(keylogFilename) ***REMOVED***
+			// filepath.Abs could be used but it will get the pwd from `os` package instead of what is in lt.pwd
+			// this is against our general approach of not using `os` directly and makes testing harder
+			keylogFilename = filepath.Join(lt.pwd, keylogFilename)
+		***REMOVED***
+		f, err := lt.fs.OpenFile(keylogFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 		if err != nil ***REMOVED***
-			return err
+			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
 		***REMOVED***
 		lt.keywriter = f
 		state.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***

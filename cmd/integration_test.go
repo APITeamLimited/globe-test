@@ -250,14 +250,25 @@ func TestMetricsAndThresholds(t *testing.T) ***REMOVED***
 	require.Equal(t, expected, teardownThresholds)
 ***REMOVED***
 
-func TestSSLKEYLOGFILE(t *testing.T) ***REMOVED***
+func TestSSLKEYLOGFILEAbsolute(t *testing.T) ***REMOVED***
 	t.Parallel()
+	ts := newGlobalTestState(t)
+	testSSLKEYLOGFILE(t, ts, filepath.Join(ts.cwd, "ssl.log"))
+***REMOVED***
+
+func TestSSLKEYLOGFILEARelative(t *testing.T) ***REMOVED***
+	t.Parallel()
+	ts := newGlobalTestState(t)
+	testSSLKEYLOGFILE(t, ts, "./ssl.log")
+***REMOVED***
+
+func testSSLKEYLOGFILE(t *testing.T, ts *globalTestState, filePath string) ***REMOVED***
+	t.Helper()
 
 	// TODO don't use insecureSkipTLSVerify when/if tlsConfig is given to the runner from outside
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	ts := newGlobalTestState(t)
 	ts.args = []string***REMOVED***"k6", "run", "-"***REMOVED***
-	ts.envVars = map[string]string***REMOVED***"SSLKEYLOGFILE": "./ssl.log"***REMOVED***
+	ts.envVars = map[string]string***REMOVED***"SSLKEYLOGFILE": filePath***REMOVED***
 	ts.stdIn = bytes.NewReader([]byte(tb.Replacer.Replace(`
     import http from "k6/http"
     export const options = ***REMOVED***
