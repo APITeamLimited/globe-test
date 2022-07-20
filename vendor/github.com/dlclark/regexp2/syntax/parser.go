@@ -22,6 +22,7 @@ const (
 	Debug                                = 0x0080 // "d"
 	ECMAScript                           = 0x0100 // "e"
 	RE2                                  = 0x0200 // RE2 compat mode
+	Unicode                              = 0x0400 // "u"
 )
 
 func optionFromCode(ch rune) RegexOptions ***REMOVED***
@@ -43,6 +44,8 @@ func optionFromCode(ch rune) RegexOptions ***REMOVED***
 		return Debug
 	case 'e', 'E':
 		return ECMAScript
+	case 'u', 'U':
+		return Unicode
 	default:
 		return 0
 	***REMOVED***
@@ -104,7 +107,7 @@ const (
 	ErrBadClassInCharRange        = "cannot include class \\%v in character range"
 	ErrUnterminatedBracket        = "unterminated [] set"
 	ErrSubtractionMustBeLast      = "a subtraction must be the last element in a character class"
-	ErrReversedCharRange          = "[x-y] range in reverse order"
+	ErrReversedCharRange          = "[%c-%c] range in reverse order"
 )
 
 func (e ErrorCode) String() string ***REMOVED***
@@ -1121,14 +1124,14 @@ func (p *parser) scanBackslash(scanOnly bool) (*regexNode, error) ***REMOVED***
 
 	case 'w':
 		p.moveRight(1)
-		if p.useOptionE() ***REMOVED***
+		if p.useOptionE() || p.useRE2() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, ECMAWordClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, WordClass()), nil
 
 	case 'W':
 		p.moveRight(1)
-		if p.useOptionE() ***REMOVED***
+		if p.useOptionE() || p.useRE2() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, NotECMAWordClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, NotWordClass()), nil
@@ -1137,6 +1140,8 @@ func (p *parser) scanBackslash(scanOnly bool) (*regexNode, error) ***REMOVED***
 		p.moveRight(1)
 		if p.useOptionE() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, ECMASpaceClass()), nil
+		***REMOVED*** else if p.useRE2() ***REMOVED***
+			return newRegexNodeSet(ntSet, p.options, RE2SpaceClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, SpaceClass()), nil
 
@@ -1144,19 +1149,21 @@ func (p *parser) scanBackslash(scanOnly bool) (*regexNode, error) ***REMOVED***
 		p.moveRight(1)
 		if p.useOptionE() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, NotECMASpaceClass()), nil
+		***REMOVED*** else if p.useRE2() ***REMOVED***
+			return newRegexNodeSet(ntSet, p.options, NotRE2SpaceClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, NotSpaceClass()), nil
 
 	case 'd':
 		p.moveRight(1)
-		if p.useOptionE() ***REMOVED***
+		if p.useOptionE() || p.useRE2() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, ECMADigitClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, DigitClass()), nil
 
 	case 'D':
 		p.moveRight(1)
-		if p.useOptionE() ***REMOVED***
+		if p.useOptionE() || p.useRE2() ***REMOVED***
 			return newRegexNodeSet(ntSet, p.options, NotECMADigitClass()), nil
 		***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, NotDigitClass()), nil
@@ -1462,7 +1469,7 @@ func (p *parser) scanCharSet(caseInsensitive, scanOnly bool) (*CharSet, error) *
 					if inRange ***REMOVED***
 						return nil, p.getErr(ErrBadClassInCharRange, ch)
 					***REMOVED***
-					cc.addDigit(p.useOptionE(), ch == 'D', p.patternRaw)
+					cc.addDigit(p.useOptionE() || p.useRE2(), ch == 'D', p.patternRaw)
 				***REMOVED***
 				continue
 
@@ -1471,7 +1478,7 @@ func (p *parser) scanCharSet(caseInsensitive, scanOnly bool) (*CharSet, error) *
 					if inRange ***REMOVED***
 						return nil, p.getErr(ErrBadClassInCharRange, ch)
 					***REMOVED***
-					cc.addSpace(p.useOptionE(), ch == 'S')
+					cc.addSpace(p.useOptionE(), p.useRE2(), ch == 'S')
 				***REMOVED***
 				continue
 
@@ -1481,7 +1488,7 @@ func (p *parser) scanCharSet(caseInsensitive, scanOnly bool) (*CharSet, error) *
 						return nil, p.getErr(ErrBadClassInCharRange, ch)
 					***REMOVED***
 
-					cc.addWord(p.useOptionE(), ch == 'W')
+					cc.addWord(p.useOptionE() || p.useRE2(), ch == 'W')
 				***REMOVED***
 				continue
 
@@ -1567,7 +1574,7 @@ func (p *parser) scanCharSet(caseInsensitive, scanOnly bool) (*CharSet, error) *
 				***REMOVED*** else ***REMOVED***
 					// a regular range, like a-z
 					if chPrev > ch ***REMOVED***
-						return nil, p.getErr(ErrReversedCharRange)
+						return nil, p.getErr(ErrReversedCharRange, chPrev, ch)
 					***REMOVED***
 					cc.addRange(chPrev, ch)
 				***REMOVED***
@@ -1691,7 +1698,13 @@ func (p *parser) scanCharEscape() (r rune, err error) ***REMOVED***
 			r, err = p.scanHex(2)
 		***REMOVED***
 	case 'u':
-		r, err = p.scanHex(4)
+		// ECMAscript suppot \u***REMOVED***HEX***REMOVED*** only if `u` is also set
+		if p.useOptionE() && p.useOptionU() && p.charsRight() > 0 && p.rightChar(0) == '***REMOVED***' ***REMOVED***
+			p.moveRight(1)
+			return p.scanHexUntilBrace()
+		***REMOVED*** else ***REMOVED***
+			r, err = p.scanHex(4)
+		***REMOVED***
 	case 'a':
 		return '\u0007', nil
 	case 'b':
@@ -1711,7 +1724,7 @@ func (p *parser) scanCharEscape() (r rune, err error) ***REMOVED***
 	case 'c':
 		r, err = p.scanControl()
 	default:
-		if !p.useOptionE() && IsWordChar(ch) ***REMOVED***
+		if !p.useOptionE() && !p.useRE2() && IsWordChar(ch) ***REMOVED***
 			return 0, p.getErr(ErrUnrecognizedEscape, string(ch))
 		***REMOVED***
 		return ch, nil
@@ -1968,6 +1981,11 @@ func (p *parser) useRE2() bool ***REMOVED***
 	return (p.options & RE2) != 0
 ***REMOVED***
 
+// True if U option enabling ECMAScript's Unicode behavior on.
+func (p *parser) useOptionU() bool ***REMOVED***
+	return (p.options & Unicode) != 0
+***REMOVED***
+
 // True if options stack is empty.
 func (p *parser) emptyOptionsStack() bool ***REMOVED***
 	return len(p.optionsStack) == 0
@@ -2063,7 +2081,8 @@ func (p *parser) addToConcatenate(pos, cch int, isReplacement bool) ***REMOVED**
 	***REMOVED***
 
 	if cch > 1 ***REMOVED***
-		str := p.pattern[pos : pos+cch]
+		str := make([]rune, cch)
+		copy(str, p.pattern[pos:pos+cch])
 
 		if p.useOptionI() && !isReplacement ***REMOVED***
 			// We do the ToLower character by character for consistency.  With surrogate chars, doing

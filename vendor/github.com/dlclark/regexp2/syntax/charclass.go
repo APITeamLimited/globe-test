@@ -37,6 +37,8 @@ var (
 	ecmaSpace = []rune***REMOVED***0x0009, 0x000e, 0x0020, 0x0021, 0x00a0, 0x00a1, 0x1680, 0x1681, 0x2000, 0x200b, 0x2028, 0x202a, 0x202f, 0x2030, 0x205f, 0x2060, 0x3000, 0x3001, 0xfeff, 0xff00***REMOVED***
 	ecmaWord  = []rune***REMOVED***0x0030, 0x003a, 0x0041, 0x005b, 0x005f, 0x0060, 0x0061, 0x007b***REMOVED***
 	ecmaDigit = []rune***REMOVED***0x0030, 0x003a***REMOVED***
+
+	re2Space = []rune***REMOVED***0x0009, 0x000b, 0x000c, 0x000e, 0x0020, 0x0021***REMOVED***
 )
 
 var (
@@ -56,6 +58,9 @@ var (
 	NotSpaceClass = getCharSetFromCategoryString(true, false, spaceCategoryText)
 	DigitClass    = getCharSetFromCategoryString(false, false, "Nd")
 	NotDigitClass = getCharSetFromCategoryString(false, true, "Nd")
+
+	RE2SpaceClass    = getCharSetFromOldString(re2Space, false)
+	NotRE2SpaceClass = getCharSetFromOldString(re2Space, true)
 )
 
 var unicodeCategories = func() map[string]*unicode.RangeTable ***REMOVED***
@@ -401,12 +406,18 @@ func (c *CharSet) addChar(ch rune) ***REMOVED***
 	c.addRange(ch, ch)
 ***REMOVED***
 
-func (c *CharSet) addSpace(ecma, negate bool) ***REMOVED***
+func (c *CharSet) addSpace(ecma, re2, negate bool) ***REMOVED***
 	if ecma ***REMOVED***
 		if negate ***REMOVED***
 			c.addRanges(NotECMASpaceClass().ranges)
 		***REMOVED*** else ***REMOVED***
 			c.addRanges(ECMASpaceClass().ranges)
+		***REMOVED***
+	***REMOVED*** else if re2 ***REMOVED***
+		if negate ***REMOVED***
+			c.addRanges(NotRE2SpaceClass().ranges)
+		***REMOVED*** else ***REMOVED***
+			c.addRanges(RE2SpaceClass().ranges)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		c.addCategories(category***REMOVED***cat: spaceCategoryText, negate: negate***REMOVED***)
@@ -563,7 +574,7 @@ func (c *CharSet) addNamedASCII(name string, negate bool) bool ***REMOVED***
 	case "punct": //[!-/:-@[-`***REMOVED***-~]
 		rs = []singleRange***REMOVED***singleRange***REMOVED***'!', '/'***REMOVED***, singleRange***REMOVED***':', '@'***REMOVED***, singleRange***REMOVED***'[', '`'***REMOVED***, singleRange***REMOVED***'***REMOVED***', '~'***REMOVED******REMOVED***
 	case "space":
-		c.addSpace(true, negate)
+		c.addSpace(true, false, negate)
 	case "upper":
 		rs = []singleRange***REMOVED***singleRange***REMOVED***'A', 'Z'***REMOVED******REMOVED***
 	case "word":
