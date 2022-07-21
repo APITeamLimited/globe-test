@@ -245,26 +245,16 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 				tkn, strict = token.IsKeyword(string(parsedLiteral))
 				if hasEscape ***REMOVED***
 					self.insertSemicolon = true
-					if tkn != 0 && tkn != token.LET || parsedLiteral == "true" || parsedLiteral == "false" || parsedLiteral == "null" ***REMOVED***
-						tkn = token.KEYWORD
-					***REMOVED*** else ***REMOVED***
+					if tkn == 0 || token.IsUnreservedWord(tkn) ***REMOVED***
 						tkn = token.IDENTIFIER
+					***REMOVED*** else ***REMOVED***
+						tkn = token.ESCAPED_RESERVED_WORD
 					***REMOVED***
 					return
 				***REMOVED***
 				switch tkn ***REMOVED***
-
 				case 0: // Not a keyword
-					if parsedLiteral == "true" || parsedLiteral == "false" ***REMOVED***
-						self.insertSemicolon = true
-						tkn = token.BOOLEAN
-						return
-					***REMOVED*** else if parsedLiteral == "null" ***REMOVED***
-						self.insertSemicolon = true
-						tkn = token.NULL
-						return
-					***REMOVED***
-
+					// no-op
 				case token.KEYWORD:
 					if strict ***REMOVED***
 						// TODO If strict and in strict mode, then this is not a break
@@ -273,6 +263,8 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 					return
 
 				case
+					token.BOOLEAN,
+					token.NULL,
 					token.THIS,
 					token.BREAK,
 					token.THROW, // A newline after a throw is not allowed, but we need to detect it
@@ -367,7 +359,10 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 					self.skipSingleLineComment()
 					continue
 				***REMOVED*** else if self.chr == '*' ***REMOVED***
-					self.skipMultiLineComment()
+					if self.skipMultiLineComment() ***REMOVED***
+						self.insertSemicolon = false
+						self.implicitSemicolon = true
+					***REMOVED***
 					continue
 				***REMOVED*** else ***REMOVED***
 					// Could be division, could be RegExp literal
@@ -429,6 +424,16 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 				***REMOVED***
 			case '`':
 				tkn = token.BACKTICK
+			case '#':
+				var err string
+				literal, parsedLiteral, _, err = self.scanIdentifier()
+				if err != "" || literal == "" ***REMOVED***
+					tkn = token.ILLEGAL
+					break
+				***REMOVED***
+				self.insertSemicolon = true
+				tkn = token.PRIVATE_IDENTIFIER
+				return
 			default:
 				self.errorUnexpected(idx, chr)
 				tkn = token.ILLEGAL
@@ -533,8 +538,20 @@ func (self *_parser) skipSingleLineComment() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) skipMultiLineComment() ***REMOVED***
+func (self *_parser) skipMultiLineComment() (hasLineTerminator bool) ***REMOVED***
 	self.read()
+	for self.chr >= 0 ***REMOVED***
+		chr := self.chr
+		if chr == '\r' || chr == '\n' || chr == '\u2028' || chr == '\u2029' ***REMOVED***
+			hasLineTerminator = true
+			break
+		***REMOVED***
+		self.read()
+		if chr == '*' && self.chr == '/' ***REMOVED***
+			self.read()
+			return
+		***REMOVED***
+	***REMOVED***
 	for self.chr >= 0 ***REMOVED***
 		chr := self.chr
 		self.read()
@@ -545,6 +562,7 @@ func (self *_parser) skipMultiLineComment() ***REMOVED***
 	***REMOVED***
 
 	self.errorUnexpected(0, self.chr)
+	return
 ***REMOVED***
 
 func (self *_parser) skipWhiteSpace() ***REMOVED***
@@ -663,7 +681,10 @@ func (self *_parser) scanString(offset int, parse bool) (literal string, parsed 
 	isUnicode := false
 	for self.chr != quote ***REMOVED***
 		chr := self.chr
-		if chr == '\n' || chr == '\r' || chr == '\u2028' || chr == '\u2029' || chr < 0 ***REMOVED***
+		if chr == '\n' || chr == '\r' || chr < 0 ***REMOVED***
+			goto newline
+		***REMOVED***
+		if quote == '/' && (self.chr == '\u2028' || self.chr == '\u2029') ***REMOVED***
 			goto newline
 		***REMOVED***
 		self.read()
@@ -717,6 +738,10 @@ newline:
 ***REMOVED***
 
 func (self *_parser) scanNewline() ***REMOVED***
+	if self.chr == '\u2028' || self.chr == '\u2029' ***REMOVED***
+		self.read()
+		return
+	***REMOVED***
 	if self.chr == '\r' ***REMOVED***
 		self.read()
 		if self.chr != '\n' ***REMOVED***

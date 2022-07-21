@@ -15,7 +15,9 @@ type baseFuncObject struct ***REMOVED***
 type baseJsFuncObject struct ***REMOVED***
 	baseFuncObject
 
-	stash  *stash
+	stash   *stash
+	privEnv *privateEnv
+
 	prg    *Program
 	src    string
 	strict bool
@@ -25,13 +27,25 @@ type funcObject struct ***REMOVED***
 	baseJsFuncObject
 ***REMOVED***
 
+type classFuncObject struct ***REMOVED***
+	baseJsFuncObject
+	initFields   *Program
+	computedKeys []Value
+
+	privateEnvType *privateEnvType
+	privateMethods []Value
+
+	derived bool
+***REMOVED***
+
 type methodFuncObject struct ***REMOVED***
 	baseJsFuncObject
+	homeObject *Object
 ***REMOVED***
 
 type arrowFuncObject struct ***REMOVED***
 	baseJsFuncObject
-	this      Value
+	funcObj   *Object
 	newTarget Value
 ***REMOVED***
 
@@ -128,7 +142,17 @@ func (f *funcObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return f.baseFuncObject.iterateStringKeys()
 ***REMOVED***
 
-func (f *funcObject) construct(args []Value, newTarget *Object) *Object ***REMOVED***
+func (f *baseFuncObject) createInstance(newTarget *Object) *Object ***REMOVED***
+	r := f.val.runtime
+	if newTarget == nil ***REMOVED***
+		newTarget = f.val
+	***REMOVED***
+	proto := r.getPrototypeFromCtor(newTarget, nil, r.global.ObjectPrototype)
+
+	return f.val.runtime.newBaseObject(proto, classObject).val
+***REMOVED***
+
+func (f *baseJsFuncObject) construct(args []Value, newTarget *Object) *Object ***REMOVED***
 	if newTarget == nil ***REMOVED***
 		newTarget = f.val
 	***REMOVED***
@@ -152,23 +176,110 @@ func (f *funcObject) construct(args []Value, newTarget *Object) *Object ***REMOV
 	return obj
 ***REMOVED***
 
+func (f *classFuncObject) Call(FunctionCall) Value ***REMOVED***
+	panic(f.val.runtime.NewTypeError("Class constructor cannot be invoked without 'new'"))
+***REMOVED***
+
+func (f *classFuncObject) assertCallable() (func(FunctionCall) Value, bool) ***REMOVED***
+	return f.Call, true
+***REMOVED***
+
+func (f *classFuncObject) createInstance(args []Value, newTarget *Object) (instance *Object) ***REMOVED***
+	if f.derived ***REMOVED***
+		if ctor := f.prototype.self.assertConstructor(); ctor != nil ***REMOVED***
+			instance = ctor(args, newTarget)
+		***REMOVED*** else ***REMOVED***
+			panic(f.val.runtime.NewTypeError("Super constructor is not a constructor"))
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		instance = f.baseFuncObject.createInstance(newTarget)
+	***REMOVED***
+	return
+***REMOVED***
+
+func (f *classFuncObject) _initFields(instance *Object) ***REMOVED***
+	if f.privateEnvType != nil ***REMOVED***
+		penv := instance.self.getPrivateEnv(f.privateEnvType, true)
+		penv.methods = f.privateMethods
+	***REMOVED***
+	if f.initFields != nil ***REMOVED***
+		vm := f.val.runtime.vm
+		vm.pushCtx()
+		vm.prg = f.initFields
+		vm.stash = f.stash
+		vm.privEnv = f.privEnv
+		vm.newTarget = nil
+
+		// so that 'super' base could be correctly resolved (including from direct eval())
+		vm.push(f.val)
+
+		vm.sb = vm.sp
+		vm.push(instance)
+		vm.pc = 0
+		vm.run()
+		vm.popCtx()
+		vm.sp -= 2
+		vm.halt = false
+	***REMOVED***
+***REMOVED***
+
+func (f *classFuncObject) construct(args []Value, newTarget *Object) *Object ***REMOVED***
+	if newTarget == nil ***REMOVED***
+		newTarget = f.val
+	***REMOVED***
+	if f.prg == nil ***REMOVED***
+		instance := f.createInstance(args, newTarget)
+		f._initFields(instance)
+		return instance
+	***REMOVED*** else ***REMOVED***
+		var instance *Object
+		var thisVal Value
+		if !f.derived ***REMOVED***
+			instance = f.createInstance(args, newTarget)
+			f._initFields(instance)
+			thisVal = instance
+		***REMOVED***
+		ret := f._call(args, newTarget, thisVal)
+
+		if ret, ok := ret.(*Object); ok ***REMOVED***
+			return ret
+		***REMOVED***
+		if f.derived ***REMOVED***
+			r := f.val.runtime
+			if ret != _undefined ***REMOVED***
+				panic(r.NewTypeError("Derived constructors may only return object or undefined"))
+			***REMOVED***
+			if v := r.vm.stack[r.vm.sp+1]; v != nil ***REMOVED*** // using residual 'this' value (a bit hacky)
+				instance = r.toObject(v)
+			***REMOVED*** else ***REMOVED***
+				panic(r.newError(r.global.ReferenceError, "Must call super constructor in derived class before returning from derived constructor"))
+			***REMOVED***
+		***REMOVED***
+		return instance
+	***REMOVED***
+***REMOVED***
+
+func (f *classFuncObject) assertConstructor() func(args []Value, newTarget *Object) *Object ***REMOVED***
+	return f.construct
+***REMOVED***
+
 func (f *baseJsFuncObject) Call(call FunctionCall) Value ***REMOVED***
 	return f.call(call, nil)
 ***REMOVED***
 
 func (f *arrowFuncObject) Call(call FunctionCall) Value ***REMOVED***
-	return f._call(call, f.newTarget, f.this)
+	return f._call(call.Arguments, f.newTarget, nil)
 ***REMOVED***
 
-func (f *baseJsFuncObject) _call(call FunctionCall, newTarget, this Value) Value ***REMOVED***
+func (f *baseJsFuncObject) _call(args []Value, newTarget, this Value) Value ***REMOVED***
 	vm := f.val.runtime.vm
 
-	vm.stack.expand(vm.sp + len(call.Arguments) + 1)
+	vm.stack.expand(vm.sp + len(args) + 1)
 	vm.stack[vm.sp] = f.val
 	vm.sp++
 	vm.stack[vm.sp] = this
 	vm.sp++
-	for _, arg := range call.Arguments ***REMOVED***
+	for _, arg := range args ***REMOVED***
 		if arg != nil ***REMOVED***
 			vm.stack[vm.sp] = arg
 		***REMOVED*** else ***REMOVED***
@@ -185,9 +296,10 @@ func (f *baseJsFuncObject) _call(call FunctionCall, newTarget, this Value) Value
 	***REMOVED*** else ***REMOVED***
 		vm.pushCtx()
 	***REMOVED***
-	vm.args = len(call.Arguments)
+	vm.args = len(args)
 	vm.prg = f.prg
 	vm.stash = f.stash
+	vm.privEnv = f.privEnv
 	vm.newTarget = newTarget
 	vm.pc = 0
 	vm.run()
@@ -200,7 +312,7 @@ func (f *baseJsFuncObject) _call(call FunctionCall, newTarget, this Value) Value
 ***REMOVED***
 
 func (f *baseJsFuncObject) call(call FunctionCall, newTarget Value) Value ***REMOVED***
-	return f._call(call, newTarget, nilSafe(call.This))
+	return f._call(call.Arguments, newTarget, nilSafe(call.This))
 ***REMOVED***
 
 func (f *funcObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
@@ -259,14 +371,7 @@ func (f *baseFuncObject) hasInstance(v Value) bool ***REMOVED***
 ***REMOVED***
 
 func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object, args []Value, newTarget *Object) *Object ***REMOVED***
-	proto := f.getStr("prototype", nil)
-	var protoObj *Object
-	if p, ok := proto.(*Object); ok ***REMOVED***
-		protoObj = p
-	***REMOVED*** else ***REMOVED***
-		protoObj = f.val.runtime.global.ObjectPrototype
-	***REMOVED***
-	obj := f.val.runtime.newBaseObject(protoObj, classObject).val
+	obj := f.createInstance(newTarget)
 	ret := ccall(ConstructorCall***REMOVED***
 		This:      obj,
 		Arguments: args,

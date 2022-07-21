@@ -133,41 +133,44 @@ func TestCompile(t *testing.T) ***REMOVED***
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
-		pgm, code, err := c.Compile(`class A ***REMOVED***nine()***REMOVED***return 9***REMOVED******REMOVED***; new A().nine()`, "script.js", true)
+		pgm, code, err := c.Compile(`import "something"`, "script.js", true)
 		require.NoError(t, err)
-		assert.Equal(t, `"use strict";var _createClass = function () ***REMOVED***function defineProperties(target, props) ***REMOVED***for (var i = 0; i < props.length; i++) ***REMOVED***var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);***REMOVED******REMOVED***return function (Constructor, protoProps, staticProps) ***REMOVED***if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;***REMOVED***;***REMOVED***();function _classCallCheck(instance, Constructor) ***REMOVED***if (!(instance instanceof Constructor)) ***REMOVED***throw new TypeError("Cannot call a class as a function");***REMOVED******REMOVED***let A = function () ***REMOVED***function A() ***REMOVED***_classCallCheck(this, A);***REMOVED***_createClass(A, [***REMOVED*** key: "nine", value: function nine() ***REMOVED***return 9;***REMOVED*** ***REMOVED***]);return A;***REMOVED***();;new A().nine();`,
+		assert.Equal(t, `"use strict";require("something");`,
 			code)
-		v, err := goja.New().RunProgram(pgm)
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, int64(9), v.Export())
-		***REMOVED***
+		rt := goja.New()
+		var requireCalled bool
+		require.NoError(t, rt.Set("require", func(s string) ***REMOVED***
+			assert.Equal(t, "something", s)
+			requireCalled = true
+		***REMOVED***))
+		_, err = rt.RunProgram(pgm)
+		require.NoError(t, err)
+		require.True(t, requireCalled)
 	***REMOVED***)
 
 	t.Run("Wrap", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
-		pgm, code, err := c.Compile(`class A ***REMOVED***nine()***REMOVED***return 9***REMOVED******REMOVED***; exports.fn(new A().nine())`, "script.js", false)
+		pgm, code, err := c.Compile(`import "something";`, "script.js", false)
 		require.NoError(t, err)
 		assert.Equal(t, `(function(module, exports)***REMOVED***
-"use strict";var _createClass = function () ***REMOVED***function defineProperties(target, props) ***REMOVED***for (var i = 0; i < props.length; i++) ***REMOVED***var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);***REMOVED******REMOVED***return function (Constructor, protoProps, staticProps) ***REMOVED***if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;***REMOVED***;***REMOVED***();function _classCallCheck(instance, Constructor) ***REMOVED***if (!(instance instanceof Constructor)) ***REMOVED***throw new TypeError("Cannot call a class as a function");***REMOVED******REMOVED***let A = function () ***REMOVED***function A() ***REMOVED***_classCallCheck(this, A);***REMOVED***_createClass(A, [***REMOVED*** key: "nine", value: function nine() ***REMOVED***return 9;***REMOVED*** ***REMOVED***]);return A;***REMOVED***();;exports.fn(new A().nine());
+"use strict";require("something");
 ***REMOVED***)
 `, code)
+		var requireCalled bool
 		rt := goja.New()
+		require.NoError(t, rt.Set("require", func(s string) ***REMOVED***
+			assert.Equal(t, "something", s)
+			requireCalled = true
+		***REMOVED***))
 		v, err := rt.RunProgram(pgm)
-		if assert.NoError(t, err) ***REMOVED***
-			fn, ok := goja.AssertFunction(v)
-			if assert.True(t, ok, "not a function") ***REMOVED***
-				exp := make(map[string]goja.Value)
-				var out interface***REMOVED******REMOVED***
-				exp["fn"] = rt.ToValue(func(v goja.Value) ***REMOVED***
-					out = v.Export()
-				***REMOVED***)
-				_, err := fn(goja.Undefined(), goja.Undefined(), rt.ToValue(exp))
-				assert.NoError(t, err)
-				assert.Equal(t, int64(9), out)
-			***REMOVED***
-		***REMOVED***
+		require.NoError(t, err)
+		fn, ok := goja.AssertFunction(v)
+		require.True(t, ok, "not a function")
+		_, err = fn(goja.Undefined())
+		assert.NoError(t, err)
+		require.True(t, requireCalled)
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
@@ -232,7 +235,7 @@ func TestCorruptSourceMapOnlyForBabel(t *testing.T) ***REMOVED***
 			return corruptSourceMap, nil
 		***REMOVED***,
 	***REMOVED***
-	_, _, err := compiler.Compile("class s ***REMOVED******REMOVED***;\n//# sourceMappingURL=somefile", "somefile", false)
+	_, _, err := compiler.Compile("import 'something';\n//# sourceMappingURL=somefile", "somefile", false)
 	require.NoError(t, err)
 	entries := hook.Drain()
 	require.Len(t, entries, 1)

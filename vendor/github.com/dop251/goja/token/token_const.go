@@ -75,6 +75,8 @@ const (
 	ELLIPSIS          // ...
 	BACKTICK          // `
 
+	PRIVATE_IDENTIFIER
+
 	// tokens below (and only them) are syntactically valid identifiers
 
 	IDENTIFIER
@@ -88,7 +90,6 @@ const (
 	DO
 
 	VAR
-	LET
 	FOR
 	NEW
 	TRY
@@ -104,6 +105,8 @@ const (
 	BREAK
 	CATCH
 	THROW
+	CLASS
+	SUPER
 
 	RETURN
 	TYPEOF
@@ -112,12 +115,19 @@ const (
 
 	DEFAULT
 	FINALLY
+	EXTENDS
 
 	FUNCTION
 	CONTINUE
 	DEBUGGER
 
 	INSTANCEOF
+
+	ESCAPED_RESERVED_WORD
+	// Non-reserved keywords below
+
+	LET
+	STATIC
 )
 
 var token2string = [...]string***REMOVED***
@@ -130,6 +140,7 @@ var token2string = [...]string***REMOVED***
 	NULL:                        "NULL",
 	NUMBER:                      "NUMBER",
 	IDENTIFIER:                  "IDENTIFIER",
+	PRIVATE_IDENTIFIER:          "PRIVATE_IDENTIFIER",
 	PLUS:                        "+",
 	MINUS:                       "-",
 	EXPONENT:                    "**",
@@ -204,12 +215,16 @@ var token2string = [...]string***REMOVED***
 	BREAK:                       "break",
 	CATCH:                       "catch",
 	THROW:                       "throw",
+	CLASS:                       "class",
+	SUPER:                       "super",
 	RETURN:                      "return",
 	TYPEOF:                      "typeof",
 	DELETE:                      "delete",
 	SWITCH:                      "switch",
+	STATIC:                      "static",
 	DEFAULT:                     "default",
 	FINALLY:                     "finally",
+	EXTENDS:                     "extends",
 	FUNCTION:                    "function",
 	CONTINUE:                    "continue",
 	DEBUGGER:                    "debugger",
@@ -299,8 +314,7 @@ var keywordTable = map[string]_keyword***REMOVED***
 		token: CONST,
 	***REMOVED***,
 	"class": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
+		token: CLASS,
 	***REMOVED***,
 	"enum": ***REMOVED***
 		token:         KEYWORD,
@@ -311,32 +325,31 @@ var keywordTable = map[string]_keyword***REMOVED***
 		futureKeyword: true,
 	***REMOVED***,
 	"extends": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
+		token: EXTENDS,
 	***REMOVED***,
 	"import": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
 	"super": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
+		token: SUPER,
 	***REMOVED***,
-	"implements": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
-		strict:        true,
-	***REMOVED***,
-	"interface": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
-		strict:        true,
-	***REMOVED***,
+	/*
+		"implements": ***REMOVED***
+			token:         KEYWORD,
+			futureKeyword: true,
+			strict:        true,
+		***REMOVED***,
+		"interface": ***REMOVED***
+			token:         KEYWORD,
+			futureKeyword: true,
+			strict:        true,
+		***REMOVED***,*/
 	"let": ***REMOVED***
 		token:  LET,
 		strict: true,
 	***REMOVED***,
-	"package": ***REMOVED***
+	/*"package": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
@@ -355,10 +368,24 @@ var keywordTable = map[string]_keyword***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
-	***REMOVED***,
+	***REMOVED***,*/
 	"static": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
-		strict:        true,
+		token:  STATIC,
+		strict: true,
+	***REMOVED***,
+	"await": ***REMOVED***
+		token: KEYWORD,
+	***REMOVED***,
+	"yield": ***REMOVED***
+		token: KEYWORD,
+	***REMOVED***,
+	"false": ***REMOVED***
+		token: BOOLEAN,
+	***REMOVED***,
+	"true": ***REMOVED***
+		token: BOOLEAN,
+	***REMOVED***,
+	"null": ***REMOVED***
+		token: NULL,
 	***REMOVED***,
 ***REMOVED***

@@ -42,6 +42,8 @@ const (
 	varTypeConst
 )
 
+const thisBindingName = " this" // must not be a valid identifier
+
 type CompilerError struct ***REMOVED***
 	Message string
 	File    *file.File
@@ -75,9 +77,12 @@ type compiler struct ***REMOVED***
 	scope *scope
 	block *block
 
+	classScope *classScope
+
 	enumGetExpr compiledEnumGetExpr
 
-	evalVM *vm
+	evalVM *vm // VM used to evaluate constant expressions
+	ctxVM  *vm // VM in which an eval() code is compiled
 ***REMOVED***
 
 type binding struct ***REMOVED***
@@ -124,18 +129,18 @@ func (b *binding) markAccessPoint() ***REMOVED***
 func (b *binding) emitGet() ***REMOVED***
 	b.markAccessPoint()
 	if b.isVar && !b.isArg ***REMOVED***
-		b.scope.c.emit(loadStash(0))
+		b.scope.c.emit(loadStack(0))
 	***REMOVED*** else ***REMOVED***
-		b.scope.c.emit(loadStashLex(0))
+		b.scope.c.emit(loadStackLex(0))
 	***REMOVED***
 ***REMOVED***
 
 func (b *binding) emitGetAt(pos int) ***REMOVED***
 	b.markAccessPointAt(pos)
 	if b.isVar && !b.isArg ***REMOVED***
-		b.scope.c.p.code[pos] = loadStash(0)
+		b.scope.c.p.code[pos] = loadStack(0)
 	***REMOVED*** else ***REMOVED***
-		b.scope.c.p.code[pos] = loadStashLex(0)
+		b.scope.c.p.code[pos] = loadStackLex(0)
 	***REMOVED***
 ***REMOVED***
 
@@ -145,7 +150,7 @@ func (b *binding) emitGetP() ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		// make sure TDZ is checked
 		b.markAccessPoint()
-		b.scope.c.emit(loadStashLex(0), pop)
+		b.scope.c.emit(loadStackLex(0), pop)
 	***REMOVED***
 ***REMOVED***
 
@@ -158,9 +163,9 @@ func (b *binding) emitSet() ***REMOVED***
 	***REMOVED***
 	b.markAccessPoint()
 	if b.isVar && !b.isArg ***REMOVED***
-		b.scope.c.emit(storeStash(0))
+		b.scope.c.emit(storeStack(0))
 	***REMOVED*** else ***REMOVED***
-		b.scope.c.emit(storeStashLex(0))
+		b.scope.c.emit(storeStackLex(0))
 	***REMOVED***
 ***REMOVED***
 
@@ -173,15 +178,55 @@ func (b *binding) emitSetP() ***REMOVED***
 	***REMOVED***
 	b.markAccessPoint()
 	if b.isVar && !b.isArg ***REMOVED***
-		b.scope.c.emit(storeStashP(0))
+		b.scope.c.emit(storeStackP(0))
 	***REMOVED*** else ***REMOVED***
-		b.scope.c.emit(storeStashLexP(0))
+		b.scope.c.emit(storeStackLexP(0))
+	***REMOVED***
+***REMOVED***
+
+func (b *binding) emitInitP() ***REMOVED***
+	if !b.isVar && b.scope.outer == nil ***REMOVED***
+		b.scope.c.emit(initGlobalP(b.name))
+	***REMOVED*** else ***REMOVED***
+		b.markAccessPoint()
+		b.scope.c.emit(initStackP(0))
 	***REMOVED***
 ***REMOVED***
 
 func (b *binding) emitInit() ***REMOVED***
-	b.markAccessPoint()
-	b.scope.c.emit(initStash(0))
+	if !b.isVar && b.scope.outer == nil ***REMOVED***
+		b.scope.c.emit(initGlobal(b.name))
+	***REMOVED*** else ***REMOVED***
+		b.markAccessPoint()
+		b.scope.c.emit(initStack(0))
+	***REMOVED***
+***REMOVED***
+
+func (b *binding) emitInitAt(pos int) ***REMOVED***
+	if !b.isVar && b.scope.outer == nil ***REMOVED***
+		b.scope.c.p.code[pos] = initGlobal(b.name)
+	***REMOVED*** else ***REMOVED***
+		b.markAccessPointAt(pos)
+		b.scope.c.p.code[pos] = initStack(0)
+	***REMOVED***
+***REMOVED***
+
+func (b *binding) emitInitAtScope(scope *scope, pos int) ***REMOVED***
+	if !b.isVar && scope.outer == nil ***REMOVED***
+		scope.c.p.code[pos] = initGlobal(b.name)
+	***REMOVED*** else ***REMOVED***
+		b.markAccessPointAtScope(scope, pos)
+		scope.c.p.code[pos] = initStack(0)
+	***REMOVED***
+***REMOVED***
+
+func (b *binding) emitInitPAtScope(scope *scope, pos int) ***REMOVED***
+	if !b.isVar && scope.outer == nil ***REMOVED***
+		scope.c.p.code[pos] = initGlobalP(b.name)
+	***REMOVED*** else ***REMOVED***
+		b.markAccessPointAtScope(scope, pos)
+		scope.c.p.code[pos] = initStackP(0)
+	***REMOVED***
 ***REMOVED***
 
 func (b *binding) emitGetVar(callee bool) ***REMOVED***
@@ -238,6 +283,9 @@ type scope struct ***REMOVED***
 	base       int
 	numArgs    int
 
+	// function type. If not funcNone, this is a function or a top-level lexical environment
+	funcType funcType
+
 	// in strict mode
 	strict bool
 	// eval top-level scope
@@ -247,10 +295,6 @@ type scope struct ***REMOVED***
 	// at least one binding has been marked for placement in stash
 	needStash bool
 
-	// is a function or a top-level lexical environment
-	function bool
-	// is an arrow function's top-level lexical environment (functions only)
-	arrow bool
 	// is a variable environment, i.e. the target for dynamically created var bindings
 	variable bool
 	// a function scope that has at least one direct eval() and non-strict, so the variables can be added dynamically
@@ -259,8 +303,6 @@ type scope struct ***REMOVED***
 	argsInStash bool
 	// need 'arguments' object (functions only)
 	argsNeeded bool
-	// 'this' is used and non-strict, so need to box it (functions only)
-	thisNeeded bool
 ***REMOVED***
 
 type block struct ***REMOVED***
@@ -364,12 +406,38 @@ func (p *Program) dumpCode(logger func(format string, args ...interface***REMOVE
 
 func (p *Program) _dumpCode(indent string, logger func(format string, args ...interface***REMOVED******REMOVED***)) ***REMOVED***
 	logger("values: %+v", p.values)
+	dumpInitFields := func(initFields *Program) ***REMOVED***
+		i := indent + ">"
+		logger("%s ---- init_fields:", i)
+		initFields._dumpCode(i, logger)
+		logger("%s ----", i)
+	***REMOVED***
 	for pc, ins := range p.code ***REMOVED***
 		logger("%s %d: %T(%v)", indent, pc, ins, ins)
-		if f, ok := ins.(*newFunc); ok ***REMOVED***
-			f.prg._dumpCode(indent+">", logger)
-		***REMOVED*** else if f, ok := ins.(*newArrowFunc); ok ***REMOVED***
-			f.prg._dumpCode(indent+">", logger)
+		var prg *Program
+		switch f := ins.(type) ***REMOVED***
+		case *newFunc:
+			prg = f.prg
+		case *newArrowFunc:
+			prg = f.prg
+		case *newMethod:
+			prg = f.prg
+		case *newDerivedClass:
+			if f.initFields != nil ***REMOVED***
+				dumpInitFields(f.initFields)
+			***REMOVED***
+			prg = f.ctor
+		case *newClass:
+			if f.initFields != nil ***REMOVED***
+				dumpInitFields(f.initFields)
+			***REMOVED***
+		case *newStaticFieldInit:
+			if f.initFields != nil ***REMOVED***
+				dumpInitFields(f.initFields)
+			***REMOVED***
+		***REMOVED***
+		if prg != nil ***REMOVED***
+			prg._dumpCode(indent+">", logger)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -411,15 +479,39 @@ func (s *scope) lookupName(name unistring.String) (binding *binding, noDynamics 
 		if curScope.dynamic ***REMOVED***
 			noDynamics = false
 		***REMOVED***
-		if name == "arguments" && curScope.function && !curScope.arrow ***REMOVED***
+		if name == "arguments" && curScope.funcType != funcNone && curScope.funcType != funcArrow ***REMOVED***
+			if curScope.funcType == funcClsInit ***REMOVED***
+				s.c.throwSyntaxError(0, "'arguments' is not allowed in class field initializer or static initialization block")
+			***REMOVED***
 			curScope.argsNeeded = true
 			binding, _ = curScope.bindName(name)
 			return
 		***REMOVED***
-		if curScope.function ***REMOVED***
+		if curScope.isFunction() ***REMOVED***
 			toStash = true
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (s *scope) lookupThis() (*binding, bool) ***REMOVED***
+	toStash := false
+	for curScope := s; curScope != nil; curScope = curScope.outer ***REMOVED***
+		if curScope.outer == nil ***REMOVED***
+			if curScope.eval ***REMOVED***
+				return nil, true
+			***REMOVED***
+		***REMOVED***
+		if b, exists := curScope.boundNames[thisBindingName]; exists ***REMOVED***
+			if toStash && !b.inStash ***REMOVED***
+				b.moveToStash()
+			***REMOVED***
+			return b, false
+		***REMOVED***
+		if curScope.isFunction() ***REMOVED***
+			toStash = true
+		***REMOVED***
+	***REMOVED***
+	return nil, false
 ***REMOVED***
 
 func (s *scope) ensureBoundNamesCreated() ***REMOVED***
@@ -453,8 +545,14 @@ func (s *scope) bindNameLexical(name unistring.String, unique bool, offset int) 
 	return b, true
 ***REMOVED***
 
+func (s *scope) createThisBinding() *binding ***REMOVED***
+	thisBinding, _ := s.bindNameLexical(thisBindingName, false, 0)
+	thisBinding.isVar = true // don't check on load
+	return thisBinding
+***REMOVED***
+
 func (s *scope) bindName(name unistring.String) (*binding, bool) ***REMOVED***
-	if !s.function && !s.variable && s.outer != nil ***REMOVED***
+	if !s.isFunction() && !s.variable && s.outer != nil ***REMOVED***
 		return s.outer.bindName(name)
 	***REMOVED***
 	b, created := s.bindNameLexical(name, false, 0)
@@ -465,7 +563,7 @@ func (s *scope) bindName(name unistring.String) (*binding, bool) ***REMOVED***
 ***REMOVED***
 
 func (s *scope) bindNameShadow(name unistring.String) (*binding, bool) ***REMOVED***
-	if !s.function && s.outer != nil ***REMOVED***
+	if !s.isFunction() && s.outer != nil ***REMOVED***
 		return s.outer.bindNameShadow(name)
 	***REMOVED***
 
@@ -482,7 +580,16 @@ func (s *scope) bindNameShadow(name unistring.String) (*binding, bool) ***REMOVE
 
 func (s *scope) nearestFunction() *scope ***REMOVED***
 	for sc := s; sc != nil; sc = sc.outer ***REMOVED***
-		if sc.function ***REMOVED***
+		if sc.isFunction() ***REMOVED***
+			return sc
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (s *scope) nearestThis() *scope ***REMOVED***
+	for sc := s; sc != nil; sc = sc.outer ***REMOVED***
+		if sc.eval || sc.isFunction() && sc.funcType != funcArrow ***REMOVED***
 			return sc
 		***REMOVED***
 	***REMOVED***
@@ -496,7 +603,15 @@ func (s *scope) finaliseVarAlloc(stackOffset int) (stashSize, stackSize int) ***
 	***REMOVED***
 	stackIdx, stashIdx := 0, 0
 	allInStash := s.isDynamic()
+	var derivedCtor bool
+	if fs := s.nearestThis(); fs != nil && fs.funcType == funcDerivedCtor ***REMOVED***
+		derivedCtor = true
+	***REMOVED***
 	for i, b := range s.bindings ***REMOVED***
+		var this bool
+		if b.name == thisBindingName ***REMOVED***
+			this = true
+		***REMOVED***
 		if allInStash || b.inStash ***REMOVED***
 			for scope, aps := range b.accessPoints ***REMOVED***
 				var level uint32
@@ -511,40 +626,78 @@ func (s *scope) finaliseVarAlloc(stackOffset int) (stashSize, stackSize int) ***
 				idx := (level << 24) | uint32(stashIdx)
 				base := scope.base
 				code := scope.prg.code
-				for _, pc := range *aps ***REMOVED***
-					ap := &code[base+pc]
-					switch i := (*ap).(type) ***REMOVED***
-					case loadStash:
-						*ap = loadStash(idx)
-					case storeStash:
-						*ap = storeStash(idx)
-					case storeStashP:
-						*ap = storeStashP(idx)
-					case loadStashLex:
-						*ap = loadStashLex(idx)
-					case storeStashLex:
-						*ap = storeStashLex(idx)
-					case storeStashLexP:
-						*ap = storeStashLexP(idx)
-					case initStash:
-						*ap = initStash(idx)
-					case *loadMixed:
-						i.idx = idx
-					case *loadMixedLex:
-						i.idx = idx
-					case *resolveMixed:
-						i.idx = idx
+				if this ***REMOVED***
+					if derivedCtor ***REMOVED***
+						for _, pc := range *aps ***REMOVED***
+							ap := &code[base+pc]
+							switch (*ap).(type) ***REMOVED***
+							case loadStack:
+								*ap = loadThisStash(idx)
+							case initStack:
+								*ap = initStash(idx)
+							case resolveThisStack:
+								*ap = resolveThisStash(idx)
+							case _ret:
+								*ap = cret(idx)
+							default:
+								s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for 'this'")
+							***REMOVED***
+						***REMOVED***
+					***REMOVED*** else ***REMOVED***
+						for _, pc := range *aps ***REMOVED***
+							ap := &code[base+pc]
+							switch (*ap).(type) ***REMOVED***
+							case loadStack:
+								*ap = loadStash(idx)
+							case initStack:
+								*ap = initStash(idx)
+							default:
+								s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for 'this'")
+							***REMOVED***
+						***REMOVED***
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					for _, pc := range *aps ***REMOVED***
+						ap := &code[base+pc]
+						switch i := (*ap).(type) ***REMOVED***
+						case loadStack:
+							*ap = loadStash(idx)
+						case storeStack:
+							*ap = storeStash(idx)
+						case storeStackP:
+							*ap = storeStashP(idx)
+						case loadStackLex:
+							*ap = loadStashLex(idx)
+						case storeStackLex:
+							*ap = storeStashLex(idx)
+						case storeStackLexP:
+							*ap = storeStashLexP(idx)
+						case initStackP:
+							*ap = initStashP(idx)
+						case initStack:
+							*ap = initStash(idx)
+						case *loadMixed:
+							i.idx = idx
+						case *loadMixedLex:
+							i.idx = idx
+						case *resolveMixed:
+							i.idx = idx
+						default:
+							s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for binding: %T", i)
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 			stashIdx++
 		***REMOVED*** else ***REMOVED***
 			var idx int
-			if i < s.numArgs ***REMOVED***
-				idx = -(i + 1)
-			***REMOVED*** else ***REMOVED***
-				stackIdx++
-				idx = stackIdx + stackOffset
+			if !this ***REMOVED***
+				if i < s.numArgs ***REMOVED***
+					idx = -(i + 1)
+				***REMOVED*** else ***REMOVED***
+					stackIdx++
+					idx = stackIdx + stackOffset
+				***REMOVED***
 			***REMOVED***
 			for scope, aps := range b.accessPoints ***REMOVED***
 				var level int
@@ -558,23 +711,45 @@ func (s *scope) finaliseVarAlloc(stackOffset int) (stashSize, stackSize int) ***
 				***REMOVED***
 				code := scope.prg.code
 				base := scope.base
-				if argsInStash ***REMOVED***
+				if this ***REMOVED***
+					if derivedCtor ***REMOVED***
+						for _, pc := range *aps ***REMOVED***
+							ap := &code[base+pc]
+							switch (*ap).(type) ***REMOVED***
+							case loadStack:
+								*ap = loadThisStack***REMOVED******REMOVED***
+							case initStack:
+								// no-op
+							case resolveThisStack:
+								// no-op
+							case _ret:
+								// no-op, already in the right place
+							default:
+								s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for 'this'")
+							***REMOVED***
+						***REMOVED***
+					***REMOVED*** /*else ***REMOVED***
+						no-op
+					***REMOVED****/
+				***REMOVED*** else if argsInStash ***REMOVED***
 					for _, pc := range *aps ***REMOVED***
 						ap := &code[base+pc]
 						switch i := (*ap).(type) ***REMOVED***
-						case loadStash:
+						case loadStack:
 							*ap = loadStack1(idx)
-						case storeStash:
+						case storeStack:
 							*ap = storeStack1(idx)
-						case storeStashP:
+						case storeStackP:
 							*ap = storeStack1P(idx)
-						case loadStashLex:
+						case loadStackLex:
 							*ap = loadStack1Lex(idx)
-						case storeStashLex:
+						case storeStackLex:
 							*ap = storeStack1Lex(idx)
-						case storeStashLexP:
+						case storeStackLexP:
 							*ap = storeStack1LexP(idx)
-						case initStash:
+						case initStackP:
+							*ap = initStack1P(idx)
+						case initStack:
 							*ap = initStack1(idx)
 						case *loadMixed:
 							*ap = &loadMixedStack1***REMOVED***name: i.name, idx: idx, level: uint8(level), callee: i.callee***REMOVED***
@@ -582,32 +757,38 @@ func (s *scope) finaliseVarAlloc(stackOffset int) (stashSize, stackSize int) ***
 							*ap = &loadMixedStack1Lex***REMOVED***name: i.name, idx: idx, level: uint8(level), callee: i.callee***REMOVED***
 						case *resolveMixed:
 							*ap = &resolveMixedStack1***REMOVED***typ: i.typ, name: i.name, idx: idx, level: uint8(level), strict: i.strict***REMOVED***
+						default:
+							s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for binding: %T", i)
 						***REMOVED***
 					***REMOVED***
 				***REMOVED*** else ***REMOVED***
 					for _, pc := range *aps ***REMOVED***
 						ap := &code[base+pc]
 						switch i := (*ap).(type) ***REMOVED***
-						case loadStash:
+						case loadStack:
 							*ap = loadStack(idx)
-						case storeStash:
+						case storeStack:
 							*ap = storeStack(idx)
-						case storeStashP:
+						case storeStackP:
 							*ap = storeStackP(idx)
-						case loadStashLex:
+						case loadStackLex:
 							*ap = loadStackLex(idx)
-						case storeStashLex:
+						case storeStackLex:
 							*ap = storeStackLex(idx)
-						case storeStashLexP:
+						case storeStackLexP:
 							*ap = storeStackLexP(idx)
-						case initStash:
+						case initStack:
 							*ap = initStack(idx)
+						case initStackP:
+							*ap = initStackP(idx)
 						case *loadMixed:
 							*ap = &loadMixedStack***REMOVED***name: i.name, idx: idx, level: uint8(level), callee: i.callee***REMOVED***
 						case *loadMixedLex:
 							*ap = &loadMixedStackLex***REMOVED***name: i.name, idx: idx, level: uint8(level), callee: i.callee***REMOVED***
 						case *resolveMixed:
 							*ap = &resolveMixedStack***REMOVED***typ: i.typ, name: i.name, idx: idx, level: uint8(level), strict: i.strict***REMOVED***
+						default:
+							s.c.assert(false, s.c.p.sourceOffset(pc), "Unsupported instruction for binding: %T", i)
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***
@@ -629,6 +810,15 @@ func (s *scope) moveArgsToStash() ***REMOVED***
 	***REMOVED***
 	s.argsInStash = true
 	s.needStash = true
+***REMOVED***
+
+func (s *scope) trimCode(delta int) ***REMOVED***
+	s.c.p.code = s.c.p.code[delta:]
+	srcMap := s.c.p.srcMap
+	for i := range srcMap ***REMOVED***
+		srcMap[i].pc -= delta
+	***REMOVED***
+	s.adjustBase(-delta)
 ***REMOVED***
 
 func (s *scope) adjustBase(delta int) ***REMOVED***
@@ -664,6 +854,10 @@ func (s *scope) isDynamic() bool ***REMOVED***
 	return s.dynLookup || s.dynamic
 ***REMOVED***
 
+func (s *scope) isFunction() bool ***REMOVED***
+	return s.funcType != funcNone && !s.eval
+***REMOVED***
+
 func (s *scope) deleteBinding(b *binding) ***REMOVED***
 	idx := 0
 	for i, bb := range s.bindings ***REMOVED***
@@ -681,7 +875,10 @@ found:
 	s.bindings = s.bindings[:l]
 ***REMOVED***
 
-func (c *compiler) compile(in *ast.Program, strict, eval, inGlobal bool) ***REMOVED***
+func (c *compiler) compile(in *ast.Program, strict, inGlobal bool, evalVm *vm) ***REMOVED***
+	c.ctxVM = evalVm
+
+	eval := evalVm != nil
 	c.p.src = in.File
 	c.newScope()
 	scope := c.scope
@@ -696,7 +893,15 @@ func (c *compiler) compile(in *ast.Program, strict, eval, inGlobal bool) ***REMO
 	if ownVarScope ***REMOVED***
 		c.newBlockScope()
 		scope = c.scope
-		scope.function = true
+		scope.variable = true
+	***REMOVED***
+	if eval && !inGlobal ***REMOVED***
+		for s := evalVm.stash; s != nil; s = s.outer ***REMOVED***
+			if ft := s.funcType; ft != funcNone && ft != funcArrow ***REMOVED***
+				scope.funcType = ft
+				break
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 	funcs := c.extractFunctions(in.Body)
 	c.createFunctionBindings(funcs)
@@ -803,7 +1008,7 @@ func (c *compiler) extractFunctions(list []ast.Statement) (funcs []*ast.Function
 func (c *compiler) createFunctionBindings(funcs []*ast.FunctionDeclaration) ***REMOVED***
 	s := c.scope
 	if s.outer != nil ***REMOVED***
-		unique := !s.function && !s.variable && s.strict
+		unique := !s.isFunction() && !s.variable && s.strict
 		for _, decl := range funcs ***REMOVED***
 			s.bindNameLexical(decl.Function.Name.Name, unique, int(decl.Function.Name.Idx1())-1)
 		***REMOVED***
@@ -962,6 +1167,12 @@ func (c *compiler) compileLexicalDeclarations(list []ast.Statement, scopeDeclare
 				scopeDeclared = true
 			***REMOVED***
 			c.createLexicalBindings(lex)
+		***REMOVED*** else if cls, ok := st.(*ast.ClassDeclaration); ok ***REMOVED***
+			if !scopeDeclared ***REMOVED***
+				c.newBlockScope()
+				scopeDeclared = true
+			***REMOVED***
+			c.createLexicalIdBinding(cls.Class.Name.Name, false, int(cls.Class.Name.Idx)-1)
 		***REMOVED***
 	***REMOVED***
 	return scopeDeclared
@@ -991,7 +1202,7 @@ func (c *compiler) compileFunction(v *ast.FunctionDeclaration) ***REMOVED***
 		e.emitSetter(c.compileFunctionLiteral(v.Function, false), false)
 	***REMOVED*** else ***REMOVED***
 		c.compileFunctionLiteral(v.Function, false).emitGetter(true)
-		b.emitInit()
+		b.emitInitP()
 	***REMOVED***
 ***REMOVED***
 
@@ -1082,4 +1293,136 @@ func (c *compiler) compileStatementDummy(statement ast.Statement) ***REMOVED***
 	leave := c.enterDummyMode()
 	c.compileStatement(statement, false)
 	leave()
+***REMOVED***
+
+func (c *compiler) assert(cond bool, offset int, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if !cond ***REMOVED***
+		c.throwSyntaxError(offset, "Compiler bug: "+msg, args...)
+	***REMOVED***
+***REMOVED***
+
+func privateIdString(desc unistring.String) unistring.String ***REMOVED***
+	return asciiString("#").concat(stringValueFromRaw(desc)).string()
+***REMOVED***
+
+type privateName struct ***REMOVED***
+	idx                  int
+	isStatic             bool
+	isMethod             bool
+	hasGetter, hasSetter bool
+***REMOVED***
+
+type resolvedPrivateName struct ***REMOVED***
+	name     unistring.String
+	idx      uint32
+	level    uint8
+	isStatic bool
+	isMethod bool
+***REMOVED***
+
+func (r *resolvedPrivateName) string() unistring.String ***REMOVED***
+	return privateIdString(r.name)
+***REMOVED***
+
+type privateEnvRegistry struct ***REMOVED***
+	fields, methods []unistring.String
+***REMOVED***
+
+type classScope struct ***REMOVED***
+	c            *compiler
+	privateNames map[unistring.String]*privateName
+
+	instanceEnv, staticEnv privateEnvRegistry
+
+	outer *classScope
+***REMOVED***
+
+func (r *privateEnvRegistry) createPrivateMethodId(name unistring.String) int ***REMOVED***
+	r.methods = append(r.methods, name)
+	return len(r.methods) - 1
+***REMOVED***
+
+func (r *privateEnvRegistry) createPrivateFieldId(name unistring.String) int ***REMOVED***
+	r.fields = append(r.fields, name)
+	return len(r.fields) - 1
+***REMOVED***
+
+func (s *classScope) declarePrivateId(name unistring.String, kind ast.PropertyKind, isStatic bool, offset int) ***REMOVED***
+	pn := s.privateNames[name]
+	if pn != nil ***REMOVED***
+		if pn.isStatic == isStatic ***REMOVED***
+			switch kind ***REMOVED***
+			case ast.PropertyKindGet:
+				if pn.hasSetter && !pn.hasGetter ***REMOVED***
+					pn.hasGetter = true
+					return
+				***REMOVED***
+			case ast.PropertyKindSet:
+				if pn.hasGetter && !pn.hasSetter ***REMOVED***
+					pn.hasSetter = true
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		s.c.throwSyntaxError(offset, "Identifier '#%s' has already been declared", name)
+		panic("unreachable")
+	***REMOVED***
+	var env *privateEnvRegistry
+	if isStatic ***REMOVED***
+		env = &s.staticEnv
+	***REMOVED*** else ***REMOVED***
+		env = &s.instanceEnv
+	***REMOVED***
+
+	pn = &privateName***REMOVED***
+		isStatic:  isStatic,
+		hasGetter: kind == ast.PropertyKindGet,
+		hasSetter: kind == ast.PropertyKindSet,
+	***REMOVED***
+	if kind != ast.PropertyKindValue ***REMOVED***
+		pn.idx = env.createPrivateMethodId(name)
+		pn.isMethod = true
+	***REMOVED*** else ***REMOVED***
+		pn.idx = env.createPrivateFieldId(name)
+	***REMOVED***
+
+	if s.privateNames == nil ***REMOVED***
+		s.privateNames = make(map[unistring.String]*privateName)
+	***REMOVED***
+	s.privateNames[name] = pn
+***REMOVED***
+
+func (s *classScope) getDeclaredPrivateId(name unistring.String) *privateName ***REMOVED***
+	if n := s.privateNames[name]; n != nil ***REMOVED***
+		return n
+	***REMOVED***
+	s.c.assert(false, 0, "getDeclaredPrivateId() for undeclared id")
+	panic("unreachable")
+***REMOVED***
+
+func (c *compiler) resolvePrivateName(name unistring.String, offset int) (*resolvedPrivateName, *privateId) ***REMOVED***
+	level := 0
+	for s := c.classScope; s != nil; s = s.outer ***REMOVED***
+		if len(s.privateNames) > 0 ***REMOVED***
+			if pn := s.privateNames[name]; pn != nil ***REMOVED***
+				return &resolvedPrivateName***REMOVED***
+					name:     name,
+					idx:      uint32(pn.idx),
+					level:    uint8(level),
+					isStatic: pn.isStatic,
+					isMethod: pn.isMethod,
+				***REMOVED***, nil
+			***REMOVED***
+			level++
+		***REMOVED***
+	***REMOVED***
+	if c.ctxVM != nil ***REMOVED***
+		for s := c.ctxVM.privEnv; s != nil; s = s.outer ***REMOVED***
+			if id := s.names[name]; id != nil ***REMOVED***
+				return nil, id
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	c.throwSyntaxError(offset, "Private field '#%s' must be declared in an enclosing class", name)
+	panic("unreachable")
 ***REMOVED***

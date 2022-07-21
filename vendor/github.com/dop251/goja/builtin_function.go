@@ -23,7 +23,7 @@ func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object ***REMOV
 	***REMOVED***
 	sb.WriteString(asciiString("\n***REMOVED***)"))
 
-	ret := r.toObject(r.eval(sb.String(), false, false, _undefined))
+	ret := r.toObject(r.eval(sb.String(), false, false))
 	ret.self.setProto(proto, true)
 	return ret
 ***REMOVED***
@@ -32,9 +32,11 @@ func (r *Runtime) functionproto_toString(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 repeat:
 	switch f := obj.self.(type) ***REMOVED***
-	case *methodFuncObject:
-		return newStringValue(f.src)
 	case *funcObject:
+		return newStringValue(f.src)
+	case *classFuncObject:
+		return newStringValue(f.src)
+	case *methodFuncObject:
 		return newStringValue(f.src)
 	case *arrowFuncObject:
 		return newStringValue(f.src)
@@ -48,7 +50,7 @@ repeat:
 	case *proxyObject:
 	repeat2:
 		switch c := f.target.self.(type) ***REMOVED***
-		case *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
+		case *classFuncObject, *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
 			return asciiString("function () ***REMOVED*** [native code] ***REMOVED***")
 		case *lazyObject:
 			f.target.self = c.create(obj)
@@ -126,7 +128,7 @@ func (r *Runtime) boundCallable(target func(FunctionCall) Value, boundArgs []Val
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runtime) boundConstruct(target func([]Value, *Object) *Object, boundArgs []Value) func([]Value, *Object) *Object ***REMOVED***
+func (r *Runtime) boundConstruct(f *Object, target func([]Value, *Object) *Object, boundArgs []Value) func([]Value, *Object) *Object ***REMOVED***
 	if target == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -137,7 +139,9 @@ func (r *Runtime) boundConstruct(target func([]Value, *Object) *Object, boundArg
 	***REMOVED***
 	return func(fargs []Value, newTarget *Object) *Object ***REMOVED***
 		a := append(args, fargs...)
-		copy(a, args)
+		if newTarget == f ***REMOVED***
+			newTarget = nil
+		***REMOVED***
 		return target(a, newTarget)
 	***REMOVED***
 ***REMOVED***
@@ -185,12 +189,13 @@ lenNotInt:
 	***REMOVED***
 
 	v := &Object***REMOVED***runtime: r***REMOVED***
-
-	ff := r.newNativeFuncObj(v, r.boundCallable(fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), nameStr.string(), nil, l)
-	v.self = &boundFuncObject***REMOVED***
+	ff := r.newNativeFuncAndConstruct(v, r.boundCallable(fcall, call.Arguments), r.boundConstruct(v, construct, call.Arguments), nil, nameStr.string(), l)
+	bf := &boundFuncObject***REMOVED***
 		nativeFuncObject: *ff,
 		wrapped:          obj,
 	***REMOVED***
+	bf.prototype = obj.self.proto()
+	v.self = bf
 
 	return v
 ***REMOVED***

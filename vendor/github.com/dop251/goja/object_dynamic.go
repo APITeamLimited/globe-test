@@ -526,6 +526,10 @@ func (*baseDynamicObject) _putProp(name unistring.String, value Value, writable,
 func (*baseDynamicObject) _putSym(s *Symbol, prop Value) ***REMOVED***
 ***REMOVED***
 
+func (o *baseDynamicObject) getPrivateEnv(*privateEnvType, bool) *privateElements ***REMOVED***
+	panic(o.val.runtime.NewTypeError("Dynamic objects cannot have private elements"))
+***REMOVED***
+
 func (a *dynamicArray) sortLen() int ***REMOVED***
 	return a.a.Len()
 ***REMOVED***

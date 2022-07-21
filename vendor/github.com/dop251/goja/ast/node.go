@@ -118,6 +118,11 @@ type (
 		Identifier Identifier
 	***REMOVED***
 
+	PrivateDotExpression struct ***REMOVED***
+		Left       Expression
+		Identifier PrivateIdentifier
+	***REMOVED***
+
 	OptionalChain struct ***REMOVED***
 		Expression
 	***REMOVED***
@@ -134,6 +139,15 @@ type (
 		Source        string
 
 		DeclarationList []*VariableDeclaration
+	***REMOVED***
+
+	ClassLiteral struct ***REMOVED***
+		Class      file.Idx
+		RightBrace file.Idx
+		Name       *Identifier
+		SuperClass Expression
+		Body       []ClassElement
+		Source     string
 	***REMOVED***
 
 	ConciseBody interface ***REMOVED***
@@ -156,6 +170,10 @@ type (
 	Identifier struct ***REMOVED***
 		Name unistring.String
 		Idx  file.Idx
+	***REMOVED***
+
+	PrivateIdentifier struct ***REMOVED***
+		Identifier
 	***REMOVED***
 
 	NewExpression struct ***REMOVED***
@@ -254,6 +272,10 @@ type (
 		Idx file.Idx
 	***REMOVED***
 
+	SuperExpression struct ***REMOVED***
+		Idx file.Idx
+	***REMOVED***
+
 	UnaryExpression struct ***REMOVED***
 		Operator token.Token
 		Idx      file.Idx // If a prefix operation
@@ -278,7 +300,9 @@ func (*BracketExpression) _expressionNode()     ***REMOVED******REMOVED***
 func (*CallExpression) _expressionNode()        ***REMOVED******REMOVED***
 func (*ConditionalExpression) _expressionNode() ***REMOVED******REMOVED***
 func (*DotExpression) _expressionNode()         ***REMOVED******REMOVED***
+func (*PrivateDotExpression) _expressionNode()  ***REMOVED******REMOVED***
 func (*FunctionLiteral) _expressionNode()       ***REMOVED******REMOVED***
+func (*ClassLiteral) _expressionNode()          ***REMOVED******REMOVED***
 func (*ArrowFunctionLiteral) _expressionNode()  ***REMOVED******REMOVED***
 func (*Identifier) _expressionNode()            ***REMOVED******REMOVED***
 func (*NewExpression) _expressionNode()         ***REMOVED******REMOVED***
@@ -290,6 +314,7 @@ func (*SequenceExpression) _expressionNode()    ***REMOVED******REMOVED***
 func (*StringLiteral) _expressionNode()         ***REMOVED******REMOVED***
 func (*TemplateLiteral) _expressionNode()       ***REMOVED******REMOVED***
 func (*ThisExpression) _expressionNode()        ***REMOVED******REMOVED***
+func (*SuperExpression) _expressionNode()       ***REMOVED******REMOVED***
 func (*UnaryExpression) _expressionNode()       ***REMOVED******REMOVED***
 func (*MetaProperty) _expressionNode()          ***REMOVED******REMOVED***
 func (*ObjectPattern) _expressionNode()         ***REMOVED******REMOVED***
@@ -442,6 +467,10 @@ type (
 	FunctionDeclaration struct ***REMOVED***
 		Function *FunctionLiteral
 	***REMOVED***
+
+	ClassDeclaration struct ***REMOVED***
+		Class *ClassLiteral
+	***REMOVED***
 )
 
 // _statementNode
@@ -469,6 +498,7 @@ func (*WhileStatement) _statementNode()      ***REMOVED******REMOVED***
 func (*WithStatement) _statementNode()       ***REMOVED******REMOVED***
 func (*LexicalDeclaration) _statementNode()  ***REMOVED******REMOVED***
 func (*FunctionDeclaration) _statementNode() ***REMOVED******REMOVED***
+func (*ClassDeclaration) _statementNode()    ***REMOVED******REMOVED***
 
 // =========== //
 // Declaration //
@@ -478,6 +508,35 @@ type (
 	VariableDeclaration struct ***REMOVED***
 		Var  file.Idx
 		List []*Binding
+	***REMOVED***
+
+	ClassElement interface ***REMOVED***
+		Node
+		_classElement()
+	***REMOVED***
+
+	FieldDefinition struct ***REMOVED***
+		Idx         file.Idx
+		Key         Expression
+		Initializer Expression
+		Computed    bool
+		Static      bool
+	***REMOVED***
+
+	MethodDefinition struct ***REMOVED***
+		Idx      file.Idx
+		Key      Expression
+		Kind     PropertyKind // "method", "get" or "set"
+		Body     *FunctionLiteral
+		Computed bool
+		Static   bool
+	***REMOVED***
+
+	ClassStaticBlock struct ***REMOVED***
+		Static          file.Idx
+		Block           *BlockStatement
+		Source          string
+		DeclarationList []*VariableDeclaration
 	***REMOVED***
 )
 
@@ -500,6 +559,7 @@ type (
 	***REMOVED***
 
 	ForInto interface ***REMOVED***
+		Node
 		_forInto()
 	***REMOVED***
 
@@ -543,6 +603,10 @@ func (*Identifier) _bindingTarget() ***REMOVED******REMOVED***
 func (*BlockStatement) _conciseBody() ***REMOVED******REMOVED***
 func (*ExpressionBody) _conciseBody() ***REMOVED******REMOVED***
 
+func (*FieldDefinition) _classElement()  ***REMOVED******REMOVED***
+func (*MethodDefinition) _classElement() ***REMOVED******REMOVED***
+func (*ClassStaticBlock) _classElement() ***REMOVED******REMOVED***
+
 // ==== //
 // Node //
 // ==== //
@@ -570,7 +634,9 @@ func (self *BracketExpression) Idx0() file.Idx     ***REMOVED*** return self.Lef
 func (self *CallExpression) Idx0() file.Idx        ***REMOVED*** return self.Callee.Idx0() ***REMOVED***
 func (self *ConditionalExpression) Idx0() file.Idx ***REMOVED*** return self.Test.Idx0() ***REMOVED***
 func (self *DotExpression) Idx0() file.Idx         ***REMOVED*** return self.Left.Idx0() ***REMOVED***
+func (self *PrivateDotExpression) Idx0() file.Idx  ***REMOVED*** return self.Left.Idx0() ***REMOVED***
 func (self *FunctionLiteral) Idx0() file.Idx       ***REMOVED*** return self.Function ***REMOVED***
+func (self *ClassLiteral) Idx0() file.Idx          ***REMOVED*** return self.Class ***REMOVED***
 func (self *ArrowFunctionLiteral) Idx0() file.Idx  ***REMOVED*** return self.Start ***REMOVED***
 func (self *Identifier) Idx0() file.Idx            ***REMOVED*** return self.Idx ***REMOVED***
 func (self *NewExpression) Idx0() file.Idx         ***REMOVED*** return self.New ***REMOVED***
@@ -582,6 +648,7 @@ func (self *SequenceExpression) Idx0() file.Idx    ***REMOVED*** return self.Seq
 func (self *StringLiteral) Idx0() file.Idx         ***REMOVED*** return self.Idx ***REMOVED***
 func (self *TemplateLiteral) Idx0() file.Idx       ***REMOVED*** return self.OpenQuote ***REMOVED***
 func (self *ThisExpression) Idx0() file.Idx        ***REMOVED*** return self.Idx ***REMOVED***
+func (self *SuperExpression) Idx0() file.Idx       ***REMOVED*** return self.Idx ***REMOVED***
 func (self *UnaryExpression) Idx0() file.Idx       ***REMOVED*** return self.Idx ***REMOVED***
 func (self *MetaProperty) Idx0() file.Idx          ***REMOVED*** return self.Idx ***REMOVED***
 
@@ -609,12 +676,21 @@ func (self *WhileStatement) Idx0() file.Idx      ***REMOVED*** return self.While
 func (self *WithStatement) Idx0() file.Idx       ***REMOVED*** return self.With ***REMOVED***
 func (self *LexicalDeclaration) Idx0() file.Idx  ***REMOVED*** return self.Idx ***REMOVED***
 func (self *FunctionDeclaration) Idx0() file.Idx ***REMOVED*** return self.Function.Idx0() ***REMOVED***
+func (self *ClassDeclaration) Idx0() file.Idx    ***REMOVED*** return self.Class.Idx0() ***REMOVED***
 func (self *Binding) Idx0() file.Idx             ***REMOVED*** return self.Target.Idx0() ***REMOVED***
 
 func (self *ForLoopInitializerVarDeclList) Idx0() file.Idx ***REMOVED*** return self.List[0].Idx0() ***REMOVED***
 func (self *PropertyShort) Idx0() file.Idx                 ***REMOVED*** return self.Name.Idx ***REMOVED***
 func (self *PropertyKeyed) Idx0() file.Idx                 ***REMOVED*** return self.Key.Idx0() ***REMOVED***
 func (self *ExpressionBody) Idx0() file.Idx                ***REMOVED*** return self.Expression.Idx0() ***REMOVED***
+
+func (self *FieldDefinition) Idx0() file.Idx  ***REMOVED*** return self.Idx ***REMOVED***
+func (self *MethodDefinition) Idx0() file.Idx ***REMOVED*** return self.Idx ***REMOVED***
+func (self *ClassStaticBlock) Idx0() file.Idx ***REMOVED*** return self.Static ***REMOVED***
+
+func (self *ForDeclaration) Idx0() file.Idx    ***REMOVED*** return self.Idx ***REMOVED***
+func (self *ForIntoVar) Idx0() file.Idx        ***REMOVED*** return self.Binding.Idx0() ***REMOVED***
+func (self *ForIntoExpression) Idx0() file.Idx ***REMOVED*** return self.Expression.Idx0() ***REMOVED***
 
 // ==== //
 // Idx1 //
@@ -630,7 +706,9 @@ func (self *BracketExpression) Idx1() file.Idx     ***REMOVED*** return self.Rig
 func (self *CallExpression) Idx1() file.Idx        ***REMOVED*** return self.RightParenthesis + 1 ***REMOVED***
 func (self *ConditionalExpression) Idx1() file.Idx ***REMOVED*** return self.Test.Idx1() ***REMOVED***
 func (self *DotExpression) Idx1() file.Idx         ***REMOVED*** return self.Identifier.Idx1() ***REMOVED***
+func (self *PrivateDotExpression) Idx1() file.Idx  ***REMOVED*** return self.Identifier.Idx1() ***REMOVED***
 func (self *FunctionLiteral) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *ClassLiteral) Idx1() file.Idx          ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
 func (self *ArrowFunctionLiteral) Idx1() file.Idx  ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *Identifier) Idx1() file.Idx            ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Name)) ***REMOVED***
 func (self *NewExpression) Idx1() file.Idx ***REMOVED***
@@ -649,6 +727,7 @@ func (self *SequenceExpression) Idx1() file.Idx ***REMOVED*** return self.Sequen
 func (self *StringLiteral) Idx1() file.Idx      ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
 func (self *TemplateLiteral) Idx1() file.Idx    ***REMOVED*** return self.CloseQuote + 1 ***REMOVED***
 func (self *ThisExpression) Idx1() file.Idx     ***REMOVED*** return self.Idx + 4 ***REMOVED***
+func (self *SuperExpression) Idx1() file.Idx    ***REMOVED*** return self.Idx + 5 ***REMOVED***
 func (self *UnaryExpression) Idx1() file.Idx ***REMOVED***
 	if self.Postfix ***REMOVED***
 		return self.Operand.Idx1() + 2 // ++ --
@@ -696,6 +775,7 @@ func (self *WhileStatement) Idx1() file.Idx      ***REMOVED*** return self.Body.
 func (self *WithStatement) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *LexicalDeclaration) Idx1() file.Idx  ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
 func (self *FunctionDeclaration) Idx1() file.Idx ***REMOVED*** return self.Function.Idx1() ***REMOVED***
+func (self *ClassDeclaration) Idx1() file.Idx    ***REMOVED*** return self.Class.Idx1() ***REMOVED***
 func (self *Binding) Idx1() file.Idx ***REMOVED***
 	if self.Initializer != nil ***REMOVED***
 		return self.Initializer.Idx1()
@@ -715,3 +795,22 @@ func (self *PropertyShort) Idx1() file.Idx ***REMOVED***
 func (self *PropertyKeyed) Idx1() file.Idx ***REMOVED*** return self.Value.Idx1() ***REMOVED***
 
 func (self *ExpressionBody) Idx1() file.Idx ***REMOVED*** return self.Expression.Idx1() ***REMOVED***
+
+func (self *FieldDefinition) Idx1() file.Idx ***REMOVED***
+	if self.Initializer != nil ***REMOVED***
+		return self.Initializer.Idx1()
+	***REMOVED***
+	return self.Key.Idx1()
+***REMOVED***
+
+func (self *MethodDefinition) Idx1() file.Idx ***REMOVED***
+	return self.Body.Idx1()
+***REMOVED***
+
+func (self *ClassStaticBlock) Idx1() file.Idx ***REMOVED***
+	return self.Block.Idx1()
+***REMOVED***
+
+func (self *ForDeclaration) Idx1() file.Idx    ***REMOVED*** return self.Target.Idx1() ***REMOVED***
+func (self *ForIntoVar) Idx1() file.Idx        ***REMOVED*** return self.Binding.Idx1() ***REMOVED***
+func (self *ForIntoExpression) Idx1() file.Idx ***REMOVED*** return self.Expression.Idx1() ***REMOVED***

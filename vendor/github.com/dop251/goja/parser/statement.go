@@ -67,7 +67,7 @@ func (self *_parser) parseStatement() ast.Statement ***REMOVED***
 		return self.parseVariableStatement()
 	case token.LET:
 		tok := self.peek()
-		if tok == token.LEFT_BRACKET || self.scope.allowLet && (tok == token.IDENTIFIER || tok == token.LET || tok == token.LEFT_BRACE) ***REMOVED***
+		if tok == token.LEFT_BRACKET || self.scope.allowLet && (token.IsId(tok) || tok == token.LEFT_BRACE) ***REMOVED***
 			return self.parseLexicalDeclaration(self.token)
 		***REMOVED***
 		self.insertSemicolon = true
@@ -76,6 +76,10 @@ func (self *_parser) parseStatement() ast.Statement ***REMOVED***
 	case token.FUNCTION:
 		return &ast.FunctionDeclaration***REMOVED***
 			Function: self.parseFunction(true),
+		***REMOVED***
+	case token.CLASS:
+		return &ast.ClassDeclaration***REMOVED***
+			Class: self.parseClass(true),
 		***REMOVED***
 	case token.SWITCH:
 		return self.parseSwitchStatement()
@@ -184,6 +188,7 @@ func (self *_parser) parseFunction(declaration bool) *ast.FunctionLiteral ***REM
 		Function: self.expect(token.FUNCTION),
 	***REMOVED***
 
+	self.tokenToBindingId()
 	var name *ast.Identifier
 	if self.token == token.IDENTIFIER ***REMOVED***
 		name = self.parseIdentifier()
@@ -219,6 +224,142 @@ func (self *_parser) parseArrowFunctionBody() (ast.ConciseBody, []*ast.VariableD
 	return &ast.ExpressionBody***REMOVED***
 		Expression: self.parseAssignmentExpression(),
 	***REMOVED***, nil
+***REMOVED***
+
+func (self *_parser) parseClass(declaration bool) *ast.ClassLiteral ***REMOVED***
+	if !self.scope.allowLet && self.token == token.CLASS ***REMOVED***
+		self.errorUnexpectedToken(token.CLASS)
+	***REMOVED***
+
+	node := &ast.ClassLiteral***REMOVED***
+		Class: self.expect(token.CLASS),
+	***REMOVED***
+
+	self.tokenToBindingId()
+	var name *ast.Identifier
+	if self.token == token.IDENTIFIER ***REMOVED***
+		name = self.parseIdentifier()
+	***REMOVED*** else if declaration ***REMOVED***
+		// Use expect error handling
+		self.expect(token.IDENTIFIER)
+	***REMOVED***
+
+	node.Name = name
+
+	if self.token != token.LEFT_BRACE ***REMOVED***
+		self.expect(token.EXTENDS)
+		node.SuperClass = self.parseLeftHandSideExpressionAllowCall()
+	***REMOVED***
+
+	self.expect(token.LEFT_BRACE)
+
+	for self.token != token.RIGHT_BRACE && self.token != token.EOF ***REMOVED***
+		if self.token == token.SEMICOLON ***REMOVED***
+			self.next()
+			continue
+		***REMOVED***
+		start := self.idx
+		static := false
+		if self.token == token.STATIC ***REMOVED***
+			switch self.peek() ***REMOVED***
+			case token.ASSIGN, token.SEMICOLON, token.RIGHT_BRACE, token.LEFT_PARENTHESIS:
+				// treat as identifier
+			default:
+				self.next()
+				if self.token == token.LEFT_BRACE ***REMOVED***
+					b := &ast.ClassStaticBlock***REMOVED***
+						Static: start,
+					***REMOVED***
+					b.Block, b.DeclarationList = self.parseFunctionBlock()
+					b.Source = self.slice(b.Block.LeftBrace, b.Block.Idx1())
+					node.Body = append(node.Body, b)
+					continue
+				***REMOVED***
+				static = true
+			***REMOVED***
+		***REMOVED***
+
+		var kind ast.PropertyKind
+		methodBodyStart := self.idx
+		if self.literal == "get" || self.literal == "set" ***REMOVED***
+			if self.peek() != token.LEFT_PARENTHESIS ***REMOVED***
+				if self.literal == "get" ***REMOVED***
+					kind = ast.PropertyKindGet
+				***REMOVED*** else ***REMOVED***
+					kind = ast.PropertyKindSet
+				***REMOVED***
+				self.next()
+			***REMOVED***
+		***REMOVED***
+
+		_, keyName, value, tkn := self.parseObjectPropertyKey()
+		if value == nil ***REMOVED***
+			continue
+		***REMOVED***
+		computed := tkn == token.ILLEGAL
+		_, private := value.(*ast.PrivateIdentifier)
+
+		if static && !private && keyName == "prototype" ***REMOVED***
+			self.error(value.Idx0(), "Classes may not have a static property named 'prototype'")
+		***REMOVED***
+
+		if kind == "" && self.token == token.LEFT_PARENTHESIS ***REMOVED***
+			kind = ast.PropertyKindMethod
+		***REMOVED***
+
+		if kind != "" ***REMOVED***
+			// method
+			if keyName == "constructor" ***REMOVED***
+				if !computed && !static && kind != ast.PropertyKindMethod ***REMOVED***
+					self.error(value.Idx0(), "Class constructor may not be an accessor")
+				***REMOVED*** else if private ***REMOVED***
+					self.error(value.Idx0(), "Class constructor may not be a private method")
+				***REMOVED***
+			***REMOVED***
+			md := &ast.MethodDefinition***REMOVED***
+				Idx:      start,
+				Key:      value,
+				Kind:     kind,
+				Body:     self.parseMethodDefinition(methodBodyStart, kind),
+				Static:   static,
+				Computed: computed,
+			***REMOVED***
+			node.Body = append(node.Body, md)
+		***REMOVED*** else ***REMOVED***
+			// field
+			isCtor := !computed && keyName == "constructor"
+			if !isCtor ***REMOVED***
+				if name, ok := value.(*ast.PrivateIdentifier); ok ***REMOVED***
+					isCtor = name.Name == "constructor"
+				***REMOVED***
+			***REMOVED***
+			if isCtor ***REMOVED***
+				self.error(value.Idx0(), "Classes may not have a field named 'constructor'")
+			***REMOVED***
+			var initializer ast.Expression
+			if self.token == token.ASSIGN ***REMOVED***
+				self.next()
+				initializer = self.parseExpression()
+			***REMOVED***
+
+			if !self.implicitSemicolon && self.token != token.SEMICOLON && self.token != token.RIGHT_BRACE ***REMOVED***
+				self.errorUnexpectedToken(self.token)
+				break
+			***REMOVED***
+			node.Body = append(node.Body, &ast.FieldDefinition***REMOVED***
+				Idx:         start,
+				Key:         value,
+				Initializer: initializer,
+				Static:      static,
+				Computed:    computed,
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+
+	node.RightBrace = self.expect(token.RIGHT_BRACE)
+	node.Source = self.slice(node.Class, node.RightBrace+1)
+
+	return node
 ***REMOVED***
 
 func (self *_parser) parseDebuggerStatement() ast.Statement ***REMOVED***
@@ -500,7 +641,7 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 			***REMOVED***
 			if forIn || forOf ***REMOVED***
 				switch e := expr.(type) ***REMOVED***
-				case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.Binding:
+				case *ast.Identifier, *ast.DotExpression, *ast.PrivateDotExpression, *ast.BracketExpression, *ast.Binding:
 					// These are all acceptable
 				case *ast.ObjectLiteral:
 					expr = self.reinterpretAsObjectAssignmentPattern(e)
@@ -743,6 +884,7 @@ func (self *_parser) parseBreakStatement() ast.Statement ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	self.tokenToBindingId()
 	if self.token == token.IDENTIFIER ***REMOVED***
 		identifier := self.parseIdentifier()
 		if !self.scope.hasLabel(identifier.Name) ***REMOVED***
@@ -784,6 +926,7 @@ func (self *_parser) parseContinueStatement() ast.Statement ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	self.tokenToBindingId()
 	if self.token == token.IDENTIFIER ***REMOVED***
 		identifier := self.parseIdentifier()
 		if !self.scope.hasLabel(identifier.Name) ***REMOVED***

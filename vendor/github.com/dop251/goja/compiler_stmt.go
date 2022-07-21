@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
@@ -48,11 +47,14 @@ func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED
 	case *ast.FunctionDeclaration:
 		c.compileStandaloneFunctionDecl(v)
 		// note functions inside blocks are hoisted to the top of the block and are compiled using compileFunctions()
+	case *ast.ClassDeclaration:
+		c.compileClassDeclaration(v)
 	case *ast.WithStatement:
 		c.compileWithStatement(v, needResult)
 	case *ast.DebuggerStatement:
 	default:
-		panic(fmt.Errorf("Unknown statement type: %T", v))
+		c.assert(false, int(v.Idx0())-1, "Unknown statement type: %T", v)
+		panic("unreachable")
 	***REMOVED***
 ***REMOVED***
 
@@ -272,7 +274,8 @@ func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bo
 	case *ast.ForLoopInitializerExpression:
 		c.compileExpression(init.Expression).emitGetter(false)
 	default:
-		panic(fmt.Sprintf("Unsupported for loop initializer: %T", init))
+		c.assert(false, int(v.For)-1, "Unsupported for loop initializer: %T", init)
+		panic("unreachable")
 	***REMOVED***
 
 	if needResult ***REMOVED***
@@ -386,7 +389,7 @@ func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *ent
 		case *ast.Identifier:
 			b := c.createLexicalIdBinding(target.Name, into.IsConst, int(into.Idx)-1)
 			c.emit(enumGet)
-			b.emitInit()
+			b.emitInitP()
 		case ast.Pattern:
 			c.createLexicalBinding(target, into.IsConst)
 			c.emit(enumGet)
@@ -394,10 +397,11 @@ func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *ent
 				c.emitPatternLexicalAssign(target, init)
 			***REMOVED***, false)
 		default:
-			c.throwSyntaxError(int(into.Idx)-1, "Unsupported ForBinding: %T", into.Target)
+			c.assert(false, int(into.Idx)-1, "Unsupported ForBinding: %T", into.Target)
 		***REMOVED***
 	default:
-		panic(fmt.Sprintf("Unsupported for-into: %T", into))
+		c.assert(false, int(into.Idx0())-1, "Unsupported for-into: %T", into)
+		panic("unreachable")
 	***REMOVED***
 
 	return
@@ -553,7 +557,8 @@ func (c *compiler) compileBranchStatement(v *ast.BranchStatement) ***REMOVED***
 	case token.CONTINUE:
 		c.compileContinue(v.Label, v.Idx)
 	default:
-		panic(fmt.Errorf("Unknown branch statement token: %s", v.Token.String()))
+		c.assert(false, int(v.Idx0())-1, "Unknown branch statement token: %s", v.Token.String())
+		panic("unreachable")
 	***REMOVED***
 ***REMOVED***
 
@@ -723,6 +728,9 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 ***REMOVED***
 
 func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
+	if s := c.scope.nearestFunction(); s != nil && s.funcType == funcClsInit ***REMOVED***
+		c.throwSyntaxError(int(v.Return)-1, "Illegal return statement")
+	***REMOVED***
 	if v.Argument != nil ***REMOVED***
 		c.emitExpr(c.compileExpression(v.Argument), true)
 	***REMOVED*** else ***REMOVED***
@@ -736,6 +744,11 @@ func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 			c.emit(enumPopClose)
 		***REMOVED***
 	***REMOVED***
+	if s := c.scope.nearestFunction(); s != nil && s.funcType == funcDerivedCtor ***REMOVED***
+		b := s.boundNames[thisBindingName]
+		c.assert(b != nil, int(v.Return)-1, "Derived constructor, but no 'this' binding")
+		b.markAccessPoint()
+	***REMOVED***
 	c.emit(ret)
 ***REMOVED***
 
@@ -744,7 +757,7 @@ func (c *compiler) checkVarConflict(name unistring.String, offset int) ***REMOVE
 		if b, exists := sc.boundNames[name]; exists && !b.isVar && !(b.isArg && sc != c.scope) ***REMOVED***
 			c.throwSyntaxError(offset, "Identifier '%s' has already been declared", name)
 		***REMOVED***
-		if sc.function ***REMOVED***
+		if sc.isFunction() ***REMOVED***
 			break
 		***REMOVED***
 	***REMOVED***
@@ -757,7 +770,7 @@ func (c *compiler) emitVarAssign(name unistring.String, offset int, init compile
 		if noDyn ***REMOVED***
 			c.emitNamedOrConst(init, name)
 			c.p.addSrcMap(offset)
-			b.emitInit()
+			b.emitInitP()
 		***REMOVED*** else ***REMOVED***
 			c.emitVarRef(name, offset, b)
 			c.emitNamedOrConst(init, name)
@@ -781,9 +794,7 @@ func (c *compiler) compileVarBinding(expr *ast.Binding) ***REMOVED***
 
 func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init compiledExpr) ***REMOVED***
 	b := c.scope.boundNames[name]
-	if b == nil ***REMOVED***
-		panic("Lexical declaration for an unbound name")
-	***REMOVED***
+	c.assert(b != nil, offset, "Lexical declaration for an unbound name")
 	if init != nil ***REMOVED***
 		c.emitNamedOrConst(init, name)
 		c.p.addSrcMap(offset)
@@ -793,11 +804,7 @@ func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init com
 		***REMOVED***
 		c.emit(loadUndef)
 	***REMOVED***
-	if c.scope.outer != nil ***REMOVED***
-		b.emitInit()
-	***REMOVED*** else ***REMOVED***
-		c.emit(initGlobal(name))
-	***REMOVED***
+	b.emitInitP()
 ***REMOVED***
 
 func (c *compiler) emitPatternVarAssign(target, init compiledExpr) ***REMOVED***
@@ -857,7 +864,7 @@ func (c *compiler) compileLexicalDeclaration(v *ast.LexicalDeclaration) ***REMOV
 func (c *compiler) isEmptyResult(st ast.Statement) bool ***REMOVED***
 	switch st := st.(type) ***REMOVED***
 	case *ast.EmptyStatement, *ast.VariableStatement, *ast.LexicalDeclaration, *ast.FunctionDeclaration,
-		*ast.BranchStatement, *ast.DebuggerStatement:
+		*ast.ClassDeclaration, *ast.BranchStatement, *ast.DebuggerStatement:
 		return true
 	case *ast.LabelledStatement:
 		return c.isEmptyResult(st.Statement)
@@ -1113,4 +1120,8 @@ func (c *compiler) compileSwitchStatement(v *ast.SwitchStatement, needResult boo
 		c.popScope()
 	***REMOVED***
 	c.leaveBlock()
+***REMOVED***
+
+func (c *compiler) compileClassDeclaration(v *ast.ClassDeclaration) ***REMOVED***
+	c.emitLexicalAssign(v.Class.Name.Name, int(v.Class.Class)-1, c.compileClassLiteral(v.Class, false))
 ***REMOVED***

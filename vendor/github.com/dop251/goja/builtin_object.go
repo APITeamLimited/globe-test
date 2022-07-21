@@ -4,14 +4,18 @@ import (
 	"fmt"
 )
 
-func (r *Runtime) builtin_Object(args []Value, proto *Object) *Object ***REMOVED***
+func (r *Runtime) builtin_Object(args []Value, newTarget *Object) *Object ***REMOVED***
+	if newTarget != nil && newTarget != r.global.Object ***REMOVED***
+		proto := r.getPrototypeFromCtor(newTarget, nil, r.global.ObjectPrototype)
+		return r.newBaseObject(proto, classObject).val
+	***REMOVED***
 	if len(args) > 0 ***REMOVED***
 		arg := args[0]
 		if arg != _undefined && arg != _null ***REMOVED***
 			return arg.ToObject(r)
 		***REMOVED***
 	***REMOVED***
-	return r.newBaseObject(proto, classObject).val
+	return r.NewObject()
 ***REMOVED***
 
 func (r *Runtime) object_getPrototypeOf(call FunctionCall) Value ***REMOVED***
@@ -566,7 +570,8 @@ func (r *Runtime) initObject() ***REMOVED***
 		Configurable: FLAG_TRUE,
 	***REMOVED***, true)
 
-	r.global.Object = r.newNativeFuncConstruct(r.builtin_Object, classObject, r.global.ObjectPrototype, 1)
+	r.global.Object = r.newNativeConstructOnly(nil, r.builtin_Object, r.global.ObjectPrototype, "Object", 1).val
+	r.global.ObjectPrototype.self._putProp("constructor", r.global.Object, true, false, true)
 	o = r.global.Object.self
 	o._putProp("assign", r.newNativeFunc(r.object_assign, nil, "assign", nil, 2), true, false, true)
 	o._putProp("defineProperty", r.newNativeFunc(r.object_defineProperty, nil, "defineProperty", nil, 3), true, false, true)

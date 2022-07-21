@@ -569,6 +569,21 @@ func (r *Runtime) newFunc(name unistring.String, length int, strict bool) (f *fu
 	return
 ***REMOVED***
 
+func (r *Runtime) newClassFunc(name unistring.String, length int, proto *Object, derived bool) (f *classFuncObject) ***REMOVED***
+	v := &Object***REMOVED***runtime: r***REMOVED***
+
+	f = &classFuncObject***REMOVED******REMOVED***
+	f.class = classFunction
+	f.val = v
+	f.extensible = true
+	f.strict = true
+	f.derived = derived
+	v.self = f
+	f.prototype = proto
+	f.init(name, intToValue(int64(length)))
+	return
+***REMOVED***
+
 func (r *Runtime) newMethod(name unistring.String, length int, strict bool) (f *methodFuncObject) ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 
@@ -593,14 +608,7 @@ func (r *Runtime) newArrowFunc(name unistring.String, length int, strict bool) (
 	f.strict = strict
 
 	vm := r.vm
-	var this Value
-	if vm.sb >= 0 ***REMOVED***
-		this = vm.stack[vm.sb]
-	***REMOVED*** else ***REMOVED***
-		this = vm.r.globalObject
-	***REMOVED***
 
-	f.this = this
 	f.newTarget = vm.newTarget
 	v.self = f
 	f.prototype = r.global.FunctionPrototype
@@ -673,6 +681,18 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 ***REMOVED***
 
 func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, length int64) *nativeFuncObject ***REMOVED***
+	return r.newNativeFuncAndConstruct(v, func(call FunctionCall) Value ***REMOVED***
+		return ctor(call.Arguments, nil)
+	***REMOVED***,
+		func(args []Value, newTarget *Object) *Object ***REMOVED***
+			if newTarget == nil ***REMOVED***
+				newTarget = v
+			***REMOVED***
+			return ctor(args, newTarget)
+		***REMOVED***, defaultProto, name, intToValue(length))
+***REMOVED***
+
+func (r *Runtime) newNativeFuncAndConstruct(v *Object, call func(call FunctionCall) Value, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, l Value) *nativeFuncObject ***REMOVED***
 	if v == nil ***REMOVED***
 		v = &Object***REMOVED***runtime: r***REMOVED***
 	***REMOVED***
@@ -686,18 +706,11 @@ func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newT
 				prototype:  r.global.FunctionPrototype,
 			***REMOVED***,
 		***REMOVED***,
-		f: func(call FunctionCall) Value ***REMOVED***
-			return ctor(call.Arguments, nil)
-		***REMOVED***,
-		construct: func(args []Value, newTarget *Object) *Object ***REMOVED***
-			if newTarget == nil ***REMOVED***
-				newTarget = v
-			***REMOVED***
-			return ctor(args, newTarget)
-		***REMOVED***,
+		f:         call,
+		construct: ctor,
 	***REMOVED***
 	v.self = f
-	f.init(name, intToValue(length))
+	f.init(name, l)
 	if defaultProto != nil ***REMOVED***
 		f._putProp("prototype", defaultProto, false, false, false)
 	***REMOVED***
@@ -874,38 +887,45 @@ func (r *Runtime) builtin_thrower(call FunctionCall) Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (r *Runtime) eval(srcVal valueString, direct, strict bool, this Value) Value ***REMOVED***
+func (r *Runtime) eval(srcVal valueString, direct, strict bool) Value ***REMOVED***
 	src := escapeInvalidUtf16(srcVal)
 	vm := r.vm
 	inGlobal := true
 	if direct ***REMOVED***
 		for s := vm.stash; s != nil; s = s.outer ***REMOVED***
-			if s.variable ***REMOVED***
+			if s.isVariable() ***REMOVED***
 				inGlobal = false
 				break
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	p, err := r.compile("<eval>", src, strict, true, inGlobal)
+	vm.pushCtx()
+	funcObj := _undefined
+	if !direct ***REMOVED***
+		vm.stash = &r.global.stash
+		vm.privEnv = nil
+	***REMOVED*** else ***REMOVED***
+		if sb := vm.sb; sb > 0 ***REMOVED***
+			funcObj = vm.stack[sb-1]
+		***REMOVED***
+	***REMOVED***
+	p, err := r.compile("<eval>", src, strict, inGlobal, r.vm)
 	if err != nil ***REMOVED***
 		panic(err)
 	***REMOVED***
 
-	vm.pushCtx()
 	vm.prg = p
 	vm.pc = 0
 	vm.args = 0
 	vm.result = _undefined
-	if !direct ***REMOVED***
-		vm.stash = &r.global.stash
-	***REMOVED***
+	vm.push(funcObj)
 	vm.sb = vm.sp
-	vm.push(this)
+	vm.push(nil) // this
 	vm.run()
 	retval := vm.result
 	vm.popCtx()
 	vm.halt = false
-	vm.sp -= 1
+	vm.sp -= 2
 	return retval
 ***REMOVED***
 
@@ -914,7 +934,7 @@ func (r *Runtime) builtin_eval(call FunctionCall) Value ***REMOVED***
 		return _undefined
 	***REMOVED***
 	if str, ok := call.Arguments[0].(valueString); ok ***REMOVED***
-		return r.eval(str, false, false, r.globalObject)
+		return r.eval(str, false, false)
 	***REMOVED***
 	return call.Arguments[0]
 ***REMOVED***
@@ -1256,14 +1276,14 @@ func New() *Runtime ***REMOVED***
 // method. This representation is not linked to a runtime in any way and can be run in multiple runtimes (possibly
 // at the same time).
 func Compile(name, src string, strict bool) (*Program, error) ***REMOVED***
-	return compile(name, src, strict, false, true)
+	return compile(name, src, strict, true, nil)
 ***REMOVED***
 
 // CompileAST creates an internal representation of the JavaScript code that can be later run using the Runtime.RunProgram()
 // method. This representation is not linked to a runtime in any way and can be run in multiple runtimes (possibly
 // at the same time).
 func CompileAST(prg *js_ast.Program, strict bool) (*Program, error) ***REMOVED***
-	return compileAST(prg, strict, false, true)
+	return compileAST(prg, strict, true, nil)
 ***REMOVED***
 
 // MustCompile is like Compile but panics if the code cannot be compiled.
@@ -1299,16 +1319,16 @@ func Parse(name, src string, options ...parser.Option) (prg *js_ast.Program, err
 	return
 ***REMOVED***
 
-func compile(name, src string, strict, eval, inGlobal bool, parserOptions ...parser.Option) (p *Program, err error) ***REMOVED***
+func compile(name, src string, strict, inGlobal bool, evalVm *vm, parserOptions ...parser.Option) (p *Program, err error) ***REMOVED***
 	prg, err := Parse(name, src, parserOptions...)
 	if err != nil ***REMOVED***
 		return
 	***REMOVED***
 
-	return compileAST(prg, strict, eval, inGlobal)
+	return compileAST(prg, strict, inGlobal, evalVm)
 ***REMOVED***
 
-func compileAST(prg *js_ast.Program, strict, eval, inGlobal bool) (p *Program, err error) ***REMOVED***
+func compileAST(prg *js_ast.Program, strict, inGlobal bool, evalVm *vm) (p *Program, err error) ***REMOVED***
 	c := newCompiler()
 
 	defer func() ***REMOVED***
@@ -1323,13 +1343,13 @@ func compileAST(prg *js_ast.Program, strict, eval, inGlobal bool) (p *Program, e
 		***REMOVED***
 	***REMOVED***()
 
-	c.compile(prg, strict, eval, inGlobal)
+	c.compile(prg, strict, inGlobal, evalVm)
 	p = c.p
 	return
 ***REMOVED***
 
-func (r *Runtime) compile(name, src string, strict, eval, inGlobal bool) (p *Program, err error) ***REMOVED***
-	p, err = compile(name, src, strict, eval, inGlobal, r.parserOptions...)
+func (r *Runtime) compile(name, src string, strict, inGlobal bool, evalVm *vm) (p *Program, err error) ***REMOVED***
+	p, err = compile(name, src, strict, inGlobal, evalVm, r.parserOptions...)
 	if err != nil ***REMOVED***
 		switch x1 := err.(type) ***REMOVED***
 		case *CompilerSyntaxError:
@@ -1352,7 +1372,7 @@ func (r *Runtime) RunString(str string) (Value, error) ***REMOVED***
 
 // RunScript executes the given string in the global context.
 func (r *Runtime) RunScript(name, src string) (Value, error) ***REMOVED***
-	p, err := r.compile(name, src, false, false, true)
+	p, err := r.compile(name, src, false, true, nil)
 
 	if err != nil ***REMOVED***
 		return nil, err

@@ -52,8 +52,8 @@ var (
 			// "transform-es2015-function-name", // in goja
 			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***, // in goja
 			// "transform-es2015-block-scoped-functions", // in goja
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
-			"transform-es2015-object-super",
+			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// "transform-es2015-object-super", // in goja
 			// "transform-es2015-shorthand-properties", // in goja
 			// "transform-es2015-duplicate-keys", // in goja
 			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja

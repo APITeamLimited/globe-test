@@ -118,3 +118,7 @@ func IsKeyword(literal string) (Token, bool) ***REMOVED***
 func IsId(tkn Token) bool ***REMOVED***
 	return tkn >= IDENTIFIER
 ***REMOVED***
+
+func IsUnreservedWord(tkn Token) bool ***REMOVED***
+	return tkn > ESCAPED_RESERVED_WORD
+***REMOVED***

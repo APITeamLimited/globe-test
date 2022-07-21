@@ -207,6 +207,7 @@ type objectImpl interface ***REMOVED***
 
 	_putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value
 	_putSym(s *Symbol, prop Value)
+	getPrivateEnv(typ *privateEnvType, create bool) *privateElements
 ***REMOVED***
 
 type baseObject struct ***REMOVED***
@@ -221,6 +222,8 @@ type baseObject struct ***REMOVED***
 	lastSortedPropLen, idxPropCount int
 
 	symValues *orderedMap
+
+	privateElements map[*privateEnvType]*privateElements
 ***REMOVED***
 
 type guardedObject struct ***REMOVED***
@@ -808,6 +811,23 @@ func (o *baseObject) _putSym(s *Symbol, prop Value) ***REMOVED***
 		o.symValues = newOrderedMap(nil)
 	***REMOVED***
 	o.symValues.set(s, prop)
+***REMOVED***
+
+func (o *baseObject) getPrivateEnv(typ *privateEnvType, create bool) *privateElements ***REMOVED***
+	env := o.privateElements[typ]
+	if env != nil && create ***REMOVED***
+		panic(o.val.runtime.NewTypeError("Private fields for the class have already been set"))
+	***REMOVED***
+	if env == nil && create ***REMOVED***
+		env = &privateElements***REMOVED***
+			fields: make([]Value, typ.numFields),
+		***REMOVED***
+		if o.privateElements == nil ***REMOVED***
+			o.privateElements = make(map[*privateEnvType]*privateElements)
+		***REMOVED***
+		o.privateElements[typ] = env
+	***REMOVED***
+	return env
 ***REMOVED***
 
 func (o *Object) tryPrimitive(methodName unistring.String) Value ***REMOVED***
@@ -1775,4 +1795,38 @@ func iterateEnumerableStringProperties(o *Object) iterNextFunc ***REMOVED***
 			wrapped: o.self.iterateStringKeys(),
 		***REMOVED***).next,
 	***REMOVED***).next
+***REMOVED***
+
+type privateId struct ***REMOVED***
+	typ      *privateEnvType
+	name     unistring.String
+	idx      uint32
+	isMethod bool
+***REMOVED***
+
+type privateEnvType struct ***REMOVED***
+	numFields, numMethods uint32
+***REMOVED***
+
+type privateNames map[unistring.String]*privateId
+
+type privateEnv struct ***REMOVED***
+	instanceType, staticType *privateEnvType
+
+	names privateNames
+
+	outer *privateEnv
+***REMOVED***
+
+type privateElements struct ***REMOVED***
+	methods []Value
+	fields  []Value
+***REMOVED***
+
+func (i *privateId) String() string ***REMOVED***
+	return "#" + i.name.String()
+***REMOVED***
+
+func (i *privateId) string() unistring.String ***REMOVED***
+	return privateIdString(i.name)
 ***REMOVED***

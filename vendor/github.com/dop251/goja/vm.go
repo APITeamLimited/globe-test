@@ -26,15 +26,16 @@ type stash struct ***REMOVED***
 
 	outer *stash
 
-	// true if this stash is a VariableEnvironment, i.e. dynamic var declarations created
-	// by direct eval go here.
-	variable bool
+	// If this is a top-level function stash, sets the type of the function. If set, dynamic var declarations
+	// created by direct eval go here.
+	funcType funcType
 ***REMOVED***
 
 type context struct ***REMOVED***
 	prg       *Program
 	funcName  unistring.String // only valid when prg is nil
 	stash     *stash
+	privEnv   *privateEnv
 	newTarget Value
 	result    Value
 	pc, sb    int
@@ -76,6 +77,36 @@ func (r *stashRef) refname() unistring.String ***REMOVED***
 	return r.n
 ***REMOVED***
 
+type thisRef struct ***REMOVED***
+	v   *[]Value
+	idx int
+***REMOVED***
+
+func (r *thisRef) get() Value ***REMOVED***
+	v := (*r.v)[r.idx]
+	if v == nil ***REMOVED***
+		panic(referenceError("Must call super constructor in derived class before accessing 'this'"))
+	***REMOVED***
+
+	return v
+***REMOVED***
+
+func (r *thisRef) set(v Value) ***REMOVED***
+	ptr := &(*r.v)[r.idx]
+	if *ptr != nil ***REMOVED***
+		panic(referenceError("Super constructor may only be called once"))
+	***REMOVED***
+	*ptr = v
+***REMOVED***
+
+func (r *thisRef) init(v Value) ***REMOVED***
+	r.set(v)
+***REMOVED***
+
+func (r *thisRef) refname() unistring.String ***REMOVED***
+	return thisBindingName
+***REMOVED***
+
 type stashRefLex struct ***REMOVED***
 	stashRef
 ***REMOVED***
@@ -112,29 +143,80 @@ func (r *stashRefConst) set(v Value) ***REMOVED***
 ***REMOVED***
 
 type objRef struct ***REMOVED***
-	base    objectImpl
+	base    *Object
 	name    unistring.String
+	this    Value
 	strict  bool
 	binding bool
 ***REMOVED***
 
 func (r *objRef) get() Value ***REMOVED***
-	return r.base.getStr(r.name, nil)
+	return r.base.self.getStr(r.name, r.this)
 ***REMOVED***
 
 func (r *objRef) set(v Value) ***REMOVED***
-	if r.strict && r.binding && !r.base.hasOwnPropertyStr(r.name) ***REMOVED***
+	if r.strict && r.binding && !r.base.self.hasOwnPropertyStr(r.name) ***REMOVED***
 		panic(referenceError(fmt.Sprintf("%s is not defined", r.name)))
 	***REMOVED***
-	r.base.setOwnStr(r.name, v, r.strict)
+	if r.this != nil ***REMOVED***
+		r.base.setStr(r.name, v, r.this, r.strict)
+	***REMOVED*** else ***REMOVED***
+		r.base.self.setOwnStr(r.name, v, r.strict)
+	***REMOVED***
 ***REMOVED***
 
 func (r *objRef) init(v Value) ***REMOVED***
-	r.base.setOwnStr(r.name, v, r.strict)
+	if r.this != nil ***REMOVED***
+		r.base.setStr(r.name, v, r.this, r.strict)
+	***REMOVED*** else ***REMOVED***
+		r.base.self.setOwnStr(r.name, v, r.strict)
+	***REMOVED***
 ***REMOVED***
 
 func (r *objRef) refname() unistring.String ***REMOVED***
 	return r.name
+***REMOVED***
+
+type privateRefRes struct ***REMOVED***
+	base *Object
+	name *resolvedPrivateName
+***REMOVED***
+
+func (p *privateRefRes) get() Value ***REMOVED***
+	return (*getPrivatePropRes)(p.name)._get(p.base, p.base.runtime.vm)
+***REMOVED***
+
+func (p *privateRefRes) set(value Value) ***REMOVED***
+	(*setPrivatePropRes)(p.name)._set(p.base, value, p.base.runtime.vm)
+***REMOVED***
+
+func (p *privateRefRes) init(value Value) ***REMOVED***
+	panic("not supported")
+***REMOVED***
+
+func (p *privateRefRes) refname() unistring.String ***REMOVED***
+	return p.name.string()
+***REMOVED***
+
+type privateRefId struct ***REMOVED***
+	base *Object
+	id   *privateId
+***REMOVED***
+
+func (p *privateRefId) get() Value ***REMOVED***
+	return p.base.runtime.vm.getPrivateProp(p.base, p.id.name, p.id.typ, p.id.idx, p.id.isMethod)
+***REMOVED***
+
+func (p *privateRefId) set(value Value) ***REMOVED***
+	p.base.runtime.vm.setPrivateProp(p.base, p.id.name, p.id.typ, p.id.idx, p.id.isMethod, value)
+***REMOVED***
+
+func (p *privateRefId) init(value Value) ***REMOVED***
+	panic("not supported")
+***REMOVED***
+
+func (p *privateRefId) refname() unistring.String ***REMOVED***
+	return p.id.string()
 ***REMOVED***
 
 type unresolvedRef struct ***REMOVED***
@@ -168,6 +250,7 @@ type vm struct ***REMOVED***
 	sp, sb, args int
 
 	stash     *stash
+	privEnv   *privateEnv
 	callStack []context
 	iterStack []iterStackItem
 	refStack  []ref
@@ -267,6 +350,10 @@ func stashObjHas(obj *Object, name unistring.String) bool ***REMOVED***
 	return false
 ***REMOVED***
 
+func (s *stash) isVariable() bool ***REMOVED***
+	return s.funcType != funcNone
+***REMOVED***
+
 func (s *stash) initByIdx(idx uint32, v Value) ***REMOVED***
 	if s.obj != nil ***REMOVED***
 		panic("Attempt to init by idx into an object scope")
@@ -311,7 +398,7 @@ func (s *stash) getRefByName(name unistring.String, strict bool) ref ***REMOVED*
 	if obj := s.obj; obj != nil ***REMOVED***
 		if stashObjHas(obj, name) ***REMOVED***
 			return &objRef***REMOVED***
-				base:    obj.self,
+				base:    obj,
 				name:    name,
 				strict:  strict,
 				binding: true,
@@ -524,6 +611,10 @@ func (vm *vm) try(f func()) (ex *Exception) ***REMOVED***
 				ex = &Exception***REMOVED***
 					val: vm.r.newError(vm.r.global.RangeError, string(x1)),
 				***REMOVED***
+			case syntaxError:
+				ex = &Exception***REMOVED***
+					val: vm.r.newError(vm.r.global.SyntaxError, string(x1)),
+				***REMOVED***
 			default:
 				/*
 					if vm.prg != nil ***REMOVED***
@@ -564,8 +655,8 @@ func (vm *vm) peek() Value ***REMOVED***
 ***REMOVED***
 
 func (vm *vm) saveCtx(ctx *context) ***REMOVED***
-	ctx.prg, ctx.stash, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args, ctx.funcName =
-		vm.prg, vm.stash, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args, vm.funcName
+	ctx.prg, ctx.stash, ctx.privEnv, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args, ctx.funcName =
+		vm.prg, vm.stash, vm.privEnv, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args, vm.funcName
 ***REMOVED***
 
 func (vm *vm) pushCtx() ***REMOVED***
@@ -582,8 +673,8 @@ func (vm *vm) pushCtx() ***REMOVED***
 ***REMOVED***
 
 func (vm *vm) restoreCtx(ctx *context) ***REMOVED***
-	vm.prg, vm.funcName, vm.stash, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args =
-		ctx.prg, ctx.funcName, ctx.stash, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args
+	vm.prg, vm.funcName, vm.stash, vm.privEnv, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args =
+		ctx.prg, ctx.funcName, ctx.stash, ctx.privEnv, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args
 ***REMOVED***
 
 func (vm *vm) popCtx() ***REMOVED***
@@ -593,6 +684,7 @@ func (vm *vm) popCtx() ***REMOVED***
 
 	ctx.prg = nil
 	ctx.stash = nil
+	ctx.privEnv = nil
 	ctx.result = nil
 	ctx.newTarget = nil
 
@@ -700,8 +792,9 @@ type loadStackLex int
 func (l loadStackLex) exec(vm *vm) ***REMOVED***
 	// l < 0 -- arg<-l-1>
 	// l > 0 -- var<l-1>
+	// l == 0 -- this
 	var p *Value
-	if l < 0 ***REMOVED***
+	if l <= 0 ***REMOVED***
 		arg := int(-l)
 		if arg > vm.args ***REMOVED***
 			vm.push(_undefined)
@@ -841,12 +934,24 @@ type initStack int
 
 func (s initStack) exec(vm *vm) ***REMOVED***
 	vm.initStack(int(s))
+***REMOVED***
+
+type initStackP int
+
+func (s initStackP) exec(vm *vm) ***REMOVED***
+	vm.initStack(int(s))
 	vm.sp--
 ***REMOVED***
 
 type initStack1 int
 
 func (s initStack1) exec(vm *vm) ***REMOVED***
+	vm.initStack1(int(s))
+***REMOVED***
+
+type initStack1P int
+
+func (s initStack1P) exec(vm *vm) ***REMOVED***
 	vm.initStack1(int(s))
 	vm.sp--
 ***REMOVED***
@@ -1289,10 +1394,26 @@ func (_getElemRef) exec(vm *vm) ***REMOVED***
 	obj := vm.stack[vm.sp-2].ToObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	vm.refStack = append(vm.refStack, &objRef***REMOVED***
-		base: obj.self,
+		base: obj,
 		name: propName.string(),
 	***REMOVED***)
 	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type _getElemRefRecv struct***REMOVED******REMOVED***
+
+var getElemRefRecv _getElemRefRecv
+
+func (_getElemRefRecv) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-1].ToObject(vm.r)
+	propName := toPropertyKey(vm.stack[vm.sp-2])
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base: obj,
+		name: propName.string(),
+		this: vm.stack[vm.sp-3],
+	***REMOVED***)
+	vm.sp -= 3
 	vm.pc++
 ***REMOVED***
 
@@ -1304,11 +1425,28 @@ func (_getElemRefStrict) exec(vm *vm) ***REMOVED***
 	obj := vm.stack[vm.sp-2].ToObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	vm.refStack = append(vm.refStack, &objRef***REMOVED***
-		base:   obj.self,
+		base:   obj,
 		name:   propName.string(),
 		strict: true,
 	***REMOVED***)
 	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type _getElemRefRecvStrict struct***REMOVED******REMOVED***
+
+var getElemRefRecvStrict _getElemRefRecvStrict
+
+func (_getElemRefRecvStrict) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-1].ToObject(vm.r)
+	propName := toPropertyKey(vm.stack[vm.sp-2])
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base:   obj,
+		name:   propName.string(),
+		this:   vm.stack[vm.sp-3],
+		strict: true,
+	***REMOVED***)
+	vm.sp -= 3
 	vm.pc++
 ***REMOVED***
 
@@ -1362,6 +1500,29 @@ func (_setElem1Named) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type defineMethod struct ***REMOVED***
+	enumerable bool
+***REMOVED***
+
+func (d *defineMethod) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-3])
+	propName := vm.stack[vm.sp-2]
+	method := vm.r.toObject(vm.stack[vm.sp-1])
+	method.self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        funcName("", propName),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
+	obj.defineOwnProperty(propName, PropertyDescriptor***REMOVED***
+		Value:        method,
+		Writable:     FLAG_TRUE,
+		Configurable: FLAG_TRUE,
+		Enumerable:   ToFlag(d.enumerable),
+	***REMOVED***, true)
+
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
 type _setElemP struct***REMOVED******REMOVED***
 
 var setElemP _setElemP
@@ -1397,6 +1558,48 @@ func (_setElemStrict) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type _setElemRecv struct***REMOVED******REMOVED***
+
+var setElemRecv _setElemRecv
+
+func (_setElemRecv) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-4]
+	propName := toPropertyKey(vm.stack[vm.sp-3])
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.set(propName, val, receiver, false)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.set(propName, val, receiver, false)
+	***REMOVED***
+
+	vm.sp -= 3
+	vm.stack[vm.sp-1] = val
+	vm.pc++
+***REMOVED***
+
+type _setElemRecvStrict struct***REMOVED******REMOVED***
+
+var setElemRecvStrict _setElemRecvStrict
+
+func (_setElemRecvStrict) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-4]
+	propName := toPropertyKey(vm.stack[vm.sp-3])
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.set(propName, val, receiver, true)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.set(propName, val, receiver, true)
+	***REMOVED***
+
+	vm.sp -= 3
+	vm.stack[vm.sp-1] = val
+	vm.pc++
+***REMOVED***
+
 type _setElemStrictP struct***REMOVED******REMOVED***
 
 var setElemStrictP _setElemStrictP
@@ -1413,6 +1616,46 @@ func (_setElemStrictP) exec(vm *vm) ***REMOVED***
 	***REMOVED***
 
 	vm.sp -= 3
+	vm.pc++
+***REMOVED***
+
+type _setElemRecvP struct***REMOVED******REMOVED***
+
+var setElemRecvP _setElemRecvP
+
+func (_setElemRecvP) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-4]
+	propName := toPropertyKey(vm.stack[vm.sp-3])
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.set(propName, val, receiver, false)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.set(propName, val, receiver, false)
+	***REMOVED***
+
+	vm.sp -= 4
+	vm.pc++
+***REMOVED***
+
+type _setElemRecvStrictP struct***REMOVED******REMOVED***
+
+var setElemRecvStrictP _setElemRecvStrictP
+
+func (_setElemRecvStrictP) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-4]
+	propName := toPropertyKey(vm.stack[vm.sp-3])
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.set(propName, val, receiver, true)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.set(propName, val, receiver, true)
+	***REMOVED***
+
+	vm.sp -= 4
 	vm.pc++
 ***REMOVED***
 
@@ -1448,7 +1691,7 @@ func (_deleteElemStrict) exec(vm *vm) ***REMOVED***
 type deleteProp unistring.String
 
 func (d deleteProp) exec(vm *vm) ***REMOVED***
-	obj := vm.r.toObject(vm.stack[vm.sp-1])
+	obj := vm.stack[vm.sp-1].ToObject(vm.r)
 	if obj.self.deleteStr(unistring.String(d), false) ***REMOVED***
 		vm.stack[vm.sp-1] = valueTrue
 	***REMOVED*** else ***REMOVED***
@@ -1460,7 +1703,7 @@ func (d deleteProp) exec(vm *vm) ***REMOVED***
 type deletePropStrict unistring.String
 
 func (d deletePropStrict) exec(vm *vm) ***REMOVED***
-	obj := vm.r.toObject(vm.stack[vm.sp-1])
+	obj := vm.stack[vm.sp-1].ToObject(vm.r)
 	obj.self.deleteStr(unistring.String(d), true)
 	vm.stack[vm.sp-1] = valueTrue
 	vm.pc++
@@ -1470,10 +1713,22 @@ type getPropRef unistring.String
 
 func (p getPropRef) exec(vm *vm) ***REMOVED***
 	vm.refStack = append(vm.refStack, &objRef***REMOVED***
-		base: vm.stack[vm.sp-1].ToObject(vm.r).self,
+		base: vm.stack[vm.sp-1].ToObject(vm.r),
 		name: unistring.String(p),
 	***REMOVED***)
 	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPropRefRecv unistring.String
+
+func (p getPropRefRecv) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		this: vm.stack[vm.sp-2],
+		base: vm.stack[vm.sp-1].ToObject(vm.r),
+		name: unistring.String(p),
+	***REMOVED***)
+	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
@@ -1481,11 +1736,24 @@ type getPropRefStrict unistring.String
 
 func (p getPropRefStrict) exec(vm *vm) ***REMOVED***
 	vm.refStack = append(vm.refStack, &objRef***REMOVED***
-		base:   vm.stack[vm.sp-1].ToObject(vm.r).self,
+		base:   vm.stack[vm.sp-1].ToObject(vm.r),
 		name:   unistring.String(p),
 		strict: true,
 	***REMOVED***)
 	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPropRefRecvStrict unistring.String
+
+func (p getPropRefRecvStrict) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		this:   vm.stack[vm.sp-2],
+		base:   vm.stack[vm.sp-1].ToObject(vm.r),
+		name:   unistring.String(p),
+		strict: true,
+	***REMOVED***)
+	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
@@ -1526,6 +1794,80 @@ func (p setPropStrict) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type setPropRecv unistring.String
+
+func (p setPropRecv) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-3]
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	propName := unistring.String(p)
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.setStr(propName, val, receiver, false)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.setStr(propName, val, receiver, false)
+	***REMOVED***
+
+	vm.stack[vm.sp-3] = val
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type setPropRecvStrict unistring.String
+
+func (p setPropRecvStrict) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-3]
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	propName := unistring.String(p)
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.setStr(propName, val, receiver, true)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.setStr(propName, val, receiver, true)
+	***REMOVED***
+
+	vm.stack[vm.sp-3] = val
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type setPropRecvP unistring.String
+
+func (p setPropRecvP) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-3]
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	propName := unistring.String(p)
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.setStr(propName, val, receiver, false)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.setStr(propName, val, receiver, false)
+	***REMOVED***
+
+	vm.sp -= 3
+	vm.pc++
+***REMOVED***
+
+type setPropRecvStrictP unistring.String
+
+func (p setPropRecvStrictP) exec(vm *vm) ***REMOVED***
+	receiver := vm.stack[vm.sp-3]
+	o := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	propName := unistring.String(p)
+	if obj, ok := o.(*Object); ok ***REMOVED***
+		obj.setStr(propName, val, receiver, true)
+	***REMOVED*** else ***REMOVED***
+		base := o.ToObject(vm.r)
+		base.setStr(propName, val, receiver, true)
+	***REMOVED***
+
+	vm.sp -= 3
+	vm.pc++
+***REMOVED***
+
 type setPropStrictP unistring.String
 
 func (p setPropStrictP) exec(vm *vm) ***REMOVED***
@@ -1543,10 +1885,59 @@ func (p setPropStrictP) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
-type setProp1 unistring.String
+type putProp unistring.String
 
-func (p setProp1) exec(vm *vm) ***REMOVED***
+func (p putProp) exec(vm *vm) ***REMOVED***
 	vm.r.toObject(vm.stack[vm.sp-2]).self._putProp(unistring.String(p), vm.stack[vm.sp-1], true, true, true)
+
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+// used in class declarations instead of putProp because DefineProperty must be observable by Proxy
+type definePropKeyed unistring.String
+
+func (p definePropKeyed) exec(vm *vm) ***REMOVED***
+	vm.r.toObject(vm.stack[vm.sp-2]).self.defineOwnPropertyStr(unistring.String(p), PropertyDescriptor***REMOVED***
+		Value:        vm.stack[vm.sp-1],
+		Writable:     FLAG_TRUE,
+		Configurable: FLAG_TRUE,
+		Enumerable:   FLAG_TRUE,
+	***REMOVED***, true)
+
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type defineProp struct***REMOVED******REMOVED***
+
+func (defineProp) exec(vm *vm) ***REMOVED***
+	vm.r.toObject(vm.stack[vm.sp-3]).defineOwnProperty(vm.stack[vm.sp-2], PropertyDescriptor***REMOVED***
+		Value:        vm.stack[vm.sp-1],
+		Writable:     FLAG_TRUE,
+		Configurable: FLAG_TRUE,
+		Enumerable:   FLAG_TRUE,
+	***REMOVED***, true)
+
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type defineMethodKeyed struct ***REMOVED***
+	key        unistring.String
+	enumerable bool
+***REMOVED***
+
+func (d *defineMethodKeyed) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-2])
+	method := vm.r.toObject(vm.stack[vm.sp-1])
+
+	obj.self.defineOwnPropertyStr(d.key, PropertyDescriptor***REMOVED***
+		Value:        method,
+		Writable:     FLAG_TRUE,
+		Configurable: FLAG_TRUE,
+		Enumerable:   ToFlag(d.enumerable),
+	***REMOVED***, true)
 
 	vm.sp--
 	vm.pc++
@@ -1563,60 +1954,67 @@ func (_setProto) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
-type setPropGetter unistring.String
+type defineGetterKeyed struct ***REMOVED***
+	key        unistring.String
+	enumerable bool
+***REMOVED***
 
-func (s setPropGetter) exec(vm *vm) ***REMOVED***
+func (s *defineGetterKeyed) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-2])
 	val := vm.stack[vm.sp-1]
-	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
-		Value:        asciiString("get ").concat(stringValueFromRaw(unistring.String(s))),
+	method := vm.r.toObject(val)
+	method.self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        asciiString("get ").concat(stringValueFromRaw(s.key)),
 		Configurable: FLAG_TRUE,
 	***REMOVED***, true)
-
 	descr := PropertyDescriptor***REMOVED***
 		Getter:       val,
 		Configurable: FLAG_TRUE,
-		Enumerable:   FLAG_TRUE,
+		Enumerable:   ToFlag(s.enumerable),
 	***REMOVED***
 
-	obj.self.defineOwnPropertyStr(unistring.String(s), descr, false)
+	obj.self.defineOwnPropertyStr(s.key, descr, true)
 
 	vm.sp--
 	vm.pc++
 ***REMOVED***
 
-type setPropSetter unistring.String
+type defineSetterKeyed struct ***REMOVED***
+	key        unistring.String
+	enumerable bool
+***REMOVED***
 
-func (s setPropSetter) exec(vm *vm) ***REMOVED***
+func (s *defineSetterKeyed) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-2])
 	val := vm.stack[vm.sp-1]
-
-	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
-		Value:        asciiString("set ").concat(stringValueFromRaw(unistring.String(s))),
+	method := vm.r.toObject(val)
+	method.self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        asciiString("set ").concat(stringValueFromRaw(s.key)),
 		Configurable: FLAG_TRUE,
 	***REMOVED***, true)
 
 	descr := PropertyDescriptor***REMOVED***
 		Setter:       val,
 		Configurable: FLAG_TRUE,
-		Enumerable:   FLAG_TRUE,
+		Enumerable:   ToFlag(s.enumerable),
 	***REMOVED***
 
-	obj.self.defineOwnPropertyStr(unistring.String(s), descr, false)
+	obj.self.defineOwnPropertyStr(s.key, descr, true)
 
 	vm.sp--
 	vm.pc++
 ***REMOVED***
 
-type _setPropGetter1 struct***REMOVED******REMOVED***
+type defineGetter struct ***REMOVED***
+	enumerable bool
+***REMOVED***
 
-var setPropGetter1 _setPropGetter1
-
-func (s _setPropGetter1) exec(vm *vm) ***REMOVED***
+func (s *defineGetter) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-3])
 	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
-	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+	method := vm.r.toObject(val)
+	method.self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
 		Value:        funcName("get ", propName),
 		Configurable: FLAG_TRUE,
 	***REMOVED***, true)
@@ -1624,25 +2022,26 @@ func (s _setPropGetter1) exec(vm *vm) ***REMOVED***
 	descr := PropertyDescriptor***REMOVED***
 		Getter:       val,
 		Configurable: FLAG_TRUE,
-		Enumerable:   FLAG_TRUE,
+		Enumerable:   ToFlag(s.enumerable),
 	***REMOVED***
 
-	obj.defineOwnProperty(propName, descr, false)
+	obj.defineOwnProperty(propName, descr, true)
 
 	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
-type _setPropSetter1 struct***REMOVED******REMOVED***
+type defineSetter struct ***REMOVED***
+	enumerable bool
+***REMOVED***
 
-var setPropSetter1 _setPropSetter1
-
-func (s _setPropSetter1) exec(vm *vm) ***REMOVED***
+func (s *defineSetter) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-3])
 	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
+	method := vm.r.toObject(val)
 
-	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+	method.self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
 		Value:        funcName("set ", propName),
 		Configurable: FLAG_TRUE,
 	***REMOVED***, true)
@@ -1653,7 +2052,7 @@ func (s _setPropSetter1) exec(vm *vm) ***REMOVED***
 		Enumerable:   FLAG_TRUE,
 	***REMOVED***
 
-	obj.defineOwnProperty(propName, descr, false)
+	obj.defineOwnProperty(propName, descr, true)
 
 	vm.sp -= 2
 	vm.pc++
@@ -1672,6 +2071,40 @@ func (g getProp) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type getPropRecv unistring.String
+
+func (g getPropRecv) exec(vm *vm) ***REMOVED***
+	recv := vm.stack[vm.sp-2]
+	v := vm.stack[vm.sp-1]
+	obj := v.baseObject(vm.r)
+	if obj == nil ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", g))
+	***REMOVED***
+	vm.stack[vm.sp-2] = nilSafe(obj.self.getStr(unistring.String(g), recv))
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPropRecvCallee unistring.String
+
+func (g getPropRecvCallee) exec(vm *vm) ***REMOVED***
+	recv := vm.stack[vm.sp-2]
+	v := vm.stack[vm.sp-1]
+	obj := v.baseObject(vm.r)
+	if obj == nil ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", g))
+	***REMOVED***
+
+	n := unistring.String(g)
+	prop := obj.self.getStr(n, recv)
+	if prop == nil ***REMOVED***
+		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: n***REMOVED******REMOVED***
+	***REMOVED***
+
+	vm.stack[vm.sp-1] = prop
+	vm.pc++
+***REMOVED***
+
 type getPropCallee unistring.String
 
 func (g getPropCallee) exec(vm *vm) ***REMOVED***
@@ -1685,7 +2118,7 @@ func (g getPropCallee) exec(vm *vm) ***REMOVED***
 	if prop == nil ***REMOVED***
 		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: n***REMOVED******REMOVED***
 	***REMOVED***
-	vm.stack[vm.sp-1] = prop
+	vm.push(prop)
 
 	vm.pc++
 ***REMOVED***
@@ -1705,6 +2138,25 @@ func (_getElem) exec(vm *vm) ***REMOVED***
 	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
 
 	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type _getElemRecv struct***REMOVED******REMOVED***
+
+var getElemRecv _getElemRecv
+
+func (_getElemRecv) exec(vm *vm) ***REMOVED***
+	recv := vm.stack[vm.sp-3]
+	propName := toPropertyKey(vm.stack[vm.sp-2])
+	v := vm.stack[vm.sp-1]
+	obj := v.baseObject(vm.r)
+	if obj == nil ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+	***REMOVED***
+
+	vm.stack[vm.sp-3] = nilSafe(obj.get(propName, recv))
+
+	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
@@ -1742,9 +2194,31 @@ func (_getElemCallee) exec(vm *vm) ***REMOVED***
 	if prop == nil ***REMOVED***
 		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: propName.string()***REMOVED******REMOVED***
 	***REMOVED***
-	vm.stack[vm.sp-2] = prop
+	vm.stack[vm.sp-1] = prop
 
+	vm.pc++
+***REMOVED***
+
+type _getElemRecvCallee struct***REMOVED******REMOVED***
+
+var getElemRecvCallee _getElemRecvCallee
+
+func (_getElemRecvCallee) exec(vm *vm) ***REMOVED***
+	recv := vm.stack[vm.sp-3]
+	v := vm.stack[vm.sp-2]
+	obj := v.baseObject(vm.r)
+	propName := toPropertyKey(vm.stack[vm.sp-1])
+	if obj == nil ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+	***REMOVED***
+
+	prop := obj.get(propName, recv)
+	if prop == nil ***REMOVED***
+		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: propName.string()***REMOVED******REMOVED***
+	***REMOVED***
+	vm.stack[vm.sp-2] = prop
 	vm.sp--
+
 	vm.pc++
 ***REMOVED***
 
@@ -1768,6 +2242,16 @@ type rdupN uint32
 
 func (d rdupN) exec(vm *vm) ***REMOVED***
 	vm.stack[vm.sp-1-int(d)] = vm.stack[vm.sp-1]
+	vm.pc++
+***REMOVED***
+
+type dupLast uint32
+
+func (d dupLast) exec(vm *vm) ***REMOVED***
+	e := vm.sp + int(d)
+	vm.stack.expand(e)
+	copy(vm.stack[vm.sp:e], vm.stack[vm.sp-int(d):])
+	vm.sp = e
 	vm.pc++
 ***REMOVED***
 
@@ -1927,13 +2411,26 @@ type initStash uint32
 
 func (s initStash) exec(vm *vm) ***REMOVED***
 	vm.initLocal(int(s))
+***REMOVED***
+
+type initStashP uint32
+
+func (s initStashP) exec(vm *vm) ***REMOVED***
+	vm.initLocal(int(s))
 	vm.sp--
+***REMOVED***
+
+type initGlobalP unistring.String
+
+func (s initGlobalP) exec(vm *vm) ***REMOVED***
+	vm.sp--
+	vm.r.global.stash.initByName(unistring.String(s), vm.stack[vm.sp])
+	vm.pc++
 ***REMOVED***
 
 type initGlobal unistring.String
 
 func (s initGlobal) exec(vm *vm) ***REMOVED***
-	vm.sp--
 	vm.r.global.stash.initByName(unistring.String(s), vm.stack[vm.sp])
 	vm.pc++
 ***REMOVED***
@@ -1951,7 +2448,7 @@ func (s resolveVar1) exec(vm *vm) ***REMOVED***
 	***REMOVED***
 
 	ref = &objRef***REMOVED***
-		base:    vm.r.globalObject.self,
+		base:    vm.r.globalObject,
 		name:    name,
 		binding: true,
 	***REMOVED***
@@ -2032,7 +2529,7 @@ func (s resolveVar1Strict) exec(vm *vm) ***REMOVED***
 
 	if vm.r.globalObject.self.hasPropertyStr(name) ***REMOVED***
 		ref = &objRef***REMOVED***
-			base:    vm.r.globalObject.self,
+			base:    vm.r.globalObject,
 			name:    name,
 			binding: true,
 			strict:  true,
@@ -2558,13 +3055,7 @@ func (vm *vm) callEval(n int, strict bool) ***REMOVED***
 		if n > 0 ***REMOVED***
 			srcVal := vm.stack[vm.sp-n]
 			if src, ok := srcVal.(valueString); ok ***REMOVED***
-				var this Value
-				if vm.sb >= 0 ***REMOVED***
-					this = vm.stack[vm.sb]
-				***REMOVED*** else ***REMOVED***
-					this = vm.r.globalObject
-				***REMOVED***
-				ret := vm.r.eval(src, true, strict, this)
+				ret := vm.r.eval(src, true, strict)
 				vm.stack[vm.sp-n-2] = ret
 			***REMOVED*** else ***REMOVED***
 				vm.stack[vm.sp-n-2] = srcVal
@@ -2675,12 +3166,15 @@ func (numargs call) exec(vm *vm) ***REMOVED***
 	obj := vm.toCallee(v)
 repeat:
 	switch f := obj.self.(type) ***REMOVED***
+	case *classFuncObject:
+		f.Call(FunctionCall***REMOVED******REMOVED***) // throws
 	case *methodFuncObject:
 		vm.pc++
 		vm.pushCtx()
 		vm.args = n
 		vm.prg = f.prg
 		vm.stash = f.stash
+		vm.privEnv = f.privEnv
 		vm.pc = 0
 		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = vm.stack[vm.sp-n-2], vm.stack[vm.sp-n-1]
 		return
@@ -2690,6 +3184,7 @@ repeat:
 		vm.args = n
 		vm.prg = f.prg
 		vm.stash = f.stash
+		vm.privEnv = f.privEnv
 		vm.pc = 0
 		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = vm.stack[vm.sp-n-2], vm.stack[vm.sp-n-1]
 		return
@@ -2699,8 +3194,9 @@ repeat:
 		vm.args = n
 		vm.prg = f.prg
 		vm.stash = f.stash
+		vm.privEnv = f.privEnv
 		vm.pc = 0
-		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = f.this, vm.stack[vm.sp-n-1]
+		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = nil, vm.stack[vm.sp-n-1]
 		vm.newTarget = f.newTarget
 		return
 	case *nativeFuncObject:
@@ -2825,6 +3321,7 @@ type enterFunc struct ***REMOVED***
 	stashSize   uint32
 	stackSize   uint32
 	numArgs     uint32
+	funcType    funcType
 	argsToStash bool
 	extensible  bool
 ***REMOVED***
@@ -2848,7 +3345,7 @@ func (e *enterFunc) exec(vm *vm) ***REMOVED***
 	vm.sb = sp - vm.args - 1
 	vm.newStash()
 	stash := vm.stash
-	stash.variable = true
+	stash.funcType = e.funcType
 	stash.values = make([]Value, e.stashSize)
 	if len(e.names) > 0 ***REMOVED***
 		if e.extensible ***REMOVED***
@@ -2908,6 +3405,7 @@ type enterFunc1 struct ***REMOVED***
 	stashSize  uint32
 	numArgs    uint32
 	argsToCopy uint32
+	funcType   funcType
 	extensible bool
 ***REMOVED***
 
@@ -2916,7 +3414,7 @@ func (e *enterFunc1) exec(vm *vm) ***REMOVED***
 	vm.sb = sp - vm.args - 1
 	vm.newStash()
 	stash := vm.stash
-	stash.variable = true
+	stash.funcType = e.funcType
 	stash.values = make([]Value, e.stashSize)
 	if len(e.names) > 0 ***REMOVED***
 		if e.extensible ***REMOVED***
@@ -2954,6 +3452,7 @@ func (e *enterFunc1) exec(vm *vm) ***REMOVED***
 // causes the arguments to be removed from the stack.
 type enterFuncBody struct ***REMOVED***
 	enterBlock
+	funcType    funcType
 	extensible  bool
 	adjustStack bool
 ***REMOVED***
@@ -2962,7 +3461,7 @@ func (e *enterFuncBody) exec(vm *vm) ***REMOVED***
 	if e.stashSize > 0 || e.extensible ***REMOVED***
 		vm.newStash()
 		stash := vm.stash
-		stash.variable = true
+		stash.funcType = e.funcType
 		stash.values = make([]Value, e.stashSize)
 		if len(e.names) > 0 ***REMOVED***
 			if e.extensible ***REMOVED***
@@ -3007,6 +3506,13 @@ func (_ret) exec(vm *vm) ***REMOVED***
 	if vm.pc < 0 ***REMOVED***
 		vm.halt = true
 	***REMOVED***
+***REMOVED***
+
+type cret uint32
+
+func (c cret) exec(vm *vm) ***REMOVED***
+	vm.stack[vm.sb] = *vm.getStashPtr(uint32(c))
+	ret.exec(vm)
 ***REMOVED***
 
 type enterFuncStashless struct ***REMOVED***
@@ -3058,18 +3564,26 @@ func (n *newFunc) exec(vm *vm) ***REMOVED***
 	obj := vm.r.newFunc(n.name, n.length, n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
+	obj.privEnv = vm.privEnv
 	obj.src = n.source
 	vm.push(obj.val)
 	vm.pc++
 ***REMOVED***
 
-type newMethod newFunc
+type newMethod struct ***REMOVED***
+	newFunc
+	homeObjOffset uint32
+***REMOVED***
 
 func (n *newMethod) exec(vm *vm) ***REMOVED***
 	obj := vm.r.newMethod(n.name, n.length, n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
+	obj.privEnv = vm.privEnv
 	obj.src = n.source
+	if n.homeObjOffset > 0 ***REMOVED***
+		obj.homeObject = vm.r.toObject(vm.stack[vm.sp-int(n.homeObjOffset)])
+	***REMOVED***
 	vm.push(obj.val)
 	vm.pc++
 ***REMOVED***
@@ -3078,11 +3592,42 @@ type newArrowFunc struct ***REMOVED***
 	newFunc
 ***REMOVED***
 
+func getFuncObject(v Value) *Object ***REMOVED***
+	if o, ok := v.(*Object); ok ***REMOVED***
+		if fn, ok := o.self.(*arrowFuncObject); ok ***REMOVED***
+			return fn.funcObj
+		***REMOVED***
+		return o
+	***REMOVED***
+	if v == _undefined ***REMOVED***
+		return nil
+	***REMOVED***
+	panic(typeError("Value is not an Object"))
+***REMOVED***
+
+func getHomeObject(v Value) *Object ***REMOVED***
+	if o, ok := v.(*Object); ok ***REMOVED***
+		switch fn := o.self.(type) ***REMOVED***
+		case *methodFuncObject:
+			return fn.homeObject
+		case *classFuncObject:
+			return o.runtime.toObject(fn.getStr("prototype", nil))
+		case *arrowFuncObject:
+			return getHomeObject(fn.funcObj)
+		***REMOVED***
+	***REMOVED***
+	panic(typeError(fmt.Sprintf("Compiler bug: getHomeObject() on the wrong value: %T", v)))
+***REMOVED***
+
 func (n *newArrowFunc) exec(vm *vm) ***REMOVED***
 	obj := vm.r.newArrowFunc(n.name, n.length, n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
+	obj.privEnv = vm.privEnv
 	obj.src = n.source
+	if vm.sb > 0 ***REMOVED***
+		obj.funcObj = getFuncObject(vm.stack[vm.sb-1])
+	***REMOVED***
 	vm.push(obj.val)
 	vm.pc++
 ***REMOVED***
@@ -3254,7 +3799,7 @@ func (d *bindVars) exec(vm *vm) ***REMOVED***
 			if idx, exists := s.names[name]; exists && idx&maskVar == 0 ***REMOVED***
 				panic(vm.alreadyDeclared(name))
 			***REMOVED***
-			if s.variable ***REMOVED***
+			if s.isVariable() ***REMOVED***
 				target = s
 				break
 			***REMOVED***
@@ -3720,6 +4265,43 @@ func (n _new) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type superCall uint32
+
+func (s superCall) exec(vm *vm) ***REMOVED***
+	l := len(vm.refStack) - 1
+	thisRef := vm.refStack[l]
+	vm.refStack[l] = nil
+	vm.refStack = vm.refStack[:l]
+
+	obj := vm.r.toObject(vm.stack[vm.sb-1])
+	var cls *classFuncObject
+	switch fn := obj.self.(type) ***REMOVED***
+	case *classFuncObject:
+		cls = fn
+	case *arrowFuncObject:
+		cls, _ = fn.funcObj.self.(*classFuncObject)
+	***REMOVED***
+	if cls == nil ***REMOVED***
+		panic(vm.r.NewTypeError("wrong callee type for super()"))
+	***REMOVED***
+	sp := vm.sp - int(s)
+	newTarget := vm.r.toObject(vm.newTarget)
+	v := cls.createInstance(vm.stack[sp:vm.sp], newTarget)
+	thisRef.set(v)
+	vm.sp = sp
+	cls._initFields(v)
+	vm.push(v)
+	vm.pc++
+***REMOVED***
+
+type _superCallVariadic struct***REMOVED******REMOVED***
+
+var superCallVariadic _superCallVariadic
+
+func (_superCallVariadic) exec(vm *vm) ***REMOVED***
+	superCall(vm.countVariadicArgs()).exec(vm)
+***REMOVED***
+
 type _loadNewTarget struct***REMOVED******REMOVED***
 
 var loadNewTarget _loadNewTarget
@@ -3747,7 +4329,7 @@ func (_typeof) exec(vm *vm) ***REMOVED***
 	case *Object:
 	repeat:
 		switch s := v.self.(type) ***REMOVED***
-		case *methodFuncObject, *funcObject, *nativeFuncObject, *boundFuncObject, *arrowFuncObject:
+		case *classFuncObject, *methodFuncObject, *funcObject, *nativeFuncObject, *boundFuncObject, *arrowFuncObject:
 			r = stringFunction
 		case *proxyObject:
 			if s.call == nil ***REMOVED***
@@ -4167,5 +4749,566 @@ func (c *getTaggedTmplObject) exec(vm *vm) ***REMOVED***
 	***REMOVED***
 
 	vm.push(cooked.val)
+	vm.pc++
+***REMOVED***
+
+type _loadSuper struct***REMOVED******REMOVED***
+
+var loadSuper _loadSuper
+
+func (_loadSuper) exec(vm *vm) ***REMOVED***
+	homeObject := getHomeObject(vm.stack[vm.sb-1])
+	if proto := homeObject.Prototype(); proto != nil ***REMOVED***
+		vm.push(proto)
+	***REMOVED*** else ***REMOVED***
+		vm.push(_undefined)
+	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+type newClass struct ***REMOVED***
+	ctor       *Program
+	name       unistring.String
+	source     string
+	initFields *Program
+
+	privateFields, privateMethods       []unistring.String // only set when dynamic resolution is needed
+	numPrivateFields, numPrivateMethods uint32
+
+	length        int
+	hasPrivateEnv bool
+***REMOVED***
+
+type newDerivedClass struct ***REMOVED***
+	newClass
+***REMOVED***
+
+func (vm *vm) createPrivateType(f *classFuncObject, numFields, numMethods uint32) ***REMOVED***
+	typ := &privateEnvType***REMOVED******REMOVED***
+	typ.numFields = numFields
+	typ.numMethods = numMethods
+	f.privateEnvType = typ
+	f.privateMethods = make([]Value, numMethods)
+***REMOVED***
+
+func (vm *vm) fillPrivateNamesMap(typ *privateEnvType, privateFields, privateMethods []unistring.String) ***REMOVED***
+	if len(privateFields) > 0 || len(privateMethods) > 0 ***REMOVED***
+		penv := vm.privEnv.names
+		if penv == nil ***REMOVED***
+			penv = make(privateNames)
+			vm.privEnv.names = penv
+		***REMOVED***
+		for idx, field := range privateFields ***REMOVED***
+			penv[field] = &privateId***REMOVED***
+				typ: typ,
+				idx: uint32(idx),
+			***REMOVED***
+		***REMOVED***
+		for idx, method := range privateMethods ***REMOVED***
+			penv[method] = &privateId***REMOVED***
+				typ:      typ,
+				idx:      uint32(idx),
+				isMethod: true,
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (c *newClass) create(protoParent, ctorParent *Object, vm *vm, derived bool) (prototype, cls *Object) ***REMOVED***
+	proto := vm.r.newBaseObject(protoParent, classObject)
+	f := vm.r.newClassFunc(c.name, c.length, ctorParent, derived)
+	f._putProp("prototype", proto.val, false, false, false)
+	proto._putProp("constructor", f.val, true, false, true)
+	f.prg = c.ctor
+	f.stash = vm.stash
+	f.src = c.source
+	f.initFields = c.initFields
+	if c.hasPrivateEnv ***REMOVED***
+		vm.privEnv = &privateEnv***REMOVED***
+			outer: vm.privEnv,
+		***REMOVED***
+		vm.createPrivateType(f, c.numPrivateFields, c.numPrivateMethods)
+		vm.fillPrivateNamesMap(f.privateEnvType, c.privateFields, c.privateMethods)
+		vm.privEnv.instanceType = f.privateEnvType
+	***REMOVED***
+	f.privEnv = vm.privEnv
+	return proto.val, f.val
+***REMOVED***
+
+func (c *newClass) exec(vm *vm) ***REMOVED***
+	proto, cls := c.create(vm.r.global.ObjectPrototype, vm.r.global.FunctionPrototype, vm, false)
+	sp := vm.sp
+	vm.stack.expand(sp + 1)
+	vm.stack[sp] = proto
+	vm.stack[sp+1] = cls
+	vm.sp = sp + 2
+	vm.pc++
+***REMOVED***
+
+func (c *newDerivedClass) exec(vm *vm) ***REMOVED***
+	var protoParent *Object
+	var superClass *Object
+	if o := vm.stack[vm.sp-1]; o != _null ***REMOVED***
+		if sc, ok := o.(*Object); !ok || sc.self.assertConstructor() == nil ***REMOVED***
+			panic(vm.r.NewTypeError("Class extends value is not a constructor or null"))
+		***REMOVED*** else ***REMOVED***
+			v := sc.self.getStr("prototype", nil)
+			if v != _null ***REMOVED***
+				if o, ok := v.(*Object); ok ***REMOVED***
+					protoParent = o
+				***REMOVED*** else ***REMOVED***
+					panic(vm.r.NewTypeError("Class extends value does not have valid prototype property"))
+				***REMOVED***
+			***REMOVED***
+			superClass = sc
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		superClass = vm.r.global.FunctionPrototype
+	***REMOVED***
+
+	proto, cls := c.create(protoParent, superClass, vm, true)
+	vm.stack[vm.sp-1] = proto
+	vm.push(cls)
+	vm.pc++
+***REMOVED***
+
+// Creates a special instance of *classFuncObject which is only used during evaluation of a class declaration
+// to initialise static fields and instance private methods of another class.
+type newStaticFieldInit struct ***REMOVED***
+	initFields                          *Program
+	numPrivateFields, numPrivateMethods uint32
+***REMOVED***
+
+func (c *newStaticFieldInit) exec(vm *vm) ***REMOVED***
+	f := vm.r.newClassFunc("", 0, vm.r.global.FunctionPrototype, false)
+	if c.numPrivateFields > 0 || c.numPrivateMethods > 0 ***REMOVED***
+		vm.createPrivateType(f, c.numPrivateFields, c.numPrivateMethods)
+	***REMOVED***
+	f.initFields = c.initFields
+	f.stash = vm.stash
+	vm.push(f.val)
+	vm.pc++
+***REMOVED***
+
+func (vm *vm) loadThis(v Value) ***REMOVED***
+	if v != nil ***REMOVED***
+		vm.push(v)
+	***REMOVED*** else ***REMOVED***
+		panic(vm.r.newError(vm.r.global.ReferenceError, "Must call super constructor in derived class before accessing 'this'"))
+	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+type loadThisStash uint32
+
+func (l loadThisStash) exec(vm *vm) ***REMOVED***
+	vm.loadThis(*vm.getStashPtr(uint32(l)))
+***REMOVED***
+
+type loadThisStack struct***REMOVED******REMOVED***
+
+func (loadThisStack) exec(vm *vm) ***REMOVED***
+	vm.loadThis(vm.stack[vm.sb])
+***REMOVED***
+
+func (vm *vm) getStashPtr(s uint32) *Value ***REMOVED***
+	level := int(s) >> 24
+	idx := s & 0x00FFFFFF
+	stash := vm.stash
+	for i := 0; i < level; i++ ***REMOVED***
+		stash = stash.outer
+	***REMOVED***
+
+	return &stash.values[idx]
+***REMOVED***
+
+type getThisDynamic struct***REMOVED******REMOVED***
+
+func (getThisDynamic) exec(vm *vm) ***REMOVED***
+	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
+		if stash.obj == nil ***REMOVED***
+			if v, exists := stash.getByName(thisBindingName); exists ***REMOVED***
+				vm.push(v)
+				vm.pc++
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	vm.push(vm.r.globalObject)
+	vm.pc++
+***REMOVED***
+
+type throwConst struct ***REMOVED***
+	v interface***REMOVED******REMOVED***
+***REMOVED***
+
+func (t throwConst) exec(vm *vm) ***REMOVED***
+	panic(t.v)
+***REMOVED***
+
+type resolveThisStack struct***REMOVED******REMOVED***
+
+func (r resolveThisStack) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &thisRef***REMOVED***v: (*[]Value)(&vm.stack), idx: vm.sb***REMOVED***)
+	vm.pc++
+***REMOVED***
+
+type resolveThisStash uint32
+
+func (r resolveThisStash) exec(vm *vm) ***REMOVED***
+	level := int(r) >> 24
+	idx := r & 0x00FFFFFF
+	stash := vm.stash
+	for i := 0; i < level; i++ ***REMOVED***
+		stash = stash.outer
+	***REMOVED***
+	vm.refStack = append(vm.refStack, &thisRef***REMOVED***v: &stash.values, idx: int(idx)***REMOVED***)
+	vm.pc++
+***REMOVED***
+
+type resolveThisDynamic struct***REMOVED******REMOVED***
+
+func (resolveThisDynamic) exec(vm *vm) ***REMOVED***
+	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
+		if stash.obj == nil ***REMOVED***
+			if idx, exists := stash.names[thisBindingName]; exists ***REMOVED***
+				vm.refStack = append(vm.refStack, &thisRef***REMOVED***v: &stash.values, idx: int(idx &^ maskTyp)***REMOVED***)
+				vm.pc++
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	panic(vm.r.newError(vm.r.global.ReferenceError, "Compiler bug: 'this' reference is not found in resolveThisDynamic"))
+***REMOVED***
+
+type defineComputedKey int
+
+func (offset defineComputedKey) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-int(offset)])
+	if h, ok := obj.self.(*classFuncObject); ok ***REMOVED***
+		key := toPropertyKey(vm.stack[vm.sp-1])
+		h.computedKeys = append(h.computedKeys, key)
+		vm.sp--
+		vm.pc++
+		return
+	***REMOVED***
+	panic(vm.r.NewTypeError("Compiler bug: unexpected target for defineComputedKey: %v", obj))
+***REMOVED***
+
+type loadComputedKey int
+
+func (idx loadComputedKey) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sb-1])
+	if h, ok := obj.self.(*classFuncObject); ok ***REMOVED***
+		vm.push(h.computedKeys[idx])
+		vm.pc++
+		return
+	***REMOVED***
+	panic(vm.r.NewTypeError("Compiler bug: unexpected target for loadComputedKey: %v", obj))
+***REMOVED***
+
+type initStaticElements struct ***REMOVED***
+	privateFields, privateMethods []unistring.String
+***REMOVED***
+
+func (i *initStaticElements) exec(vm *vm) ***REMOVED***
+	cls := vm.stack[vm.sp-1]
+	staticInit := vm.r.toObject(vm.stack[vm.sp-3])
+	vm.sp -= 2
+	if h, ok := staticInit.self.(*classFuncObject); ok ***REMOVED***
+		h._putProp("prototype", cls, true, true, true) // so that 'super' resolution work
+		h.privEnv = vm.privEnv
+		if h.privateEnvType != nil ***REMOVED***
+			vm.privEnv.staticType = h.privateEnvType
+			vm.fillPrivateNamesMap(h.privateEnvType, i.privateFields, i.privateMethods)
+		***REMOVED***
+		h._initFields(vm.r.toObject(cls))
+		vm.stack[vm.sp-1] = cls
+
+		vm.pc++
+		return
+	***REMOVED***
+	panic(vm.r.NewTypeError("Compiler bug: unexpected target for initStaticElements: %v", staticInit))
+***REMOVED***
+
+type definePrivateMethod struct ***REMOVED***
+	idx          int
+	targetOffset int
+***REMOVED***
+
+func (d *definePrivateMethod) getPrivateMethods(vm *vm) []Value ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-d.targetOffset])
+	if cls, ok := obj.self.(*classFuncObject); ok ***REMOVED***
+		return cls.privateMethods
+	***REMOVED*** else ***REMOVED***
+		panic(vm.r.NewTypeError("Compiler bug: wrong target type for definePrivateMethod: %T", obj.self))
+	***REMOVED***
+***REMOVED***
+
+func (d *definePrivateMethod) exec(vm *vm) ***REMOVED***
+	methods := d.getPrivateMethods(vm)
+	methods[d.idx] = vm.stack[vm.sp-1]
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type definePrivateGetter struct ***REMOVED***
+	definePrivateMethod
+***REMOVED***
+
+func (d *definePrivateGetter) exec(vm *vm) ***REMOVED***
+	methods := d.getPrivateMethods(vm)
+	val := vm.stack[vm.sp-1]
+	method := vm.r.toObject(val)
+	p, _ := methods[d.idx].(*valueProperty)
+	if p == nil ***REMOVED***
+		p = &valueProperty***REMOVED***
+			accessor: true,
+		***REMOVED***
+		methods[d.idx] = p
+	***REMOVED***
+	if p.getterFunc != nil ***REMOVED***
+		panic(vm.r.NewTypeError("Private getter has already been declared"))
+	***REMOVED***
+	p.getterFunc = method
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type definePrivateSetter struct ***REMOVED***
+	definePrivateMethod
+***REMOVED***
+
+func (d *definePrivateSetter) exec(vm *vm) ***REMOVED***
+	methods := d.getPrivateMethods(vm)
+	val := vm.stack[vm.sp-1]
+	method := vm.r.toObject(val)
+	p, _ := methods[d.idx].(*valueProperty)
+	if p == nil ***REMOVED***
+		p = &valueProperty***REMOVED***
+			accessor: true,
+		***REMOVED***
+		methods[d.idx] = p
+	***REMOVED***
+	if p.setterFunc != nil ***REMOVED***
+		panic(vm.r.NewTypeError("Private setter has already been declared"))
+	***REMOVED***
+	p.setterFunc = method
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type definePrivateProp struct ***REMOVED***
+	idx int
+***REMOVED***
+
+func (d *definePrivateProp) exec(vm *vm) ***REMOVED***
+	f := vm.r.toObject(vm.stack[vm.sb-1]).self.(*classFuncObject)
+	obj := vm.r.toObject(vm.stack[vm.sp-2])
+	penv := obj.self.getPrivateEnv(f.privateEnvType, false)
+	penv.fields[d.idx] = vm.stack[vm.sp-1]
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPrivatePropRes resolvedPrivateName
+
+func (vm *vm) getPrivateType(level uint8, isStatic bool) *privateEnvType ***REMOVED***
+	e := vm.privEnv
+	for i := uint8(0); i < level; i++ ***REMOVED***
+		e = e.outer
+	***REMOVED***
+	if isStatic ***REMOVED***
+		return e.staticType
+	***REMOVED***
+	return e.instanceType
+***REMOVED***
+
+func (g *getPrivatePropRes) _get(base Value, vm *vm) Value ***REMOVED***
+	return vm.getPrivateProp(base, g.name, vm.getPrivateType(g.level, g.isStatic), g.idx, g.isMethod)
+***REMOVED***
+
+func (g *getPrivatePropRes) exec(vm *vm) ***REMOVED***
+	vm.stack[vm.sp-1] = g._get(vm.stack[vm.sp-1], vm)
+	vm.pc++
+***REMOVED***
+
+type getPrivatePropId privateId
+
+func (g *getPrivatePropId) exec(vm *vm) ***REMOVED***
+	vm.stack[vm.sp-1] = vm.getPrivateProp(vm.stack[vm.sp-1], g.name, g.typ, g.idx, g.isMethod)
+	vm.pc++
+***REMOVED***
+
+type getPrivatePropIdCallee privateId
+
+func (g *getPrivatePropIdCallee) exec(vm *vm) ***REMOVED***
+	prop := vm.getPrivateProp(vm.stack[vm.sp-1], g.name, g.typ, g.idx, g.isMethod)
+	if prop == nil ***REMOVED***
+		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: (*privateId)(g).string()***REMOVED******REMOVED***
+	***REMOVED***
+	vm.push(prop)
+
+	vm.pc++
+***REMOVED***
+
+func (vm *vm) getPrivateProp(base Value, name unistring.String, typ *privateEnvType, idx uint32, isMethod bool) Value ***REMOVED***
+	obj := vm.r.toObject(base)
+	penv := obj.self.getPrivateEnv(typ, false)
+	var v Value
+	if penv != nil ***REMOVED***
+		if isMethod ***REMOVED***
+			v = penv.methods[idx]
+		***REMOVED*** else ***REMOVED***
+			v = penv.fields[idx]
+			if v == nil ***REMOVED***
+				panic(vm.r.NewTypeError("Private member #%s is accessed before it is initialized", name))
+			***REMOVED***
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read private member #%s from an object whose class did not declare it", name))
+	***REMOVED***
+	if prop, ok := v.(*valueProperty); ok ***REMOVED***
+		if prop.getterFunc == nil ***REMOVED***
+			panic(vm.r.NewTypeError("'#%s' was defined without a getter", name))
+		***REMOVED***
+		v = prop.get(obj)
+	***REMOVED***
+	return v
+***REMOVED***
+
+type getPrivatePropResCallee getPrivatePropRes
+
+func (g *getPrivatePropResCallee) exec(vm *vm) ***REMOVED***
+	prop := (*getPrivatePropRes)(g)._get(vm.stack[vm.sp-1], vm)
+	if prop == nil ***REMOVED***
+		prop = memberUnresolved***REMOVED***valueUnresolved***REMOVED***r: vm.r, ref: (*resolvedPrivateName)(g).string()***REMOVED******REMOVED***
+	***REMOVED***
+	vm.push(prop)
+
+	vm.pc++
+***REMOVED***
+
+func (vm *vm) setPrivateProp(base Value, name unistring.String, typ *privateEnvType, idx uint32, isMethod bool, val Value) ***REMOVED***
+	obj := vm.r.toObject(base)
+	penv := obj.self.getPrivateEnv(typ, false)
+	if penv != nil ***REMOVED***
+		if isMethod ***REMOVED***
+			v := penv.methods[idx]
+			if prop, ok := v.(*valueProperty); ok ***REMOVED***
+				if prop.setterFunc != nil ***REMOVED***
+					prop.set(base, val)
+				***REMOVED*** else ***REMOVED***
+					panic(vm.r.NewTypeError("Cannot assign to read only property '#%s'", name))
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				panic(vm.r.NewTypeError("Private method '#%s' is not writable", name))
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			ptr := &penv.fields[idx]
+			if *ptr == nil ***REMOVED***
+				panic(vm.r.NewTypeError("Private member #%s is accessed before it is initialized", name))
+			***REMOVED***
+			*ptr = val
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot write private member #%s from an object whose class did not declare it", name))
+	***REMOVED***
+***REMOVED***
+
+type setPrivatePropRes resolvedPrivateName
+
+func (p *setPrivatePropRes) _set(base Value, val Value, vm *vm) ***REMOVED***
+	vm.setPrivateProp(base, p.name, vm.getPrivateType(p.level, p.isStatic), p.idx, p.isMethod, val)
+***REMOVED***
+
+func (p *setPrivatePropRes) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-1]
+	p._set(vm.stack[vm.sp-2], v, vm)
+	vm.stack[vm.sp-2] = v
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type setPrivatePropResP setPrivatePropRes
+
+func (p *setPrivatePropResP) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-1]
+	(*setPrivatePropRes)(p)._set(vm.stack[vm.sp-2], v, vm)
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type setPrivatePropId privateId
+
+func (p *setPrivatePropId) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-1]
+	vm.setPrivateProp(vm.stack[vm.sp-2], p.name, p.typ, p.idx, p.isMethod, v)
+	vm.stack[vm.sp-2] = v
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type setPrivatePropIdP privateId
+
+func (p *setPrivatePropIdP) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-1]
+	vm.setPrivateProp(vm.stack[vm.sp-2], p.name, p.typ, p.idx, p.isMethod, v)
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type popPrivateEnv struct***REMOVED******REMOVED***
+
+func (popPrivateEnv) exec(vm *vm) ***REMOVED***
+	vm.privEnv = vm.privEnv.outer
+	vm.pc++
+***REMOVED***
+
+type privateInRes resolvedPrivateName
+
+func (i *privateInRes) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-1])
+	pe := obj.self.getPrivateEnv(vm.getPrivateType(i.level, i.isStatic), false)
+	if pe != nil && (i.isMethod && pe.methods[i.idx] != nil || !i.isMethod && pe.fields[i.idx] != nil) ***REMOVED***
+		vm.stack[vm.sp-1] = valueTrue
+	***REMOVED*** else ***REMOVED***
+		vm.stack[vm.sp-1] = valueFalse
+	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+type privateInId privateId
+
+func (i *privateInId) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-1])
+	pe := obj.self.getPrivateEnv(i.typ, false)
+	if pe != nil && (i.isMethod && pe.methods[i.idx] != nil || !i.isMethod && pe.fields[i.idx] != nil) ***REMOVED***
+		vm.stack[vm.sp-1] = valueTrue
+	***REMOVED*** else ***REMOVED***
+		vm.stack[vm.sp-1] = valueFalse
+	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+type getPrivateRefRes resolvedPrivateName
+
+func (r *getPrivateRefRes) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &privateRefRes***REMOVED***
+		base: vm.stack[vm.sp-1].ToObject(vm.r),
+		name: (*resolvedPrivateName)(r),
+	***REMOVED***)
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPrivateRefId privateId
+
+func (r *getPrivateRefId) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &privateRefId***REMOVED***
+		base: vm.stack[vm.sp-1].ToObject(vm.r),
+		id:   (*privateId)(r),
+	***REMOVED***)
+	vm.sp--
 	vm.pc++
 ***REMOVED***

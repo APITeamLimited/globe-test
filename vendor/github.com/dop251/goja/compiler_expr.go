@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
@@ -114,6 +113,18 @@ type compiledIdentifierExpr struct ***REMOVED***
 	name unistring.String
 ***REMOVED***
 
+type funcType uint8
+
+const (
+	funcNone funcType = iota
+	funcRegular
+	funcArrow
+	funcMethod
+	funcClsInit
+	funcCtor
+	funcDerivedCtor
+)
+
 type compiledFunctionLiteral struct ***REMOVED***
 	baseCompiledExpr
 	name            *ast.Identifier
@@ -123,9 +134,9 @@ type compiledFunctionLiteral struct ***REMOVED***
 	declarationList []*ast.VariableDeclaration
 	lhsName         unistring.String
 	strict          *ast.StringLiteral
+	homeObjOffset   uint32
+	typ             funcType
 	isExpr          bool
-	isArrow         bool
-	isMethod        bool
 ***REMOVED***
 
 type compiledBracketExpr struct ***REMOVED***
@@ -134,6 +145,10 @@ type compiledBracketExpr struct ***REMOVED***
 ***REMOVED***
 
 type compiledThisExpr struct ***REMOVED***
+	baseCompiledExpr
+***REMOVED***
+
+type compiledSuperExpr struct ***REMOVED***
 	baseCompiledExpr
 ***REMOVED***
 
@@ -251,24 +266,21 @@ func (c *compiler) compileExpression(v ast.Expression) compiledExpr ***REMOVED**
 		return c.compileFunctionLiteral(v, true)
 	case *ast.ArrowFunctionLiteral:
 		return c.compileArrowFunctionLiteral(v)
+	case *ast.ClassLiteral:
+		return c.compileClassLiteral(v, true)
 	case *ast.DotExpression:
-		r := &compiledDotExpr***REMOVED***
-			left: c.compileExpression(v.Left),
-			name: v.Identifier.Name,
-		***REMOVED***
-		r.init(c, v.Idx0())
-		return r
+		return c.compileDotExpression(v)
+	case *ast.PrivateDotExpression:
+		return c.compilePrivateDotExpression(v)
 	case *ast.BracketExpression:
-		r := &compiledBracketExpr***REMOVED***
-			left:   c.compileExpression(v.Left),
-			member: c.compileExpression(v.Member),
-		***REMOVED***
-		r.init(c, v.Idx0())
-		return r
+		return c.compileBracketExpression(v)
 	case *ast.ThisExpression:
 		r := &compiledThisExpr***REMOVED******REMOVED***
 		r.init(c, v.Idx0())
 		return r
+	case *ast.SuperExpression:
+		c.throwSyntaxError(int(v.Idx0())-1, "'super' keyword unexpected here")
+		panic("unreachable")
 	case *ast.SequenceExpression:
 		return c.compileSequenceExpression(v)
 	case *ast.NewExpression:
@@ -292,7 +304,8 @@ func (c *compiler) compileExpression(v ast.Expression) compiledExpr ***REMOVED**
 		r.init(c, v.Idx0())
 		return r
 	default:
-		panic(fmt.Errorf("Unknown expression type: %T", v))
+		c.assert(false, int(v.Idx0())-1, "Unknown expression type: %T", v)
+		panic("unreachable")
 	***REMOVED***
 ***REMOVED***
 
@@ -310,7 +323,7 @@ func (e *baseCompiledExpr) emitSetter(compiledExpr, bool) ***REMOVED***
 ***REMOVED***
 
 func (e *baseCompiledExpr) emitRef() ***REMOVED***
-	e.c.throwSyntaxError(e.offset, "Cannot emit reference for this type of expression")
+	e.c.assert(false, e.offset, "Cannot emit reference for this type of expression")
 ***REMOVED***
 
 func (e *baseCompiledExpr) deleteExpr() compiledExpr ***REMOVED***
@@ -341,14 +354,11 @@ func (e *constantExpr) emitGetter(putOnStack bool) ***REMOVED***
 func (e *compiledIdentifierExpr) emitGetter(putOnStack bool) ***REMOVED***
 	e.addSrcMap()
 	if b, noDynamics := e.c.scope.lookupName(e.name); noDynamics ***REMOVED***
-		if b != nil ***REMOVED***
-			if putOnStack ***REMOVED***
-				b.emitGet()
-			***REMOVED*** else ***REMOVED***
-				b.emitGetP()
-			***REMOVED***
+		e.c.assert(b != nil, e.offset, "No dynamics and not found")
+		if putOnStack ***REMOVED***
+			b.emitGet()
 		***REMOVED*** else ***REMOVED***
-			panic("No dynamics and not found")
+			b.emitGetP()
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		if b != nil ***REMOVED***
@@ -365,11 +375,8 @@ func (e *compiledIdentifierExpr) emitGetter(putOnStack bool) ***REMOVED***
 func (e *compiledIdentifierExpr) emitGetterOrRef() ***REMOVED***
 	e.addSrcMap()
 	if b, noDynamics := e.c.scope.lookupName(e.name); noDynamics ***REMOVED***
-		if b != nil ***REMOVED***
-			b.emitGet()
-		***REMOVED*** else ***REMOVED***
-			panic("No dynamics and not found")
-		***REMOVED***
+		e.c.assert(b != nil, e.offset, "No dynamics and not found")
+		b.emitGet()
 	***REMOVED*** else ***REMOVED***
 		if b != nil ***REMOVED***
 			b.emitGetVar(false)
@@ -382,12 +389,9 @@ func (e *compiledIdentifierExpr) emitGetterOrRef() ***REMOVED***
 func (e *compiledIdentifierExpr) emitGetterAndCallee() ***REMOVED***
 	e.addSrcMap()
 	if b, noDynamics := e.c.scope.lookupName(e.name); noDynamics ***REMOVED***
-		if b != nil ***REMOVED***
-			e.c.emit(loadUndef)
-			b.emitGet()
-		***REMOVED*** else ***REMOVED***
-			panic("No dynamics and not found")
-		***REMOVED***
+		e.c.assert(b != nil, e.offset, "No dynamics and not found")
+		e.c.emit(loadUndef)
+		b.emitGet()
 	***REMOVED*** else ***REMOVED***
 		if b != nil ***REMOVED***
 			b.emitGetVar(true)
@@ -526,10 +530,398 @@ func (e *compiledIdentifierExpr) deleteExpr() compiledExpr ***REMOVED***
 	return r
 ***REMOVED***
 
+type compiledSuperDotExpr struct ***REMOVED***
+	baseCompiledExpr
+	name unistring.String
+***REMOVED***
+
+func (e *compiledSuperDotExpr) emitGetter(putOnStack bool) ***REMOVED***
+	e.c.emitLoadThis()
+	e.c.emit(loadSuper)
+	e.addSrcMap()
+	e.c.emit(getPropRecv(e.name))
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperDotExpr) emitSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
+	e.c.emitLoadThis()
+	e.c.emit(loadSuper)
+	valueExpr.emitGetter(true)
+	e.addSrcMap()
+	if putOnStack ***REMOVED***
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setPropRecvStrict(e.name))
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setPropRecv(e.name))
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setPropRecvStrictP(e.name))
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setPropRecvP(e.name))
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperDotExpr) emitUnary(prepare, body func(), postfix, putOnStack bool) ***REMOVED***
+	if !putOnStack ***REMOVED***
+		e.c.emitLoadThis()
+		e.c.emit(loadSuper, dupLast(2), getPropRecv(e.name))
+		body()
+		e.addSrcMap()
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setPropRecvStrictP(e.name))
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setPropRecvP(e.name))
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if !postfix ***REMOVED***
+			e.c.emitLoadThis()
+			e.c.emit(loadSuper, dupLast(2), getPropRecv(e.name))
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			body()
+			e.addSrcMap()
+			if e.c.scope.strict ***REMOVED***
+				e.c.emit(setPropRecvStrict(e.name))
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(setPropRecv(e.name))
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(loadUndef)
+			e.c.emitLoadThis()
+			e.c.emit(loadSuper, dupLast(2), getPropRecv(e.name))
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			e.c.emit(rdupN(3))
+			body()
+			e.addSrcMap()
+			if e.c.scope.strict ***REMOVED***
+				e.c.emit(setPropRecvStrictP(e.name))
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(setPropRecvP(e.name))
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperDotExpr) emitRef() ***REMOVED***
+	e.c.emitLoadThis()
+	e.c.emit(loadSuper)
+	if e.c.scope.strict ***REMOVED***
+		e.c.emit(getPropRefRecvStrict(e.name))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit(getPropRefRecv(e.name))
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperDotExpr) deleteExpr() compiledExpr ***REMOVED***
+	return e.c.superDeleteError(e.offset)
+***REMOVED***
+
 type compiledDotExpr struct ***REMOVED***
 	baseCompiledExpr
 	left compiledExpr
 	name unistring.String
+***REMOVED***
+
+type compiledPrivateDotExpr struct ***REMOVED***
+	baseCompiledExpr
+	left compiledExpr
+	name unistring.String
+***REMOVED***
+
+func (c *compiler) checkSuperBase(idx file.Idx) ***REMOVED***
+	if s := c.scope.nearestThis(); s != nil ***REMOVED***
+		switch s.funcType ***REMOVED***
+		case funcMethod, funcClsInit, funcCtor, funcDerivedCtor:
+			return
+		***REMOVED***
+	***REMOVED***
+	c.throwSyntaxError(int(idx)-1, "'super' keyword unexpected here")
+	panic("unreachable")
+***REMOVED***
+
+func (c *compiler) compileDotExpression(v *ast.DotExpression) compiledExpr ***REMOVED***
+	if sup, ok := v.Left.(*ast.SuperExpression); ok ***REMOVED***
+		c.checkSuperBase(sup.Idx)
+		r := &compiledSuperDotExpr***REMOVED***
+			name: v.Identifier.Name,
+		***REMOVED***
+		r.init(c, v.Identifier.Idx)
+		return r
+	***REMOVED***
+
+	r := &compiledDotExpr***REMOVED***
+		left: c.compileExpression(v.Left),
+		name: v.Identifier.Name,
+	***REMOVED***
+	r.init(c, v.Identifier.Idx)
+	return r
+***REMOVED***
+
+func (c *compiler) compilePrivateDotExpression(v *ast.PrivateDotExpression) compiledExpr ***REMOVED***
+	r := &compiledPrivateDotExpr***REMOVED***
+		left: c.compileExpression(v.Left),
+		name: v.Identifier.Name,
+	***REMOVED***
+	r.init(c, v.Identifier.Idx)
+	return r
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) _emitGetter(rn *resolvedPrivateName, id *privateId) ***REMOVED***
+	if rn != nil ***REMOVED***
+		e.c.emit((*getPrivatePropRes)(rn))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit((*getPrivatePropId)(id))
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) _emitSetter(rn *resolvedPrivateName, id *privateId) ***REMOVED***
+	if rn != nil ***REMOVED***
+		e.c.emit((*setPrivatePropRes)(rn))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit((*setPrivatePropId)(id))
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) _emitSetterP(rn *resolvedPrivateName, id *privateId) ***REMOVED***
+	if rn != nil ***REMOVED***
+		e.c.emit((*setPrivatePropResP)(rn))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit((*setPrivatePropIdP)(id))
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) emitGetter(putOnStack bool) ***REMOVED***
+	e.left.emitGetter(true)
+	e.addSrcMap()
+	rn, id := e.c.resolvePrivateName(e.name, e.offset)
+	e._emitGetter(rn, id)
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) emitSetter(v compiledExpr, putOnStack bool) ***REMOVED***
+	rn, id := e.c.resolvePrivateName(e.name, e.offset)
+	e.left.emitGetter(true)
+	v.emitGetter(true)
+	e.addSrcMap()
+	if putOnStack ***REMOVED***
+		e._emitSetter(rn, id)
+	***REMOVED*** else ***REMOVED***
+		e._emitSetterP(rn, id)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) emitUnary(prepare, body func(), postfix, putOnStack bool) ***REMOVED***
+	rn, id := e.c.resolvePrivateName(e.name, e.offset)
+	if !putOnStack ***REMOVED***
+		e.left.emitGetter(true)
+		e.c.emit(dup)
+		e._emitGetter(rn, id)
+		body()
+		e.addSrcMap()
+		e._emitSetterP(rn, id)
+	***REMOVED*** else ***REMOVED***
+		if !postfix ***REMOVED***
+			e.left.emitGetter(true)
+			e.c.emit(dup)
+			e._emitGetter(rn, id)
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			body()
+			e.addSrcMap()
+			e._emitSetter(rn, id)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(loadUndef)
+			e.left.emitGetter(true)
+			e.c.emit(dup)
+			e._emitGetter(rn, id)
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			e.c.emit(rdupN(2))
+			body()
+			e.addSrcMap()
+			e._emitSetterP(rn, id)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) deleteExpr() compiledExpr ***REMOVED***
+	e.c.throwSyntaxError(e.offset, "Private fields can not be deleted")
+	panic("unreachable")
+***REMOVED***
+
+func (e *compiledPrivateDotExpr) emitRef() ***REMOVED***
+	e.left.emitGetter(true)
+	rn, id := e.c.resolvePrivateName(e.name, e.offset)
+	if rn != nil ***REMOVED***
+		e.c.emit((*getPrivateRefRes)(rn))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit((*getPrivateRefId)(id))
+	***REMOVED***
+***REMOVED***
+
+type compiledSuperBracketExpr struct ***REMOVED***
+	baseCompiledExpr
+	member compiledExpr
+***REMOVED***
+
+func (e *compiledSuperBracketExpr) emitGetter(putOnStack bool) ***REMOVED***
+	e.c.emitLoadThis()
+	e.member.emitGetter(true)
+	e.c.emit(loadSuper)
+	e.addSrcMap()
+	e.c.emit(getElemRecv)
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperBracketExpr) emitSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
+	e.c.emitLoadThis()
+	e.member.emitGetter(true)
+	e.c.emit(loadSuper)
+	valueExpr.emitGetter(true)
+	e.addSrcMap()
+	if putOnStack ***REMOVED***
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setElemRecvStrict)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setElemRecv)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setElemRecvStrictP)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setElemRecvP)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperBracketExpr) emitUnary(prepare, body func(), postfix, putOnStack bool) ***REMOVED***
+	if !putOnStack ***REMOVED***
+		e.c.emitLoadThis()
+		e.member.emitGetter(true)
+		e.c.emit(loadSuper, dupLast(3), getElemRecv)
+		body()
+		e.addSrcMap()
+		if e.c.scope.strict ***REMOVED***
+			e.c.emit(setElemRecvStrictP)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(setElemRecvP)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if !postfix ***REMOVED***
+			e.c.emitLoadThis()
+			e.member.emitGetter(true)
+			e.c.emit(loadSuper, dupLast(3), getElemRecv)
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			body()
+			e.addSrcMap()
+			if e.c.scope.strict ***REMOVED***
+				e.c.emit(setElemRecvStrict)
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(setElemRecv)
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(loadUndef)
+			e.c.emitLoadThis()
+			e.member.emitGetter(true)
+			e.c.emit(loadSuper, dupLast(3), getElemRecv)
+			if prepare != nil ***REMOVED***
+				prepare()
+			***REMOVED***
+			e.c.emit(rdupN(4))
+			body()
+			e.addSrcMap()
+			if e.c.scope.strict ***REMOVED***
+				e.c.emit(setElemRecvStrictP)
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(setElemRecvP)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperBracketExpr) emitRef() ***REMOVED***
+	e.c.emitLoadThis()
+	e.member.emitGetter(true)
+	e.c.emit(loadSuper)
+	if e.c.scope.strict ***REMOVED***
+		e.c.emit(getElemRefRecvStrict)
+	***REMOVED*** else ***REMOVED***
+		e.c.emit(getElemRefRecv)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) superDeleteError(offset int) compiledExpr ***REMOVED***
+	return c.compileEmitterExpr(func() ***REMOVED***
+		c.emit(throwConst***REMOVED***referenceError("Unsupported reference to 'super'")***REMOVED***)
+	***REMOVED***, file.Idx(offset+1))
+***REMOVED***
+
+func (e *compiledSuperBracketExpr) deleteExpr() compiledExpr ***REMOVED***
+	return e.c.superDeleteError(e.offset)
+***REMOVED***
+
+func (c *compiler) checkConstantString(expr compiledExpr) (unistring.String, bool) ***REMOVED***
+	if expr.constant() ***REMOVED***
+		if val, ex := c.evalConst(expr); ex == nil ***REMOVED***
+			if s, ok := val.(valueString); ok ***REMOVED***
+				return s.string(), true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return "", false
+***REMOVED***
+
+func (c *compiler) compileBracketExpression(v *ast.BracketExpression) compiledExpr ***REMOVED***
+	if sup, ok := v.Left.(*ast.SuperExpression); ok ***REMOVED***
+		c.checkSuperBase(sup.Idx)
+		member := c.compileExpression(v.Member)
+		if name, ok := c.checkConstantString(member); ok ***REMOVED***
+			r := &compiledSuperDotExpr***REMOVED***
+				name: name,
+			***REMOVED***
+			r.init(c, v.LeftBracket)
+			return r
+		***REMOVED***
+
+		r := &compiledSuperBracketExpr***REMOVED***
+			member: member,
+		***REMOVED***
+		r.init(c, v.LeftBracket)
+		return r
+	***REMOVED***
+
+	left := c.compileExpression(v.Left)
+	member := c.compileExpression(v.Member)
+	if name, ok := c.checkConstantString(member); ok ***REMOVED***
+		r := &compiledDotExpr***REMOVED***
+			left: left,
+			name: name,
+		***REMOVED***
+		r.init(c, v.LeftBracket)
+		return r
+	***REMOVED***
+
+	r := &compiledBracketExpr***REMOVED***
+		left:   left,
+		member: member,
+	***REMOVED***
+	r.init(c, v.LeftBracket)
+	return r
 ***REMOVED***
 
 func (e *compiledDotExpr) emitGetter(putOnStack bool) ***REMOVED***
@@ -574,10 +966,11 @@ func (e *compiledDotExpr) emitUnary(prepare, body func(), postfix, putOnStack bo
 		e.c.emit(dup)
 		e.c.emit(getProp(e.name))
 		body()
+		e.addSrcMap()
 		if e.c.scope.strict ***REMOVED***
-			e.c.emit(setPropStrict(e.name), pop)
+			e.c.emit(setPropStrictP(e.name))
 		***REMOVED*** else ***REMOVED***
-			e.c.emit(setProp(e.name), pop)
+			e.c.emit(setPropP(e.name))
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		if !postfix ***REMOVED***
@@ -588,6 +981,7 @@ func (e *compiledDotExpr) emitUnary(prepare, body func(), postfix, putOnStack bo
 				prepare()
 			***REMOVED***
 			body()
+			e.addSrcMap()
 			if e.c.scope.strict ***REMOVED***
 				e.c.emit(setPropStrict(e.name))
 			***REMOVED*** else ***REMOVED***
@@ -603,12 +997,12 @@ func (e *compiledDotExpr) emitUnary(prepare, body func(), postfix, putOnStack bo
 			***REMOVED***
 			e.c.emit(rdupN(2))
 			body()
+			e.addSrcMap()
 			if e.c.scope.strict ***REMOVED***
-				e.c.emit(setPropStrict(e.name))
+				e.c.emit(setPropStrictP(e.name))
 			***REMOVED*** else ***REMOVED***
-				e.c.emit(setProp(e.name))
+				e.c.emit(setPropP(e.name))
 			***REMOVED***
-			e.c.emit(pop)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -618,7 +1012,7 @@ func (e *compiledDotExpr) deleteExpr() compiledExpr ***REMOVED***
 		left: e.left,
 		name: e.name,
 	***REMOVED***
-	r.init(e.c, file.Idx(0))
+	r.init(e.c, file.Idx(e.offset)+1)
 	return r
 ***REMOVED***
 
@@ -646,6 +1040,7 @@ func (e *compiledBracketExpr) emitSetter(valueExpr compiledExpr, putOnStack bool
 	e.left.emitGetter(true)
 	e.member.emitGetter(true)
 	valueExpr.emitGetter(true)
+	e.addSrcMap()
 	if e.c.scope.strict ***REMOVED***
 		if putOnStack ***REMOVED***
 			e.c.emit(setElemStrict)
@@ -665,9 +1060,9 @@ func (e *compiledBracketExpr) emitUnary(prepare, body func(), postfix, putOnStac
 	if !putOnStack ***REMOVED***
 		e.left.emitGetter(true)
 		e.member.emitGetter(true)
-		e.c.emit(dupN(1), dupN(1))
-		e.c.emit(getElem)
+		e.c.emit(dupLast(2), getElem)
 		body()
+		e.addSrcMap()
 		if e.c.scope.strict ***REMOVED***
 			e.c.emit(setElemStrict, pop)
 		***REMOVED*** else ***REMOVED***
@@ -677,12 +1072,12 @@ func (e *compiledBracketExpr) emitUnary(prepare, body func(), postfix, putOnStac
 		if !postfix ***REMOVED***
 			e.left.emitGetter(true)
 			e.member.emitGetter(true)
-			e.c.emit(dupN(1), dupN(1))
-			e.c.emit(getElem)
+			e.c.emit(dupLast(2), getElem)
 			if prepare != nil ***REMOVED***
 				prepare()
 			***REMOVED***
 			body()
+			e.addSrcMap()
 			if e.c.scope.strict ***REMOVED***
 				e.c.emit(setElemStrict)
 			***REMOVED*** else ***REMOVED***
@@ -692,13 +1087,13 @@ func (e *compiledBracketExpr) emitUnary(prepare, body func(), postfix, putOnStac
 			e.c.emit(loadUndef)
 			e.left.emitGetter(true)
 			e.member.emitGetter(true)
-			e.c.emit(dupN(1), dupN(1))
-			e.c.emit(getElem)
+			e.c.emit(dupLast(2), getElem)
 			if prepare != nil ***REMOVED***
 				prepare()
 			***REMOVED***
 			e.c.emit(rdupN(3))
 			body()
+			e.addSrcMap()
 			if e.c.scope.strict ***REMOVED***
 				e.c.emit(setElemStrict, pop)
 			***REMOVED*** else ***REMOVED***
@@ -713,7 +1108,7 @@ func (e *compiledBracketExpr) deleteExpr() compiledExpr ***REMOVED***
 		left:   e.left,
 		member: e.member,
 	***REMOVED***
-	r.init(e.c, file.Idx(0))
+	r.init(e.c, file.Idx(e.offset)+1)
 	return r
 ***REMOVED***
 
@@ -832,7 +1227,8 @@ func (e *compiledAssignExpr) emitGetter(putOnStack bool) ***REMOVED***
 			e.c.emit(shr)
 		***REMOVED***, false, putOnStack)
 	default:
-		panic(fmt.Errorf("Unknown assign operator: %s", e.operator.String()))
+		e.c.assert(false, e.offset, "Unknown assign operator: %s", e.operator.String())
+		panic("unreachable")
 	***REMOVED***
 ***REMOVED***
 
@@ -931,17 +1327,17 @@ func (c *compiler) compileParameterPatternBinding(item ast.Expression) ***REMOVE
 	c.createBindings(item, c.compileParameterPatternIdBinding)
 ***REMOVED***
 
-func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
+func (e *compiledFunctionLiteral) compile() (prg *Program, name unistring.String, length int, strict bool) ***REMOVED***
+	e.c.assert(e.typ != funcNone, e.offset, "compiledFunctionLiteral.typ is not set")
+
 	savedPrg := e.c.p
 	e.c.p = &Program***REMOVED***
 		src: e.c.p.src,
 	***REMOVED***
 	e.c.newScope()
 	s := e.c.scope
-	s.function = true
-	s.arrow = e.isArrow
+	s.funcType = e.typ
 
-	var name unistring.String
 	if e.name != nil ***REMOVED***
 		name = e.name.Name
 	***REMOVED*** else ***REMOVED***
@@ -967,7 +1363,6 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	hasPatterns := false
 	hasInits := false
 	firstDupIdx := -1
-	length := 0
 
 	if e.parameterList.Rest != nil ***REMOVED***
 		hasPatterns = true // strictly speaking not, but we need to activate all the checks
@@ -995,7 +1390,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			hasInits = true
 		***REMOVED***
 
-		if firstDupIdx >= 0 && (hasPatterns || hasInits || s.strict || e.isArrow || e.isMethod) ***REMOVED***
+		if firstDupIdx >= 0 && (hasPatterns || hasInits || s.strict || e.typ == funcArrow || e.typ == funcMethod) ***REMOVED***
 			e.c.throwSyntaxError(firstDupIdx, "Duplicate parameter name not allowed in this context")
 			return
 		***REMOVED***
@@ -1008,6 +1403,11 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 		if !hasInits ***REMOVED***
 			length++
 		***REMOVED***
+	***REMOVED***
+
+	var thisBinding *binding
+	if e.typ != funcArrow ***REMOVED***
+		thisBinding = s.createThisBinding()
 	***REMOVED***
 
 	// create pattern bindings
@@ -1031,8 +1431,8 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	body := e.body
 	funcs := e.c.extractFunctions(body)
 	var calleeBinding *binding
-	preambleLen := 4 // enter, boxThis, createArgs, set
-	e.c.p.code = make([]instruction, preambleLen, 8)
+	preambleLen := 8 // enter, boxThis, loadStack(0), initThis, createArgs, set, loadCallee, init
+	e.c.p.code = make([]instruction, preambleLen, 16)
 
 	emitArgsRestMark := -1
 	firstForwardRef := -1
@@ -1044,10 +1444,6 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				b.isConst = true
 				calleeBinding = b
 			***REMOVED***
-		***REMOVED***
-		if calleeBinding != nil ***REMOVED***
-			e.c.emit(loadCallee)
-			calleeBinding.emitInit()
 		***REMOVED***
 		for i, item := range e.parameterList.List ***REMOVED***
 			if pattern, ok := item.Target.(ast.Pattern); ok ***REMOVED***
@@ -1076,7 +1472,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				***REMOVED*** else ***REMOVED***
 					e.c.p.code[markGet] = loadStackLex(-i - 1)
 				***REMOVED***
-				s.bindings[i].emitInit()
+				s.bindings[i].emitInitP()
 				e.c.p.code[mark] = jdefP(len(e.c.p.code) - mark)
 			***REMOVED*** else ***REMOVED***
 				if firstForwardRef == -1 && s.bindings[i].useCount() > 0 ***REMOVED***
@@ -1084,7 +1480,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				***REMOVED***
 				if firstForwardRef != -1 ***REMOVED***
 					e.c.emit(loadStackLex(-i - 1))
-					s.bindings[i].emitInit()
+					s.bindings[i].emitInitP()
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -1139,7 +1535,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 		***REMOVED***
 		if calleeBinding != nil ***REMOVED***
 			e.c.emit(loadCallee)
-			calleeBinding.emitInit()
+			calleeBinding.emitInitP()
 		***REMOVED***
 	***REMOVED***
 
@@ -1151,30 +1547,35 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 		last = body[l-1]
 	***REMOVED***
 	if _, ok := last.(*ast.ReturnStatement); !ok ***REMOVED***
-		e.c.emit(loadUndef, ret)
+		if e.typ == funcDerivedCtor ***REMOVED***
+			e.c.emit(loadUndef)
+			thisBinding.markAccessPoint()
+			e.c.emit(ret)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(loadUndef, ret)
+		***REMOVED***
 	***REMOVED***
 
 	delta := 0
 	code := e.c.p.code
 
-	if calleeBinding != nil && !s.isDynamic() && calleeBinding.useCount() == 1 ***REMOVED***
-		s.deleteBinding(calleeBinding)
-		preambleLen += 2
-	***REMOVED***
-
-	if !s.argsInStash && (s.argsNeeded || s.isDynamic()) ***REMOVED***
+	if s.isDynamic() && !s.argsInStash ***REMOVED***
 		s.moveArgsToStash()
 	***REMOVED***
 
-	if s.argsNeeded ***REMOVED***
+	if s.argsNeeded || s.isDynamic() && e.typ != funcArrow && e.typ != funcClsInit ***REMOVED***
+		if e.typ == funcClsInit ***REMOVED***
+			e.c.throwSyntaxError(e.offset, "'arguments' is not allowed in class field initializer or static initialization block")
+		***REMOVED***
 		b, created := s.bindNameLexical("arguments", false, 0)
-		if !created && !b.isVar ***REMOVED***
-			s.argsNeeded = false
-		***REMOVED*** else ***REMOVED***
+		if created || b.isVar ***REMOVED***
+			if !s.argsInStash ***REMOVED***
+				s.moveArgsToStash()
+			***REMOVED***
 			if s.strict ***REMOVED***
 				b.isConst = true
 			***REMOVED*** else ***REMOVED***
-				b.isVar = e.c.scope.function
+				b.isVar = e.c.scope.isFunction()
 			***REMOVED***
 			pos := preambleLen - 2
 			delta += 2
@@ -1184,14 +1585,42 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				code[pos] = createArgsMapped(paramsCount)
 			***REMOVED***
 			pos++
-			b.markAccessPointAtScope(s, pos)
-			code[pos] = storeStashP(0)
+			b.emitInitPAtScope(s, pos)
+		***REMOVED***
+	***REMOVED***
+
+	if calleeBinding != nil ***REMOVED***
+		if !s.isDynamic() && calleeBinding.useCount() == 0 ***REMOVED***
+			s.deleteBinding(calleeBinding)
+			calleeBinding = nil
+		***REMOVED*** else ***REMOVED***
+			delta++
+			calleeBinding.emitInitPAtScope(s, preambleLen-delta)
+			delta++
+			code[preambleLen-delta] = loadCallee
+		***REMOVED***
+	***REMOVED***
+
+	if thisBinding != nil ***REMOVED***
+		if !s.isDynamic() && thisBinding.useCount() == 0 ***REMOVED***
+			s.deleteBinding(thisBinding)
+			thisBinding = nil
+		***REMOVED*** else ***REMOVED***
+			if thisBinding.inStash || s.isDynamic() ***REMOVED***
+				delta++
+				thisBinding.emitInitAtScope(s, preambleLen-delta)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	stashSize, stackSize := s.finaliseVarAlloc(0)
 
-	if !s.strict && s.thisNeeded ***REMOVED***
+	if stackSize > 0 && thisBinding != nil && thisBinding.inStash ***REMOVED***
+		delta++
+		code[preambleLen-delta] = loadStack(0)
+	***REMOVED***
+
+	if !s.strict && thisBinding != nil ***REMOVED***
 		delta++
 		code[preambleLen-delta] = boxThis
 	***REMOVED***
@@ -1206,6 +1635,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				stashSize:   uint32(stashSize),
 				stackSize:   uint32(stackSize),
 				extensible:  s.dynamic,
+				funcType:    e.typ,
 			***REMOVED***
 			if s.isDynamic() ***REMOVED***
 				enter1.names = s.makeNamesMap()
@@ -1214,6 +1644,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			if enterFunc2Mark != -1 ***REMOVED***
 				ef2 := &enterFuncBody***REMOVED***
 					extensible: e.c.scope.dynamic,
+					funcType:   e.typ,
 				***REMOVED***
 				e.c.updateEnterBlock(&ef2.enterBlock)
 				e.c.p.code[enterFunc2Mark] = ef2
@@ -1224,6 +1655,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				numArgs:    uint32(paramsCount),
 				argsToCopy: uint32(firstForwardRef),
 				extensible: s.dynamic,
+				funcType:   e.typ,
 			***REMOVED***
 			if s.isDynamic() ***REMOVED***
 				enter1.names = s.makeNamesMap()
@@ -1233,6 +1665,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				ef2 := &enterFuncBody***REMOVED***
 					adjustStack: true,
 					extensible:  e.c.scope.dynamic,
+					funcType:    e.typ,
 				***REMOVED***
 				e.c.updateEnterBlock(&ef2.enterBlock)
 				e.c.p.code[enterFunc2Mark] = ef2
@@ -1249,6 +1682,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 		if enterFunc2Mark != -1 ***REMOVED***
 			ef2 := &enterFuncBody***REMOVED***
 				extensible: e.c.scope.dynamic,
+				funcType:   e.typ,
 			***REMOVED***
 			e.c.updateEnterBlock(&ef2.enterBlock)
 			e.c.p.code[enterFunc2Mark] = ef2
@@ -1256,29 +1690,32 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	***REMOVED***
 	code[delta] = enter
 	if delta != 0 ***REMOVED***
-		e.c.p.code = code[delta:]
-		for i := range e.c.p.srcMap ***REMOVED***
-			e.c.p.srcMap[i].pc -= delta
-		***REMOVED***
-		s.adjustBase(-delta)
+		s.trimCode(delta)
 	***REMOVED***
 
-	strict := s.strict
-	p := e.c.p
+	strict = s.strict
+	prg = e.c.p
 	// e.c.p.dumpCode()
 	if enterFunc2Mark != -1 ***REMOVED***
 		e.c.popScope()
 	***REMOVED***
 	e.c.popScope()
 	e.c.p = savedPrg
-	if e.isArrow ***REMOVED***
+
+	return
+***REMOVED***
+
+func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
+	p, name, length, strict := e.compile()
+	switch e.typ ***REMOVED***
+	case funcArrow:
 		e.c.emit(&newArrowFunc***REMOVED***newFunc: newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED******REMOVED***)
-	***REMOVED*** else ***REMOVED***
-		if e.isMethod ***REMOVED***
-			e.c.emit(&newMethod***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***)
-		***REMOVED*** else ***REMOVED***
-			e.c.emit(&newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***)
-		***REMOVED***
+	case funcMethod, funcClsInit:
+		e.c.emit(&newMethod***REMOVED***newFunc: newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***, homeObjOffset: e.homeObjOffset***REMOVED***)
+	case funcRegular:
+		e.c.emit(&newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***)
+	default:
+		e.c.throwSyntaxError(e.offset, "Unsupported func type: %v", e.typ)
 	***REMOVED***
 	if !putOnStack ***REMOVED***
 		e.c.emit(pop)
@@ -1297,10 +1734,495 @@ func (c *compiler) compileFunctionLiteral(v *ast.FunctionLiteral, isExpr bool) *
 		source:          v.Source,
 		declarationList: v.DeclarationList,
 		isExpr:          isExpr,
+		typ:             funcRegular,
 		strict:          strictBody,
 	***REMOVED***
 	r.init(c, v.Idx0())
 	return r
+***REMOVED***
+
+type compiledClassLiteral struct ***REMOVED***
+	baseCompiledExpr
+	name       *ast.Identifier
+	superClass compiledExpr
+	body       []ast.ClassElement
+	lhsName    unistring.String
+	source     string
+	isExpr     bool
+***REMOVED***
+
+func (c *compiler) processKey(expr ast.Expression) (val unistring.String, computed bool) ***REMOVED***
+	keyExpr := c.compileExpression(expr)
+	if keyExpr.constant() ***REMOVED***
+		v, ex := c.evalConst(keyExpr)
+		if ex == nil ***REMOVED***
+			return v.string(), false
+		***REMOVED***
+	***REMOVED***
+	keyExpr.emitGetter(true)
+	computed = true
+	return
+***REMOVED***
+
+func (e *compiledClassLiteral) processClassKey(expr ast.Expression) (privateName *privateName, key unistring.String, computed bool) ***REMOVED***
+	if p, ok := expr.(*ast.PrivateIdentifier); ok ***REMOVED***
+		privateName = e.c.classScope.getDeclaredPrivateId(p.Name)
+		key = privateIdString(p.Name)
+		return
+	***REMOVED***
+	key, computed = e.c.processKey(expr)
+	return
+***REMOVED***
+
+type clsElement struct ***REMOVED***
+	key         unistring.String
+	privateName *privateName
+	initializer compiledExpr
+	body        *compiledFunctionLiteral
+	computed    bool
+***REMOVED***
+
+func (e *compiledClassLiteral) emitGetter(putOnStack bool) ***REMOVED***
+	e.c.newBlockScope()
+	s := e.c.scope
+	s.strict = true
+
+	enter := &enterBlock***REMOVED******REMOVED***
+	mark0 := len(e.c.p.code)
+	e.c.emit(enter)
+	e.c.block = &block***REMOVED***
+		typ:   blockScope,
+		outer: e.c.block,
+	***REMOVED***
+	var clsBinding *binding
+	var clsName unistring.String
+	if name := e.name; name != nil ***REMOVED***
+		clsName = name.Name
+		clsBinding = e.c.createLexicalIdBinding(clsName, true, int(name.Idx)-1)
+	***REMOVED*** else ***REMOVED***
+		clsName = e.lhsName
+	***REMOVED***
+
+	var ctorMethod *ast.MethodDefinition
+	ctorMethodIdx := -1
+	staticsCount := 0
+	instanceFieldsCount := 0
+	hasStaticPrivateMethods := false
+	cs := &classScope***REMOVED***
+		c:     e.c,
+		outer: e.c.classScope,
+	***REMOVED***
+
+	for idx, elt := range e.body ***REMOVED***
+		switch elt := elt.(type) ***REMOVED***
+		case *ast.ClassStaticBlock:
+			if len(elt.Block.List) > 0 ***REMOVED***
+				staticsCount++
+			***REMOVED***
+		case *ast.FieldDefinition:
+			if id, ok := elt.Key.(*ast.PrivateIdentifier); ok ***REMOVED***
+				cs.declarePrivateId(id.Name, ast.PropertyKindValue, elt.Static, int(elt.Idx)-1)
+			***REMOVED***
+			if elt.Static ***REMOVED***
+				staticsCount++
+			***REMOVED*** else ***REMOVED***
+				instanceFieldsCount++
+			***REMOVED***
+		case *ast.MethodDefinition:
+			if !elt.Static ***REMOVED***
+				if id, ok := elt.Key.(*ast.StringLiteral); ok ***REMOVED***
+					if !elt.Computed && id.Value == "constructor" ***REMOVED***
+						if ctorMethod != nil ***REMOVED***
+							e.c.throwSyntaxError(int(id.Idx)-1, "A class may only have one constructor")
+						***REMOVED***
+						ctorMethod = elt
+						ctorMethodIdx = idx
+						continue
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+			if id, ok := elt.Key.(*ast.PrivateIdentifier); ok ***REMOVED***
+				cs.declarePrivateId(id.Name, elt.Kind, elt.Static, int(elt.Idx)-1)
+				if elt.Static ***REMOVED***
+					hasStaticPrivateMethods = true
+				***REMOVED***
+			***REMOVED***
+		default:
+			e.c.assert(false, int(elt.Idx0())-1, "Unsupported static element: %T", elt)
+		***REMOVED***
+	***REMOVED***
+
+	var staticInit *newStaticFieldInit
+	if staticsCount > 0 || hasStaticPrivateMethods ***REMOVED***
+		staticInit = &newStaticFieldInit***REMOVED******REMOVED***
+		e.c.emit(staticInit)
+	***REMOVED***
+
+	var derived bool
+	var newClassIns *newClass
+	if superClass := e.superClass; superClass != nil ***REMOVED***
+		derived = true
+		superClass.emitGetter(true)
+		ndc := &newDerivedClass***REMOVED***
+			newClass: newClass***REMOVED***
+				name:   clsName,
+				source: e.source,
+			***REMOVED***,
+		***REMOVED***
+		e.addSrcMap()
+		e.c.emit(ndc)
+		newClassIns = &ndc.newClass
+	***REMOVED*** else ***REMOVED***
+		newClassIns = &newClass***REMOVED***
+			name:   clsName,
+			source: e.source,
+		***REMOVED***
+		e.addSrcMap()
+		e.c.emit(newClassIns)
+	***REMOVED***
+
+	e.c.classScope = cs
+
+	if ctorMethod != nil ***REMOVED***
+		newClassIns.ctor, newClassIns.length = e.c.compileCtor(ctorMethod.Body, derived)
+	***REMOVED***
+
+	curIsPrototype := false
+
+	instanceFields := make([]clsElement, 0, instanceFieldsCount)
+	staticElements := make([]clsElement, 0, staticsCount)
+
+	// stack at this point:
+	//
+	// staticFieldInit (if staticsCount > 0 || hasStaticPrivateMethods)
+	// prototype
+	// class function
+	// <- sp
+
+	for idx, elt := range e.body ***REMOVED***
+		if idx == ctorMethodIdx ***REMOVED***
+			continue
+		***REMOVED***
+		switch elt := elt.(type) ***REMOVED***
+		case *ast.ClassStaticBlock:
+			if len(elt.Block.List) > 0 ***REMOVED***
+				f := e.c.compileFunctionLiteral(&ast.FunctionLiteral***REMOVED***
+					Function:        elt.Idx0(),
+					ParameterList:   &ast.ParameterList***REMOVED******REMOVED***,
+					Body:            elt.Block,
+					Source:          elt.Source,
+					DeclarationList: elt.DeclarationList,
+				***REMOVED***, true)
+				f.typ = funcClsInit
+				//f.lhsName = "<static_initializer>"
+				f.homeObjOffset = 1
+				staticElements = append(staticElements, clsElement***REMOVED***
+					body: f,
+				***REMOVED***)
+			***REMOVED***
+		case *ast.FieldDefinition:
+			privateName, key, computed := e.processClassKey(elt.Key)
+			var el clsElement
+			if elt.Initializer != nil ***REMOVED***
+				el.initializer = e.c.compileExpression(elt.Initializer)
+			***REMOVED***
+			el.computed = computed
+			if computed ***REMOVED***
+				if elt.Static ***REMOVED***
+					if curIsPrototype ***REMOVED***
+						e.c.emit(defineComputedKey(5))
+					***REMOVED*** else ***REMOVED***
+						e.c.emit(defineComputedKey(4))
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					if curIsPrototype ***REMOVED***
+						e.c.emit(defineComputedKey(3))
+					***REMOVED*** else ***REMOVED***
+						e.c.emit(defineComputedKey(2))
+					***REMOVED***
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				el.privateName = privateName
+				el.key = key
+			***REMOVED***
+			if elt.Static ***REMOVED***
+				staticElements = append(staticElements, el)
+			***REMOVED*** else ***REMOVED***
+				instanceFields = append(instanceFields, el)
+			***REMOVED***
+		case *ast.MethodDefinition:
+			if elt.Static ***REMOVED***
+				if curIsPrototype ***REMOVED***
+					e.c.emit(pop)
+					curIsPrototype = false
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				if !curIsPrototype ***REMOVED***
+					e.c.emit(dupN(1))
+					curIsPrototype = true
+				***REMOVED***
+			***REMOVED***
+			privateName, key, computed := e.processClassKey(elt.Key)
+			lit := e.c.compileFunctionLiteral(elt.Body, true)
+			lit.typ = funcMethod
+			if computed ***REMOVED***
+				e.c.emit(_toPropertyKey***REMOVED******REMOVED***)
+				lit.homeObjOffset = 2
+			***REMOVED*** else ***REMOVED***
+				lit.homeObjOffset = 1
+				lit.lhsName = key
+			***REMOVED***
+			lit.emitGetter(true)
+			if privateName != nil ***REMOVED***
+				var offset int
+				if elt.Static ***REMOVED***
+					if curIsPrototype ***REMOVED***
+						/*
+							staticInit
+							proto
+							cls
+							proto
+							method
+							<- sp
+						*/
+						offset = 5
+					***REMOVED*** else ***REMOVED***
+						/*
+							staticInit
+							proto
+							cls
+							method
+							<- sp
+						*/
+						offset = 4
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					if curIsPrototype ***REMOVED***
+						offset = 3
+					***REMOVED*** else ***REMOVED***
+						offset = 2
+					***REMOVED***
+				***REMOVED***
+				switch elt.Kind ***REMOVED***
+				case ast.PropertyKindGet:
+					e.c.emit(&definePrivateGetter***REMOVED***
+						definePrivateMethod: definePrivateMethod***REMOVED***
+							idx:          privateName.idx,
+							targetOffset: offset,
+						***REMOVED***,
+					***REMOVED***)
+				case ast.PropertyKindSet:
+					e.c.emit(&definePrivateSetter***REMOVED***
+						definePrivateMethod: definePrivateMethod***REMOVED***
+							idx:          privateName.idx,
+							targetOffset: offset,
+						***REMOVED***,
+					***REMOVED***)
+				default:
+					e.c.emit(&definePrivateMethod***REMOVED***
+						idx:          privateName.idx,
+						targetOffset: offset,
+					***REMOVED***)
+				***REMOVED***
+			***REMOVED*** else if computed ***REMOVED***
+				switch elt.Kind ***REMOVED***
+				case ast.PropertyKindGet:
+					e.c.emit(&defineGetter***REMOVED******REMOVED***)
+				case ast.PropertyKindSet:
+					e.c.emit(&defineSetter***REMOVED******REMOVED***)
+				default:
+					e.c.emit(&defineMethod***REMOVED******REMOVED***)
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				switch elt.Kind ***REMOVED***
+				case ast.PropertyKindGet:
+					e.c.emit(&defineGetterKeyed***REMOVED***key: key***REMOVED***)
+				case ast.PropertyKindSet:
+					e.c.emit(&defineSetterKeyed***REMOVED***key: key***REMOVED***)
+				default:
+					e.c.emit(&defineMethodKeyed***REMOVED***key: key***REMOVED***)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	if curIsPrototype ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+
+	if len(instanceFields) > 0 ***REMOVED***
+		newClassIns.initFields = e.compileFieldsAndStaticBlocks(instanceFields, "<instance_members_initializer>")
+	***REMOVED***
+	if staticInit != nil ***REMOVED***
+		if len(staticElements) > 0 ***REMOVED***
+			staticInit.initFields = e.compileFieldsAndStaticBlocks(staticElements, "<static_initializer>")
+		***REMOVED***
+	***REMOVED***
+
+	env := e.c.classScope.instanceEnv
+	if s.dynLookup ***REMOVED***
+		newClassIns.privateMethods, newClassIns.privateFields = env.methods, env.fields
+	***REMOVED***
+	newClassIns.numPrivateMethods = uint32(len(env.methods))
+	newClassIns.numPrivateFields = uint32(len(env.fields))
+	newClassIns.hasPrivateEnv = len(e.c.classScope.privateNames) > 0
+
+	if (clsBinding != nil && clsBinding.useCount() > 0) || s.dynLookup ***REMOVED***
+		if clsBinding != nil ***REMOVED***
+			// Because this block may be in the middle of an expression, it's initial stack position
+			// cannot be known, and therefore it may not have any stack variables.
+			// Note, because clsBinding would be accessed through a function, it should already be in stash,
+			// this is just to make sure.
+			clsBinding.moveToStash()
+			clsBinding.emitInit()
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if clsBinding != nil ***REMOVED***
+			s.deleteBinding(clsBinding)
+			clsBinding = nil
+		***REMOVED***
+		e.c.p.code[mark0] = jump(1)
+	***REMOVED***
+
+	if staticsCount > 0 || hasStaticPrivateMethods ***REMOVED***
+		ise := &initStaticElements***REMOVED******REMOVED***
+		e.c.emit(ise)
+		env := e.c.classScope.staticEnv
+		staticInit.numPrivateFields = uint32(len(env.fields))
+		staticInit.numPrivateMethods = uint32(len(env.methods))
+		if s.dynLookup ***REMOVED***
+			// These cannot be set on staticInit, because it is executed before ClassHeritage, and therefore
+			// the VM's PrivateEnvironment is still not set.
+			ise.privateFields = env.fields
+			ise.privateMethods = env.methods
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		e.c.emit(endVariadic) // re-using as semantics match
+	***REMOVED***
+
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+
+	if clsBinding != nil || s.dynLookup ***REMOVED***
+		e.c.leaveScopeBlock(enter)
+		e.c.assert(enter.stackSize == 0, e.offset, "enter.StackSize != 0 in compiledClassLiteral")
+	***REMOVED*** else ***REMOVED***
+		e.c.block = e.c.block.outer
+	***REMOVED***
+	if len(e.c.classScope.privateNames) > 0 ***REMOVED***
+		e.c.emit(popPrivateEnv***REMOVED******REMOVED***)
+	***REMOVED***
+	e.c.classScope = e.c.classScope.outer
+	e.c.popScope()
+***REMOVED***
+
+func (e *compiledClassLiteral) compileFieldsAndStaticBlocks(elements []clsElement, funcName unistring.String) *Program ***REMOVED***
+	savedPrg := e.c.p
+	savedBlock := e.c.block
+	defer func() ***REMOVED***
+		e.c.p = savedPrg
+		e.c.block = savedBlock
+	***REMOVED***()
+
+	e.c.block = &block***REMOVED***
+		typ: blockScope,
+	***REMOVED***
+
+	e.c.p = &Program***REMOVED***
+		src:      savedPrg.src,
+		funcName: funcName,
+		code:     make([]instruction, 2, len(elements)*2+3),
+	***REMOVED***
+
+	e.c.newScope()
+	s := e.c.scope
+	s.funcType = funcClsInit
+	thisBinding := s.createThisBinding()
+
+	valIdx := 0
+	for _, elt := range elements ***REMOVED***
+		if elt.body != nil ***REMOVED***
+			e.c.emit(dup) // this
+			elt.body.emitGetter(true)
+			elt.body.addSrcMap()
+			e.c.emit(call(0), pop)
+		***REMOVED*** else ***REMOVED***
+			if elt.computed ***REMOVED***
+				e.c.emit(loadComputedKey(valIdx))
+				valIdx++
+			***REMOVED***
+			if init := elt.initializer; init != nil ***REMOVED***
+				if !elt.computed ***REMOVED***
+					e.c.emitNamedOrConst(init, elt.key)
+				***REMOVED*** else ***REMOVED***
+					e.c.emitExpr(init, true)
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(loadUndef)
+			***REMOVED***
+			if elt.privateName != nil ***REMOVED***
+				e.c.emit(&definePrivateProp***REMOVED***
+					idx: elt.privateName.idx,
+				***REMOVED***)
+			***REMOVED*** else if elt.computed ***REMOVED***
+				e.c.emit(defineProp***REMOVED******REMOVED***)
+			***REMOVED*** else ***REMOVED***
+				e.c.emit(definePropKeyed(elt.key))
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	e.c.emit(halt)
+	if s.isDynamic() || thisBinding.useCount() > 0 ***REMOVED***
+		if s.isDynamic() || thisBinding.inStash ***REMOVED***
+			thisBinding.emitInitAt(1)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		s.deleteBinding(thisBinding)
+	***REMOVED***
+	stashSize, stackSize := s.finaliseVarAlloc(0)
+	e.c.assert(stackSize == 0, e.offset, "stackSize != 0 in initFields")
+	if stashSize > 0 ***REMOVED***
+		e.c.assert(stashSize == 1, e.offset, "stashSize != 1 in initFields")
+		enter := &enterFunc***REMOVED***
+			stashSize: 1,
+			funcType:  funcClsInit,
+		***REMOVED***
+		if s.dynLookup ***REMOVED***
+			enter.names = s.makeNamesMap()
+		***REMOVED***
+		e.c.p.code[0] = enter
+	***REMOVED*** else ***REMOVED***
+		s.trimCode(2)
+	***REMOVED***
+	res := e.c.p
+	e.c.popScope()
+	return res
+***REMOVED***
+
+func (c *compiler) compileClassLiteral(v *ast.ClassLiteral, isExpr bool) *compiledClassLiteral ***REMOVED***
+	if v.Name != nil ***REMOVED***
+		c.checkIdentifierLName(v.Name.Name, int(v.Name.Idx)-1)
+	***REMOVED***
+	r := &compiledClassLiteral***REMOVED***
+		name:       v.Name,
+		superClass: c.compileExpression(v.SuperClass),
+		body:       v.Body,
+		source:     v.Source,
+		isExpr:     isExpr,
+	***REMOVED***
+	r.init(c, v.Idx0())
+	return r
+***REMOVED***
+
+func (c *compiler) compileCtor(ctor *ast.FunctionLiteral, derived bool) (p *Program, length int) ***REMOVED***
+	f := c.compileFunctionLiteral(ctor, true)
+	if derived ***REMOVED***
+		f.typ = funcDerivedCtor
+	***REMOVED*** else ***REMOVED***
+		f.typ = funcCtor
+	***REMOVED***
+	p, _, length, _ = f.compile()
+	return
 ***REMOVED***
 
 func (c *compiler) compileArrowFunctionLiteral(v *ast.ArrowFunctionLiteral) *compiledFunctionLiteral ***REMOVED***
@@ -1325,26 +2247,37 @@ func (c *compiler) compileArrowFunctionLiteral(v *ast.ArrowFunctionLiteral) *com
 		source:          v.Source,
 		declarationList: v.DeclarationList,
 		isExpr:          true,
-		isArrow:         true,
+		typ:             funcArrow,
 		strict:          strictBody,
 	***REMOVED***
 	r.init(c, v.Idx0())
 	return r
 ***REMOVED***
 
-func (e *compiledThisExpr) emitGetter(putOnStack bool) ***REMOVED***
-	if putOnStack ***REMOVED***
-		e.addSrcMap()
-		scope := e.c.scope
-		for ; scope != nil && (scope.arrow || !scope.function && !scope.eval); scope = scope.outer ***REMOVED***
-		***REMOVED***
-
-		if scope != nil ***REMOVED***
-			scope.thisNeeded = true
-			e.c.emit(loadStack(0))
+func (c *compiler) emitLoadThis() ***REMOVED***
+	b, eval := c.scope.lookupThis()
+	if b != nil ***REMOVED***
+		b.emitGet()
+	***REMOVED*** else ***REMOVED***
+		if eval ***REMOVED***
+			c.emit(getThisDynamic***REMOVED******REMOVED***)
 		***REMOVED*** else ***REMOVED***
-			e.c.emit(loadGlobalObject)
+			c.emit(loadGlobalObject)
 		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledThisExpr) emitGetter(putOnStack bool) ***REMOVED***
+	e.addSrcMap()
+	e.c.emitLoadThis()
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledSuperExpr) emitGetter(putOnStack bool) ***REMOVED***
+	if putOnStack ***REMOVED***
+		e.c.emit(loadSuper)
 	***REMOVED***
 ***REMOVED***
 
@@ -1394,6 +2327,9 @@ func (c *compiler) compileNewExpression(v *ast.NewExpression) compiledExpr ***RE
 ***REMOVED***
 
 func (e *compiledNewTarget) emitGetter(putOnStack bool) ***REMOVED***
+	if s := e.c.scope.nearestThis(); s == nil || s.funcType == funcNone ***REMOVED***
+		e.c.throwSyntaxError(e.offset, "new.target expression is not allowed here")
+	***REMOVED***
 	if putOnStack ***REMOVED***
 		e.addSrcMap()
 		e.c.emit(loadNewTarget)
@@ -1452,7 +2388,8 @@ func (c *compiler) emitThrow(v Value) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
-	panic(fmt.Errorf("unknown exception type thrown while evaliating constant expression: %s", v.String()))
+	c.assert(false, 0, "unknown exception type thrown while evaluating constant expression: %s", v.String())
+	panic("unreachable")
 ***REMOVED***
 
 func (c *compiler) emitConst(expr compiledExpr, putOnStack bool) ***REMOVED***
@@ -1557,7 +2494,8 @@ func (e *compiledUnaryExpr) emitGetter(putOnStack bool) ***REMOVED***
 		***REMOVED***
 		return
 	default:
-		panic(fmt.Errorf("Unknown unary operator: %s", e.operator.String()))
+		e.c.assert(false, e.offset, "Unknown unary operator: %s", e.operator.String())
+		panic("unreachable")
 	***REMOVED***
 
 	e.operand.emitUnary(prepare, body, e.postfix, putOnStack)
@@ -1779,7 +2717,8 @@ func (e *compiledBinaryExpr) emitGetter(putOnStack bool) ***REMOVED***
 	case token.UNSIGNED_SHIFT_RIGHT:
 		e.c.emit(shr)
 	default:
-		panic(fmt.Errorf("Unknown operator: %s", e.operator.String()))
+		e.c.assert(false, e.offset, "Unknown operator: %s", e.operator.String())
+		panic("unreachable")
 	***REMOVED***
 
 	if !putOnStack ***REMOVED***
@@ -1798,12 +2737,44 @@ func (c *compiler) compileBinaryExpression(v *ast.BinaryExpression) compiledExpr
 		return c.compileLogicalAnd(v.Left, v.Right, v.Idx0())
 	***REMOVED***
 
+	if id, ok := v.Left.(*ast.PrivateIdentifier); ok ***REMOVED***
+		return c.compilePrivateIn(id, v.Right, id.Idx)
+	***REMOVED***
+
 	r := &compiledBinaryExpr***REMOVED***
 		left:     c.compileExpression(v.Left),
 		right:    c.compileExpression(v.Right),
 		operator: v.Operator,
 	***REMOVED***
 	r.init(c, v.Idx0())
+	return r
+***REMOVED***
+
+type compiledPrivateIn struct ***REMOVED***
+	baseCompiledExpr
+	id    unistring.String
+	right compiledExpr
+***REMOVED***
+
+func (e *compiledPrivateIn) emitGetter(putOnStack bool) ***REMOVED***
+	e.right.emitGetter(true)
+	rn, id := e.c.resolvePrivateName(e.id, e.offset)
+	if rn != nil ***REMOVED***
+		e.c.emit((*privateInRes)(rn))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit((*privateInId)(id))
+	***REMOVED***
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compilePrivateIn(id *ast.PrivateIdentifier, right ast.Expression, idx file.Idx) compiledExpr ***REMOVED***
+	r := &compiledPrivateIn***REMOVED***
+		id:    id.Name,
+		right: c.compileExpression(right),
+	***REMOVED***
+	r.init(c, idx)
 	return r
 ***REMOVED***
 
@@ -1841,43 +2812,44 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	for _, prop := range e.expr.Value ***REMOVED***
 		switch prop := prop.(type) ***REMOVED***
 		case *ast.PropertyKeyed:
-			keyExpr := e.c.compileExpression(prop.Key)
-			computed := false
-			var key unistring.String
-			switch keyExpr := keyExpr.(type) ***REMOVED***
-			case *compiledLiteral:
-				key = keyExpr.val.string()
-			default:
-				keyExpr.emitGetter(true)
-				computed = true
-			***REMOVED***
+			key, computed := e.c.processKey(prop.Key)
 			valueExpr := e.c.compileExpression(prop.Value)
-			var anonFn *compiledFunctionLiteral
+			var ne namedEmitter
 			if fn, ok := valueExpr.(*compiledFunctionLiteral); ok ***REMOVED***
 				if fn.name == nil ***REMOVED***
-					anonFn = fn
+					ne = fn
 				***REMOVED***
 				switch prop.Kind ***REMOVED***
 				case ast.PropertyKindMethod, ast.PropertyKindGet, ast.PropertyKindSet:
-					fn.isMethod = true
+					fn.typ = funcMethod
+					if computed ***REMOVED***
+						fn.homeObjOffset = 2
+					***REMOVED*** else ***REMOVED***
+						fn.homeObjOffset = 1
+					***REMOVED***
 				***REMOVED***
+			***REMOVED*** else if v, ok := valueExpr.(namedEmitter); ok ***REMOVED***
+				ne = v
 			***REMOVED***
 			if computed ***REMOVED***
 				e.c.emit(_toPropertyKey***REMOVED******REMOVED***)
 				e.c.emitExpr(valueExpr, true)
 				switch prop.Kind ***REMOVED***
-				case ast.PropertyKindValue, ast.PropertyKindMethod:
-					if anonFn != nil ***REMOVED***
+				case ast.PropertyKindValue:
+					if ne != nil ***REMOVED***
 						e.c.emit(setElem1Named)
 					***REMOVED*** else ***REMOVED***
 						e.c.emit(setElem1)
 					***REMOVED***
+				case ast.PropertyKindMethod:
+					e.c.emit(&defineMethod***REMOVED***enumerable: true***REMOVED***)
 				case ast.PropertyKindGet:
-					e.c.emit(setPropGetter1)
+					e.c.emit(&defineGetter***REMOVED***enumerable: true***REMOVED***)
 				case ast.PropertyKindSet:
-					e.c.emit(setPropSetter1)
+					e.c.emit(&defineSetter***REMOVED***enumerable: true***REMOVED***)
 				default:
-					panic(fmt.Errorf("unknown property kind: %s", prop.Kind))
+					e.c.assert(false, e.offset, "unknown property kind: %s", prop.Kind)
+					panic("unreachable")
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				isProto := key == __proto__ && !prop.Computed
@@ -1888,25 +2860,27 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 						hasProto = true
 					***REMOVED***
 				***REMOVED***
-				if anonFn != nil && !isProto ***REMOVED***
-					anonFn.lhsName = key
+				if ne != nil && !isProto ***REMOVED***
+					ne.emitNamed(key)
+				***REMOVED*** else ***REMOVED***
+					e.c.emitExpr(valueExpr, true)
 				***REMOVED***
-				e.c.emitExpr(valueExpr, true)
 				switch prop.Kind ***REMOVED***
 				case ast.PropertyKindValue:
 					if isProto ***REMOVED***
 						e.c.emit(setProto)
 					***REMOVED*** else ***REMOVED***
-						e.c.emit(setProp1(key))
+						e.c.emit(putProp(key))
 					***REMOVED***
 				case ast.PropertyKindMethod:
-					e.c.emit(setProp1(key))
+					e.c.emit(&defineMethodKeyed***REMOVED***key: key, enumerable: true***REMOVED***)
 				case ast.PropertyKindGet:
-					e.c.emit(setPropGetter(key))
+					e.c.emit(&defineGetterKeyed***REMOVED***key: key, enumerable: true***REMOVED***)
 				case ast.PropertyKindSet:
-					e.c.emit(setPropSetter(key))
+					e.c.emit(&defineSetterKeyed***REMOVED***key: key, enumerable: true***REMOVED***)
 				default:
-					panic(fmt.Errorf("unknown property kind: %s", prop.Kind))
+					e.c.assert(false, e.offset, "unknown property kind: %s", prop.Kind)
+					panic("unreachable")
 				***REMOVED***
 			***REMOVED***
 		case *ast.PropertyShort:
@@ -1918,12 +2892,13 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				e.c.throwSyntaxError(e.offset, "'let' cannot be used as a shorthand property in strict mode")
 			***REMOVED***
 			e.c.compileIdentifierExpression(&prop.Name).emitGetter(true)
-			e.c.emit(setProp1(key))
+			e.c.emit(putProp(key))
 		case *ast.SpreadElement:
 			e.c.compileExpression(prop.Expression).emitGetter(true)
 			e.c.emit(copySpread)
 		default:
-			panic(fmt.Errorf("unknown Property type: %T", prop))
+			e.c.assert(false, e.offset, "unknown Property type: %T", prop)
+			panic("unreachable")
 		***REMOVED***
 	***REMOVED***
 	if !putOnStack ***REMOVED***
@@ -1999,13 +2974,28 @@ func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String)
 	switch callee := callee.(type) ***REMOVED***
 	case *compiledDotExpr:
 		callee.left.emitGetter(true)
-		c.emit(dup)
 		c.emit(getPropCallee(callee.name))
+	case *compiledPrivateDotExpr:
+		callee.left.emitGetter(true)
+		rn, id := c.resolvePrivateName(callee.name, callee.offset)
+		if rn != nil ***REMOVED***
+			c.emit((*getPrivatePropResCallee)(rn))
+		***REMOVED*** else ***REMOVED***
+			c.emit((*getPrivatePropIdCallee)(id))
+		***REMOVED***
+	case *compiledSuperDotExpr:
+		c.emitLoadThis()
+		c.emit(loadSuper)
+		c.emit(getPropRecvCallee(callee.name))
 	case *compiledBracketExpr:
 		callee.left.emitGetter(true)
-		c.emit(dup)
 		callee.member.emitGetter(true)
 		c.emit(getElemCallee)
+	case *compiledSuperBracketExpr:
+		c.emitLoadThis()
+		c.emit(loadSuper)
+		callee.member.emitGetter(true)
+		c.emit(getElemRecvCallee)
 	case *compiledIdentifierExpr:
 		calleeName = callee.name
 		callee.emitGetterAndCallee()
@@ -2017,6 +3007,8 @@ func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String)
 		c.emitCallee(callee.expr)
 		c.block.conts = append(c.block.conts, len(c.p.code))
 		c.emit(nil)
+	case *compiledSuperExpr:
+		// no-op
 	default:
 		c.emit(loadUndef)
 		callee.emitGetter(true)
@@ -2035,14 +3027,24 @@ func (e *compiledCallExpr) emitGetter(putOnStack bool) ***REMOVED***
 	***REMOVED***
 
 	e.addSrcMap()
-	if calleeName == "eval" ***REMOVED***
-		foundFunc, foundVar := false, false
+	if _, ok := e.callee.(*compiledSuperExpr); ok ***REMOVED***
+		b, eval := e.c.scope.lookupThis()
+		e.c.assert(eval || b != nil, e.offset, "super call, but no 'this' binding")
+		if eval ***REMOVED***
+			e.c.emit(resolveThisDynamic***REMOVED******REMOVED***)
+		***REMOVED*** else ***REMOVED***
+			b.markAccessPoint()
+			e.c.emit(resolveThisStack***REMOVED******REMOVED***)
+		***REMOVED***
+		if e.isVariadic ***REMOVED***
+			e.c.emit(superCallVariadic)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(superCall(len(e.args)))
+		***REMOVED***
+	***REMOVED*** else if calleeName == "eval" ***REMOVED***
+		foundVar := false
 		for sc := e.c.scope; sc != nil; sc = sc.outer ***REMOVED***
-			if !foundFunc && sc.function && !sc.arrow ***REMOVED***
-				foundFunc = true
-				sc.thisNeeded, sc.argsNeeded = true, true
-			***REMOVED***
-			if !foundVar && (sc.variable || sc.function) ***REMOVED***
+			if !foundVar && (sc.variable || sc.isFunction()) ***REMOVED***
 				foundVar = true
 				if !sc.strict ***REMOVED***
 					sc.dynamic = true
@@ -2095,6 +3097,19 @@ func (c *compiler) compileSpreadCallArgument(spread *ast.SpreadElement) compiled
 	return r
 ***REMOVED***
 
+func (c *compiler) compileCallee(v ast.Expression) compiledExpr ***REMOVED***
+	if sup, ok := v.(*ast.SuperExpression); ok ***REMOVED***
+		if s := c.scope.nearestThis(); s != nil && s.funcType == funcDerivedCtor ***REMOVED***
+			e := &compiledSuperExpr***REMOVED******REMOVED***
+			e.init(c, sup.Idx)
+			return e
+		***REMOVED***
+		c.throwSyntaxError(int(v.Idx0())-1, "'super' keyword unexpected here")
+		panic("unreachable")
+	***REMOVED***
+	return c.compileExpression(v)
+***REMOVED***
+
 func (c *compiler) compileCallExpression(v *ast.CallExpression) compiledExpr ***REMOVED***
 
 	args := make([]compiledExpr, len(v.ArgumentList))
@@ -2110,7 +3125,7 @@ func (c *compiler) compileCallExpression(v *ast.CallExpression) compiledExpr ***
 
 	r := &compiledCallExpr***REMOVED***
 		args:       args,
-		callee:     c.compileExpression(v.Callee),
+		callee:     c.compileCallee(v.Callee),
 		isVariadic: isVariadic,
 	***REMOVED***
 	r.init(c, v.LeftParenthesis)
@@ -2142,7 +3157,8 @@ func (c *compiler) compileNumberLiteral(v *ast.NumberLiteral) compiledExpr ***RE
 	case float64:
 		val = floatToValue(num)
 	default:
-		panic(fmt.Errorf("Unsupported number literal type: %T", v.Value))
+		c.assert(false, int(v.Idx)-1, "Unsupported number literal type: %T", v.Value)
+		panic("unreachable")
 	***REMOVED***
 	r := &compiledLiteral***REMOVED***
 		val: val,
@@ -2244,10 +3260,12 @@ func (c *compiler) emitExpr(expr compiledExpr, putOnStack bool) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+type namedEmitter interface ***REMOVED***
+	emitNamed(name unistring.String)
+***REMOVED***
+
 func (c *compiler) emitNamed(expr compiledExpr, name unistring.String) ***REMOVED***
-	if en, ok := expr.(interface ***REMOVED***
-		emitNamed(name unistring.String)
-	***REMOVED***); ok ***REMOVED***
+	if en, ok := expr.(namedEmitter); ok ***REMOVED***
 		en.emitNamed(name)
 	***REMOVED*** else ***REMOVED***
 		expr.emitGetter(true)
@@ -2267,6 +3285,11 @@ func (e *compiledFunctionLiteral) emitNamed(name unistring.String) ***REMOVED***
 	e.emitGetter(true)
 ***REMOVED***
 
+func (e *compiledClassLiteral) emitNamed(name unistring.String) ***REMOVED***
+	e.lhsName = name
+	e.emitGetter(true)
+***REMOVED***
+
 func (c *compiler) emitPattern(pattern ast.Pattern, emitter func(target, init compiledExpr), putOnStack bool) ***REMOVED***
 	switch pattern := pattern.(type) ***REMOVED***
 	case *ast.ObjectPattern:
@@ -2274,7 +3297,8 @@ func (c *compiler) emitPattern(pattern ast.Pattern, emitter func(target, init co
 	case *ast.ArrayPattern:
 		c.emitArrayPattern(pattern, emitter, putOnStack)
 	default:
-		panic(fmt.Errorf("unsupported Pattern: %T", pattern))
+		c.assert(false, int(pattern.Idx0())-1, "unsupported Pattern: %T", pattern)
+		panic("unreachable")
 	***REMOVED***
 ***REMOVED***
 
