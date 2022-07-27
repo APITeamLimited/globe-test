@@ -91,7 +91,7 @@ var (
 		"String.prototype.at",     // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 		"TypedArray.prototype.at", // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 	***REMOVED***
-	skipWords = []string***REMOVED***"yield", "generator", "Generator"***REMOVED***
+	skipWords = []string***REMOVED***"yield", "generator", "Generator", "async", "await"***REMOVED***
 	skipList  = map[string]bool***REMOVED***
 		"test/built-ins/Function/prototype/toString/AsyncFunction.js": true,
 		"test/built-ins/Object/seal/seal-generatorfunction.js":        true,
