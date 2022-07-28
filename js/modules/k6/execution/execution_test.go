@@ -27,7 +27,6 @@ import (
 
 func setupTagsExecEnv(t *testing.T) *modulestest.Runtime ***REMOVED***
 	testRuntime := modulestest.NewRuntime(t)
-	testRuntime.SetInitContext(&common.InitEnvironment***REMOVED******REMOVED***)
 	m, ok := New().NewModuleInstance(testRuntime.VU).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, testRuntime.VU.Runtime().Set("exec", m.Exports().Default))

@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc/test/grpc_testing"
 	"gopkg.in/guregu/null.v3"
 
-	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/fsext"
@@ -78,17 +77,8 @@ func TestClient(t *testing.T) ***REMOVED***
 		if isWindows ***REMOVED***
 			fs = fsext.NewTrimFilePathSeparatorFs(fs)
 		***REMOVED***
-		initEnv := &common.InitEnvironment***REMOVED***
-			Logger: logrus.New(),
-			CWD:    &url.URL***REMOVED***Path: cwd***REMOVED***,
-			FileSystems: map[string]afero.Fs***REMOVED***
-				"file": fs,
-			***REMOVED***,
-		***REMOVED***
-		testRuntime.SetInitContext(initEnv)
-
-		rt := goja.New()
-		rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+		testRuntime.VU.InitEnvField.CWD = &url.URL***REMOVED***Path: cwd***REMOVED***
+		testRuntime.VU.InitEnvField.FileSystems = map[string]afero.Fs***REMOVED***"file": fs***REMOVED***
 
 		return testState***REMOVED***
 			Runtime: testRuntime,
