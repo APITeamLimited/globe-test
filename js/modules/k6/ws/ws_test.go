@@ -34,6 +34,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -42,6 +43,7 @@ import (
 	httpModule "go.k6.io/k6/js/modules/k6/http"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
 )
@@ -123,6 +125,7 @@ func newTestState(t testing.TB) testState ***REMOVED***
 				metrics.TagSubproto,
 			),
 			UserAgent: null.StringFrom("TestUserAgent"),
+			Throw:     null.BoolFrom(true),
 		***REMOVED***,
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
@@ -655,6 +658,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
 			SystemTags: &metrics.DefaultSystemTagSet,
+			Throw:      null.BoolFrom(true),
 		***REMOVED***,
 		Samples:        samples,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
@@ -1287,4 +1291,50 @@ func TestCookieJar(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
+***REMOVED***
+
+func TestWSConnectEnableThrowErrorOption(t *testing.T) ***REMOVED***
+	t.Parallel()
+	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	testLog := logrus.New()
+	testLog.AddHook(logHook)
+	testLog.SetOutput(io.Discard)
+	ts := newTestState(t)
+	ts.state.Logger = testLog
+	_, err := ts.rt.RunString(`
+		var res = ws.connect("INVALID", function(socket)***REMOVED***
+			socket.on("open", function() ***REMOVED***
+				socket.close();
+			***REMOVED***);
+		***REMOVED***);
+		`)
+	entries := logHook.Drain()
+	require.Len(t, entries, 0)
+	assert.Error(t, err)
+***REMOVED***
+
+func TestWSConnectDisableThrowErrorOption(t *testing.T) ***REMOVED***
+	t.Parallel()
+	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	testLog := logrus.New()
+	testLog.AddHook(logHook)
+	testLog.SetOutput(io.Discard)
+
+	ts := newTestState(t)
+	ts.state.Logger = testLog
+	ts.state.Options.Throw = null.BoolFrom(false)
+	_, err := ts.rt.RunString(`
+		var res = ws.connect("INVALID", function(socket)***REMOVED***
+			socket.on("open", function() ***REMOVED***
+				socket.close();
+			***REMOVED***);
+		***REMOVED***);
+		if (res == null && res.error == null) ***REMOVED***
+			throw new Error("res.error is expected to be not null");
+		***REMOVED***
+		`)
+	assert.NoError(t, err)
+	entries := logHook.Drain()
+	require.Len(t, entries, 1)
+	assert.Contains(t, entries[0].Message, "Attempt to establish a WebSocket connection failed")
 ***REMOVED***
