@@ -47,6 +47,15 @@ func getTestPreInitState(tb testing.TB) *lib.TestPreInitState ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func getTestRunState(tb testing.TB, options lib.Options, runner lib.Runner) *lib.TestRunState ***REMOVED***
+	require.NoError(tb, runner.SetOptions(runner.GetOptions().Apply(options)))
+	return &lib.TestRunState***REMOVED***
+		TestPreInitState: getTestPreInitState(tb),
+		Options:          options,
+		Runner:           runner,
+	***REMOVED***
+***REMOVED***
+
 func TestGetGroups(t *testing.T) ***REMOVED***
 	g0, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
@@ -55,10 +64,10 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	g2, err := g1.Group("group 2")
 	assert.NoError(t, err)
 
-	piState := getTestPreInitState(t)
-	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***, piState)
+	testState := getTestRunState(t, lib.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***)
+	execScheduler, err := local.NewExecutionScheduler(testState)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, piState.RuntimeOptions, nil, piState.Logger, piState.Registry)
+	engine, err := core.NewEngine(testState, execScheduler, nil)
 	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
