@@ -25,8 +25,8 @@ const (
 	testTypeArchive = "archive"
 )
 
-// loadedTest contains all of data, details and dependencies of a fully-loaded
-// and configured k6 test.
+// loadedTest contains all of data, details and dependencies of a loaded
+// k6 test, but without any config consolidation.
 type loadedTest struct ***REMOVED***
 	sourceRootPath string // contains the raw string the user supplied
 	pwd            string
@@ -35,18 +35,17 @@ type loadedTest struct ***REMOVED***
 	fileSystems    map[string]afero.Fs
 	preInitState   *lib.TestPreInitState
 	initRunner     lib.Runner // TODO: rename to something more appropriate
+***REMOVED***
 
-	// Only set if cliConfigGetter is supplied to loadAndConfigureTest() or if
-	// consolidateDeriveAndValidateConfig() is manually called.
+// loadedAndConfiguredTest contains the whole loadedTest, as well as the
+// consolidated test config and the full test run state.
+type loadedAndConfiguredTest struct ***REMOVED***
+	*loadedTest
 	consolidatedConfig Config
 	derivedConfig      Config
 ***REMOVED***
 
-func loadAndConfigureTest(
-	gs *globalState, cmd *cobra.Command, args []string,
-	// supply this if you want the test config consolidated and validated
-	cliConfigGetter func(flags *pflag.FlagSet) (Config, error), // TODO: obviate
-) (*loadedTest, error) ***REMOVED***
+func loadTest(gs *globalState, cmd *cobra.Command, args []string) (*loadedTest, error) ***REMOVED***
 	if len(args) < 1 ***REMOVED***
 		return nil, fmt.Errorf("k6 needs at least one argument to load the test")
 	***REMOVED***
@@ -91,13 +90,6 @@ func loadAndConfigureTest(
 		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
 	***REMOVED***
 	gs.logger.Debug("Runner successfully initialized!")
-
-	if cliConfigGetter != nil ***REMOVED***
-		if err := test.consolidateDeriveAndValidateConfig(gs, cmd, cliConfigGetter); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-
 	return test, nil
 ***REMOVED***
 
@@ -187,21 +179,21 @@ func detectTestType(data []byte) string ***REMOVED***
 func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, cmd *cobra.Command,
 	cliConfGetter func(flags *pflag.FlagSet) (Config, error), // TODO: obviate
-) error ***REMOVED***
+) (*loadedAndConfiguredTest, error) ***REMOVED***
 	var cliConfig Config
 	if cliConfGetter != nil ***REMOVED***
 		gs.logger.Debug("Parsing CLI flags...")
 		var err error
 		cliConfig, err = cliConfGetter(cmd.Flags())
 		if err != nil ***REMOVED***
-			return err
+			return nil, err
 		***REMOVED***
 	***REMOVED***
 
 	gs.logger.Debug("Consolidating config layers...")
 	consolidatedConfig, err := getConsolidatedConfig(gs, cliConfig, lt.initRunner.GetOptions())
 	if err != nil ***REMOVED***
-		return err
+		return nil, err
 	***REMOVED***
 
 	gs.logger.Debug("Parsing thresholds and validating config...")
@@ -212,25 +204,38 @@ func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds ***REMOVED***
 			err = thresholdsDefinition.Parse()
 			if err != nil ***REMOVED***
-				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***
 
 			err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
 			if err != nil ***REMOVED***
-				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable, gs.logger)
 	if err != nil ***REMOVED***
-		return err
+		return nil, err
 	***REMOVED***
 
-	lt.consolidatedConfig = consolidatedConfig
-	lt.derivedConfig = derivedConfig
+	return &loadedAndConfiguredTest***REMOVED***
+		loadedTest:         lt,
+		consolidatedConfig: consolidatedConfig,
+		derivedConfig:      derivedConfig,
+	***REMOVED***, nil
+***REMOVED***
 
-	return nil
+func loadAndConfigureTest(
+	gs *globalState, cmd *cobra.Command, args []string,
+	cliConfigGetter func(flags *pflag.FlagSet) (Config, error),
+) (*loadedAndConfiguredTest, error) ***REMOVED***
+	test, err := loadTest(gs, cmd, args)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return test.consolidateDeriveAndValidateConfig(gs, cmd, cliConfigGetter)
 ***REMOVED***
 
 type syncWriteCloser struct ***REMOVED***
