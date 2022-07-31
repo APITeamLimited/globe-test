@@ -860,7 +860,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					r.Logger, _ = logtest.NewNullLogger()
+					r.runtimeState.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
 					require.NoError(t, err)
@@ -1169,7 +1169,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					r.Logger, _ = logtest.NewNullLogger()
+					r.runtimeState.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
 					require.NoError(t, err)
@@ -1596,7 +1596,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					r.Logger, _ = logtest.NewNullLogger()
+					r.runtimeState.Logger, _ = logtest.NewNullLogger()
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
 					require.NoError(t, err)
 					ctx, cancel := context.WithCancel(context.Background())
