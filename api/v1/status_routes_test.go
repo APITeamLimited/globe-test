@@ -29,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -37,21 +36,16 @@ import (
 	"go.k6.io/k6/core"
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/minirunner"
-	"go.k6.io/k6/metrics"
 )
 
 func TestGetStatus(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, builtinMetrics, logger)
+	rs := getRuntimeState(t)
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, rs)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, rs.RuntimeOptions, nil, rs.Logger, rs.Registry)
 	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
@@ -128,8 +122,6 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 	for name, testCase := range testData ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			logger := logrus.New()
-			logger.SetOutput(testutils.NewTestOutput(t))
 
 			scenarios := lib.ScenarioConfigs***REMOVED******REMOVED***
 			err := json.Unmarshal([]byte(`
@@ -138,11 +130,10 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			options := lib.Options***REMOVED***Scenarios: scenarios***REMOVED***
 
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, builtinMetrics, logger)
+			rs := getRuntimeState(t)
+			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, rs)
 			require.NoError(t, err)
-			engine, err := core.NewEngine(execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
+			engine, err := core.NewEngine(execScheduler, options, rs.RuntimeOptions, nil, rs.Logger, rs.Registry)
 			require.NoError(t, err)
 
 			require.NoError(t, engine.OutputManager.StartOutputs())

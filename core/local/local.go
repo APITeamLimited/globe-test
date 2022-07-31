@@ -38,9 +38,9 @@ import (
 
 // ExecutionScheduler is the local implementation of lib.ExecutionScheduler
 type ExecutionScheduler struct ***REMOVED***
-	runner  lib.Runner
-	options lib.Options
-	logger  logrus.FieldLogger
+	runner       lib.Runner
+	options      lib.Options
+	runtimeState *lib.RuntimeState
 
 	initProgress    *pb.ProgressBar
 	executorConfigs []lib.ExecutorConfig // sorted by (startTime, ID)
@@ -62,9 +62,7 @@ var _ lib.ExecutionScheduler = &ExecutionScheduler***REMOVED******REMOVED***
 // instance, without initializing it beyond the bare minimum. Specifically, it
 // creates the needed executor instances and a lot of state placeholders, but it
 // doesn't initialize the executors and it doesn't initialize or run VUs.
-func NewExecutionScheduler(
-	runner lib.Runner, builtinMetrics *metrics.BuiltinMetrics, logger logrus.FieldLogger,
-) (*ExecutionScheduler, error) ***REMOVED***
+func NewExecutionScheduler(runner lib.Runner, rs *lib.RuntimeState) (*ExecutionScheduler, error) ***REMOVED***
 	options := runner.GetOptions()
 	et, err := lib.NewExecutionTuple(options.ExecutionSegment, options.ExecutionSegmentSequence)
 	if err != nil ***REMOVED***
@@ -74,7 +72,7 @@ func NewExecutionScheduler(
 	maxPlannedVUs := lib.GetMaxPlannedVUs(executionPlan)
 	maxPossibleVUs := lib.GetMaxPossibleVUs(executionPlan)
 
-	executionState := lib.NewExecutionState(options, et, builtinMetrics, maxPlannedVUs, maxPossibleVUs)
+	executionState := lib.NewExecutionState(options, et, rs.BuiltinMetrics, maxPlannedVUs, maxPossibleVUs)
 	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
 	executorConfigs := options.Scenarios.GetSortedConfigs()
@@ -82,13 +80,13 @@ func NewExecutionScheduler(
 	// Only take executors which have work.
 	for _, sc := range executorConfigs ***REMOVED***
 		if !sc.HasWork(et) ***REMOVED***
-			logger.Warnf(
+			rs.Logger.Warnf(
 				"Executor '%s' is disabled for segment %s due to lack of work!",
 				sc.GetName(), options.ExecutionSegment,
 			)
 			continue
 		***REMOVED***
-		s, err := sc.NewExecutor(executionState, logger.WithFields(logrus.Fields***REMOVED***
+		s, err := sc.NewExecutor(executionState, rs.Logger.WithFields(logrus.Fields***REMOVED***
 			"scenario": sc.GetName(),
 			"executor": sc.GetType(),
 		***REMOVED***))
@@ -105,9 +103,9 @@ func NewExecutionScheduler(
 	***REMOVED***
 
 	return &ExecutionScheduler***REMOVED***
-		runner:  runner,
-		logger:  logger,
-		options: options,
+		runner:       runner,
+		runtimeState: rs,
+		options:      options,
 
 		initProgress:    pb.New(pb.WithConstLeft("Init")),
 		executors:       executors,
@@ -165,7 +163,7 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep ***REMOVED**
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 func (e *ExecutionScheduler) initVU(
-	samplesOut chan<- metrics.SampleContainer, logger *logrus.Entry,
+	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger,
 ) (lib.InitializedVU, error) ***REMOVED***
 	// Get the VU IDs here, so that the VUs are (mostly) ordered by their
 	// number in the channel buffer
@@ -201,7 +199,7 @@ func (e *ExecutionScheduler) getRunStats() string ***REMOVED***
 
 func (e *ExecutionScheduler) initVUsConcurrently(
 	ctx context.Context, samplesOut chan<- metrics.SampleContainer, count uint64,
-	concurrency int, logger *logrus.Entry,
+	concurrency int, logger logrus.FieldLogger,
 ) chan error ***REMOVED***
 	doneInits := make(chan error, count) // poor man's early-return waitgroup
 	limiter := make(chan struct***REMOVED******REMOVED***)
@@ -233,7 +231,7 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 ***REMOVED***
 
 func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- metrics.SampleContainer) ***REMOVED***
-	e.logger.Debug("Starting emission of VUs and VUsMax metrics...")
+	e.runtimeState.Logger.Debug("Starting emission of VUs and VUsMax metrics...")
 
 	emitMetrics := func() ***REMOVED***
 		t := time.Now()
@@ -261,7 +259,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 	go func() ***REMOVED***
 		defer func() ***REMOVED***
 			ticker.Stop()
-			e.logger.Debug("Metrics emission of VUs and VUsMax metrics stopped")
+			e.runtimeState.Logger.Debug("Metrics emission of VUs and VUsMax metrics stopped")
 			close(e.vusEmissionStopped)
 		***REMOVED***()
 
@@ -283,7 +281,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer) error ***REMOVED***
 	e.emitVUsAndVUsMax(ctx, samplesOut)
 
-	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
+	logger := e.runtimeState.Logger.WithField("phase", "local-execution-scheduler-init")
 	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
 	logger.WithFields(logrus.Fields***REMOVED***
 		"neededVUs":      vusToInitialize,
@@ -350,7 +348,7 @@ func (e *ExecutionScheduler) runExecutor(
 ) ***REMOVED***
 	executorConfig := executor.GetConfig()
 	executorStartTime := executorConfig.GetStartTime()
-	executorLogger := e.logger.WithFields(logrus.Fields***REMOVED***
+	executorLogger := e.runtimeState.Logger.WithFields(logrus.Fields***REMOVED***
 		"executor":  executorConfig.GetName(),
 		"type":      executorConfig.GetType(),
 		"startTime": executorStartTime,
@@ -402,7 +400,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	***REMOVED***()
 
 	executorsCount := len(e.executors)
-	logger := e.logger.WithField("phase", "local-execution-scheduler-run")
+	logger := e.runtimeState.Logger.WithField("phase", "local-execution-scheduler-run")
 	e.initProgress.Modify(pb.WithConstLeft("Run"))
 	var interrupted bool
 	defer func() ***REMOVED***
@@ -499,7 +497,7 @@ func (e *ExecutionScheduler) SetPaused(pause bool) error ***REMOVED***
 		if pause ***REMOVED***
 			return fmt.Errorf("execution is already paused")
 		***REMOVED***
-		e.logger.Debug("Starting execution")
+		e.runtimeState.Logger.Debug("Starting execution")
 		return e.state.Resume()
 	***REMOVED***
 

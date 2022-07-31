@@ -31,7 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -40,10 +39,8 @@ import (
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
 )
 
 func TestSetupData(t *testing.T) ***REMOVED***
@@ -140,19 +137,9 @@ func TestSetupData(t *testing.T) ***REMOVED***
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
-			logger := logrus.New()
-			logger.SetOutput(testutils.NewTestOutput(t))
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-
+			rs := getRuntimeState(t)
 			runner, err := js.New(
-				&lib.RuntimeState***REMOVED***
-					Logger:         logger,
-					BuiltinMetrics: builtinMetrics,
-					Registry:       registry,
-				***REMOVED***,
-				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: testCase.script***REMOVED***,
-				nil,
+				rs, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: testCase.script***REMOVED***, nil,
 			)
 			require.NoError(t, err)
 			runner.SetOptions(lib.Options***REMOVED***
@@ -163,9 +150,11 @@ func TestSetupData(t *testing.T) ***REMOVED***
 				SetupTimeout:    types.NullDurationFrom(5 * time.Second),
 				TeardownTimeout: types.NullDurationFrom(5 * time.Second),
 			***REMOVED***)
-			execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
+			execScheduler, err := local.NewExecutionScheduler(runner, rs)
 			require.NoError(t, err)
-			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
+			engine, err := core.NewEngine(
+				execScheduler, runner.GetOptions(), rs.RuntimeOptions, nil, rs.Logger, rs.Registry,
+			)
 			require.NoError(t, err)
 
 			require.NoError(t, engine.OutputManager.StartOutputs())

@@ -16,7 +16,6 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
 	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
@@ -29,30 +28,43 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.WarnLevel, logrus.ErrorLevel***REMOVED******REMOVED***
 	logger.AddHook(logHook)
 
-	script = []byte(`import ***REMOVED***setTimeout***REMOVED*** from "k6/x/events";
-  ` + string(script))
 	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	runner, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         logger,
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-		***REMOVED***,
-		&loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-			Data: script,
-		***REMOVED***,
-		nil,
-	)
+	rs := &lib.RuntimeState***REMOVED***
+		Logger:         logger,
+		Registry:       registry,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+	***REMOVED***
+
+	script = []byte("import ***REMOVED***setTimeout***REMOVED*** from 'k6/x/events';\n" + string(script))
+	runner, err := js.New(rs, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger,
-		lib.Options***REMOVED***
-			TeardownTimeout: types.NullDurationFrom(time.Second),
-			SetupTimeout:    types.NullDurationFrom(time.Second),
-		***REMOVED***, builtinMetrics)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
+		MetricSamplesBufferSize: null.NewInt(200, false),
+		TeardownTimeout:         types.NullDurationFrom(time.Second),
+		SetupTimeout:            types.NullDurationFrom(time.Second),
+	***REMOVED***.Apply(runner.GetOptions()), nil)
+	require.NoError(t, err)
+	require.Empty(t, newOpts.Validate())
+	require.NoError(t, runner.SetOptions(newOpts))
+
+	execScheduler, err := local.NewExecutionScheduler(runner, rs)
+	require.NoError(t, err)
+
+	samples := make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
+	go func() ***REMOVED***
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-samples:
+			case <-ctx.Done():
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	require.NoError(t, execScheduler.Init(ctx, samples))
 
 	errCh := make(chan error, 1)
 	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
@@ -197,43 +209,4 @@ export default function() ***REMOVED***
 			"just error\n\tat /script.js:13:4(15)\n\tat native\n", "1",
 		***REMOVED***, msgs)
 	***REMOVED***)
-***REMOVED***
-
-func newTestExecutionScheduler(
-	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options, builtinMetrics *metrics.BuiltinMetrics,
-) (ctx context.Context, cancel func(), execScheduler *local.ExecutionScheduler, samples chan metrics.SampleContainer) ***REMOVED***
-	if runner == nil ***REMOVED***
-		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
-	***REMOVED***
-	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
-		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), nil)
-	require.NoError(t, err)
-	require.Empty(t, newOpts.Validate())
-
-	require.NoError(t, runner.SetOptions(newOpts))
-
-	if logger == nil ***REMOVED***
-		logger = logrus.New()
-		logger.SetOutput(testutils.NewTestOutput(t))
-	***REMOVED***
-
-	execScheduler, err = local.NewExecutionScheduler(runner, builtinMetrics, logger)
-	require.NoError(t, err)
-
-	samples = make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
-	go func() ***REMOVED***
-		for ***REMOVED***
-			select ***REMOVED***
-			case <-samples:
-			case <-ctx.Done():
-				return
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
-
-	require.NoError(t, execScheduler.Init(ctx, samples))
-
-	return ctx, cancel, execScheduler, samples
 ***REMOVED***

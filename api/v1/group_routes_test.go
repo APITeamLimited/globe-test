@@ -26,7 +26,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,6 +37,16 @@ import (
 	"go.k6.io/k6/metrics"
 )
 
+func getRuntimeState(tb testing.TB) *lib.RuntimeState ***REMOVED***
+	reg := metrics.NewRegistry()
+	return &lib.RuntimeState***REMOVED***
+		Logger:         testutils.NewLogger(tb),
+		RuntimeOptions: lib.RuntimeOptions***REMOVED******REMOVED***,
+		Registry:       reg,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+	***REMOVED***
+***REMOVED***
+
 func TestGetGroups(t *testing.T) ***REMOVED***
 	g0, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
@@ -46,14 +55,10 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	g2, err := g1.Group("group 2")
 	assert.NoError(t, err)
 
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
-
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***, builtinMetrics, logger)
+	rs := getRuntimeState(t)
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***, rs)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, rs.RuntimeOptions, nil, rs.Logger, rs.Registry)
 	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
