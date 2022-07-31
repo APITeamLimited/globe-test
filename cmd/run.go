@@ -65,7 +65,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 
 	// Write the full consolidated *and derived* options back to the Runner.
 	conf := test.derivedConfig
-	if err = test.initRunner.SetOptions(conf.Options); err != nil ***REMOVED***
+	testRunState, err := test.buildTestRunState(conf.Options)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -86,7 +87,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	runCtx, runCancel := context.WithCancel(lingerCtx)
 	defer runCancel()
 
-	logger := test.preInitState.Logger
+	logger := testRunState.Logger
 	// Create a local execution scheduler wrapping the runner.
 	logger.Debug("Initializing the execution scheduler...")
 	execScheduler, err := local.NewExecutionScheduler(test.initRunner, test.preInitState)
@@ -126,8 +127,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	// Create the engine.
 	initBar.Modify(pb.WithConstProgress(0, "Init engine"))
 	engine, err := core.NewEngine(
-		execScheduler, conf.Options, test.preInitState.RuntimeOptions,
-		outputs, logger, test.preInitState.Registry,
+		execScheduler, conf.Options, testRunState.RuntimeOptions,
+		outputs, logger, testRunState.Registry,
 	)
 	if err != nil ***REMOVED***
 		return err
@@ -230,7 +231,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	***REMOVED***
 
 	// Handle the end-of-test summary.
-	if !test.preInitState.RuntimeOptions.NoSummary.Bool ***REMOVED***
+	if !testRunState.RuntimeOptions.NoSummary.Bool ***REMOVED***
 		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
 		summaryResult, err := test.initRunner.HandleSummary(globalCtx, &lib.Summary***REMOVED***
 			Metrics:         engine.MetricsEngine.ObservedMetrics,
@@ -268,8 +269,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	logger.Debug("Waiting for engine processes to finish...")
 	engineWait()
 	logger.Debug("Everything has finished, exiting k6!")
-	if test.preInitState.KeyLogger != nil ***REMOVED***
-		if err := test.preInitState.KeyLogger.Close(); err != nil ***REMOVED***
+	if testRunState.KeyLogger != nil ***REMOVED***
+		if err := testRunState.KeyLogger.Close(); err != nil ***REMOVED***
 			logger.WithError(err).Warn("Error while closing the SSLKEYLOGFILE")
 		***REMOVED***
 	***REMOVED***

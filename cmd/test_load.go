@@ -37,14 +37,6 @@ type loadedTest struct ***REMOVED***
 	initRunner     lib.Runner // TODO: rename to something more appropriate
 ***REMOVED***
 
-// loadedAndConfiguredTest contains the whole loadedTest, as well as the
-// consolidated test config and the full test run state.
-type loadedAndConfiguredTest struct ***REMOVED***
-	*loadedTest
-	consolidatedConfig Config
-	derivedConfig      Config
-***REMOVED***
-
 func loadTest(gs *globalState, cmd *cobra.Command, args []string) (*loadedTest, error) ***REMOVED***
 	if len(args) < 1 ***REMOVED***
 		return nil, fmt.Errorf("k6 needs at least one argument to load the test")
@@ -226,6 +218,14 @@ func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 	***REMOVED***, nil
 ***REMOVED***
 
+// loadedAndConfiguredTest contains the whole loadedTest, as well as the
+// consolidated test config and the full test run state.
+type loadedAndConfiguredTest struct ***REMOVED***
+	*loadedTest
+	consolidatedConfig Config
+	derivedConfig      Config
+***REMOVED***
+
 func loadAndConfigureTest(
 	gs *globalState, cmd *cobra.Command, args []string,
 	cliConfigGetter func(flags *pflag.FlagSet) (Config, error),
@@ -236,6 +236,23 @@ func loadAndConfigureTest(
 	***REMOVED***
 
 	return test.consolidateDeriveAndValidateConfig(gs, cmd, cliConfigGetter)
+***REMOVED***
+
+func (lct *loadedAndConfiguredTest) buildTestRunState(
+	configToReinject lib.Options,
+) (*lib.TestRunState, error) ***REMOVED***
+	// This might be the full derived or just the consodlidated options
+	if err := lct.initRunner.SetOptions(configToReinject); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	// TODO: init atlas root node, etc.
+
+	return &lib.TestRunState***REMOVED***
+		TestPreInitState: lct.preInitState,
+		Runner:           lct.initRunner,
+		Options:          lct.derivedConfig.Options, // we will always run with the derived options
+	***REMOVED***, nil
 ***REMOVED***
 
 type syncWriteCloser struct ***REMOVED***
