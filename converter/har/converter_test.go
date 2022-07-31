@@ -62,7 +62,7 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	_, err = js.New(
-		&lib.RuntimeState***REMOVED***
+		&lib.TestPreInitState***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,

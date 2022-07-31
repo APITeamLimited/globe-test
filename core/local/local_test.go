@@ -53,9 +53,9 @@ import (
 	"go.k6.io/k6/metrics"
 )
 
-func getRuntimeState(tb testing.TB) *lib.RuntimeState ***REMOVED***
+func getTestPreInitState(tb testing.TB) *lib.TestPreInitState ***REMOVED***
 	reg := metrics.NewRegistry()
-	return &lib.RuntimeState***REMOVED***
+	return &lib.TestPreInitState***REMOVED***
 		Logger:         testutils.NewLogger(tb),
 		RuntimeOptions: lib.RuntimeOptions***REMOVED******REMOVED***,
 		Registry:       reg,
@@ -78,12 +78,12 @@ func newTestExecutionScheduler(
 
 	require.NoError(t, runner.SetOptions(newOpts))
 
-	rs := getRuntimeState(t)
+	piState := getTestPreInitState(t)
 	if logger != nil ***REMOVED***
-		rs.Logger = logger
+		piState.Logger = logger
 	***REMOVED***
 
-	execScheduler, err = NewExecutionScheduler(runner, rs)
+	execScheduler, err = NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	samples = make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
@@ -137,14 +137,14 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			rs := getRuntimeState(t)
+			piState := getTestPreInitState(t)
 			runner, err := js.New(
-				rs, &loader.SourceData***REMOVED***
+				piState, &loader.SourceData***REMOVED***
 					URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script),
 				***REMOVED***, nil)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, rs)
+			execScheduler, err := NewExecutionScheduler(runner, piState)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -245,17 +245,17 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			rs := getRuntimeState(t)
-			rs.RuntimeOptions = lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***
+			piState := getTestPreInitState(t)
+			piState.RuntimeOptions = lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***
 			runner, err := js.New(
-				rs, &loader.SourceData***REMOVED***
+				piState, &loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
 				***REMOVED***, nil,
 			)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, rs)
+			execScheduler, err := NewExecutionScheduler(runner, piState)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -311,9 +311,9 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		http.get("HTTPBIN_IP_URL/");
 	***REMOVED***`)
 
-	rs := getRuntimeState(t)
+	piState := getTestPreInitState(t)
 	runner, err := js.New(
-		rs, &loader.SourceData***REMOVED***
+		piState, &loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: []byte(script),
 		***REMOVED***, nil)
@@ -323,7 +323,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		SystemTags: &metrics.DefaultSystemTagSet,
 	***REMOVED***)))
 
-	execScheduler, err := NewExecutionScheduler(runner, rs)
+	execScheduler, err := NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -448,16 +448,16 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			rs := getRuntimeState(t)
+			piState := getTestPreInitState(t)
 			runner, err := js.New(
-				rs, &loader.SourceData***REMOVED***
+				piState, &loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
 				***REMOVED***, nil,
 			)
 			require.NoError(t, err)
 
-			execScheduler, err := NewExecutionScheduler(runner, rs)
+			execScheduler, err := NewExecutionScheduler(runner, piState)
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -609,10 +609,10 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	***REMOVED***
 `)
 
-	rs := getRuntimeState(t)
-	rs.RuntimeOptions.Env = map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED***
+	piState := getTestPreInitState(t)
+	piState.RuntimeOptions.Env = map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED***
 	runner, err := js.New(
-		rs, &loader.SourceData***REMOVED***
+		piState, &loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: []byte(script),
 		***REMOVED***,
@@ -620,7 +620,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	)
 	require.NoError(t, err)
 
-	execScheduler, err := NewExecutionScheduler(runner, rs)
+	execScheduler, err := NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -948,8 +948,8 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rs := getRuntimeState(t)
-	execScheduler, err := NewExecutionScheduler(runner, rs)
+	piState := getTestPreInitState(t)
+	execScheduler, err := NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	samples := make(chan metrics.SampleContainer, 300)
@@ -1058,7 +1058,7 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 				registry := metrics.NewRegistry()
 				builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 				runner, err := js.New(
-					&lib.RuntimeState***REMOVED***
+					&lib.TestPreInitState***REMOVED***
 						Logger:         logger,
 						BuiltinMetrics: builtinMetrics,
 						Registry:       registry,
@@ -1139,8 +1139,8 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		counter.add(6, ***REMOVED*** place: "defaultAfterSleep" ***REMOVED***);
 	***REMOVED***`)
 
-	rs := getRuntimeState(t)
-	runner, err := js.New(rs, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
+	piState := getTestPreInitState(t)
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
 	require.NoError(t, err)
 
 	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
@@ -1153,7 +1153,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.NoError(t, runner.SetOptions(options))
 
-	execScheduler, err := NewExecutionScheduler(runner, rs)
+	execScheduler, err := NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1176,7 +1176,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 			case sampleContainer := <-sampleContainers:
 				gotVus := false
 				for _, s := range sampleContainer.GetSamples() ***REMOVED***
-					if s.Metric == rs.BuiltinMetrics.VUs || s.Metric == rs.BuiltinMetrics.VUsMax ***REMOVED***
+					if s.Metric == piState.BuiltinMetrics.VUs || s.Metric == piState.BuiltinMetrics.VUsMax ***REMOVED***
 						gotVus = true
 						break
 					***REMOVED***
@@ -1220,7 +1220,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***
 		return metrics.IntoSampleTags(&tags)
 	***REMOVED***
-	testCounter, err := rs.Registry.NewMetric("test_counter", metrics.Counter)
+	testCounter, err := piState.Registry.NewMetric("test_counter", metrics.Counter)
 	require.NoError(t, err)
 	getSample := func(expValue float64, expMetric *metrics.Metric, expTags ...string) metrics.SampleContainer ***REMOVED***
 		return metrics.Sample***REMOVED***
@@ -1237,7 +1237,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 			net.Dialer***REMOVED******REMOVED***,
 			netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
 		).GetTrail(time.Now(), time.Now(),
-			true, emitIterations, getTags(expTags...), rs.BuiltinMetrics)
+			true, emitIterations, getTags(expTags...), piState.BuiltinMetrics)
 	***REMOVED***
 
 	// Initially give a long time (5s) for the execScheduler to start
@@ -1283,7 +1283,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("second pause is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getRuntimeState(t))
+		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getTestPreInitState(t))
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 
@@ -1295,7 +1295,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("unpause at the start is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getRuntimeState(t))
+		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getTestPreInitState(t))
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		err = sched.SetPaused(false)
@@ -1305,7 +1305,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("second unpause is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getRuntimeState(t))
+		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getTestPreInitState(t))
 		require.NoError(t, err)
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		require.NoError(t, sched.SetPaused(true))
@@ -1317,7 +1317,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("an error on pausing is propagated", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getRuntimeState(t))
+		sched, err := NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, getTestPreInitState(t))
 		require.NoError(t, err)
 		expectedErr := errors.New("testing pausable executor error")
 		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: expectedErr***REMOVED******REMOVED***
@@ -1336,7 +1336,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		require.NoError(t, runner.SetOptions(options))
 
-		sched, err := NewExecutionScheduler(runner, getRuntimeState(t))
+		sched, err := NewExecutionScheduler(runner, getTestPreInitState(t))
 		require.NoError(t, err)
 		err = sched.SetPaused(true)
 		require.Error(t, err)
@@ -1382,15 +1382,15 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	registry := metrics.NewRegistry()
-	rs := &lib.RuntimeState***REMOVED***
+	piState := &lib.TestPreInitState***REMOVED***
 		Logger:         logger,
 		Registry:       registry,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	***REMOVED***
-	runner, err := js.New(rs, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
 	require.NoError(t, err)
 
-	execScheduler, err := NewExecutionScheduler(runner, rs)
+	execScheduler, err := NewExecutionScheduler(runner, piState)
 	require.NoError(t, err)
 
 	assert.Len(t, execScheduler.executors, 2)

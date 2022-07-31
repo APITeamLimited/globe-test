@@ -84,7 +84,7 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 		sourceRootPath: "script.js",
 		source:         &loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
 		fileSystems:    map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
-		runtimeState: &lib.RuntimeState***REMOVED***
+		preInitState: &lib.TestPreInitState***REMOVED***
 			Logger:         ts.logger,
 			RuntimeOptions: rtOpts,
 			Registry:       registry,
@@ -103,7 +103,7 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 			sourceRootPath: "script.tar",
 			source:         &loader.SourceData***REMOVED***Data: archiveBuf.Bytes(), URL: &url.URL***REMOVED***Path: "/script.tar", Scheme: "file"***REMOVED******REMOVED***,
 			fileSystems:    map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
-			runtimeState: &lib.RuntimeState***REMOVED***
+			preInitState: &lib.TestPreInitState***REMOVED***
 				Logger:         ts.logger,
 				RuntimeOptions: rtOpts,
 				Registry:       registry,

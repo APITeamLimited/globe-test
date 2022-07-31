@@ -50,7 +50,7 @@ import (
 
 const isWindows = runtime.GOOS == "windows"
 
-func getRuntimeState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.RuntimeOptions) *lib.RuntimeState ***REMOVED***
+func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.RuntimeOptions) *lib.TestPreInitState ***REMOVED***
 	if logger == nil ***REMOVED***
 		logger = testutils.NewLogger(tb)
 	***REMOVED***
@@ -58,7 +58,7 @@ func getRuntimeState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.RuntimeOp
 		rtOpts = &lib.RuntimeOptions***REMOVED******REMOVED***
 	***REMOVED***
 	reg := metrics.NewRegistry()
-	return &lib.RuntimeState***REMOVED***
+	return &lib.TestPreInitState***REMOVED***
 		Logger:         logger,
 		RuntimeOptions: *rtOpts,
 		Registry:       reg,
@@ -82,7 +82,7 @@ func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***R
 	***REMOVED***
 
 	return NewBundle(
-		getRuntimeState(tb, logger, rtOpts),
+		getTestPreInitState(tb, logger, rtOpts),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
@@ -502,7 +502,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
-		b, err := NewBundleFromArchive(getRuntimeState(t, logger, &rtOpts), arc)
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc)
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
 			require.Contains(t, err.Error(), expError)
@@ -585,7 +585,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
 			Filesystems: nil,
 		***REMOVED***
-		b, err := NewBundleFromArchive(getRuntimeState(t, logger, nil), arc)
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc)
 		require.NoError(t, err)
 		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
@@ -724,7 +724,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(getRuntimeState(t, logger, nil), sourceBundle.makeArchive())
+					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive())
 
 					require.NoError(t, err)
 
@@ -824,7 +824,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	logger := testutils.NewLogger(t)
-	b2, err := NewBundleFromArchive(getRuntimeState(t, logger, nil), b1.makeArchive())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
@@ -861,7 +861,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(getRuntimeState(t, logger, nil), b1.makeArchive())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
