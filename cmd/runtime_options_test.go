@@ -81,12 +81,15 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 	ts := newGlobalTestState(t) // TODO: move upwards, make this into an almost full integration test
 	registry := metrics.NewRegistry()
 	test := &loadedTest***REMOVED***
-		sourceRootPath:  "script.js",
-		source:          &loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
-		fileSystems:     map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
-		runtimeOptions:  rtOpts,
-		metricsRegistry: registry,
-		builtInMetrics:  metrics.RegisterBuiltinMetrics(registry),
+		sourceRootPath: "script.js",
+		source:         &loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
+		fileSystems:    map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
+		runtimeState: &lib.RuntimeState***REMOVED***
+			Logger:         ts.logger,
+			RuntimeOptions: rtOpts,
+			Registry:       registry,
+			BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		***REMOVED***,
 	***REMOVED***
 
 	require.NoError(t, test.initializeFirstRunner(ts.globalState))
@@ -97,12 +100,15 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 
 	getRunnerErr := func(rtOpts lib.RuntimeOptions) *loadedTest ***REMOVED***
 		return &loadedTest***REMOVED***
-			sourceRootPath:  "script.tar",
-			source:          &loader.SourceData***REMOVED***Data: archiveBuf.Bytes(), URL: &url.URL***REMOVED***Path: "/script.tar", Scheme: "file"***REMOVED******REMOVED***,
-			fileSystems:     map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
-			runtimeOptions:  rtOpts,
-			metricsRegistry: registry,
-			builtInMetrics:  metrics.RegisterBuiltinMetrics(registry),
+			sourceRootPath: "script.tar",
+			source:         &loader.SourceData***REMOVED***Data: archiveBuf.Bytes(), URL: &url.URL***REMOVED***Path: "/script.tar", Scheme: "file"***REMOVED******REMOVED***,
+			fileSystems:    map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
+			runtimeState: &lib.RuntimeState***REMOVED***
+				Logger:         ts.logger,
+				RuntimeOptions: rtOpts,
+				Registry:       registry,
+				BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+			***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 

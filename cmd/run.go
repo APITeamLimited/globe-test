@@ -89,7 +89,9 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	logger := c.gs.logger
 	// Create a local execution scheduler wrapping the runner.
 	logger.Debug("Initializing the execution scheduler...")
-	execScheduler, err := local.NewExecutionScheduler(test.initRunner, test.builtInMetrics, logger)
+	execScheduler, err := local.NewExecutionScheduler(
+		test.initRunner, test.runtimeState.BuiltinMetrics, logger,
+	)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -126,8 +128,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	// Create the engine.
 	initBar.Modify(pb.WithConstProgress(0, "Init engine"))
 	engine, err := core.NewEngine(
-		execScheduler, conf.Options, test.runtimeOptions,
-		outputs, logger, test.metricsRegistry,
+		execScheduler, conf.Options, test.runtimeState.RuntimeOptions,
+		outputs, logger, test.runtimeState.Registry,
 	)
 	if err != nil ***REMOVED***
 		return err
@@ -230,7 +232,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	***REMOVED***
 
 	// Handle the end-of-test summary.
-	if !test.runtimeOptions.NoSummary.Bool ***REMOVED***
+	if !test.runtimeState.RuntimeOptions.NoSummary.Bool ***REMOVED***
 		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
 		summaryResult, err := test.initRunner.HandleSummary(globalCtx, &lib.Summary***REMOVED***
 			Metrics:         engine.MetricsEngine.ObservedMetrics,
@@ -268,8 +270,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	logger.Debug("Waiting for engine processes to finish...")
 	engineWait()
 	logger.Debug("Everything has finished, exiting k6!")
-	if test.keywriter != nil ***REMOVED***
-		if err := test.keywriter.Close(); err != nil ***REMOVED***
+	if test.runtimeState.KeyLogger != nil ***REMOVED***
+		if err := test.runtimeState.KeyLogger.Close(); err != nil ***REMOVED***
 			logger.WithError(err).Warn("Error while closing the SSLKEYLOGFILE")
 		***REMOVED***
 	***REMOVED***
