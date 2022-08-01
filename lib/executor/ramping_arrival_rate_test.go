@@ -713,7 +713,7 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 		BaseConfig:      BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(100 * time.Millisecond)***REMOVED***,
 		TimeUnit:        types.NullDurationFrom(950 * time.Millisecond),
 		StartRate:       null.IntFrom(0),
-		PreAllocatedVUs: null.IntFrom(2),
+		PreAllocatedVUs: null.IntFrom(4),
 		MaxVUs:          null.IntFrom(5),
 		Stages: []Stage***REMOVED***
 			***REMOVED***
@@ -733,7 +733,7 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		***REMOVED***"0,1/4,3/4,1", "0:1/4", []uint64***REMOVED***1, 6, 11, 16***REMOVED******REMOVED***,
 		***REMOVED***"0,1/4,3/4,1", "1/4:3/4", []uint64***REMOVED***0, 2, 4, 5, 7, 9, 10, 12, 14, 15, 17, 19, 20***REMOVED******REMOVED***,
-		***REMOVED***"0,1/4,3/4,1", "3/4:1", []uint64***REMOVED***3, 8, 13***REMOVED******REMOVED***,
+		***REMOVED***"0,1/4,3/4,1", "3/4:1", []uint64***REMOVED***3, 8, 13, 18***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
