@@ -45,26 +45,23 @@ func getTestConstantVUsConfig() ConstantVUsConfig ***REMOVED***
 func TestConstantVUsRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var result sync.Map
-	et, err := lib.NewExecutionTuple(nil, nil)
-	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
-	ctx, cancel, executor, _ := setupExecutor(
-		t, getTestConstantVUsConfig(), es,
-		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
-			select ***REMOVED***
-			case <-ctx.Done():
-				return nil
-			default:
-			***REMOVED***
-			currIter, _ := result.LoadOrStore(state.VUID, uint64(0))
-			result.Store(state.VUID, currIter.(uint64)+1)
-			time.Sleep(210 * time.Millisecond)
+
+	runner := simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
+		select ***REMOVED***
+		case <-ctx.Done():
 			return nil
-		***REMOVED***),
-	)
-	defer cancel()
-	err = executor.Run(ctx, nil)
-	require.NoError(t, err)
+		default:
+		***REMOVED***
+		currIter, _ := result.LoadOrStore(state.VUID, uint64(0))
+		result.Store(state.VUID, currIter.(uint64)+1) //nolint:forcetypeassert
+		time.Sleep(210 * time.Millisecond)
+		return nil
+	***REMOVED***)
+
+	test := setupExecutorTest(t, "", "", lib.Options***REMOVED******REMOVED***, runner, getTestConstantVUsConfig())
+	defer test.cancel()
+
+	require.NoError(t, test.executor.Run(test.ctx, nil))
 
 	var totalIters uint64
 	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***

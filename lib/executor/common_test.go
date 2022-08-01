@@ -42,7 +42,25 @@ func simpleRunner(vuFn func(context.Context, *lib.State) error) lib.Runner ***RE
 	***REMOVED***
 ***REMOVED***
 
-func setupExecutor(t testing.TB, config lib.ExecutorConfig, es *lib.ExecutionState, runner lib.Runner) (
+func getTestRunState(tb testing.TB, options lib.Options, runner lib.Runner) *lib.TestRunState ***REMOVED***
+	reg := metrics.NewRegistry()
+	piState := &lib.TestPreInitState***REMOVED***
+		Logger:         testutils.NewLogger(tb),
+		RuntimeOptions: lib.RuntimeOptions***REMOVED******REMOVED***,
+		Registry:       reg,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+	***REMOVED***
+
+	require.NoError(tb, runner.SetOptions(options))
+
+	return &lib.TestRunState***REMOVED***
+		TestPreInitState: piState,
+		Options:          options,
+		Runner:           runner,
+	***REMOVED***
+***REMOVED***
+
+func setupExecutor(t testing.TB, config lib.ExecutorConfig, es *lib.ExecutionState) (
 	context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook,
 ) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,7 +74,7 @@ func setupExecutor(t testing.TB, config lib.ExecutorConfig, es *lib.ExecutionSta
 
 	initVUFunc := func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
 		idl, idg := es.GetUniqueVUIdentifiers()
-		return runner.NewVU(idl, idg, engineOut)
+		return es.Test.Runner.NewVU(idl, idg, engineOut)
 	***REMOVED***
 	es.SetInitVUFunc(initVUFunc)
 
@@ -81,5 +99,56 @@ func initializeVUs(
 		vu, err := initVU(ctx, logEntry)
 		require.NoError(t, err)
 		es.AddInitializedVU(vu)
+	***REMOVED***
+***REMOVED***
+
+type executorTest struct ***REMOVED***
+	options lib.Options
+	state   *lib.ExecutionState
+
+	ctx      context.Context //nolint
+	cancel   context.CancelFunc
+	executor lib.Executor
+	logHook  *testutils.SimpleLogrusHook
+***REMOVED***
+
+func setupExecutorTest(
+	t testing.TB, segmentStr, sequenceStr string, extraOptions lib.Options,
+	runner lib.Runner, config lib.ExecutorConfig,
+) *executorTest ***REMOVED***
+	var err error
+	var segment *lib.ExecutionSegment
+	if segmentStr != "" ***REMOVED***
+		segment, err = lib.NewExecutionSegmentFromString(segmentStr)
+		require.NoError(t, err)
+	***REMOVED***
+
+	var sequence lib.ExecutionSegmentSequence
+	if sequenceStr != "" ***REMOVED***
+		sequence, err = lib.NewExecutionSegmentSequenceFromString(sequenceStr)
+		require.NoError(t, err)
+	***REMOVED***
+
+	et, err := lib.NewExecutionTuple(segment, &sequence)
+	require.NoError(t, err)
+
+	options := lib.Options***REMOVED***
+		ExecutionSegment:         segment,
+		ExecutionSegmentSequence: &sequence,
+	***REMOVED***.Apply(runner.GetOptions()).Apply(extraOptions)
+
+	testRunState := getTestRunState(t, options, runner)
+
+	execReqs := config.GetExecutionRequirements(et)
+	es := lib.NewExecutionState(testRunState, et, lib.GetMaxPlannedVUs(execReqs), lib.GetMaxPossibleVUs(execReqs))
+	ctx, cancel, executor, logHook := setupExecutor(t, config, es)
+
+	return &executorTest***REMOVED***
+		options:  options,
+		state:    es,
+		ctx:      ctx,
+		cancel:   cancel,
+		executor: executor,
+		logHook:  logHook,
 	***REMOVED***
 ***REMOVED***
