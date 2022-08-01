@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/dop251/goja/file"
 	"go/ast"
 	"hash/maphash"
 	"math"
@@ -18,6 +17,7 @@ import (
 	"golang.org/x/text/collate"
 
 	js_ast "github.com/dop251/goja/ast"
+	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/parser"
 	"github.com/dop251/goja/unistring"
 )
@@ -1716,10 +1716,10 @@ func (r *Runtime) ToValue(i interface***REMOVED******REMOVED***) Value ***REMOVE
 	case nil:
 		return _null
 	case *Object:
-		if i == nil || i.runtime == nil ***REMOVED***
+		if i == nil || i.self == nil ***REMOVED***
 			return _null
 		***REMOVED***
-		if i.runtime != r ***REMOVED***
+		if i.runtime != nil && i.runtime != r ***REMOVED***
 			panic(r.NewTypeError("Illegal runtime transition of an Object"))
 		***REMOVED***
 		return i
@@ -2346,41 +2346,66 @@ func (r *Runtime) New(construct Value, args ...Value) (o *Object, err error) ***
 type Callable func(this Value, args ...Value) (Value, error)
 
 // AssertFunction checks if the Value is a function and returns a Callable.
+// Note, for classes this returns a callable and a 'true', however calling it will always result in a TypeError.
+// For classes use AssertConstructor().
 func AssertFunction(v Value) (Callable, bool) ***REMOVED***
 	if obj, ok := v.(*Object); ok ***REMOVED***
 		if f, ok := obj.self.assertCallable(); ok ***REMOVED***
 			return func(this Value, args ...Value) (ret Value, err error) ***REMOVED***
-				defer func() ***REMOVED***
-					if x := recover(); x != nil ***REMOVED***
-						if ex, ok := x.(*uncatchableException); ok ***REMOVED***
-							err = ex.err
-							if len(obj.runtime.vm.callStack) == 0 ***REMOVED***
-								obj.runtime.leaveAbrupt()
-							***REMOVED***
-						***REMOVED*** else ***REMOVED***
-							panic(x)
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***()
-				ex := obj.runtime.vm.try(func() ***REMOVED***
+				err = obj.runtime.runWrapped(func() ***REMOVED***
 					ret = f(FunctionCall***REMOVED***
 						This:      this,
 						Arguments: args,
 					***REMOVED***)
 				***REMOVED***)
-				if ex != nil ***REMOVED***
-					err = ex
-				***REMOVED***
-				vm := obj.runtime.vm
-				vm.clearStack()
-				if len(vm.callStack) == 0 ***REMOVED***
-					obj.runtime.leave()
-				***REMOVED***
 				return
 			***REMOVED***, true
 		***REMOVED***
 	***REMOVED***
 	return nil, false
+***REMOVED***
+
+// Constructor is a type that can be used to call constructors. The first argument (newTarget) can be nil
+// which sets it to the constructor function itself.
+type Constructor func(newTarget *Object, args ...Value) (*Object, error)
+
+// AssertConstructor checks if the Value is a constructor and returns a Constructor.
+func AssertConstructor(v Value) (Constructor, bool) ***REMOVED***
+	if obj, ok := v.(*Object); ok ***REMOVED***
+		if ctor := obj.self.assertConstructor(); ctor != nil ***REMOVED***
+			return func(newTarget *Object, args ...Value) (ret *Object, err error) ***REMOVED***
+				err = obj.runtime.runWrapped(func() ***REMOVED***
+					ret = ctor(args, newTarget)
+				***REMOVED***)
+				return
+			***REMOVED***, true
+		***REMOVED***
+	***REMOVED***
+	return nil, false
+***REMOVED***
+
+func (r *Runtime) runWrapped(f func()) (err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if x := recover(); x != nil ***REMOVED***
+			if ex, ok := x.(*uncatchableException); ok ***REMOVED***
+				err = ex.err
+				if len(r.vm.callStack) == 0 ***REMOVED***
+					r.leaveAbrupt()
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				panic(x)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+	ex := r.vm.try(f)
+	if ex != nil ***REMOVED***
+		err = ex
+	***REMOVED***
+	r.vm.clearStack()
+	if len(r.vm.callStack) == 0 ***REMOVED***
+		r.leave()
+	***REMOVED***
+	return
 ***REMOVED***
 
 // IsUndefined returns true if the supplied Value is undefined. Note, it checks against the real undefined, not

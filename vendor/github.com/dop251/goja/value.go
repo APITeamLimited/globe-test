@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"hash/maphash"
 	"math"
 	"reflect"
@@ -49,6 +50,7 @@ var (
 	reflectTypeMap    = reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 	reflectTypeArray  = reflect.TypeOf([]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 	reflectTypeString = reflect.TypeOf("")
+	reflectTypeFunc   = reflect.TypeOf((func(FunctionCall) Value)(nil))
 )
 
 var intCache [256]Value
@@ -1142,6 +1144,22 @@ func funcName(prefix string, n Value) valueString ***REMOVED***
 		b.WriteString(n.toString())
 	***REMOVED***
 	return b.String()
+***REMOVED***
+
+func newTypeError(args ...interface***REMOVED******REMOVED***) typeError ***REMOVED***
+	msg := ""
+	if len(args) > 0 ***REMOVED***
+		f, _ := args[0].(string)
+		msg = fmt.Sprintf(f, args[1:]...)
+	***REMOVED***
+	return typeError(msg)
+***REMOVED***
+
+func typeErrorResult(throw bool, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if throw ***REMOVED***
+		panic(newTypeError(args...))
+	***REMOVED***
+
 ***REMOVED***
 
 func init() ***REMOVED***

@@ -1423,7 +1423,7 @@ func toMethod(v Value) func(FunctionCall) Value ***REMOVED***
 			return call
 		***REMOVED***
 	***REMOVED***
-	panic(typeError(fmt.Sprintf("%s is not a method", v.String())))
+	panic(newTypeError("%s is not a method", v.String()))
 ***REMOVED***
 
 func instanceOfOperator(o Value, c *Object) bool ***REMOVED***

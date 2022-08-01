@@ -65,10 +65,6 @@ func (f *nativeFuncObject) export(*objectExportCtx) interface***REMOVED******REM
 	return f.f
 ***REMOVED***
 
-func (f *nativeFuncObject) exportType() reflect.Type ***REMOVED***
-	return reflect.TypeOf(f.f)
-***REMOVED***
-
 func (f *funcObject) _addProto(n unistring.String) Value ***REMOVED***
 	if n == "prototype" ***REMOVED***
 		if _, exists := f.values[n]; !exists ***REMOVED***
@@ -182,6 +178,10 @@ func (f *classFuncObject) Call(FunctionCall) Value ***REMOVED***
 
 func (f *classFuncObject) assertCallable() (func(FunctionCall) Value, bool) ***REMOVED***
 	return f.Call, true
+***REMOVED***
+
+func (f *classFuncObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	return f.Call
 ***REMOVED***
 
 func (f *classFuncObject) createInstance(args []Value, newTarget *Object) (instance *Object) ***REMOVED***
@@ -315,12 +315,12 @@ func (f *baseJsFuncObject) call(call FunctionCall, newTarget Value) Value ***REM
 	return f._call(call.Arguments, newTarget, nilSafe(call.This))
 ***REMOVED***
 
-func (f *funcObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+func (f *baseJsFuncObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return f.Call
 ***REMOVED***
 
-func (f *funcObject) exportType() reflect.Type ***REMOVED***
-	return reflect.TypeOf(f.Call)
+func (f *baseFuncObject) exportType() reflect.Type ***REMOVED***
+	return reflectTypeFunc
 ***REMOVED***
 
 func (f *baseJsFuncObject) assertCallable() (func(FunctionCall) Value, bool) ***REMOVED***
@@ -331,12 +331,12 @@ func (f *funcObject) assertConstructor() func(args []Value, newTarget *Object) *
 	return f.construct
 ***REMOVED***
 
-func (f *arrowFuncObject) exportType() reflect.Type ***REMOVED***
-	return reflect.TypeOf(f.Call)
-***REMOVED***
-
 func (f *arrowFuncObject) assertCallable() (func(FunctionCall) Value, bool) ***REMOVED***
 	return f.Call, true
+***REMOVED***
+
+func (f *arrowFuncObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	return f.Call
 ***REMOVED***
 
 func (f *baseFuncObject) init(name unistring.String, length Value) ***REMOVED***
