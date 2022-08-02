@@ -32,56 +32,6 @@ import (
 //go:generate enumer -type=SystemTagSet -transform=snake -trimprefix=Tag -output system_tag_set_gen.go
 type SystemTagSet uint32
 
-// TagSet is a string to bool map (for lookup efficiency) that is used to keep track
-// of which system tags and non-system tags to include.
-type TagSet map[string]bool
-
-// UnmarshalText converts the tag list to TagSet.
-func (i *TagSet) UnmarshalText(data []byte) error ***REMOVED***
-	list := bytes.Split(data, []byte(","))
-	if *i == nil ***REMOVED***
-		*i = make(TagSet, len(list))
-	***REMOVED***
-
-	for _, key := range list ***REMOVED***
-		key := strings.TrimSpace(string(key))
-		if key == "" ***REMOVED***
-			continue
-		***REMOVED***
-		(*i)[key] = true
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
-// MarshalJSON converts the TagSet to a list (JS array).
-func (i *TagSet) MarshalJSON() ([]byte, error) ***REMOVED***
-	var tags []string
-	if *i != nil ***REMOVED***
-		tags = make([]string, 0, len(*i))
-		for tag := range *i ***REMOVED***
-			tags = append(tags, tag)
-		***REMOVED***
-		sort.Strings(tags)
-	***REMOVED***
-
-	return json.Marshal(tags)
-***REMOVED***
-
-// UnmarshalJSON converts the tag list back to expected tag set.
-func (i *TagSet) UnmarshalJSON(data []byte) error ***REMOVED***
-	var tags []string
-	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	*i = make(TagSet, len(tags))
-	for _, tag := range tags ***REMOVED***
-		(*i)[tag] = true
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
 // Default system tags includes all of the system tags emitted with metrics by default.
 const (
 	TagProto SystemTagSet = 1 << iota
@@ -128,9 +78,9 @@ func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
 	return *i&tag != 0
 ***REMOVED***
 
-// Map returns the TagSet with current value from SystemTagSet
-func (i SystemTagSet) Map() TagSet ***REMOVED***
-	m := TagSet***REMOVED******REMOVED***
+// Map returns the EnabledTags with current value from SystemTagSet
+func (i SystemTagSet) Map() EnabledTags ***REMOVED***
+	m := EnabledTags***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
 		if i.Has(tag) ***REMOVED***
 			m[tag.String()] = true

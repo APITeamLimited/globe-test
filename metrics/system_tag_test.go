@@ -92,11 +92,11 @@ func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	tests := []struct ***REMOVED***
-		tagset   TagSet
+		tagset   EnabledTags
 		expected string
 	***REMOVED******REMOVED***
-		***REMOVED***tagset: TagSet***REMOVED***"ip": true, "proto": true, "group": true, "custom": true***REMOVED***, expected: `["custom","group","ip","proto"]`***REMOVED***,
-		***REMOVED***tagset: TagSet***REMOVED******REMOVED***, expected: `[]`***REMOVED***,
+		***REMOVED***tagset: EnabledTags***REMOVED***"ip": true, "proto": true, "group": true, "custom": true***REMOVED***, expected: `["custom","group","ip","proto"]`***REMOVED***,
+		***REMOVED***tagset: EnabledTags***REMOVED******REMOVED***, expected: `[]`***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
@@ -112,14 +112,14 @@ func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 
 	tests := []struct ***REMOVED***
 		tags []byte
-		sets TagSet
+		sets EnabledTags
 	***REMOVED******REMOVED***
-		***REMOVED***[]byte(`[]`), TagSet***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip","custom", "proto"]`), TagSet***REMOVED***"ip": true, "proto": true, "custom": true***REMOVED******REMOVED***,
+		***REMOVED***[]byte(`[]`), EnabledTags***REMOVED******REMOVED******REMOVED***,
+		***REMOVED***[]byte(`["ip","custom", "proto"]`), EnabledTags***REMOVED***"ip": true, "proto": true, "custom": true***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
-		ts := new(TagSet)
+		ts := new(EnabledTags)
 		require.Nil(t, json.Unmarshal(tc.tags, ts))
 		for tag := range tc.sets ***REMOVED***
 			assert.True(t, (*ts)[tag])
@@ -130,8 +130,8 @@ func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	testMatrix := map[string]TagSet***REMOVED***
-		"":                           make(TagSet),
+	testMatrix := map[string]EnabledTags***REMOVED***
+		"":                           make(EnabledTags),
 		"ip":                         ***REMOVED***"ip": true***REMOVED***,
 		"ip,proto":                   ***REMOVED***"ip": true, "proto": true***REMOVED***,
 		"   ip  ,  proto  ":          ***REMOVED***"ip": true, "proto": true***REMOVED***,
@@ -141,7 +141,7 @@ func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for input, expected := range testMatrix ***REMOVED***
-		set := new(TagSet)
+		set := new(EnabledTags)
 		err := set.UnmarshalText([]byte(input))
 		require.NoError(t, err)
 		require.Equal(t, expected, *set)
