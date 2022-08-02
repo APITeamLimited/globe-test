@@ -35,6 +35,7 @@ type loadedTest struct ***REMOVED***
 	fileSystems    map[string]afero.Fs
 	preInitState   *lib.TestPreInitState
 	initRunner     lib.Runner // TODO: rename to something more appropriate
+	keyLogger      io.Closer
 ***REMOVED***
 
 func loadTest(gs *globalState, cmd *cobra.Command, args []string) (*loadedTest, error) ***REMOVED***
@@ -109,7 +110,8 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		if err != nil ***REMOVED***
 			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
 		***REMOVED***
-		lt.preInitState.KeyLogger = &syncWriteCloser***REMOVED***w: f***REMOVED***
+		lt.keyLogger = f
+		lt.preInitState.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
 	***REMOVED***
 	switch testType ***REMOVED***
 	case testTypeJS:
@@ -255,19 +257,13 @@ func (lct *loadedAndConfiguredTest) buildTestRunState(
 	***REMOVED***, nil
 ***REMOVED***
 
-type syncWriteCloser struct ***REMOVED***
-	w io.WriteCloser
+type syncWriter struct ***REMOVED***
+	w io.Writer
 	m sync.Mutex
 ***REMOVED***
 
-func (cw *syncWriteCloser) Write(b []byte) (int, error) ***REMOVED***
+func (cw *syncWriter) Write(b []byte) (int, error) ***REMOVED***
 	cw.m.Lock()
 	defer cw.m.Unlock()
 	return cw.w.Write(b)
-***REMOVED***
-
-func (cw *syncWriteCloser) Close() error ***REMOVED***
-	cw.m.Lock()
-	defer cw.m.Unlock()
-	return cw.w.Close()
 ***REMOVED***
