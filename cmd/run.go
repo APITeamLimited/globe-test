@@ -65,7 +65,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 
 	// Write the full consolidated *and derived* options back to the Runner.
 	conf := test.derivedConfig
-	if err = test.initRunner.SetOptions(conf.Options); err != nil ***REMOVED***
+	testRunState, err := test.buildTestRunState(conf.Options)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -86,10 +87,10 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	runCtx, runCancel := context.WithCancel(lingerCtx)
 	defer runCancel()
 
-	logger := c.gs.logger
+	logger := testRunState.Logger
 	// Create a local execution scheduler wrapping the runner.
 	logger.Debug("Initializing the execution scheduler...")
-	execScheduler, err := local.NewExecutionScheduler(test.initRunner, test.builtInMetrics, logger)
+	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -125,10 +126,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	// TODO: remove this completely
 	// Create the engine.
 	initBar.Modify(pb.WithConstProgress(0, "Init engine"))
-	engine, err := core.NewEngine(
-		execScheduler, conf.Options, test.runtimeOptions,
-		outputs, logger, test.metricsRegistry,
-	)
+	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -230,7 +228,7 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	***REMOVED***
 
 	// Handle the end-of-test summary.
-	if !test.runtimeOptions.NoSummary.Bool ***REMOVED***
+	if !testRunState.RuntimeOptions.NoSummary.Bool ***REMOVED***
 		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
 		summaryResult, err := test.initRunner.HandleSummary(globalCtx, &lib.Summary***REMOVED***
 			Metrics:         engine.MetricsEngine.ObservedMetrics,
@@ -268,8 +266,8 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error ***REMOVED***
 	logger.Debug("Waiting for engine processes to finish...")
 	engineWait()
 	logger.Debug("Everything has finished, exiting k6!")
-	if test.keywriter != nil ***REMOVED***
-		if err := test.keywriter.Close(); err != nil ***REMOVED***
+	if test.keyLogger != nil ***REMOVED***
+		if err := test.keyLogger.Close(); err != nil ***REMOVED***
 			logger.WithError(err).Warn("Error while closing the SSLKEYLOGFILE")
 		***REMOVED***
 	***REMOVED***

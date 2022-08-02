@@ -77,7 +77,9 @@ func getPossibleIDList(constrs map[string]func(output.Params) (output.Output, er
 	return strings.Join(res, ", ")
 ***REMOVED***
 
-func createOutputs(gs *globalState, test *loadedTest, executionPlan []lib.ExecutionStep) ([]output.Output, error) ***REMOVED***
+func createOutputs(
+	gs *globalState, test *loadedAndConfiguredTest, executionPlan []lib.ExecutionStep,
+) ([]output.Output, error) ***REMOVED***
 	outputConstructors, err := getAllOutputConstructors()
 	if err != nil ***REMOVED***
 		return nil, err
@@ -90,7 +92,7 @@ func createOutputs(gs *globalState, test *loadedTest, executionPlan []lib.Execut
 		StdErr:         gs.stdErr,
 		FS:             gs.fs,
 		ScriptOptions:  test.derivedConfig.Options,
-		RuntimeOptions: test.runtimeOptions,
+		RuntimeOptions: test.preInitState.RuntimeOptions,
 		ExecutionPlan:  executionPlan,
 	***REMOVED***
 	result := make([]output.Output, 0, len(test.derivedConfig.Out))
@@ -120,7 +122,7 @@ func createOutputs(gs *globalState, test *loadedTest, executionPlan []lib.Execut
 		***REMOVED***
 
 		if builtinMetricOut, ok := out.(output.WithBuiltinMetrics); ok ***REMOVED***
-			builtinMetricOut.SetBuiltinMetrics(test.builtInMetrics)
+			builtinMetricOut.SetBuiltinMetrics(test.preInitState.BuiltinMetrics)
 		***REMOVED***
 
 		result = append(result, out)

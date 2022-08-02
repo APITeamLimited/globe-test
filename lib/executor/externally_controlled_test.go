@@ -48,20 +48,15 @@ func getTestExternallyControlledConfig() ExternallyControlledConfig ***REMOVED**
 func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	et, err := lib.NewExecutionTuple(nil, nil)
-	require.NoError(t, err)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, nil, 10, 50)
-
 	doneIters := new(uint64)
-	ctx, cancel, executor, _ := setupExecutor(
-		t, getTestExternallyControlledConfig(), es,
-		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
-			time.Sleep(200 * time.Millisecond)
-			atomic.AddUint64(doneIters, 1)
-			return nil
-		***REMOVED***),
-	)
-	defer cancel()
+	runner := simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
+		time.Sleep(200 * time.Millisecond)
+		atomic.AddUint64(doneIters, 1)
+		return nil
+	***REMOVED***)
+
+	test := setupExecutorTest(t, "", "", lib.Options***REMOVED******REMOVED***, runner, getTestExternallyControlledConfig())
+	defer test.cancel()
 
 	var (
 		wg     sync.WaitGroup
@@ -71,9 +66,9 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	wg.Add(1)
 	go func() ***REMOVED***
 		defer wg.Done()
-		es.MarkStarted()
-		errCh <- executor.Run(ctx, nil)
-		es.MarkEnded()
+		test.state.MarkStarted()
+		errCh <- test.executor.Run(test.ctx, nil)
+		test.state.MarkEnded()
 		close(doneCh)
 	***REMOVED***()
 
@@ -83,7 +78,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 			MaxVUs:   null.IntFrom(maxVUs),
 			Duration: types.NullDurationFrom(2 * time.Second),
 		***REMOVED***
-		err := executor.(*ExternallyControlled).UpdateConfig(ctx, newConfig)
+		err := test.executor.(*ExternallyControlled).UpdateConfig(test.ctx, newConfig) //nolint:forcetypeassert
 		if errMsg != "" ***REMOVED***
 			assert.EqualError(t, err, errMsg)
 		***REMOVED*** else ***REMOVED***
@@ -94,7 +89,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	var resultVUCount [][]int64
 	snapshot := func() ***REMOVED***
 		resultVUCount = append(resultVUCount,
-			[]int64***REMOVED***es.GetCurrentlyActiveVUsCount(), es.GetInitializedVUsCount()***REMOVED***)
+			[]int64***REMOVED***test.state.GetCurrentlyActiveVUsCount(), test.state.GetInitializedVUsCount()***REMOVED***)
 	***REMOVED***
 
 	wg.Add(1)

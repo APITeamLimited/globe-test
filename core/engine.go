@@ -72,10 +72,7 @@ type Engine struct ***REMOVED***
 ***REMOVED***
 
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
-func NewEngine(
-	ex lib.ExecutionScheduler, opts lib.Options, rtOpts lib.RuntimeOptions, outputs []output.Output, logger *logrus.Logger,
-	registry *metrics.Registry,
-) (*Engine, error) ***REMOVED***
+func NewEngine(testState *lib.TestRunState, ex lib.ExecutionScheduler, outputs []output.Output) (*Engine, error) ***REMOVED***
 	if ex == nil ***REMOVED***
 		return nil, errors.New("missing ExecutionScheduler instance")
 	***REMOVED***
@@ -83,26 +80,26 @@ func NewEngine(
 	e := &Engine***REMOVED***
 		ExecutionScheduler: ex,
 
-		runtimeOptions: rtOpts,
-		Samples:        make(chan metrics.SampleContainer, opts.MetricSamplesBufferSize.Int64),
+		runtimeOptions: testState.RuntimeOptions,
+		Samples:        make(chan metrics.SampleContainer, testState.Options.MetricSamplesBufferSize.Int64),
 		stopChan:       make(chan struct***REMOVED******REMOVED***),
-		logger:         logger.WithField("component", "engine"),
+		logger:         testState.Logger.WithField("component", "engine"),
 	***REMOVED***
 
-	me, err := engine.NewMetricsEngine(registry, ex.GetState(), opts, rtOpts, logger)
+	me, err := engine.NewMetricsEngine(ex.GetState())
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	e.MetricsEngine = me
 
-	if !(rtOpts.NoSummary.Bool && rtOpts.NoThresholds.Bool) ***REMOVED***
+	if !(testState.RuntimeOptions.NoSummary.Bool && testState.RuntimeOptions.NoThresholds.Bool) ***REMOVED***
 		e.ingester = me.GetIngester()
 		outputs = append(outputs, e.ingester)
 	***REMOVED***
 
-	e.OutputManager = output.NewManager(outputs, logger, func(err error) ***REMOVED***
+	e.OutputManager = output.NewManager(outputs, testState.Logger, func(err error) ***REMOVED***
 		if err != nil ***REMOVED***
-			logger.WithError(err).Error("Received error to stop from output")
+			testState.Logger.WithError(err).Error("Received error to stop from output")
 		***REMOVED***
 		e.Stop()
 	***REMOVED***)

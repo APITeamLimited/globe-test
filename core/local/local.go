@@ -38,10 +38,6 @@ import (
 
 // ExecutionScheduler is the local implementation of lib.ExecutionScheduler
 type ExecutionScheduler struct ***REMOVED***
-	runner  lib.Runner
-	options lib.Options
-	logger  logrus.FieldLogger
-
 	initProgress    *pb.ProgressBar
 	executorConfigs []lib.ExecutorConfig // sorted by (startTime, ID)
 	executors       []lib.Executor       // sorted by (startTime, ID), excludes executors with no work
@@ -62,10 +58,8 @@ var _ lib.ExecutionScheduler = &ExecutionScheduler***REMOVED******REMOVED***
 // instance, without initializing it beyond the bare minimum. Specifically, it
 // creates the needed executor instances and a lot of state placeholders, but it
 // doesn't initialize the executors and it doesn't initialize or run VUs.
-func NewExecutionScheduler(
-	runner lib.Runner, builtinMetrics *metrics.BuiltinMetrics, logger logrus.FieldLogger,
-) (*ExecutionScheduler, error) ***REMOVED***
-	options := runner.GetOptions()
+func NewExecutionScheduler(trs *lib.TestRunState) (*ExecutionScheduler, error) ***REMOVED***
+	options := trs.Options
 	et, err := lib.NewExecutionTuple(options.ExecutionSegment, options.ExecutionSegmentSequence)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -74,7 +68,7 @@ func NewExecutionScheduler(
 	maxPlannedVUs := lib.GetMaxPlannedVUs(executionPlan)
 	maxPossibleVUs := lib.GetMaxPossibleVUs(executionPlan)
 
-	executionState := lib.NewExecutionState(options, et, builtinMetrics, maxPlannedVUs, maxPossibleVUs)
+	executionState := lib.NewExecutionState(trs, et, maxPlannedVUs, maxPossibleVUs)
 	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
 	executorConfigs := options.Scenarios.GetSortedConfigs()
@@ -82,13 +76,13 @@ func NewExecutionScheduler(
 	// Only take executors which have work.
 	for _, sc := range executorConfigs ***REMOVED***
 		if !sc.HasWork(et) ***REMOVED***
-			logger.Warnf(
+			trs.Logger.Warnf(
 				"Executor '%s' is disabled for segment %s due to lack of work!",
 				sc.GetName(), options.ExecutionSegment,
 			)
 			continue
 		***REMOVED***
-		s, err := sc.NewExecutor(executionState, logger.WithFields(logrus.Fields***REMOVED***
+		s, err := sc.NewExecutor(executionState, trs.Logger.WithFields(logrus.Fields***REMOVED***
 			"scenario": sc.GetName(),
 			"executor": sc.GetType(),
 		***REMOVED***))
@@ -105,10 +99,6 @@ func NewExecutionScheduler(
 	***REMOVED***
 
 	return &ExecutionScheduler***REMOVED***
-		runner:  runner,
-		logger:  logger,
-		options: options,
-
 		initProgress:    pb.New(pb.WithConstLeft("Init")),
 		executors:       executors,
 		executorConfigs: executorConfigs,
@@ -123,8 +113,8 @@ func NewExecutionScheduler(
 ***REMOVED***
 
 // GetRunner returns the wrapped lib.Runner instance.
-func (e *ExecutionScheduler) GetRunner() lib.Runner ***REMOVED***
-	return e.runner
+func (e *ExecutionScheduler) GetRunner() lib.Runner ***REMOVED*** // TODO: remove
+	return e.state.Test.Runner
 ***REMOVED***
 
 // GetState returns a pointer to the execution state struct for the local
@@ -165,12 +155,12 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep ***REMOVED**
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 func (e *ExecutionScheduler) initVU(
-	samplesOut chan<- metrics.SampleContainer, logger *logrus.Entry,
+	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger,
 ) (lib.InitializedVU, error) ***REMOVED***
 	// Get the VU IDs here, so that the VUs are (mostly) ordered by their
 	// number in the channel buffer
 	vuIDLocal, vuIDGlobal := e.state.GetUniqueVUIdentifiers()
-	vu, err := e.runner.NewVU(vuIDLocal, vuIDGlobal, samplesOut)
+	vu, err := e.state.Test.Runner.NewVU(vuIDLocal, vuIDGlobal, samplesOut)
 	if err != nil ***REMOVED***
 		return nil, errext.WithHint(err, fmt.Sprintf("error while initializing VU #%d", vuIDGlobal))
 	***REMOVED***
@@ -201,7 +191,7 @@ func (e *ExecutionScheduler) getRunStats() string ***REMOVED***
 
 func (e *ExecutionScheduler) initVUsConcurrently(
 	ctx context.Context, samplesOut chan<- metrics.SampleContainer, count uint64,
-	concurrency int, logger *logrus.Entry,
+	concurrency int, logger logrus.FieldLogger,
 ) chan error ***REMOVED***
 	doneInits := make(chan error, count) // poor man's early-return waitgroup
 	limiter := make(chan struct***REMOVED******REMOVED***)
@@ -233,7 +223,7 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 ***REMOVED***
 
 func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- metrics.SampleContainer) ***REMOVED***
-	e.logger.Debug("Starting emission of VUs and VUsMax metrics...")
+	e.state.Test.Logger.Debug("Starting emission of VUs and VUsMax metrics...")
 
 	emitMetrics := func() ***REMOVED***
 		t := time.Now()
@@ -241,17 +231,17 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 			Samples: []metrics.Sample***REMOVED***
 				***REMOVED***
 					Time:   t,
-					Metric: e.state.BuiltinMetrics.VUs,
+					Metric: e.state.Test.BuiltinMetrics.VUs,
 					Value:  float64(e.state.GetCurrentlyActiveVUsCount()),
-					Tags:   e.options.RunTags,
+					Tags:   e.state.Test.Options.RunTags,
 				***REMOVED***, ***REMOVED***
 					Time:   t,
-					Metric: e.state.BuiltinMetrics.VUsMax,
+					Metric: e.state.Test.BuiltinMetrics.VUsMax,
 					Value:  float64(e.state.GetInitializedVUsCount()),
-					Tags:   e.options.RunTags,
+					Tags:   e.state.Test.Options.RunTags,
 				***REMOVED***,
 			***REMOVED***,
-			Tags: e.options.RunTags,
+			Tags: e.state.Test.Options.RunTags,
 			Time: t,
 		***REMOVED***
 		metrics.PushIfNotDone(ctx, out, samples)
@@ -261,7 +251,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 	go func() ***REMOVED***
 		defer func() ***REMOVED***
 			ticker.Stop()
-			e.logger.Debug("Metrics emission of VUs and VUsMax metrics stopped")
+			e.state.Test.Logger.Debug("Metrics emission of VUs and VUsMax metrics stopped")
 			close(e.vusEmissionStopped)
 		***REMOVED***()
 
@@ -283,7 +273,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer) error ***REMOVED***
 	e.emitVUsAndVUsMax(ctx, samplesOut)
 
-	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
+	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-init")
 	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
 	logger.WithFields(logrus.Fields***REMOVED***
 		"neededVUs":      vusToInitialize,
@@ -350,7 +340,7 @@ func (e *ExecutionScheduler) runExecutor(
 ) ***REMOVED***
 	executorConfig := executor.GetConfig()
 	executorStartTime := executorConfig.GetStartTime()
-	executorLogger := e.logger.WithFields(logrus.Fields***REMOVED***
+	executorLogger := e.state.Test.Logger.WithFields(logrus.Fields***REMOVED***
 		"executor":  executorConfig.GetName(),
 		"type":      executorConfig.GetType(),
 		"startTime": executorStartTime,
@@ -402,7 +392,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	***REMOVED***()
 
 	executorsCount := len(e.executors)
-	logger := e.logger.WithField("phase", "local-execution-scheduler-run")
+	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-run")
 	e.initProgress.Modify(pb.WithConstLeft("Run"))
 	var interrupted bool
 	defer func() ***REMOVED***
@@ -436,11 +426,11 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	defer cancel() // just in case, and to shut up go vet...
 
 	// Run setup() before any executors, if it's not disabled
-	if !e.options.NoSetup.Bool ***REMOVED***
+	if !e.state.Test.Options.NoSetup.Bool ***REMOVED***
 		logger.Debug("Running setup()")
 		e.state.SetExecutionStatus(lib.ExecutionStatusSetup)
 		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
-		if err := e.runner.Setup(runSubCtx, engineOut); err != nil ***REMOVED***
+		if err := e.state.Test.Runner.Setup(runSubCtx, engineOut); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("setup() aborted by error")
 			return err
 		***REMOVED***
@@ -472,14 +462,14 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	***REMOVED***
 
 	// Run teardown() after all executors are done, if it's not disabled
-	if !e.options.NoTeardown.Bool ***REMOVED***
+	if !e.state.Test.Options.NoTeardown.Bool ***REMOVED***
 		logger.Debug("Running teardown()")
 		e.state.SetExecutionStatus(lib.ExecutionStatusTeardown)
 		e.initProgress.Modify(pb.WithConstProgress(1, "teardown()"))
 
 		// We run teardown() with the global context, so it isn't interrupted by
 		// aborts caused by thresholds or even Ctrl+C (unless used twice).
-		if err := e.runner.Teardown(globalCtx, engineOut); err != nil ***REMOVED***
+		if err := e.state.Test.Runner.Teardown(globalCtx, engineOut); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("teardown() aborted by error")
 			return err
 		***REMOVED***
@@ -499,7 +489,7 @@ func (e *ExecutionScheduler) SetPaused(pause bool) error ***REMOVED***
 		if pause ***REMOVED***
 			return fmt.Errorf("execution is already paused")
 		***REMOVED***
-		e.logger.Debug("Starting execution")
+		e.state.Test.Logger.Debug("Starting execution")
 		return e.state.Resume()
 	***REMOVED***
 

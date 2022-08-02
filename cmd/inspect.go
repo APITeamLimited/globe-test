@@ -40,7 +40,7 @@ func getCmdInspect(gs *globalState) *cobra.Command ***REMOVED***
 		Long:  `Inspect a script or archive.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-			test, err := loadAndConfigureTest(gs, cmd, args, nil)
+			test, err := loadTest(gs, cmd, args)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -82,16 +82,20 @@ func getCmdInspect(gs *globalState) *cobra.Command ***REMOVED***
 // derive the value of `scenarios` and calculate the max test duration and VUs.
 func inspectOutputWithExecRequirements(gs *globalState, cmd *cobra.Command, test *loadedTest) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	// we don't actually support CLI flags here, so we pass nil as the getter
-	if err := test.consolidateDeriveAndValidateConfig(gs, cmd, nil); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	et, err := lib.NewExecutionTuple(test.derivedConfig.ExecutionSegment, test.derivedConfig.ExecutionSegmentSequence)
+	configuredTest, err := test.consolidateDeriveAndValidateConfig(gs, cmd, nil)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	executionPlan := test.derivedConfig.Scenarios.GetFullExecutionRequirements(et)
+	et, err := lib.NewExecutionTuple(
+		configuredTest.derivedConfig.ExecutionSegment,
+		configuredTest.derivedConfig.ExecutionSegmentSequence,
+	)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	executionPlan := configuredTest.derivedConfig.Scenarios.GetFullExecutionRequirements(et)
 	duration, _ := lib.GetEndOffset(executionPlan)
 
 	return struct ***REMOVED***
@@ -99,7 +103,7 @@ func inspectOutputWithExecRequirements(gs *globalState, cmd *cobra.Command, test
 		TotalDuration types.NullDuration `json:"totalDuration"`
 		MaxVUs        uint64             `json:"maxVUs"`
 	***REMOVED******REMOVED***
-		test.derivedConfig.Options,
+		configuredTest.derivedConfig.Options,
 		types.NewNullDuration(duration, true),
 		lib.GetMaxPossibleVUs(executionPlan),
 	***REMOVED***, nil

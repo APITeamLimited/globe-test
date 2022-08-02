@@ -25,31 +25,20 @@ const (
 	testTypeArchive = "archive"
 )
 
-// loadedTest contains all of data, details and dependencies of a fully-loaded
-// and configured k6 test.
+// loadedTest contains all of data, details and dependencies of a loaded
+// k6 test, but without any config consolidation.
 type loadedTest struct ***REMOVED***
-	sourceRootPath  string // contains the raw string the user supplied
-	pwd             string
-	source          *loader.SourceData
-	fs              afero.Fs
-	fileSystems     map[string]afero.Fs
-	runtimeOptions  lib.RuntimeOptions
-	metricsRegistry *metrics.Registry
-	builtInMetrics  *metrics.BuiltinMetrics
-	initRunner      lib.Runner // TODO: rename to something more appropriate
-	keywriter       io.Closer
-
-	// Only set if cliConfigGetter is supplied to loadAndConfigureTest() or if
-	// consolidateDeriveAndValidateConfig() is manually called.
-	consolidatedConfig Config
-	derivedConfig      Config
+	sourceRootPath string // contains the raw string the user supplied
+	pwd            string
+	source         *loader.SourceData
+	fs             afero.Fs
+	fileSystems    map[string]afero.Fs
+	preInitState   *lib.TestPreInitState
+	initRunner     lib.Runner // TODO: rename to something more appropriate
+	keyLogger      io.Closer
 ***REMOVED***
 
-func loadAndConfigureTest(
-	gs *globalState, cmd *cobra.Command, args []string,
-	// supply this if you want the test config consolidated and validated
-	cliConfigGetter func(flags *pflag.FlagSet) (Config, error), // TODO: obviate
-) (*loadedTest, error) ***REMOVED***
+func loadTest(gs *globalState, cmd *cobra.Command, args []string) (*loadedTest, error) ***REMOVED***
 	if len(args) < 1 ***REMOVED***
 		return nil, fmt.Errorf("k6 needs at least one argument to load the test")
 	***REMOVED***
@@ -73,15 +62,20 @@ func loadAndConfigureTest(
 	***REMOVED***
 
 	registry := metrics.NewRegistry()
+	state := &lib.TestPreInitState***REMOVED***
+		Logger:         gs.logger,
+		RuntimeOptions: runtimeOptions,
+		Registry:       registry,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+	***REMOVED***
+
 	test := &loadedTest***REMOVED***
-		pwd:             pwd,
-		sourceRootPath:  sourceRootPath,
-		source:          src,
-		fs:              gs.fs,
-		fileSystems:     fileSystems,
-		runtimeOptions:  runtimeOptions,
-		metricsRegistry: registry,
-		builtInMetrics:  metrics.RegisterBuiltinMetrics(registry),
+		pwd:            pwd,
+		sourceRootPath: sourceRootPath,
+		source:         src,
+		fs:             gs.fs,
+		fileSystems:    fileSystems,
+		preInitState:   state,
 	***REMOVED***
 
 	gs.logger.Debugf("Initializing k6 runner for '%s' (%s)...", sourceRootPath, resolvedPath)
@@ -89,13 +83,6 @@ func loadAndConfigureTest(
 		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
 	***REMOVED***
 	gs.logger.Debug("Runner successfully initialized!")
-
-	if cliConfigGetter != nil ***REMOVED***
-		if err := test.consolidateDeriveAndValidateConfig(gs, cmd, cliConfigGetter); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-
 	return test, nil
 ***REMOVED***
 
@@ -103,22 +90,16 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
-	testType := lt.runtimeOptions.TestType.String
+	testType := lt.preInitState.RuntimeOptions.TestType.String
 	if testType == "" ***REMOVED***
 		logger.Debug("Detecting test type for...")
 		testType = detectTestType(lt.source.Data)
 	***REMOVED***
 
-	state := &lib.RuntimeState***REMOVED***
-		Logger:         gs.logger,
-		RuntimeOptions: lt.runtimeOptions,
-		BuiltinMetrics: lt.builtInMetrics,
-		Registry:       lt.metricsRegistry,
-	***REMOVED***
-	if lt.runtimeOptions.KeyWriter.Valid ***REMOVED***
+	if lt.preInitState.RuntimeOptions.KeyWriter.Valid ***REMOVED***
 		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
-			lt.runtimeOptions.KeyWriter.String)
-		keylogFilename := lt.runtimeOptions.KeyWriter.String
+			lt.preInitState.RuntimeOptions.KeyWriter.String)
+		keylogFilename := lt.preInitState.RuntimeOptions.KeyWriter.String
 		// if path is absolute - no point doing anything
 		if !filepath.IsAbs(keylogFilename) ***REMOVED***
 			// filepath.Abs could be used but it will get the pwd from `os` package instead of what is in lt.pwd
@@ -129,13 +110,13 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		if err != nil ***REMOVED***
 			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
 		***REMOVED***
-		lt.keywriter = f
-		state.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
+		lt.keyLogger = f
+		lt.preInitState.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
 	***REMOVED***
 	switch testType ***REMOVED***
 	case testTypeJS:
 		logger.Debug("Trying to load as a JS test...")
-		runner, err := js.New(state, lt.source, lt.fileSystems)
+		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems)
 		// TODO: should we use common.UnwrapGojaInterruptedError() here?
 		if err != nil ***REMOVED***
 			return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
@@ -156,7 +137,7 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 		switch arc.Type ***REMOVED***
 		case testTypeJS:
 			logger.Debug("Evaluating JS from archive bundle...")
-			lt.initRunner, err = js.NewFromArchive(state, arc)
+			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc)
 			if err != nil ***REMOVED***
 				return fmt.Errorf("could not load JS from test archive bundle '%s': %w", testPath, err)
 			***REMOVED***
@@ -192,50 +173,88 @@ func detectTestType(data []byte) string ***REMOVED***
 func (lt *loadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, cmd *cobra.Command,
 	cliConfGetter func(flags *pflag.FlagSet) (Config, error), // TODO: obviate
-) error ***REMOVED***
+) (*loadedAndConfiguredTest, error) ***REMOVED***
 	var cliConfig Config
 	if cliConfGetter != nil ***REMOVED***
 		gs.logger.Debug("Parsing CLI flags...")
 		var err error
 		cliConfig, err = cliConfGetter(cmd.Flags())
 		if err != nil ***REMOVED***
-			return err
+			return nil, err
 		***REMOVED***
 	***REMOVED***
 
 	gs.logger.Debug("Consolidating config layers...")
 	consolidatedConfig, err := getConsolidatedConfig(gs, cliConfig, lt.initRunner.GetOptions())
 	if err != nil ***REMOVED***
-		return err
+		return nil, err
 	***REMOVED***
 
 	gs.logger.Debug("Parsing thresholds and validating config...")
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
 	// invalid configuration error.
-	if !lt.runtimeOptions.NoThresholds.Bool ***REMOVED***
+	if !lt.preInitState.RuntimeOptions.NoThresholds.Bool ***REMOVED***
 		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds ***REMOVED***
 			err = thresholdsDefinition.Parse()
 			if err != nil ***REMOVED***
-				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***
 
-			err = thresholdsDefinition.Validate(metricName, lt.metricsRegistry)
+			err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
 			if err != nil ***REMOVED***
-				return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable, gs.logger)
 	if err != nil ***REMOVED***
-		return err
+		return nil, err
 	***REMOVED***
 
-	lt.consolidatedConfig = consolidatedConfig
-	lt.derivedConfig = derivedConfig
+	return &loadedAndConfiguredTest***REMOVED***
+		loadedTest:         lt,
+		consolidatedConfig: consolidatedConfig,
+		derivedConfig:      derivedConfig,
+	***REMOVED***, nil
+***REMOVED***
 
-	return nil
+// loadedAndConfiguredTest contains the whole loadedTest, as well as the
+// consolidated test config and the full test run state.
+type loadedAndConfiguredTest struct ***REMOVED***
+	*loadedTest
+	consolidatedConfig Config
+	derivedConfig      Config
+***REMOVED***
+
+func loadAndConfigureTest(
+	gs *globalState, cmd *cobra.Command, args []string,
+	cliConfigGetter func(flags *pflag.FlagSet) (Config, error),
+) (*loadedAndConfiguredTest, error) ***REMOVED***
+	test, err := loadTest(gs, cmd, args)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return test.consolidateDeriveAndValidateConfig(gs, cmd, cliConfigGetter)
+***REMOVED***
+
+func (lct *loadedAndConfiguredTest) buildTestRunState(
+	configToReinject lib.Options,
+) (*lib.TestRunState, error) ***REMOVED***
+	// This might be the full derived or just the consodlidated options
+	if err := lct.initRunner.SetOptions(configToReinject); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	// TODO: init atlas root node, etc.
+
+	return &lib.TestRunState***REMOVED***
+		TestPreInitState: lct.preInitState,
+		Runner:           lct.initRunner,
+		Options:          lct.derivedConfig.Options, // we will always run with the derived options
+	***REMOVED***, nil
 ***REMOVED***
 
 type syncWriter struct ***REMOVED***

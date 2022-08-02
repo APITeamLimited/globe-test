@@ -218,7 +218,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 		activeVUs.Done()
 	***REMOVED***
 
-	droppedIterationMetric := pvi.executionState.BuiltinMetrics.DroppedIterations
+	droppedIterationMetric := pvi.executionState.Test.BuiltinMetrics.DroppedIterations
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		defer handleVUsWG.Done()
 		ctx, cancel := context.WithCancel(maxDurationCtx)

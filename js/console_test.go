@@ -58,12 +58,14 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 			rtOpts = opt
 		case *logrus.Logger:
 			logger = opt
+		default:
+			tb.Fatalf("unknown test option %q", opt)
 		***REMOVED***
 	***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	return New(
-		&lib.RuntimeState***REMOVED***
+		&lib.TestPreInitState***REMOVED***
 			Logger:         logger,
 			RuntimeOptions: rtOpts,
 			BuiltinMetrics: builtinMetrics,
@@ -83,8 +85,9 @@ func extractLogger(fl logrus.FieldLogger) *logrus.Logger ***REMOVED***
 		return e.Logger
 	case *logrus.Logger:
 		return e
+	default:
+		panic(fmt.Sprintf("unknown logrus.FieldLogger option %q", fl))
 	***REMOVED***
-	return nil
 ***REMOVED***
 
 func TestConsoleLogWithGojaNativeObject(t *testing.T) ***REMOVED***

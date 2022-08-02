@@ -50,31 +50,46 @@ import (
 
 const isWindows = runtime.GOOS == "windows"
 
+func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.RuntimeOptions) *lib.TestPreInitState ***REMOVED***
+	if logger == nil ***REMOVED***
+		logger = testutils.NewLogger(tb)
+	***REMOVED***
+	if rtOpts == nil ***REMOVED***
+		rtOpts = &lib.RuntimeOptions***REMOVED******REMOVED***
+	***REMOVED***
+	reg := metrics.NewRegistry()
+	return &lib.TestPreInitState***REMOVED***
+		Logger:         logger,
+		RuntimeOptions: *rtOpts,
+		Registry:       reg,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+	***REMOVED***
+***REMOVED***
+
 func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
-	var (
-		fs                        = afero.NewMemMapFs()
-		rtOpts                    = lib.RuntimeOptions***REMOVED******REMOVED***
-		logger logrus.FieldLogger = testutils.NewLogger(tb)
-	)
+	fs := afero.NewMemMapFs()
+	var rtOpts *lib.RuntimeOptions
+	var logger *logrus.Logger
 	for _, o := range opts ***REMOVED***
 		switch opt := o.(type) ***REMOVED***
 		case afero.Fs:
 			fs = opt
 		case lib.RuntimeOptions:
-			rtOpts = opt
-		case logrus.FieldLogger:
+			rtOpts = &opt
+		case *logrus.Logger:
 			logger = opt
+		default:
+			tb.Fatalf("unknown test option %q", opt)
 		***REMOVED***
 	***REMOVED***
+
 	return NewBundle(
-		logger,
+		getTestPreInitState(tb, logger, rtOpts),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
 		***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
-		rtOpts,
-		metrics.NewRegistry(),
 	)
 ***REMOVED***
 
@@ -489,7 +504,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
-		b, err := NewBundleFromArchive(logger, arc, rtOpts, metrics.NewRegistry())
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc)
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
 			require.Contains(t, err.Error(), expError)
@@ -572,7 +587,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
 			Filesystems: nil,
 		***REMOVED***
-		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc)
 		require.NoError(t, err)
 		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
@@ -711,7 +726,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(logger, sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
+					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive())
 
 					require.NoError(t, err)
 
@@ -811,7 +826,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	logger := testutils.NewLogger(t)
-	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
@@ -848,7 +863,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***

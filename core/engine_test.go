@@ -58,32 +58,51 @@ type testStruct struct ***REMOVED***
 	run       func() error
 	runCancel func()
 	wait      func()
+	piState   *lib.TestPreInitState
+***REMOVED***
+
+func getTestPreInitState(tb testing.TB) *lib.TestPreInitState ***REMOVED***
+	reg := metrics.NewRegistry()
+	return &lib.TestPreInitState***REMOVED***
+		Logger:         testutils.NewLogger(tb),
+		RuntimeOptions: lib.RuntimeOptions***REMOVED******REMOVED***,
+		Registry:       reg,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+	***REMOVED***
+***REMOVED***
+
+func getTestRunState(
+	tb testing.TB, piState *lib.TestPreInitState, options lib.Options, runner lib.Runner,
+) *lib.TestRunState ***REMOVED***
+	require.Empty(tb, options.Validate())
+	require.NoError(tb, runner.SetOptions(options))
+	return &lib.TestRunState***REMOVED***
+		TestPreInitState: piState,
+		Options:          options,
+		Runner:           runner,
+	***REMOVED***
 ***REMOVED***
 
 // Wrapper around NewEngine that applies a logger and manages the options.
-func newTestEngineWithRegistry( //nolint:golint
-	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output, opts lib.Options,
-	registry *metrics.Registry,
+func newTestEngineWithTestPreInitState( //nolint:golint
+	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output,
+	opts lib.Options, piState *lib.TestPreInitState,
 ) *testStruct ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
 	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), logger)
-	require.NoError(t, err)
-	require.Empty(t, newOpts.Validate())
-
-	require.NoError(t, runner.SetOptions(newOpts))
-
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
+	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), piState.Logger)
 	require.NoError(t, err)
 
-	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, registry)
+	testRunState := getTestRunState(t, piState, newOpts, runner)
+
+	execScheduler, err := local.NewExecutionScheduler(testRunState)
+	require.NoError(t, err)
+
+	engine, err := NewEngine(testRunState, execScheduler, outputs)
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 
@@ -109,6 +128,7 @@ func newTestEngineWithRegistry( //nolint:golint
 			waitFn()
 			engine.OutputManager.StopOutputs()
 		***REMOVED***,
+		piState: piState,
 	***REMOVED***
 	return test
 ***REMOVED***
@@ -116,7 +136,7 @@ func newTestEngineWithRegistry( //nolint:golint
 func newTestEngine(
 	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output, opts lib.Options,
 ) *testStruct ***REMOVED***
-	return newTestEngineWithRegistry(t, runTimeout, runner, outputs, opts, metrics.NewRegistry())
+	return newTestEngineWithTestPreInitState(t, runTimeout, runner, outputs, opts, getTestPreInitState(t))
 ***REMOVED***
 
 func TestEngineRun(t *testing.T) ***REMOVED***
@@ -156,8 +176,8 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 
-		registry := metrics.NewRegistry()
-		testMetric, err := registry.NewMetric("test_metric", metrics.Trend)
+		piState := getTestPreInitState(t)
+		testMetric, err := piState.Registry.NewMetric("test_metric", metrics.Trend)
 		require.NoError(t, err)
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
@@ -173,10 +193,10 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		mockOutput := mockoutput.New()
-		test := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+		test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***, registry)
+		***REMOVED***, piState)
 
 		errC := make(chan error)
 		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
@@ -226,8 +246,8 @@ func TestEngineStopped(t *testing.T) ***REMOVED***
 func TestEngineOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	testMetric, err := registry.NewMetric("test_metric", metrics.Trend)
+	piState := getTestPreInitState(t)
+	testMetric, err := piState.Registry.NewMetric("test_metric", metrics.Trend)
 	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner***REMOVED***
@@ -238,10 +258,10 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	test := newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(1),
-	***REMOVED***, registry)
+	***REMOVED***, piState)
 
 	assert.NoError(t, test.run())
 	test.wait()
@@ -269,8 +289,8 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	t.Run("metric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 
-		registry := metrics.NewRegistry()
-		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
+		piState := getTestPreInitState(t)
+		metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
 		done := make(chan struct***REMOVED******REMOVED***)
@@ -281,7 +301,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 				return nil
 			***REMOVED***,
 		***REMOVED***
-		test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED******REMOVED***, registry)
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options***REMOVED******REMOVED***, piState)
 
 		go func() ***REMOVED***
 			assert.NoError(t, test.run())
@@ -301,8 +321,8 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 
-		registry := metrics.NewRegistry()
-		metric, err := registry.NewMetric("my_metric", metrics.Gauge)
+		piState := getTestPreInitState(t)
+		metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
 		require.NoError(t, err)
 
 		ths := metrics.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
@@ -317,11 +337,11 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 				return nil
 			***REMOVED***,
 		***REMOVED***
-		test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options***REMOVED***
 			Thresholds: map[string]metrics.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
-		***REMOVED***, registry)
+		***REMOVED***, piState)
 
 		go func() ***REMOVED***
 			assert.NoError(t, test.run())
@@ -347,8 +367,8 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
+	piState := getTestPreInitState(t)
+	metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
 	require.NoError(t, err)
 
 	// The incoming samples for the metric set it to 1.25. Considering
@@ -369,9 +389,7 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***
-	test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***
-		Thresholds: thresholds,
-	***REMOVED***, registry)
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState)
 
 	go func() ***REMOVED***
 		assert.NoError(t, test.run())
@@ -390,8 +408,8 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
+	piState := getTestPreInitState(t)
+	metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
 	require.NoError(t, err)
 
 	// The MiniRunner sets the value of the metric to 1.25. Considering
@@ -415,7 +433,7 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	test := newTestEngineWithRegistry(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState)
 	defer test.wait()
 
 	go func() ***REMOVED***
@@ -465,12 +483,12 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
-			registry := metrics.NewRegistry()
-			gaugeMetric, err := registry.NewMetric("my_metric", metrics.Gauge)
+			piState := getTestPreInitState(t)
+			gaugeMetric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
 			require.NoError(t, err)
-			counterMetric, err := registry.NewMetric("used_counter", metrics.Counter)
+			counterMetric, err := piState.Registry.NewMetric("used_counter", metrics.Counter)
 			require.NoError(t, err)
-			_, err = registry.NewMetric("unused_counter", metrics.Counter)
+			_, err = piState.Registry.NewMetric("unused_counter", metrics.Counter)
 			require.NoError(t, err)
 
 			thresholds := make(map[string]metrics.Thresholds, len(data.ths))
@@ -482,8 +500,8 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
-			test := newTestEngineWithRegistry(
-				t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry,
+			test := newTestEngineWithTestPreInitState(
+				t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState,
 			)
 
 			test.engine.OutputManager.AddMetricSamples(
@@ -593,14 +611,8 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
-		registry := metrics.NewRegistry()
-		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 		r, err := js.New(
-			&lib.RuntimeState***REMOVED***
-				Logger:         testutils.NewLogger(t),
-				BuiltinMetrics: builtinMetrics,
-				Registry:       registry,
-			***REMOVED***,
+			getTestPreInitState(t),
 			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
 			nil,
 		)
@@ -732,14 +744,8 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`))
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         testutils.NewLogger(t),
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-		***REMOVED***,
+		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 	)
@@ -815,14 +821,8 @@ func TestSetupException(t *testing.T) ***REMOVED***
 		        throw new Error("baz");
 			***REMOVED***
 	`), 0x666))
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         testutils.NewLogger(t),
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-		***REMOVED***,
+		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***,
 	)
@@ -868,15 +868,9 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`)
 
-	logger := testutils.NewLogger(t)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	piState := getTestPreInitState(t)
 	runner, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         testutils.NewLogger(t),
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-		***REMOVED***,
+		piState,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 	)
@@ -884,12 +878,12 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 
 	opts, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions(), nil)
 	require.NoError(t, err)
-	require.Empty(t, opts.Validate())
-	require.NoError(t, runner.SetOptions(opts))
 
-	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
+	testState := getTestRunState(t, piState, opts, runner)
+
+	execScheduler, err := local.NewExecutionScheduler(testState)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
+	engine, err := NewEngine(testState, execScheduler, nil)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -942,14 +936,8 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 		***REMOVED***;
 	`))
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         testutils.NewLogger(t),
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-		***REMOVED***,
+		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 	)
@@ -1031,14 +1019,8 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 			if !isWindows ***REMOVED***
 				t.Parallel()
 			***REMOVED***
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				&lib.RuntimeState***REMOVED***
-					Logger:         testutils.NewLogger(t),
-					BuiltinMetrics: builtinMetrics,
-					Registry:       registry,
-				***REMOVED***,
+				getTestPreInitState(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
 				import ***REMOVED*** sleep ***REMOVED*** from "k6";
 				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
@@ -1143,14 +1125,8 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				&lib.RuntimeState***REMOVED***
-					Logger:         testutils.NewLogger(t),
-					BuiltinMetrics: builtinMetrics,
-					Registry:       registry,
-				***REMOVED***,
+				getTestPreInitState(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
 				nil,
 			)
@@ -1175,8 +1151,8 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	testMetric, err := registry.NewMetric("teardown_metric", metrics.Counter)
+	piState := getTestPreInitState(t)
+	testMetric, err := piState.Registry.NewMetric("teardown_metric", metrics.Counter)
 	require.NoError(t, err)
 
 	var test *testStruct
@@ -1192,9 +1168,9 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	mockOutput := mockoutput.New()
-	test = newTestEngineWithRegistry(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
+	test = newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
-	***REMOVED***, registry)
+	***REMOVED***, piState)
 
 	assert.NoError(t, test.run())
 	test.wait()
@@ -1261,14 +1237,13 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 	rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
 
 	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	runner, err := js.New(
-		&lib.RuntimeState***REMOVED***
-			Logger:         logger,
-			BuiltinMetrics: builtinMetrics,
-			Registry:       registry,
-			RuntimeOptions: rtOpts,
-		***REMOVED***, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
+	piState := &lib.TestPreInitState***REMOVED***
+		Logger:         logger,
+		Registry:       registry,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		RuntimeOptions: rtOpts,
+	***REMOVED***
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
@@ -1279,11 +1254,11 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()), nil)
 	require.NoError(t, err)
-	require.Empty(t, opts.Validate())
-	require.NoError(t, runner.SetOptions(opts))
-	execScheduler, err := local.NewExecutionScheduler(runner, builtinMetrics, logger)
+
+	testState := getTestRunState(t, piState, opts, runner)
+	execScheduler, err := local.NewExecutionScheduler(testState)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger, registry)
+	engine, err := NewEngine(testState, execScheduler, []output.Output***REMOVED***mockOutput***REMOVED***)
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
