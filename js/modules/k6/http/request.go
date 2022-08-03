@@ -136,7 +136,6 @@ func (c *Client) parseRequest(
 		Throw:            state.Options.Throw.Bool,
 		Redirects:        state.Options.MaxRedirects,
 		Cookies:          make(map[string]*httpext.HTTPRequestCookie),
-		Tags:             make(map[string]string),
 		ResponseCallback: c.responseCallback,
 	***REMOVED***
 
@@ -336,8 +335,10 @@ func (c *Client) parseRequest(
 				if tagObj == nil ***REMOVED***
 					continue
 				***REMOVED***
-				for _, key := range tagObj.Keys() ***REMOVED***
-					result.Tags[key] = tagObj.Get(key).String()
+				tagKeys := tagObj.Keys()
+				result.Tags = make([][2]string, 0, len(tagKeys))
+				for _, key := range tagKeys ***REMOVED***
+					result.Tags = append(result.Tags, [2]string***REMOVED***key, tagObj.Get(key).String()***REMOVED***)
 				***REMOVED***
 			case "auth":
 				result.Auth = params.Get(k).String()

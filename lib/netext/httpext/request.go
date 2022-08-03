@@ -71,7 +71,7 @@ type ParsedHTTPRequest struct ***REMOVED***
 	Redirects        null.Int
 	ActiveJar        *cookiejar.Jar
 	Cookies          map[string]*HTTPRequestCookie
-	Tags             map[string]string
+	Tags             [][2]string
 ***REMOVED***
 
 // Matches non-compliant io.Closer implementations (e.g. zstd.Decoder)
@@ -189,8 +189,8 @@ func MakeRequest(ctx context.Context, state *lib.State, preq *ParsedHTTPRequest)
 
 	tags := state.CloneTags()
 	// Override any global tags with request-specific ones.
-	for k, v := range preq.Tags ***REMOVED***
-		tags[k] = v
+	for _, tag := range preq.Tags ***REMOVED***
+		tags[tag[0]] = tag[1]
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand,
