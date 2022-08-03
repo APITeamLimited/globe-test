@@ -224,6 +224,7 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 
 func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- metrics.SampleContainer) ***REMOVED***
 	e.state.Test.Logger.Debug("Starting emission of VUs and VUsMax metrics...")
+	runTags := metrics.NewSampleTags(e.state.Test.Options.RunTags)
 
 	emitMetrics := func() ***REMOVED***
 		t := time.Now()
@@ -233,15 +234,15 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 					Time:   t,
 					Metric: e.state.Test.BuiltinMetrics.VUs,
 					Value:  float64(e.state.GetCurrentlyActiveVUsCount()),
-					Tags:   e.state.Test.Options.RunTags,
+					Tags:   runTags,
 				***REMOVED***, ***REMOVED***
 					Time:   t,
 					Metric: e.state.Test.BuiltinMetrics.VUsMax,
 					Value:  float64(e.state.GetInitializedVUsCount()),
-					Tags:   e.state.Test.Options.RunTags,
+					Tags:   runTags,
 				***REMOVED***,
 			***REMOVED***,
-			Tags: e.state.Test.Options.RunTags,
+			Tags: runTags,
 			Time: t,
 		***REMOVED***
 		metrics.PushIfNotDone(ctx, out, samples)

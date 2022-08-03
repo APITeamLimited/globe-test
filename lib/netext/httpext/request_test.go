@@ -118,7 +118,6 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 			Compressions: []CompressionType***REMOVED***badCompressionType***REMOVED***,
 		***REMOVED***
 		state := &lib.State***REMOVED***
-			Options:   lib.Options***REMOVED***RunTags: &metrics.SampleTags***REMOVED******REMOVED******REMOVED***,
 			Transport: http.DefaultTransport,
 			Logger:    logrus.New(),
 			Tags:      lib.NewTagMap(nil),
@@ -141,7 +140,6 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 		logger := logrus.New()
 		logger.Level = logrus.DebugLevel
 		state := &lib.State***REMOVED***
-			Options:   lib.Options***REMOVED***RunTags: &metrics.SampleTags***REMOVED******REMOVED******REMOVED***,
 			Transport: srv.Client().Transport,
 			Logger:    logger,
 			Tags:      lib.NewTagMap(nil),
@@ -192,7 +190,6 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 				samples := make(chan<- metrics.SampleContainer, 1)
 				registry := metrics.NewRegistry()
 				state := &lib.State***REMOVED***
-					Options:        lib.Options***REMOVED***RunTags: &metrics.SampleTags***REMOVED******REMOVED******REMOVED***,
 					Transport:      server.Client().Transport,
 					Logger:         logger,
 					Samples:        samples,
@@ -271,7 +268,6 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	state := &lib.State***REMOVED***
 		Options: lib.Options***REMOVED***
-			RunTags:    &metrics.SampleTags***REMOVED******REMOVED***,
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport:      srv.Client().Transport,
@@ -348,7 +344,6 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			registry := metrics.NewRegistry()
 			state := &lib.State***REMOVED***
 				Options: lib.Options***REMOVED***
-					RunTags:    &metrics.SampleTags***REMOVED******REMOVED***,
 					SystemTags: &metrics.DefaultSystemTagSet,
 				***REMOVED***,
 				Transport:      srv.Client().Transport,
@@ -410,7 +405,6 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	state := &lib.State***REMOVED***
 		Options: lib.Options***REMOVED***
-			RunTags:    &metrics.SampleTags***REMOVED******REMOVED***,
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport: &http.Transport***REMOVED***
@@ -469,7 +463,6 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	state := &lib.State***REMOVED***
 		Options: lib.Options***REMOVED***
-			RunTags:    &metrics.SampleTags***REMOVED******REMOVED***,
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport:      srv.Client().Transport,

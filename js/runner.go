@@ -257,7 +257,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		VUID:           vu.ID,
 		VUIDGlobal:     vu.IDGlobal,
 		Samples:        vu.Samples,
-		Tags:           lib.NewTagMap(vu.Runner.Bundle.Options.RunTags.CloneTags()),
+		Tags:           lib.NewTagMap(copyStringMap(vu.Runner.Bundle.Options.RunTags)),
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.preInitState.BuiltinMetrics,
 	***REMOVED***
@@ -630,7 +630,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 
 	opts := u.Runner.Bundle.Options
 	// TODO: maybe we can cache the original tags only clone them and add (if any) new tags on top ?
-	u.state.Tags = lib.NewTagMap(opts.RunTags.CloneTags())
+	u.state.Tags = lib.NewTagMap(copyStringMap(opts.RunTags))
 	for k, v := range params.Tags ***REMOVED***
 		u.state.Tags.Set(k, v)
 	***REMOVED***
@@ -860,4 +860,12 @@ func (s *scriptException) Hint() string ***REMOVED***
 
 func (s *scriptException) ExitCode() exitcodes.ExitCode ***REMOVED***
 	return exitcodes.ScriptException
+***REMOVED***
+
+func copyStringMap(m map[string]string) map[string]string ***REMOVED***
+	clone := make(map[string]string, len(m))
+	for ktag, vtag := range m ***REMOVED***
+		clone[ktag] = vtag
+	***REMOVED***
+	return clone
 ***REMOVED***

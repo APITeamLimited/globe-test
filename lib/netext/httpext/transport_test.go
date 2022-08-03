@@ -46,7 +46,6 @@ func BenchmarkMeasureAndEmitMetrics(b *testing.B) ***REMOVED***
 	registry := metrics.NewRegistry()
 	state := &lib.State***REMOVED***
 		Options: lib.Options***REMOVED***
-			RunTags:    &metrics.SampleTags***REMOVED******REMOVED***,
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),

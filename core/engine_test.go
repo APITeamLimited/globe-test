@@ -690,8 +690,14 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	runTagsMap := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
-	runTags := metrics.NewSampleTags(runTagsMap)
+	expectedRunTags := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
+
+	// it copies the map so in the case the runner will overwrite
+	// some run tags' values it doesn't affect the assertion.
+	runTags := make(map[string]string)
+	for k, v := range expectedRunTags ***REMOVED***
+		runTags[k] = v
+	***REMOVED***
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
@@ -780,14 +786,14 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	getExpectedOverVal := func(metricName string) string ***REMOVED***
 		for _, sysMetric := range systemMetrics ***REMOVED***
 			if sysMetric == metricName ***REMOVED***
-				return runTagsMap["over"]
+				return expectedRunTags["over"]
 			***REMOVED***
 		***REMOVED***
 		return "the rainbow"
 	***REMOVED***
 
 	for _, s := range mockOutput.Samples ***REMOVED***
-		for key, expVal := range runTagsMap ***REMOVED***
+		for key, expVal := range expectedRunTags ***REMOVED***
 			val, ok := s.Tags.Get(key)
 
 			if key == "over" ***REMOVED***

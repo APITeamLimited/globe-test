@@ -352,7 +352,7 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 					sysm := metrics.TagIter | metrics.TagVU
 					return &sysm
 				***REMOVED***(),
-				RunTags:                 metrics.NewSampleTags(map[string]string***REMOVED***"runtag-key": "runtag-value"***REMOVED***),
+				RunTags:                 map[string]string***REMOVED***"runtag-key": "runtag-value"***REMOVED***,
 				MetricSamplesBufferSize: null.IntFrom(8),
 				ConsoleOutput:           null.StringFrom("loadtest.log"),
 				LocalIPs: func() types.NullIPPool ***REMOVED***

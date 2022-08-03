@@ -562,7 +562,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("RunTags", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		tags := metrics.IntoSampleTags(&map[string]string***REMOVED***"myTag": "hello"***REMOVED***)
+		tags := map[string]string***REMOVED***"myTag": "hello"***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RunTags: tags***REMOVED***)
 		assert.Equal(t, tags, opts.RunTags)
 	***REMOVED***)
