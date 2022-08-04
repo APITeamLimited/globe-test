@@ -10,7 +10,7 @@ import (
 )
 
 func TestIsAllowedURL(t *testing.T) ***REMOVED***
-	var allowed = []struct ***REMOVED***
+	allowed := []struct ***REMOVED***
 		url      string
 		only     []string
 		skip     []string

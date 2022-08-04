@@ -58,7 +58,6 @@ func TestSetupData(t *testing.T) ***REMOVED***
 				***REMOVED***"GET", "", `***REMOVED******REMOVED***`***REMOVED***,
 			***REMOVED***,
 		***REMOVED***, ***REMOVED***
-
 			name: "noSetup",
 			script: []byte(`
 			export default function(data) ***REMOVED***
