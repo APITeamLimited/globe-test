@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (fd *File) lazyRawInit() ***REMOVED***
@@ -39,10 +39,10 @@ func (file *File) resolveMessages() ***REMOVED***
 
 			// Resolve message field dependency.
 			switch fd.L1.Kind ***REMOVED***
-			case pref.EnumKind:
+			case protoreflect.EnumKind:
 				fd.L1.Enum = file.resolveEnumDependency(fd.L1.Enum, listFieldDeps, depIdx)
 				depIdx++
-			case pref.MessageKind, pref.GroupKind:
+			case protoreflect.MessageKind, protoreflect.GroupKind:
 				fd.L1.Message = file.resolveMessageDependency(fd.L1.Message, listFieldDeps, depIdx)
 				depIdx++
 			***REMOVED***
@@ -62,10 +62,10 @@ func (file *File) resolveExtensions() ***REMOVED***
 
 		// Resolve extension field dependency.
 		switch xd.L1.Kind ***REMOVED***
-		case pref.EnumKind:
+		case protoreflect.EnumKind:
 			xd.L2.Enum = file.resolveEnumDependency(xd.L2.Enum, listExtDeps, depIdx)
 			depIdx++
-		case pref.MessageKind, pref.GroupKind:
+		case protoreflect.MessageKind, protoreflect.GroupKind:
 			xd.L2.Message = file.resolveMessageDependency(xd.L2.Message, listExtDeps, depIdx)
 			depIdx++
 		***REMOVED***
@@ -92,7 +92,7 @@ func (file *File) resolveServices() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (file *File) resolveEnumDependency(ed pref.EnumDescriptor, i, j int32) pref.EnumDescriptor ***REMOVED***
+func (file *File) resolveEnumDependency(ed protoreflect.EnumDescriptor, i, j int32) protoreflect.EnumDescriptor ***REMOVED***
 	r := file.builder.FileRegistry
 	if r, ok := r.(resolverByIndex); ok ***REMOVED***
 		if ed2 := r.FindEnumByIndex(i, j, file.allEnums, file.allMessages); ed2 != nil ***REMOVED***
@@ -105,12 +105,12 @@ func (file *File) resolveEnumDependency(ed pref.EnumDescriptor, i, j int32) pref
 		***REMOVED***
 	***REMOVED***
 	if d, _ := r.FindDescriptorByName(ed.FullName()); d != nil ***REMOVED***
-		return d.(pref.EnumDescriptor)
+		return d.(protoreflect.EnumDescriptor)
 	***REMOVED***
 	return ed
 ***REMOVED***
 
-func (file *File) resolveMessageDependency(md pref.MessageDescriptor, i, j int32) pref.MessageDescriptor ***REMOVED***
+func (file *File) resolveMessageDependency(md protoreflect.MessageDescriptor, i, j int32) protoreflect.MessageDescriptor ***REMOVED***
 	r := file.builder.FileRegistry
 	if r, ok := r.(resolverByIndex); ok ***REMOVED***
 		if md2 := r.FindMessageByIndex(i, j, file.allEnums, file.allMessages); md2 != nil ***REMOVED***
@@ -123,7 +123,7 @@ func (file *File) resolveMessageDependency(md pref.MessageDescriptor, i, j int32
 		***REMOVED***
 	***REMOVED***
 	if d, _ := r.FindDescriptorByName(md.FullName()); d != nil ***REMOVED***
-		return d.(pref.MessageDescriptor)
+		return d.(protoreflect.MessageDescriptor)
 	***REMOVED***
 	return md
 ***REMOVED***
@@ -158,7 +158,7 @@ func (fd *File) unmarshalFull(b []byte) ***REMOVED***
 				if imp == nil ***REMOVED***
 					imp = PlaceholderFile(path)
 				***REMOVED***
-				fd.L2.Imports = append(fd.L2.Imports, pref.FileImport***REMOVED***FileDescriptor: imp***REMOVED***)
+				fd.L2.Imports = append(fd.L2.Imports, protoreflect.FileImport***REMOVED***FileDescriptor: imp***REMOVED***)
 			case genid.FileDescriptorProto_EnumType_field_number:
 				fd.L1.Enums.List[enumIdx].unmarshalFull(v, sb)
 				enumIdx++
@@ -199,7 +199,7 @@ func (ed *Enum) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 			case genid.EnumDescriptorProto_Value_field_number:
 				rawValues = append(rawValues, v)
 			case genid.EnumDescriptorProto_ReservedName_field_number:
-				ed.L2.ReservedNames.List = append(ed.L2.ReservedNames.List, pref.Name(sb.MakeString(v)))
+				ed.L2.ReservedNames.List = append(ed.L2.ReservedNames.List, protoreflect.Name(sb.MakeString(v)))
 			case genid.EnumDescriptorProto_ReservedRange_field_number:
 				ed.L2.ReservedRanges.List = append(ed.L2.ReservedRanges.List, unmarshalEnumReservedRange(v))
 			case genid.EnumDescriptorProto_Options_field_number:
@@ -219,7 +219,7 @@ func (ed *Enum) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 	ed.L2.Options = ed.L0.ParentFile.builder.optionsUnmarshaler(&descopts.Enum, rawOptions)
 ***REMOVED***
 
-func unmarshalEnumReservedRange(b []byte) (r [2]pref.EnumNumber) ***REMOVED***
+func unmarshalEnumReservedRange(b []byte) (r [2]protoreflect.EnumNumber) ***REMOVED***
 	for len(b) > 0 ***REMOVED***
 		num, typ, n := protowire.ConsumeTag(b)
 		b = b[n:]
@@ -229,9 +229,9 @@ func unmarshalEnumReservedRange(b []byte) (r [2]pref.EnumNumber) ***REMOVED***
 			b = b[m:]
 			switch num ***REMOVED***
 			case genid.EnumDescriptorProto_EnumReservedRange_Start_field_number:
-				r[0] = pref.EnumNumber(v)
+				r[0] = protoreflect.EnumNumber(v)
 			case genid.EnumDescriptorProto_EnumReservedRange_End_field_number:
-				r[1] = pref.EnumNumber(v)
+				r[1] = protoreflect.EnumNumber(v)
 			***REMOVED***
 		default:
 			m := protowire.ConsumeFieldValue(num, typ, b)
@@ -241,7 +241,7 @@ func unmarshalEnumReservedRange(b []byte) (r [2]pref.EnumNumber) ***REMOVED***
 	return r
 ***REMOVED***
 
-func (vd *EnumValue) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Descriptor, i int) ***REMOVED***
+func (vd *EnumValue) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd protoreflect.Descriptor, i int) ***REMOVED***
 	vd.L0.ParentFile = pf
 	vd.L0.Parent = pd
 	vd.L0.Index = i
@@ -256,7 +256,7 @@ func (vd *EnumValue) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref
 			b = b[m:]
 			switch num ***REMOVED***
 			case genid.EnumValueDescriptorProto_Number_field_number:
-				vd.L1.Number = pref.EnumNumber(v)
+				vd.L1.Number = protoreflect.EnumNumber(v)
 			***REMOVED***
 		case protowire.BytesType:
 			v, m := protowire.ConsumeBytes(b)
@@ -294,7 +294,7 @@ func (md *Message) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 			case genid.DescriptorProto_OneofDecl_field_number:
 				rawOneofs = append(rawOneofs, v)
 			case genid.DescriptorProto_ReservedName_field_number:
-				md.L2.ReservedNames.List = append(md.L2.ReservedNames.List, pref.Name(sb.MakeString(v)))
+				md.L2.ReservedNames.List = append(md.L2.ReservedNames.List, protoreflect.Name(sb.MakeString(v)))
 			case genid.DescriptorProto_ReservedRange_field_number:
 				md.L2.ReservedRanges.List = append(md.L2.ReservedRanges.List, unmarshalMessageReservedRange(v))
 			case genid.DescriptorProto_ExtensionRange_field_number:
@@ -326,7 +326,7 @@ func (md *Message) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 		for i, b := range rawFields ***REMOVED***
 			fd := &md.L2.Fields.List[i]
 			fd.unmarshalFull(b, sb, md.L0.ParentFile, md, i)
-			if fd.L1.Cardinality == pref.Required ***REMOVED***
+			if fd.L1.Cardinality == protoreflect.Required ***REMOVED***
 				md.L2.RequiredNumbers.List = append(md.L2.RequiredNumbers.List, fd.L1.Number)
 			***REMOVED***
 		***REMOVED***
@@ -359,7 +359,7 @@ func (md *Message) unmarshalOptions(b []byte) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func unmarshalMessageReservedRange(b []byte) (r [2]pref.FieldNumber) ***REMOVED***
+func unmarshalMessageReservedRange(b []byte) (r [2]protoreflect.FieldNumber) ***REMOVED***
 	for len(b) > 0 ***REMOVED***
 		num, typ, n := protowire.ConsumeTag(b)
 		b = b[n:]
@@ -369,9 +369,9 @@ func unmarshalMessageReservedRange(b []byte) (r [2]pref.FieldNumber) ***REMOVED*
 			b = b[m:]
 			switch num ***REMOVED***
 			case genid.DescriptorProto_ReservedRange_Start_field_number:
-				r[0] = pref.FieldNumber(v)
+				r[0] = protoreflect.FieldNumber(v)
 			case genid.DescriptorProto_ReservedRange_End_field_number:
-				r[1] = pref.FieldNumber(v)
+				r[1] = protoreflect.FieldNumber(v)
 			***REMOVED***
 		default:
 			m := protowire.ConsumeFieldValue(num, typ, b)
@@ -381,7 +381,7 @@ func unmarshalMessageReservedRange(b []byte) (r [2]pref.FieldNumber) ***REMOVED*
 	return r
 ***REMOVED***
 
-func unmarshalMessageExtensionRange(b []byte) (r [2]pref.FieldNumber, rawOptions []byte) ***REMOVED***
+func unmarshalMessageExtensionRange(b []byte) (r [2]protoreflect.FieldNumber, rawOptions []byte) ***REMOVED***
 	for len(b) > 0 ***REMOVED***
 		num, typ, n := protowire.ConsumeTag(b)
 		b = b[n:]
@@ -391,9 +391,9 @@ func unmarshalMessageExtensionRange(b []byte) (r [2]pref.FieldNumber, rawOptions
 			b = b[m:]
 			switch num ***REMOVED***
 			case genid.DescriptorProto_ExtensionRange_Start_field_number:
-				r[0] = pref.FieldNumber(v)
+				r[0] = protoreflect.FieldNumber(v)
 			case genid.DescriptorProto_ExtensionRange_End_field_number:
-				r[1] = pref.FieldNumber(v)
+				r[1] = protoreflect.FieldNumber(v)
 			***REMOVED***
 		case protowire.BytesType:
 			v, m := protowire.ConsumeBytes(b)
@@ -410,7 +410,7 @@ func unmarshalMessageExtensionRange(b []byte) (r [2]pref.FieldNumber, rawOptions
 	return r, rawOptions
 ***REMOVED***
 
-func (fd *Field) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Descriptor, i int) ***REMOVED***
+func (fd *Field) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd protoreflect.Descriptor, i int) ***REMOVED***
 	fd.L0.ParentFile = pf
 	fd.L0.Parent = pd
 	fd.L0.Index = i
@@ -426,11 +426,11 @@ func (fd *Field) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Des
 			b = b[m:]
 			switch num ***REMOVED***
 			case genid.FieldDescriptorProto_Number_field_number:
-				fd.L1.Number = pref.FieldNumber(v)
+				fd.L1.Number = protoreflect.FieldNumber(v)
 			case genid.FieldDescriptorProto_Label_field_number:
-				fd.L1.Cardinality = pref.Cardinality(v)
+				fd.L1.Cardinality = protoreflect.Cardinality(v)
 			case genid.FieldDescriptorProto_Type_field_number:
-				fd.L1.Kind = pref.Kind(v)
+				fd.L1.Kind = protoreflect.Kind(v)
 			case genid.FieldDescriptorProto_OneofIndex_field_number:
 				// In Message.unmarshalFull, we allocate slices for both
 				// the field and oneof descriptors before unmarshaling either
@@ -453,7 +453,7 @@ func (fd *Field) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Des
 			case genid.FieldDescriptorProto_JsonName_field_number:
 				fd.L1.StringName.InitJSON(sb.MakeString(v))
 			case genid.FieldDescriptorProto_DefaultValue_field_number:
-				fd.L1.Default.val = pref.ValueOfBytes(v) // temporarily store as bytes; later resolved in resolveMessages
+				fd.L1.Default.val = protoreflect.ValueOfBytes(v) // temporarily store as bytes; later resolved in resolveMessages
 			case genid.FieldDescriptorProto_TypeName_field_number:
 				rawTypeName = v
 			case genid.FieldDescriptorProto_Options_field_number:
@@ -468,9 +468,9 @@ func (fd *Field) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Des
 	if rawTypeName != nil ***REMOVED***
 		name := makeFullName(sb, rawTypeName)
 		switch fd.L1.Kind ***REMOVED***
-		case pref.EnumKind:
+		case protoreflect.EnumKind:
 			fd.L1.Enum = PlaceholderEnum(name)
-		case pref.MessageKind, pref.GroupKind:
+		case protoreflect.MessageKind, protoreflect.GroupKind:
 			fd.L1.Message = PlaceholderMessage(name)
 		***REMOVED***
 	***REMOVED***
@@ -504,7 +504,7 @@ func (fd *Field) unmarshalOptions(b []byte) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (od *Oneof) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Descriptor, i int) ***REMOVED***
+func (od *Oneof) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd protoreflect.Descriptor, i int) ***REMOVED***
 	od.L0.ParentFile = pf
 	od.L0.Parent = pd
 	od.L0.Index = i
@@ -553,7 +553,7 @@ func (xd *Extension) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 			case genid.FieldDescriptorProto_JsonName_field_number:
 				xd.L2.StringName.InitJSON(sb.MakeString(v))
 			case genid.FieldDescriptorProto_DefaultValue_field_number:
-				xd.L2.Default.val = pref.ValueOfBytes(v) // temporarily store as bytes; later resolved in resolveExtensions
+				xd.L2.Default.val = protoreflect.ValueOfBytes(v) // temporarily store as bytes; later resolved in resolveExtensions
 			case genid.FieldDescriptorProto_TypeName_field_number:
 				rawTypeName = v
 			case genid.FieldDescriptorProto_Options_field_number:
@@ -568,9 +568,9 @@ func (xd *Extension) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 	if rawTypeName != nil ***REMOVED***
 		name := makeFullName(sb, rawTypeName)
 		switch xd.L1.Kind ***REMOVED***
-		case pref.EnumKind:
+		case protoreflect.EnumKind:
 			xd.L2.Enum = PlaceholderEnum(name)
-		case pref.MessageKind, pref.GroupKind:
+		case protoreflect.MessageKind, protoreflect.GroupKind:
 			xd.L2.Message = PlaceholderMessage(name)
 		***REMOVED***
 	***REMOVED***
@@ -627,7 +627,7 @@ func (sd *Service) unmarshalFull(b []byte, sb *strs.Builder) ***REMOVED***
 	sd.L2.Options = sd.L0.ParentFile.builder.optionsUnmarshaler(&descopts.Service, rawOptions)
 ***REMOVED***
 
-func (md *Method) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd pref.Descriptor, i int) ***REMOVED***
+func (md *Method) unmarshalFull(b []byte, sb *strs.Builder, pf *File, pd protoreflect.Descriptor, i int) ***REMOVED***
 	md.L0.ParentFile = pf
 	md.L0.Parent = pd
 	md.L0.Index = i
@@ -680,18 +680,18 @@ func appendOptions(dst, src []byte) []byte ***REMOVED***
 //
 // The type of message to unmarshal to is passed as a pointer since the
 // vars in descopts may not yet be populated at the time this function is called.
-func (db *Builder) optionsUnmarshaler(p *pref.ProtoMessage, b []byte) func() pref.ProtoMessage ***REMOVED***
+func (db *Builder) optionsUnmarshaler(p *protoreflect.ProtoMessage, b []byte) func() protoreflect.ProtoMessage ***REMOVED***
 	if b == nil ***REMOVED***
 		return nil
 	***REMOVED***
-	var opts pref.ProtoMessage
+	var opts protoreflect.ProtoMessage
 	var once sync.Once
-	return func() pref.ProtoMessage ***REMOVED***
+	return func() protoreflect.ProtoMessage ***REMOVED***
 		once.Do(func() ***REMOVED***
 			if *p == nil ***REMOVED***
 				panic("Descriptor.Options called without importing the descriptor package")
 			***REMOVED***
-			opts = reflect.New(reflect.TypeOf(*p).Elem()).Interface().(pref.ProtoMessage)
+			opts = reflect.New(reflect.TypeOf(*p).Elem()).Interface().(protoreflect.ProtoMessage)
 			if err := (proto.UnmarshalOptions***REMOVED***
 				AllowPartial: true,
 				Resolver:     db.TypeResolver,

@@ -193,6 +193,8 @@ func (gsb *Balancer) ExitIdle() ***REMOVED***
 		ei.ExitIdle()
 		return
 	***REMOVED***
+	gsb.mu.Lock()
+	defer gsb.mu.Unlock()
 	for sc := range balToUpdate.subconns ***REMOVED***
 		sc.Connect()
 	***REMOVED***

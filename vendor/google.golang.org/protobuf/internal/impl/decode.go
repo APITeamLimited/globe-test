@@ -12,12 +12,12 @@ import (
 	"google.golang.org/protobuf/internal/flags"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	preg "google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/runtime/protoiface"
-	piface "google.golang.org/protobuf/runtime/protoiface"
 )
 
 var errDecode = errors.New("cannot parse invalid wire-format data")
+var errRecursionDepth = errors.New("exceeded maximum recursion depth")
 
 type unmarshalOptions struct ***REMOVED***
 	flags    protoiface.UnmarshalInputFlags
@@ -25,6 +25,7 @@ type unmarshalOptions struct ***REMOVED***
 		FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error)
 		FindExtensionByNumber(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error)
 	***REMOVED***
+	depth int
 ***REMOVED***
 
 func (o unmarshalOptions) Options() proto.UnmarshalOptions ***REMOVED***
@@ -36,14 +37,17 @@ func (o unmarshalOptions) Options() proto.UnmarshalOptions ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (o unmarshalOptions) DiscardUnknown() bool ***REMOVED*** return o.flags&piface.UnmarshalDiscardUnknown != 0 ***REMOVED***
+func (o unmarshalOptions) DiscardUnknown() bool ***REMOVED***
+	return o.flags&protoiface.UnmarshalDiscardUnknown != 0
+***REMOVED***
 
 func (o unmarshalOptions) IsDefault() bool ***REMOVED***
-	return o.flags == 0 && o.resolver == preg.GlobalTypes
+	return o.flags == 0 && o.resolver == protoregistry.GlobalTypes
 ***REMOVED***
 
 var lazyUnmarshalOptions = unmarshalOptions***REMOVED***
-	resolver: preg.GlobalTypes,
+	resolver: protoregistry.GlobalTypes,
+	depth:    protowire.DefaultRecursionLimit,
 ***REMOVED***
 
 type unmarshalOutput struct ***REMOVED***
@@ -52,7 +56,7 @@ type unmarshalOutput struct ***REMOVED***
 ***REMOVED***
 
 // unmarshal is protoreflect.Methods.Unmarshal.
-func (mi *MessageInfo) unmarshal(in piface.UnmarshalInput) (piface.UnmarshalOutput, error) ***REMOVED***
+func (mi *MessageInfo) unmarshal(in protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) ***REMOVED***
 	var p pointer
 	if ms, ok := in.Message.(*messageState); ok ***REMOVED***
 		p = ms.pointer()
@@ -62,12 +66,13 @@ func (mi *MessageInfo) unmarshal(in piface.UnmarshalInput) (piface.UnmarshalOutp
 	out, err := mi.unmarshalPointer(in.Buf, p, 0, unmarshalOptions***REMOVED***
 		flags:    in.Flags,
 		resolver: in.Resolver,
+		depth:    in.Depth,
 	***REMOVED***)
-	var flags piface.UnmarshalOutputFlags
+	var flags protoiface.UnmarshalOutputFlags
 	if out.initialized ***REMOVED***
-		flags |= piface.UnmarshalInitialized
+		flags |= protoiface.UnmarshalInitialized
 	***REMOVED***
-	return piface.UnmarshalOutput***REMOVED***
+	return protoiface.UnmarshalOutput***REMOVED***
 		Flags: flags,
 	***REMOVED***, err
 ***REMOVED***
@@ -82,6 +87,10 @@ var errUnknown = errors.New("unknown")
 
 func (mi *MessageInfo) unmarshalPointer(b []byte, p pointer, groupTag protowire.Number, opts unmarshalOptions) (out unmarshalOutput, err error) ***REMOVED***
 	mi.init()
+	opts.depth--
+	if opts.depth < 0 ***REMOVED***
+		return out, errRecursionDepth
+	***REMOVED***
 	if flags.ProtoLegacy && mi.isMessageSet ***REMOVED***
 		return unmarshalMessageSet(mi, b, p, opts)
 	***REMOVED***
@@ -202,7 +211,7 @@ func (mi *MessageInfo) unmarshalExtension(b []byte, num protowire.Number, wtyp p
 		var err error
 		xt, err = opts.resolver.FindExtensionByNumber(mi.Desc.FullName(), num)
 		if err != nil ***REMOVED***
-			if err == preg.NotFound ***REMOVED***
+			if err == protoregistry.NotFound ***REMOVED***
 				return out, errUnknown
 			***REMOVED***
 			return out, errors.New("%v: unable to resolve extension %v: %v", mi.Desc.FullName(), num, err)

@@ -146,6 +146,10 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***nil***REMOVED***)
 	cc.ctx, cc.cancel = context.WithCancel(context.Background())
 
+	for _, opt := range extraDialOptions ***REMOVED***
+		opt.apply(&cc.dopts)
+	***REMOVED***
+
 	for _, opt := range opts ***REMOVED***
 		opt.apply(&cc.dopts)
 	***REMOVED***

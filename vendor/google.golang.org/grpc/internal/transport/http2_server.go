@@ -82,7 +82,7 @@ type http2Server struct ***REMOVED***
 	// updates, reset streams, and various settings) to the controller.
 	controlBuf *controlBuffer
 	fc         *trInFlow
-	stats      stats.Handler
+	stats      []stats.Handler
 	// Keepalive and max-age parameters for the server.
 	kp keepalive.ServerParameters
 	// Keepalive enforcement policy.
@@ -257,7 +257,7 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 		fc:                &trInFlow***REMOVED***limit: uint32(icwz)***REMOVED***,
 		state:             reachable,
 		activeStreams:     make(map[uint32]*Stream),
-		stats:             config.StatsHandler,
+		stats:             config.StatsHandlers,
 		kp:                kp,
 		idle:              time.Now(),
 		kep:               kep,
@@ -272,13 +272,13 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 			updateFlowControl: t.updateFlowControl,
 		***REMOVED***
 	***REMOVED***
-	if t.stats != nil ***REMOVED***
-		t.ctx = t.stats.TagConn(t.ctx, &stats.ConnTagInfo***REMOVED***
+	for _, sh := range t.stats ***REMOVED***
+		t.ctx = sh.TagConn(t.ctx, &stats.ConnTagInfo***REMOVED***
 			RemoteAddr: t.remoteAddr,
 			LocalAddr:  t.localAddr,
 		***REMOVED***)
 		connBegin := &stats.ConnBegin***REMOVED******REMOVED***
-		t.stats.HandleConn(t.ctx, connBegin)
+		sh.HandleConn(t.ctx, connBegin)
 	***REMOVED***
 	t.channelzID, err = channelz.RegisterNormalSocket(t, config.ChannelzParentID, fmt.Sprintf("%s -> %s", t.remoteAddr, t.localAddr))
 	if err != nil ***REMOVED***
@@ -570,8 +570,8 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		t.adjustWindow(s, uint32(n))
 	***REMOVED***
 	s.ctx = traceCtx(s.ctx, s.method)
-	if t.stats != nil ***REMOVED***
-		s.ctx = t.stats.TagRPC(s.ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: s.method***REMOVED***)
+	for _, sh := range t.stats ***REMOVED***
+		s.ctx = sh.TagRPC(s.ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: s.method***REMOVED***)
 		inHeader := &stats.InHeader***REMOVED***
 			FullMethod:  s.method,
 			RemoteAddr:  t.remoteAddr,
@@ -580,7 +580,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 			WireLength:  int(frame.Header().Length),
 			Header:      metadata.MD(mdata).Copy(),
 		***REMOVED***
-		t.stats.HandleRPC(s.ctx, inHeader)
+		sh.HandleRPC(s.ctx, inHeader)
 	***REMOVED***
 	s.ctxDone = s.ctx.Done()
 	s.wq = newWriteQuota(defaultWriteQuota, s.ctxDone)
@@ -996,14 +996,14 @@ func (t *http2Server) writeHeaderLocked(s *Stream) error ***REMOVED***
 		t.closeStream(s, true, http2.ErrCodeInternal, false)
 		return ErrHeaderListSizeLimitViolation
 	***REMOVED***
-	if t.stats != nil ***REMOVED***
+	for _, sh := range t.stats ***REMOVED***
 		// Note: Headers are compressed with hpack after this call returns.
 		// No WireLength field is set here.
 		outHeader := &stats.OutHeader***REMOVED***
 			Header:      s.header.Copy(),
 			Compression: s.sendCompress,
 		***REMOVED***
-		t.stats.HandleRPC(s.Context(), outHeader)
+		sh.HandleRPC(s.Context(), outHeader)
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -1064,10 +1064,10 @@ func (t *http2Server) WriteStatus(s *Stream, st *status.Status) error ***REMOVED
 	// Send a RST_STREAM after the trailers if the client has not already half-closed.
 	rst := s.getState() == streamActive
 	t.finishStream(s, rst, http2.ErrCodeNo, trailingHeader, true)
-	if t.stats != nil ***REMOVED***
+	for _, sh := range t.stats ***REMOVED***
 		// Note: The trailer fields are compressed with hpack after this call returns.
 		// No WireLength field is set here.
-		t.stats.HandleRPC(s.Context(), &stats.OutTrailer***REMOVED***
+		sh.HandleRPC(s.Context(), &stats.OutTrailer***REMOVED***
 			Trailer: s.trailer.Copy(),
 		***REMOVED***)
 	***REMOVED***
@@ -1222,9 +1222,9 @@ func (t *http2Server) Close() ***REMOVED***
 	for _, s := range streams ***REMOVED***
 		s.cancel()
 	***REMOVED***
-	if t.stats != nil ***REMOVED***
+	for _, sh := range t.stats ***REMOVED***
 		connEnd := &stats.ConnEnd***REMOVED******REMOVED***
-		t.stats.HandleConn(t.ctx, connEnd)
+		sh.HandleConn(t.ctx, connEnd)
 	***REMOVED***
 ***REMOVED***
 

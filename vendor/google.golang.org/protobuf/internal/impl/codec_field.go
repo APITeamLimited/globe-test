@@ -12,9 +12,9 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/proto"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	preg "google.golang.org/protobuf/reflect/protoregistry"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 type errInvalidUTF8 struct***REMOVED******REMOVED***
@@ -30,7 +30,7 @@ func (errInvalidUTF8) Unwrap() error     ***REMOVED*** return errors.Error ***RE
 // to the appropriate field-specific function as necessary.
 //
 // The unmarshal function is set on each field individually as usual.
-func (mi *MessageInfo) initOneofFieldCoders(od pref.OneofDescriptor, si structInfo) ***REMOVED***
+func (mi *MessageInfo) initOneofFieldCoders(od protoreflect.OneofDescriptor, si structInfo) ***REMOVED***
 	fs := si.oneofsByName[od.Name()]
 	ft := fs.Type
 	oneofFields := make(map[reflect.Type]*coderFieldInfo)
@@ -118,13 +118,13 @@ func (mi *MessageInfo) initOneofFieldCoders(od pref.OneofDescriptor, si structIn
 	***REMOVED***
 ***REMOVED***
 
-func makeWeakMessageFieldCoder(fd pref.FieldDescriptor) pointerCoderFuncs ***REMOVED***
+func makeWeakMessageFieldCoder(fd protoreflect.FieldDescriptor) pointerCoderFuncs ***REMOVED***
 	var once sync.Once
-	var messageType pref.MessageType
+	var messageType protoreflect.MessageType
 	lazyInit := func() ***REMOVED***
 		once.Do(func() ***REMOVED***
 			messageName := fd.Message().FullName()
-			messageType, _ = preg.GlobalTypes.FindMessageByName(messageName)
+			messageType, _ = protoregistry.GlobalTypes.FindMessageByName(messageName)
 		***REMOVED***)
 	***REMOVED***
 
@@ -190,7 +190,7 @@ func makeWeakMessageFieldCoder(fd pref.FieldDescriptor) pointerCoderFuncs ***REM
 	***REMOVED***
 ***REMOVED***
 
-func makeMessageFieldCoder(fd pref.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
+func makeMessageFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
 	if mi := getMessageInfo(ft); mi != nil ***REMOVED***
 		funcs := pointerCoderFuncs***REMOVED***
 			size:      sizeMessageInfo,
@@ -280,7 +280,7 @@ func consumeMessage(b []byte, m proto.Message, wtyp protowire.Type, opts unmarsh
 	if n < 0 ***REMOVED***
 		return out, errDecode
 	***REMOVED***
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     v,
 		Message: m.ProtoReflect(),
 	***REMOVED***)
@@ -288,27 +288,27 @@ func consumeMessage(b []byte, m proto.Message, wtyp protowire.Type, opts unmarsh
 		return out, err
 	***REMOVED***
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return out, nil
 ***REMOVED***
 
-func sizeMessageValue(v pref.Value, tagsize int, opts marshalOptions) int ***REMOVED***
+func sizeMessageValue(v protoreflect.Value, tagsize int, opts marshalOptions) int ***REMOVED***
 	m := v.Message().Interface()
 	return sizeMessage(m, tagsize, opts)
 ***REMOVED***
 
-func appendMessageValue(b []byte, v pref.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
+func appendMessageValue(b []byte, v protoreflect.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
 	m := v.Message().Interface()
 	return appendMessage(b, m, wiretag, opts)
 ***REMOVED***
 
-func consumeMessageValue(b []byte, v pref.Value, _ protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (pref.Value, unmarshalOutput, error) ***REMOVED***
+func consumeMessageValue(b []byte, v protoreflect.Value, _ protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (protoreflect.Value, unmarshalOutput, error) ***REMOVED***
 	m := v.Message().Interface()
 	out, err := consumeMessage(b, m, wtyp, opts)
 	return v, out, err
 ***REMOVED***
 
-func isInitMessageValue(v pref.Value) error ***REMOVED***
+func isInitMessageValue(v protoreflect.Value) error ***REMOVED***
 	m := v.Message().Interface()
 	return proto.CheckInitialized(m)
 ***REMOVED***
@@ -321,17 +321,17 @@ var coderMessageValue = valueCoderFuncs***REMOVED***
 	merge:     mergeMessageValue,
 ***REMOVED***
 
-func sizeGroupValue(v pref.Value, tagsize int, opts marshalOptions) int ***REMOVED***
+func sizeGroupValue(v protoreflect.Value, tagsize int, opts marshalOptions) int ***REMOVED***
 	m := v.Message().Interface()
 	return sizeGroup(m, tagsize, opts)
 ***REMOVED***
 
-func appendGroupValue(b []byte, v pref.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
+func appendGroupValue(b []byte, v protoreflect.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
 	m := v.Message().Interface()
 	return appendGroup(b, m, wiretag, opts)
 ***REMOVED***
 
-func consumeGroupValue(b []byte, v pref.Value, num protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (pref.Value, unmarshalOutput, error) ***REMOVED***
+func consumeGroupValue(b []byte, v protoreflect.Value, num protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (protoreflect.Value, unmarshalOutput, error) ***REMOVED***
 	m := v.Message().Interface()
 	out, err := consumeGroup(b, m, num, wtyp, opts)
 	return v, out, err
@@ -345,7 +345,7 @@ var coderGroupValue = valueCoderFuncs***REMOVED***
 	merge:     mergeMessageValue,
 ***REMOVED***
 
-func makeGroupFieldCoder(fd pref.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
+func makeGroupFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
 	num := fd.Number()
 	if mi := getMessageInfo(ft); mi != nil ***REMOVED***
 		funcs := pointerCoderFuncs***REMOVED***
@@ -424,7 +424,7 @@ func consumeGroup(b []byte, m proto.Message, num protowire.Number, wtyp protowir
 	if n < 0 ***REMOVED***
 		return out, errDecode
 	***REMOVED***
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     b,
 		Message: m.ProtoReflect(),
 	***REMOVED***)
@@ -432,11 +432,11 @@ func consumeGroup(b []byte, m proto.Message, num protowire.Number, wtyp protowir
 		return out, err
 	***REMOVED***
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return out, nil
 ***REMOVED***
 
-func makeMessageSliceFieldCoder(fd pref.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
+func makeMessageSliceFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
 	if mi := getMessageInfo(ft); mi != nil ***REMOVED***
 		funcs := pointerCoderFuncs***REMOVED***
 			size:      sizeMessageSliceInfo,
@@ -555,7 +555,7 @@ func consumeMessageSlice(b []byte, p pointer, goType reflect.Type, wtyp protowir
 		return out, errDecode
 	***REMOVED***
 	mp := reflect.New(goType.Elem())
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     v,
 		Message: asMessage(mp).ProtoReflect(),
 	***REMOVED***)
@@ -564,7 +564,7 @@ func consumeMessageSlice(b []byte, p pointer, goType reflect.Type, wtyp protowir
 	***REMOVED***
 	p.AppendPointerSlice(pointerOfValue(mp))
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return out, nil
 ***REMOVED***
 
@@ -581,7 +581,7 @@ func isInitMessageSlice(p pointer, goType reflect.Type) error ***REMOVED***
 
 // Slices of messages
 
-func sizeMessageSliceValue(listv pref.Value, tagsize int, opts marshalOptions) int ***REMOVED***
+func sizeMessageSliceValue(listv protoreflect.Value, tagsize int, opts marshalOptions) int ***REMOVED***
 	list := listv.List()
 	n := 0
 	for i, llen := 0, list.Len(); i < llen; i++ ***REMOVED***
@@ -591,7 +591,7 @@ func sizeMessageSliceValue(listv pref.Value, tagsize int, opts marshalOptions) i
 	return n
 ***REMOVED***
 
-func appendMessageSliceValue(b []byte, listv pref.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
+func appendMessageSliceValue(b []byte, listv protoreflect.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
 	list := listv.List()
 	mopts := opts.Options()
 	for i, llen := 0, list.Len(); i < llen; i++ ***REMOVED***
@@ -608,30 +608,30 @@ func appendMessageSliceValue(b []byte, listv pref.Value, wiretag uint64, opts ma
 	return b, nil
 ***REMOVED***
 
-func consumeMessageSliceValue(b []byte, listv pref.Value, _ protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (_ pref.Value, out unmarshalOutput, err error) ***REMOVED***
+func consumeMessageSliceValue(b []byte, listv protoreflect.Value, _ protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (_ protoreflect.Value, out unmarshalOutput, err error) ***REMOVED***
 	list := listv.List()
 	if wtyp != protowire.BytesType ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, errUnknown
+		return protoreflect.Value***REMOVED******REMOVED***, out, errUnknown
 	***REMOVED***
 	v, n := protowire.ConsumeBytes(b)
 	if n < 0 ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, errDecode
+		return protoreflect.Value***REMOVED******REMOVED***, out, errDecode
 	***REMOVED***
 	m := list.NewElement()
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     v,
 		Message: m.Message(),
 	***REMOVED***)
 	if err != nil ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, err
+		return protoreflect.Value***REMOVED******REMOVED***, out, err
 	***REMOVED***
 	list.Append(m)
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return listv, out, nil
 ***REMOVED***
 
-func isInitMessageSliceValue(listv pref.Value) error ***REMOVED***
+func isInitMessageSliceValue(listv protoreflect.Value) error ***REMOVED***
 	list := listv.List()
 	for i, llen := 0, list.Len(); i < llen; i++ ***REMOVED***
 		m := list.Get(i).Message().Interface()
@@ -650,7 +650,7 @@ var coderMessageSliceValue = valueCoderFuncs***REMOVED***
 	merge:     mergeMessageListValue,
 ***REMOVED***
 
-func sizeGroupSliceValue(listv pref.Value, tagsize int, opts marshalOptions) int ***REMOVED***
+func sizeGroupSliceValue(listv protoreflect.Value, tagsize int, opts marshalOptions) int ***REMOVED***
 	list := listv.List()
 	n := 0
 	for i, llen := 0, list.Len(); i < llen; i++ ***REMOVED***
@@ -660,7 +660,7 @@ func sizeGroupSliceValue(listv pref.Value, tagsize int, opts marshalOptions) int
 	return n
 ***REMOVED***
 
-func appendGroupSliceValue(b []byte, listv pref.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
+func appendGroupSliceValue(b []byte, listv protoreflect.Value, wiretag uint64, opts marshalOptions) ([]byte, error) ***REMOVED***
 	list := listv.List()
 	mopts := opts.Options()
 	for i, llen := 0, list.Len(); i < llen; i++ ***REMOVED***
@@ -676,26 +676,26 @@ func appendGroupSliceValue(b []byte, listv pref.Value, wiretag uint64, opts mars
 	return b, nil
 ***REMOVED***
 
-func consumeGroupSliceValue(b []byte, listv pref.Value, num protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (_ pref.Value, out unmarshalOutput, err error) ***REMOVED***
+func consumeGroupSliceValue(b []byte, listv protoreflect.Value, num protowire.Number, wtyp protowire.Type, opts unmarshalOptions) (_ protoreflect.Value, out unmarshalOutput, err error) ***REMOVED***
 	list := listv.List()
 	if wtyp != protowire.StartGroupType ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, errUnknown
+		return protoreflect.Value***REMOVED******REMOVED***, out, errUnknown
 	***REMOVED***
 	b, n := protowire.ConsumeGroup(num, b)
 	if n < 0 ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, errDecode
+		return protoreflect.Value***REMOVED******REMOVED***, out, errDecode
 	***REMOVED***
 	m := list.NewElement()
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     b,
 		Message: m.Message(),
 	***REMOVED***)
 	if err != nil ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, out, err
+		return protoreflect.Value***REMOVED******REMOVED***, out, err
 	***REMOVED***
 	list.Append(m)
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return listv, out, nil
 ***REMOVED***
 
@@ -707,7 +707,7 @@ var coderGroupSliceValue = valueCoderFuncs***REMOVED***
 	merge:     mergeMessageListValue,
 ***REMOVED***
 
-func makeGroupSliceFieldCoder(fd pref.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
+func makeGroupSliceFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) pointerCoderFuncs ***REMOVED***
 	num := fd.Number()
 	if mi := getMessageInfo(ft); mi != nil ***REMOVED***
 		funcs := pointerCoderFuncs***REMOVED***
@@ -772,7 +772,7 @@ func consumeGroupSlice(b []byte, p pointer, num protowire.Number, wtyp protowire
 		return out, errDecode
 	***REMOVED***
 	mp := reflect.New(goType.Elem())
-	o, err := opts.Options().UnmarshalState(piface.UnmarshalInput***REMOVED***
+	o, err := opts.Options().UnmarshalState(protoiface.UnmarshalInput***REMOVED***
 		Buf:     b,
 		Message: asMessage(mp).ProtoReflect(),
 	***REMOVED***)
@@ -781,7 +781,7 @@ func consumeGroupSlice(b []byte, p pointer, num protowire.Number, wtyp protowire
 	***REMOVED***
 	p.AppendPointerSlice(pointerOfValue(mp))
 	out.n = n
-	out.initialized = o.Flags&piface.UnmarshalInitialized != 0
+	out.initialized = o.Flags&protoiface.UnmarshalInitialized != 0
 	return out, nil
 ***REMOVED***
 
@@ -822,8 +822,8 @@ func consumeGroupSliceInfo(b []byte, p pointer, wtyp protowire.Type, f *coderFie
 	return out, nil
 ***REMOVED***
 
-func asMessage(v reflect.Value) pref.ProtoMessage ***REMOVED***
-	if m, ok := v.Interface().(pref.ProtoMessage); ok ***REMOVED***
+func asMessage(v reflect.Value) protoreflect.ProtoMessage ***REMOVED***
+	if m, ok := v.Interface().(protoreflect.ProtoMessage); ok ***REMOVED***
 		return m
 	***REMOVED***
 	return legacyWrapMessage(v).Interface()

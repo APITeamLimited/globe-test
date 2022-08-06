@@ -374,9 +374,9 @@ func (cs *clientStream) newAttemptLocked(isTransparent bool) (*csAttempt, error)
 
 	ctx := newContextWithRPCInfo(cs.ctx, cs.callInfo.failFast, cs.callInfo.codec, cs.cp, cs.comp)
 	method := cs.callHdr.Method
-	sh := cs.cc.dopts.copts.StatsHandler
 	var beginTime time.Time
-	if sh != nil ***REMOVED***
+	shs := cs.cc.dopts.copts.StatsHandlers
+	for _, sh := range shs ***REMOVED***
 		ctx = sh.TagRPC(ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: method, FailFast: cs.callInfo.failFast***REMOVED***)
 		beginTime = time.Now()
 		begin := &stats.Begin***REMOVED***
@@ -414,12 +414,12 @@ func (cs *clientStream) newAttemptLocked(isTransparent bool) (*csAttempt, error)
 	***REMOVED***
 
 	return &csAttempt***REMOVED***
-		ctx:          ctx,
-		beginTime:    beginTime,
-		cs:           cs,
-		dc:           cs.cc.dopts.dc,
-		statsHandler: sh,
-		trInfo:       trInfo,
+		ctx:           ctx,
+		beginTime:     beginTime,
+		cs:            cs,
+		dc:            cs.cc.dopts.dc,
+		statsHandlers: shs,
+		trInfo:        trInfo,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -536,8 +536,8 @@ type csAttempt struct ***REMOVED***
 	// and cleared when the finish method is called.
 	trInfo *traceInfo
 
-	statsHandler stats.Handler
-	beginTime    time.Time
+	statsHandlers []stats.Handler
+	beginTime     time.Time
 
 	// set for newStream errors that may be transparently retried
 	allowTransparentRetry bool
@@ -960,8 +960,8 @@ func (a *csAttempt) sendMsg(m interface***REMOVED******REMOVED***, hdr, payld, d
 		***REMOVED***
 		return io.EOF
 	***REMOVED***
-	if a.statsHandler != nil ***REMOVED***
-		a.statsHandler.HandleRPC(a.ctx, outPayload(true, m, data, payld, time.Now()))
+	for _, sh := range a.statsHandlers ***REMOVED***
+		sh.HandleRPC(a.ctx, outPayload(true, m, data, payld, time.Now()))
 	***REMOVED***
 	if channelz.IsOn() ***REMOVED***
 		a.t.IncrMsgSent()
@@ -971,7 +971,7 @@ func (a *csAttempt) sendMsg(m interface***REMOVED******REMOVED***, hdr, payld, d
 
 func (a *csAttempt) recvMsg(m interface***REMOVED******REMOVED***, payInfo *payloadInfo) (err error) ***REMOVED***
 	cs := a.cs
-	if a.statsHandler != nil && payInfo == nil ***REMOVED***
+	if len(a.statsHandlers) != 0 && payInfo == nil ***REMOVED***
 		payInfo = &payloadInfo***REMOVED******REMOVED***
 	***REMOVED***
 
@@ -1008,8 +1008,8 @@ func (a *csAttempt) recvMsg(m interface***REMOVED******REMOVED***, payInfo *payl
 		***REMOVED***
 		a.mu.Unlock()
 	***REMOVED***
-	if a.statsHandler != nil ***REMOVED***
-		a.statsHandler.HandleRPC(a.ctx, &stats.InPayload***REMOVED***
+	for _, sh := range a.statsHandlers ***REMOVED***
+		sh.HandleRPC(a.ctx, &stats.InPayload***REMOVED***
 			Client:   true,
 			RecvTime: time.Now(),
 			Payload:  m,
@@ -1068,7 +1068,7 @@ func (a *csAttempt) finish(err error) ***REMOVED***
 			ServerLoad:    balancerload.Parse(tr),
 		***REMOVED***)
 	***REMOVED***
-	if a.statsHandler != nil ***REMOVED***
+	for _, sh := range a.statsHandlers ***REMOVED***
 		end := &stats.End***REMOVED***
 			Client:    true,
 			BeginTime: a.beginTime,
@@ -1076,7 +1076,7 @@ func (a *csAttempt) finish(err error) ***REMOVED***
 			Trailer:   tr,
 			Error:     err,
 		***REMOVED***
-		a.statsHandler.HandleRPC(a.ctx, end)
+		sh.HandleRPC(a.ctx, end)
 	***REMOVED***
 	if a.trInfo != nil && a.trInfo.tr != nil ***REMOVED***
 		if err == nil ***REMOVED***
@@ -1445,7 +1445,7 @@ type serverStream struct ***REMOVED***
 	maxSendMessageSize    int
 	trInfo                *traceInfo
 
-	statsHandler stats.Handler
+	statsHandler []stats.Handler
 
 	binlog binarylog.MethodLogger
 	// serverHeaderBinlogged indicates whether server header has been logged. It
@@ -1555,8 +1555,10 @@ func (ss *serverStream) SendMsg(m interface***REMOVED******REMOVED***) (err erro
 			Message: data,
 		***REMOVED***)
 	***REMOVED***
-	if ss.statsHandler != nil ***REMOVED***
-		ss.statsHandler.HandleRPC(ss.s.Context(), outPayload(false, m, data, payload, time.Now()))
+	if len(ss.statsHandler) != 0 ***REMOVED***
+		for _, sh := range ss.statsHandler ***REMOVED***
+			sh.HandleRPC(ss.s.Context(), outPayload(false, m, data, payload, time.Now()))
+		***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -1590,7 +1592,7 @@ func (ss *serverStream) RecvMsg(m interface***REMOVED******REMOVED***) (err erro
 		***REMOVED***
 	***REMOVED***()
 	var payInfo *payloadInfo
-	if ss.statsHandler != nil || ss.binlog != nil ***REMOVED***
+	if len(ss.statsHandler) != 0 || ss.binlog != nil ***REMOVED***
 		payInfo = &payloadInfo***REMOVED******REMOVED***
 	***REMOVED***
 	if err := recv(ss.p, ss.codec, ss.s, ss.dc, m, ss.maxReceiveMessageSize, payInfo, ss.decomp); err != nil ***REMOVED***
@@ -1605,15 +1607,17 @@ func (ss *serverStream) RecvMsg(m interface***REMOVED******REMOVED***) (err erro
 		***REMOVED***
 		return toRPCErr(err)
 	***REMOVED***
-	if ss.statsHandler != nil ***REMOVED***
-		ss.statsHandler.HandleRPC(ss.s.Context(), &stats.InPayload***REMOVED***
-			RecvTime: time.Now(),
-			Payload:  m,
-			// TODO truncate large payload.
-			Data:       payInfo.uncompressedBytes,
-			WireLength: payInfo.wireLength + headerLen,
-			Length:     len(payInfo.uncompressedBytes),
-		***REMOVED***)
+	if len(ss.statsHandler) != 0 ***REMOVED***
+		for _, sh := range ss.statsHandler ***REMOVED***
+			sh.HandleRPC(ss.s.Context(), &stats.InPayload***REMOVED***
+				RecvTime: time.Now(),
+				Payload:  m,
+				// TODO truncate large payload.
+				Data:       payInfo.uncompressedBytes,
+				WireLength: payInfo.wireLength + headerLen,
+				Length:     len(payInfo.uncompressedBytes),
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***
 	if ss.binlog != nil ***REMOVED***
 		ss.binlog.Log(&binarylog.ClientMessage***REMOVED***

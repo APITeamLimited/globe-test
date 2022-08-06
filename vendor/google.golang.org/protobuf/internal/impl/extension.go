@@ -9,8 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 // ExtensionInfo implements ExtensionType.
@@ -45,7 +45,7 @@ type ExtensionInfo struct ***REMOVED***
 	// since the message may no longer implement the MessageV1 interface.
 	//
 	// Deprecated: Use the ExtendedType method instead.
-	ExtendedType piface.MessageV1
+	ExtendedType protoiface.MessageV1
 
 	// ExtensionType is the zero value of the extension type.
 	//
@@ -83,31 +83,31 @@ const (
 	extensionInfoFullInit      = 2
 )
 
-func InitExtensionInfo(xi *ExtensionInfo, xd pref.ExtensionDescriptor, goType reflect.Type) ***REMOVED***
+func InitExtensionInfo(xi *ExtensionInfo, xd protoreflect.ExtensionDescriptor, goType reflect.Type) ***REMOVED***
 	xi.goType = goType
 	xi.desc = extensionTypeDescriptor***REMOVED***xd, xi***REMOVED***
 	xi.init = extensionInfoDescInit
 ***REMOVED***
 
-func (xi *ExtensionInfo) New() pref.Value ***REMOVED***
+func (xi *ExtensionInfo) New() protoreflect.Value ***REMOVED***
 	return xi.lazyInit().New()
 ***REMOVED***
-func (xi *ExtensionInfo) Zero() pref.Value ***REMOVED***
+func (xi *ExtensionInfo) Zero() protoreflect.Value ***REMOVED***
 	return xi.lazyInit().Zero()
 ***REMOVED***
-func (xi *ExtensionInfo) ValueOf(v interface***REMOVED******REMOVED***) pref.Value ***REMOVED***
+func (xi *ExtensionInfo) ValueOf(v interface***REMOVED******REMOVED***) protoreflect.Value ***REMOVED***
 	return xi.lazyInit().PBValueOf(reflect.ValueOf(v))
 ***REMOVED***
-func (xi *ExtensionInfo) InterfaceOf(v pref.Value) interface***REMOVED******REMOVED*** ***REMOVED***
+func (xi *ExtensionInfo) InterfaceOf(v protoreflect.Value) interface***REMOVED******REMOVED*** ***REMOVED***
 	return xi.lazyInit().GoValueOf(v).Interface()
 ***REMOVED***
-func (xi *ExtensionInfo) IsValidValue(v pref.Value) bool ***REMOVED***
+func (xi *ExtensionInfo) IsValidValue(v protoreflect.Value) bool ***REMOVED***
 	return xi.lazyInit().IsValidPB(v)
 ***REMOVED***
 func (xi *ExtensionInfo) IsValidInterface(v interface***REMOVED******REMOVED***) bool ***REMOVED***
 	return xi.lazyInit().IsValidGo(reflect.ValueOf(v))
 ***REMOVED***
-func (xi *ExtensionInfo) TypeDescriptor() pref.ExtensionTypeDescriptor ***REMOVED***
+func (xi *ExtensionInfo) TypeDescriptor() protoreflect.ExtensionTypeDescriptor ***REMOVED***
 	if atomic.LoadUint32(&xi.init) < extensionInfoDescInit ***REMOVED***
 		xi.lazyInitSlow()
 	***REMOVED***
@@ -144,13 +144,13 @@ func (xi *ExtensionInfo) lazyInitSlow() ***REMOVED***
 ***REMOVED***
 
 type extensionTypeDescriptor struct ***REMOVED***
-	pref.ExtensionDescriptor
+	protoreflect.ExtensionDescriptor
 	xi *ExtensionInfo
 ***REMOVED***
 
-func (xtd *extensionTypeDescriptor) Type() pref.ExtensionType ***REMOVED***
+func (xtd *extensionTypeDescriptor) Type() protoreflect.ExtensionType ***REMOVED***
 	return xtd.xi
 ***REMOVED***
-func (xtd *extensionTypeDescriptor) Descriptor() pref.ExtensionDescriptor ***REMOVED***
+func (xtd *extensionTypeDescriptor) Descriptor() protoreflect.ExtensionDescriptor ***REMOVED***
 	return xtd.ExtensionDescriptor
 ***REMOVED***

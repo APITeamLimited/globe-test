@@ -19,7 +19,8 @@ import (
 // UnmarshalOptions configures the unmarshaler.
 //
 // Example usage:
-//   err := UnmarshalOptions***REMOVED***DiscardUnknown: true***REMOVED***.Unmarshal(b, m)
+//
+//	err := UnmarshalOptions***REMOVED***DiscardUnknown: true***REMOVED***.Unmarshal(b, m)
 type UnmarshalOptions struct ***REMOVED***
 	pragma.NoUnkeyedLiterals
 
@@ -42,18 +43,25 @@ type UnmarshalOptions struct ***REMOVED***
 		FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error)
 		FindExtensionByNumber(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error)
 	***REMOVED***
+
+	// RecursionLimit limits how deeply messages may be nested.
+	// If zero, a default limit is applied.
+	RecursionLimit int
 ***REMOVED***
 
 // Unmarshal parses the wire-format message in b and places the result in m.
 // The provided message must be mutable (e.g., a non-nil pointer to a message).
 func Unmarshal(b []byte, m Message) error ***REMOVED***
-	_, err := UnmarshalOptions***REMOVED******REMOVED***.unmarshal(b, m.ProtoReflect())
+	_, err := UnmarshalOptions***REMOVED***RecursionLimit: protowire.DefaultRecursionLimit***REMOVED***.unmarshal(b, m.ProtoReflect())
 	return err
 ***REMOVED***
 
 // Unmarshal parses the wire-format message in b and places the result in m.
 // The provided message must be mutable (e.g., a non-nil pointer to a message).
 func (o UnmarshalOptions) Unmarshal(b []byte, m Message) error ***REMOVED***
+	if o.RecursionLimit == 0 ***REMOVED***
+		o.RecursionLimit = protowire.DefaultRecursionLimit
+	***REMOVED***
 	_, err := o.unmarshal(b, m.ProtoReflect())
 	return err
 ***REMOVED***
@@ -63,6 +71,9 @@ func (o UnmarshalOptions) Unmarshal(b []byte, m Message) error ***REMOVED***
 // This method permits fine-grained control over the unmarshaler.
 // Most users should use Unmarshal instead.
 func (o UnmarshalOptions) UnmarshalState(in protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) ***REMOVED***
+	if o.RecursionLimit == 0 ***REMOVED***
+		o.RecursionLimit = protowire.DefaultRecursionLimit
+	***REMOVED***
 	return o.unmarshal(in.Buf, in.Message)
 ***REMOVED***
 
@@ -86,12 +97,17 @@ func (o UnmarshalOptions) unmarshal(b []byte, m protoreflect.Message) (out proto
 			Message:  m,
 			Buf:      b,
 			Resolver: o.Resolver,
+			Depth:    o.RecursionLimit,
 		***REMOVED***
 		if o.DiscardUnknown ***REMOVED***
 			in.Flags |= protoiface.UnmarshalDiscardUnknown
 		***REMOVED***
 		out, err = methods.Unmarshal(in)
 	***REMOVED*** else ***REMOVED***
+		o.RecursionLimit--
+		if o.RecursionLimit < 0 ***REMOVED***
+			return out, errors.New("exceeded max recursion depth")
+		***REMOVED***
 		err = o.unmarshalMessageSlow(b, m)
 	***REMOVED***
 	if err != nil ***REMOVED***

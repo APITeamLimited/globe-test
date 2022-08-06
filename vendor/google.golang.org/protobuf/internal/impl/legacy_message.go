@@ -16,14 +16,12 @@ import (
 	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoiface"
-	piface "google.golang.org/protobuf/runtime/protoiface"
 )
 
 // legacyWrapMessage wraps v as a protoreflect.Message,
 // where v must be a *struct kind and not implement the v2 API already.
-func legacyWrapMessage(v reflect.Value) pref.Message ***REMOVED***
+func legacyWrapMessage(v reflect.Value) protoreflect.Message ***REMOVED***
 	t := v.Type()
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct ***REMOVED***
 		return aberrantMessage***REMOVED***v: v***REMOVED***
@@ -35,7 +33,7 @@ func legacyWrapMessage(v reflect.Value) pref.Message ***REMOVED***
 // legacyLoadMessageType dynamically loads a protoreflect.Type for t,
 // where t must be not implement the v2 API already.
 // The provided name is used if it cannot be determined from the message.
-func legacyLoadMessageType(t reflect.Type, name pref.FullName) protoreflect.MessageType ***REMOVED***
+func legacyLoadMessageType(t reflect.Type, name protoreflect.FullName) protoreflect.MessageType ***REMOVED***
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct ***REMOVED***
 		return aberrantMessageType***REMOVED***t***REMOVED***
 	***REMOVED***
@@ -47,7 +45,7 @@ var legacyMessageTypeCache sync.Map // map[reflect.Type]*MessageInfo
 // legacyLoadMessageInfo dynamically loads a *MessageInfo for t,
 // where t must be a *struct kind and not implement the v2 API already.
 // The provided name is used if it cannot be determined from the message.
-func legacyLoadMessageInfo(t reflect.Type, name pref.FullName) *MessageInfo ***REMOVED***
+func legacyLoadMessageInfo(t reflect.Type, name protoreflect.FullName) *MessageInfo ***REMOVED***
 	// Fast-path: check if a MessageInfo is cached for this concrete type.
 	if mt, ok := legacyMessageTypeCache.Load(t); ok ***REMOVED***
 		return mt.(*MessageInfo)
@@ -68,7 +66,7 @@ func legacyLoadMessageInfo(t reflect.Type, name pref.FullName) *MessageInfo ***R
 		// supports deterministic serialization or not, but this
 		// preserves the v1 implementation's behavior of always
 		// calling Marshal methods when present.
-		mi.methods.Flags |= piface.SupportMarshalDeterministic
+		mi.methods.Flags |= protoiface.SupportMarshalDeterministic
 	***REMOVED***
 	if _, hasUnmarshal = v.(legacyUnmarshaler); hasUnmarshal ***REMOVED***
 		mi.methods.Unmarshal = legacyUnmarshal
@@ -89,18 +87,18 @@ var legacyMessageDescCache sync.Map // map[reflect.Type]protoreflect.MessageDesc
 // which should be a *struct kind and must not implement the v2 API already.
 //
 // This is exported for testing purposes.
-func LegacyLoadMessageDesc(t reflect.Type) pref.MessageDescriptor ***REMOVED***
+func LegacyLoadMessageDesc(t reflect.Type) protoreflect.MessageDescriptor ***REMOVED***
 	return legacyLoadMessageDesc(t, "")
 ***REMOVED***
-func legacyLoadMessageDesc(t reflect.Type, name pref.FullName) pref.MessageDescriptor ***REMOVED***
+func legacyLoadMessageDesc(t reflect.Type, name protoreflect.FullName) protoreflect.MessageDescriptor ***REMOVED***
 	// Fast-path: check if a MessageDescriptor is cached for this concrete type.
 	if mi, ok := legacyMessageDescCache.Load(t); ok ***REMOVED***
-		return mi.(pref.MessageDescriptor)
+		return mi.(protoreflect.MessageDescriptor)
 	***REMOVED***
 
 	// Slow-path: initialize MessageDescriptor from the raw descriptor.
 	mv := reflect.Zero(t).Interface()
-	if _, ok := mv.(pref.ProtoMessage); ok ***REMOVED***
+	if _, ok := mv.(protoreflect.ProtoMessage); ok ***REMOVED***
 		panic(fmt.Sprintf("%v already implements proto.Message", t))
 	***REMOVED***
 	mdV1, ok := mv.(messageV1)
@@ -164,7 +162,7 @@ var (
 //
 // This is a best-effort derivation of the message descriptor using the protobuf
 // tags on the struct fields.
-func aberrantLoadMessageDesc(t reflect.Type, name pref.FullName) pref.MessageDescriptor ***REMOVED***
+func aberrantLoadMessageDesc(t reflect.Type, name protoreflect.FullName) protoreflect.MessageDescriptor ***REMOVED***
 	aberrantMessageDescLock.Lock()
 	defer aberrantMessageDescLock.Unlock()
 	if aberrantMessageDescCache == nil ***REMOVED***
@@ -172,7 +170,7 @@ func aberrantLoadMessageDesc(t reflect.Type, name pref.FullName) pref.MessageDes
 	***REMOVED***
 	return aberrantLoadMessageDescReentrant(t, name)
 ***REMOVED***
-func aberrantLoadMessageDescReentrant(t reflect.Type, name pref.FullName) pref.MessageDescriptor ***REMOVED***
+func aberrantLoadMessageDescReentrant(t reflect.Type, name protoreflect.FullName) protoreflect.MessageDescriptor ***REMOVED***
 	// Fast-path: check if an MessageDescriptor is cached for this concrete type.
 	if md, ok := aberrantMessageDescCache[t]; ok ***REMOVED***
 		return md
@@ -225,9 +223,9 @@ func aberrantLoadMessageDescReentrant(t reflect.Type, name pref.FullName) pref.M
 		vs := fn.Func.Call([]reflect.Value***REMOVED***reflect.Zero(fn.Type.In(0))***REMOVED***)[0]
 		for i := 0; i < vs.Len(); i++ ***REMOVED***
 			v := vs.Index(i)
-			md.L2.ExtensionRanges.List = append(md.L2.ExtensionRanges.List, [2]pref.FieldNumber***REMOVED***
-				pref.FieldNumber(v.FieldByName("Start").Int()),
-				pref.FieldNumber(v.FieldByName("End").Int() + 1),
+			md.L2.ExtensionRanges.List = append(md.L2.ExtensionRanges.List, [2]protoreflect.FieldNumber***REMOVED***
+				protoreflect.FieldNumber(v.FieldByName("Start").Int()),
+				protoreflect.FieldNumber(v.FieldByName("End").Int() + 1),
 			***REMOVED***)
 			md.L2.ExtensionRangeOptions = append(md.L2.ExtensionRangeOptions, nil)
 		***REMOVED***
@@ -245,7 +243,7 @@ func aberrantLoadMessageDescReentrant(t reflect.Type, name pref.FullName) pref.M
 			n := len(md.L2.Oneofs.List)
 			md.L2.Oneofs.List = append(md.L2.Oneofs.List, filedesc.Oneof***REMOVED******REMOVED***)
 			od := &md.L2.Oneofs.List[n]
-			od.L0.FullName = md.FullName().Append(pref.Name(tag))
+			od.L0.FullName = md.FullName().Append(protoreflect.Name(tag))
 			od.L0.ParentFile = md.L0.ParentFile
 			od.L0.Parent = md
 			od.L0.Index = n
@@ -267,14 +265,14 @@ func aberrantLoadMessageDescReentrant(t reflect.Type, name pref.FullName) pref.M
 	return md
 ***REMOVED***
 
-func aberrantDeriveMessageName(t reflect.Type, name pref.FullName) pref.FullName ***REMOVED***
+func aberrantDeriveMessageName(t reflect.Type, name protoreflect.FullName) protoreflect.FullName ***REMOVED***
 	if name.IsValid() ***REMOVED***
 		return name
 	***REMOVED***
 	func() ***REMOVED***
 		defer func() ***REMOVED*** recover() ***REMOVED***() // swallow possible nil panics
 		if m, ok := reflect.Zero(t).Interface().(interface***REMOVED*** XXX_MessageName() string ***REMOVED***); ok ***REMOVED***
-			name = pref.FullName(m.XXX_MessageName())
+			name = protoreflect.FullName(m.XXX_MessageName())
 		***REMOVED***
 	***REMOVED***()
 	if name.IsValid() ***REMOVED***
@@ -305,7 +303,7 @@ func aberrantAppendField(md *filedesc.Message, goType reflect.Type, tag, tagKey,
 	fd.L0.Index = n
 
 	if fd.L1.IsWeak || fd.L1.HasPacked ***REMOVED***
-		fd.L1.Options = func() pref.ProtoMessage ***REMOVED***
+		fd.L1.Options = func() protoreflect.ProtoMessage ***REMOVED***
 			opts := descopts.Field.ProtoReflect().New()
 			if fd.L1.IsWeak ***REMOVED***
 				opts.Set(opts.Descriptor().Fields().ByName("weak"), protoreflect.ValueOfBool(true))
@@ -318,17 +316,17 @@ func aberrantAppendField(md *filedesc.Message, goType reflect.Type, tag, tagKey,
 	***REMOVED***
 
 	// Populate Enum and Message.
-	if fd.Enum() == nil && fd.Kind() == pref.EnumKind ***REMOVED***
+	if fd.Enum() == nil && fd.Kind() == protoreflect.EnumKind ***REMOVED***
 		switch v := reflect.Zero(t).Interface().(type) ***REMOVED***
-		case pref.Enum:
+		case protoreflect.Enum:
 			fd.L1.Enum = v.Descriptor()
 		default:
 			fd.L1.Enum = LegacyLoadEnumDesc(t)
 		***REMOVED***
 	***REMOVED***
-	if fd.Message() == nil && (fd.Kind() == pref.MessageKind || fd.Kind() == pref.GroupKind) ***REMOVED***
+	if fd.Message() == nil && (fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind) ***REMOVED***
 		switch v := reflect.Zero(t).Interface().(type) ***REMOVED***
-		case pref.ProtoMessage:
+		case protoreflect.ProtoMessage:
 			fd.L1.Message = v.ProtoReflect().Descriptor()
 		case messageV1:
 			fd.L1.Message = LegacyLoadMessageDesc(t)
@@ -337,13 +335,13 @@ func aberrantAppendField(md *filedesc.Message, goType reflect.Type, tag, tagKey,
 				n := len(md.L1.Messages.List)
 				md.L1.Messages.List = append(md.L1.Messages.List, filedesc.Message***REMOVED***L2: new(filedesc.MessageL2)***REMOVED***)
 				md2 := &md.L1.Messages.List[n]
-				md2.L0.FullName = md.FullName().Append(pref.Name(strs.MapEntryName(string(fd.Name()))))
+				md2.L0.FullName = md.FullName().Append(protoreflect.Name(strs.MapEntryName(string(fd.Name()))))
 				md2.L0.ParentFile = md.L0.ParentFile
 				md2.L0.Parent = md
 				md2.L0.Index = n
 
 				md2.L1.IsMapEntry = true
-				md2.L2.Options = func() pref.ProtoMessage ***REMOVED***
+				md2.L2.Options = func() protoreflect.ProtoMessage ***REMOVED***
 					opts := descopts.Message.ProtoReflect().New()
 					opts.Set(opts.Descriptor().Fields().ByName("map_entry"), protoreflect.ValueOfBool(true))
 					return opts.Interface()
@@ -364,8 +362,8 @@ type placeholderEnumValues struct ***REMOVED***
 	protoreflect.EnumValueDescriptors
 ***REMOVED***
 
-func (placeholderEnumValues) ByNumber(n pref.EnumNumber) pref.EnumValueDescriptor ***REMOVED***
-	return filedesc.PlaceholderEnumValue(pref.FullName(fmt.Sprintf("UNKNOWN_%d", n)))
+func (placeholderEnumValues) ByNumber(n protoreflect.EnumNumber) protoreflect.EnumValueDescriptor ***REMOVED***
+	return filedesc.PlaceholderEnumValue(protoreflect.FullName(fmt.Sprintf("UNKNOWN_%d", n)))
 ***REMOVED***
 
 // legacyMarshaler is the proto.Marshaler interface superseded by protoiface.Methoder.
@@ -383,7 +381,7 @@ type legacyMerger interface ***REMOVED***
 	Merge(protoiface.MessageV1)
 ***REMOVED***
 
-var aberrantProtoMethods = &piface.Methods***REMOVED***
+var aberrantProtoMethods = &protoiface.Methods***REMOVED***
 	Marshal:   legacyMarshal,
 	Unmarshal: legacyUnmarshal,
 	Merge:     legacyMerge,
@@ -392,40 +390,40 @@ var aberrantProtoMethods = &piface.Methods***REMOVED***
 	// supports deterministic serialization or not, but this
 	// preserves the v1 implementation's behavior of always
 	// calling Marshal methods when present.
-	Flags: piface.SupportMarshalDeterministic,
+	Flags: protoiface.SupportMarshalDeterministic,
 ***REMOVED***
 
-func legacyMarshal(in piface.MarshalInput) (piface.MarshalOutput, error) ***REMOVED***
+func legacyMarshal(in protoiface.MarshalInput) (protoiface.MarshalOutput, error) ***REMOVED***
 	v := in.Message.(unwrapper).protoUnwrap()
 	marshaler, ok := v.(legacyMarshaler)
 	if !ok ***REMOVED***
-		return piface.MarshalOutput***REMOVED******REMOVED***, errors.New("%T does not implement Marshal", v)
+		return protoiface.MarshalOutput***REMOVED******REMOVED***, errors.New("%T does not implement Marshal", v)
 	***REMOVED***
 	out, err := marshaler.Marshal()
 	if in.Buf != nil ***REMOVED***
 		out = append(in.Buf, out...)
 	***REMOVED***
-	return piface.MarshalOutput***REMOVED***
+	return protoiface.MarshalOutput***REMOVED***
 		Buf: out,
 	***REMOVED***, err
 ***REMOVED***
 
-func legacyUnmarshal(in piface.UnmarshalInput) (piface.UnmarshalOutput, error) ***REMOVED***
+func legacyUnmarshal(in protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) ***REMOVED***
 	v := in.Message.(unwrapper).protoUnwrap()
 	unmarshaler, ok := v.(legacyUnmarshaler)
 	if !ok ***REMOVED***
-		return piface.UnmarshalOutput***REMOVED******REMOVED***, errors.New("%T does not implement Unmarshal", v)
+		return protoiface.UnmarshalOutput***REMOVED******REMOVED***, errors.New("%T does not implement Unmarshal", v)
 	***REMOVED***
-	return piface.UnmarshalOutput***REMOVED******REMOVED***, unmarshaler.Unmarshal(in.Buf)
+	return protoiface.UnmarshalOutput***REMOVED******REMOVED***, unmarshaler.Unmarshal(in.Buf)
 ***REMOVED***
 
-func legacyMerge(in piface.MergeInput) piface.MergeOutput ***REMOVED***
+func legacyMerge(in protoiface.MergeInput) protoiface.MergeOutput ***REMOVED***
 	// Check whether this supports the legacy merger.
 	dstv := in.Destination.(unwrapper).protoUnwrap()
 	merger, ok := dstv.(legacyMerger)
 	if ok ***REMOVED***
 		merger.Merge(Export***REMOVED******REMOVED***.ProtoMessageV1Of(in.Source))
-		return piface.MergeOutput***REMOVED***Flags: piface.MergeComplete***REMOVED***
+		return protoiface.MergeOutput***REMOVED***Flags: protoiface.MergeComplete***REMOVED***
 	***REMOVED***
 
 	// If legacy merger is unavailable, implement merge in terms of
@@ -433,29 +431,29 @@ func legacyMerge(in piface.MergeInput) piface.MergeOutput ***REMOVED***
 	srcv := in.Source.(unwrapper).protoUnwrap()
 	marshaler, ok := srcv.(legacyMarshaler)
 	if !ok ***REMOVED***
-		return piface.MergeOutput***REMOVED******REMOVED***
+		return protoiface.MergeOutput***REMOVED******REMOVED***
 	***REMOVED***
 	dstv = in.Destination.(unwrapper).protoUnwrap()
 	unmarshaler, ok := dstv.(legacyUnmarshaler)
 	if !ok ***REMOVED***
-		return piface.MergeOutput***REMOVED******REMOVED***
+		return protoiface.MergeOutput***REMOVED******REMOVED***
 	***REMOVED***
 	if !in.Source.IsValid() ***REMOVED***
 		// Legacy Marshal methods may not function on nil messages.
 		// Check for a typed nil source only after we confirm that
 		// legacy Marshal/Unmarshal methods are present, for
 		// consistency.
-		return piface.MergeOutput***REMOVED***Flags: piface.MergeComplete***REMOVED***
+		return protoiface.MergeOutput***REMOVED***Flags: protoiface.MergeComplete***REMOVED***
 	***REMOVED***
 	b, err := marshaler.Marshal()
 	if err != nil ***REMOVED***
-		return piface.MergeOutput***REMOVED******REMOVED***
+		return protoiface.MergeOutput***REMOVED******REMOVED***
 	***REMOVED***
 	err = unmarshaler.Unmarshal(b)
 	if err != nil ***REMOVED***
-		return piface.MergeOutput***REMOVED******REMOVED***
+		return protoiface.MergeOutput***REMOVED******REMOVED***
 	***REMOVED***
-	return piface.MergeOutput***REMOVED***Flags: piface.MergeComplete***REMOVED***
+	return protoiface.MergeOutput***REMOVED***Flags: protoiface.MergeComplete***REMOVED***
 ***REMOVED***
 
 // aberrantMessageType implements MessageType for all types other than pointer-to-struct.
@@ -463,19 +461,19 @@ type aberrantMessageType struct ***REMOVED***
 	t reflect.Type
 ***REMOVED***
 
-func (mt aberrantMessageType) New() pref.Message ***REMOVED***
+func (mt aberrantMessageType) New() protoreflect.Message ***REMOVED***
 	if mt.t.Kind() == reflect.Ptr ***REMOVED***
 		return aberrantMessage***REMOVED***reflect.New(mt.t.Elem())***REMOVED***
 	***REMOVED***
 	return aberrantMessage***REMOVED***reflect.Zero(mt.t)***REMOVED***
 ***REMOVED***
-func (mt aberrantMessageType) Zero() pref.Message ***REMOVED***
+func (mt aberrantMessageType) Zero() protoreflect.Message ***REMOVED***
 	return aberrantMessage***REMOVED***reflect.Zero(mt.t)***REMOVED***
 ***REMOVED***
 func (mt aberrantMessageType) GoType() reflect.Type ***REMOVED***
 	return mt.t
 ***REMOVED***
-func (mt aberrantMessageType) Descriptor() pref.MessageDescriptor ***REMOVED***
+func (mt aberrantMessageType) Descriptor() protoreflect.MessageDescriptor ***REMOVED***
 	return LegacyLoadMessageDesc(mt.t)
 ***REMOVED***
 
@@ -499,56 +497,56 @@ func (m aberrantMessage) Reset() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (m aberrantMessage) ProtoReflect() pref.Message ***REMOVED***
+func (m aberrantMessage) ProtoReflect() protoreflect.Message ***REMOVED***
 	return m
 ***REMOVED***
 
-func (m aberrantMessage) Descriptor() pref.MessageDescriptor ***REMOVED***
+func (m aberrantMessage) Descriptor() protoreflect.MessageDescriptor ***REMOVED***
 	return LegacyLoadMessageDesc(m.v.Type())
 ***REMOVED***
-func (m aberrantMessage) Type() pref.MessageType ***REMOVED***
+func (m aberrantMessage) Type() protoreflect.MessageType ***REMOVED***
 	return aberrantMessageType***REMOVED***m.v.Type()***REMOVED***
 ***REMOVED***
-func (m aberrantMessage) New() pref.Message ***REMOVED***
+func (m aberrantMessage) New() protoreflect.Message ***REMOVED***
 	if m.v.Type().Kind() == reflect.Ptr ***REMOVED***
 		return aberrantMessage***REMOVED***reflect.New(m.v.Type().Elem())***REMOVED***
 	***REMOVED***
 	return aberrantMessage***REMOVED***reflect.Zero(m.v.Type())***REMOVED***
 ***REMOVED***
-func (m aberrantMessage) Interface() pref.ProtoMessage ***REMOVED***
+func (m aberrantMessage) Interface() protoreflect.ProtoMessage ***REMOVED***
 	return m
 ***REMOVED***
-func (m aberrantMessage) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
+func (m aberrantMessage) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) ***REMOVED***
 	return
 ***REMOVED***
-func (m aberrantMessage) Has(pref.FieldDescriptor) bool ***REMOVED***
+func (m aberrantMessage) Has(protoreflect.FieldDescriptor) bool ***REMOVED***
 	return false
 ***REMOVED***
-func (m aberrantMessage) Clear(pref.FieldDescriptor) ***REMOVED***
+func (m aberrantMessage) Clear(protoreflect.FieldDescriptor) ***REMOVED***
 	panic("invalid Message.Clear on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) Get(fd pref.FieldDescriptor) pref.Value ***REMOVED***
+func (m aberrantMessage) Get(fd protoreflect.FieldDescriptor) protoreflect.Value ***REMOVED***
 	if fd.Default().IsValid() ***REMOVED***
 		return fd.Default()
 	***REMOVED***
 	panic("invalid Message.Get on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) Set(pref.FieldDescriptor, pref.Value) ***REMOVED***
+func (m aberrantMessage) Set(protoreflect.FieldDescriptor, protoreflect.Value) ***REMOVED***
 	panic("invalid Message.Set on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) Mutable(pref.FieldDescriptor) pref.Value ***REMOVED***
+func (m aberrantMessage) Mutable(protoreflect.FieldDescriptor) protoreflect.Value ***REMOVED***
 	panic("invalid Message.Mutable on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) NewField(pref.FieldDescriptor) pref.Value ***REMOVED***
+func (m aberrantMessage) NewField(protoreflect.FieldDescriptor) protoreflect.Value ***REMOVED***
 	panic("invalid Message.NewField on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) WhichOneof(pref.OneofDescriptor) pref.FieldDescriptor ***REMOVED***
+func (m aberrantMessage) WhichOneof(protoreflect.OneofDescriptor) protoreflect.FieldDescriptor ***REMOVED***
 	panic("invalid Message.WhichOneof descriptor on " + string(m.Descriptor().FullName()))
 ***REMOVED***
-func (m aberrantMessage) GetUnknown() pref.RawFields ***REMOVED***
+func (m aberrantMessage) GetUnknown() protoreflect.RawFields ***REMOVED***
 	return nil
 ***REMOVED***
-func (m aberrantMessage) SetUnknown(pref.RawFields) ***REMOVED***
+func (m aberrantMessage) SetUnknown(protoreflect.RawFields) ***REMOVED***
 	// SetUnknown discards its input on messages which don't support unknown field storage.
 ***REMOVED***
 func (m aberrantMessage) IsValid() bool ***REMOVED***
@@ -557,7 +555,7 @@ func (m aberrantMessage) IsValid() bool ***REMOVED***
 	***REMOVED***
 	return false
 ***REMOVED***
-func (m aberrantMessage) ProtoMethods() *piface.Methods ***REMOVED***
+func (m aberrantMessage) ProtoMethods() *protoiface.Methods ***REMOVED***
 	return aberrantProtoMethods
 ***REMOVED***
 func (m aberrantMessage) protoUnwrap() interface***REMOVED******REMOVED*** ***REMOVED***

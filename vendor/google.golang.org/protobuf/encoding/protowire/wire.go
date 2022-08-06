@@ -21,10 +21,11 @@ import (
 type Number int32
 
 const (
-	MinValidNumber      Number = 1
-	FirstReservedNumber Number = 19000
-	LastReservedNumber  Number = 19999
-	MaxValidNumber      Number = 1<<29 - 1
+	MinValidNumber        Number = 1
+	FirstReservedNumber   Number = 19000
+	LastReservedNumber    Number = 19999
+	MaxValidNumber        Number = 1<<29 - 1
+	DefaultRecursionLimit        = 10000
 )
 
 // IsValid reports whether the field number is semantically valid.
@@ -55,6 +56,7 @@ const (
 	errCodeOverflow
 	errCodeReserved
 	errCodeEndGroup
+	errCodeRecursionDepth
 )
 
 var (
@@ -112,6 +114,10 @@ func ConsumeField(b []byte) (Number, Type, int) ***REMOVED***
 // When parsing a group, the length includes the end group marker and
 // the end group is verified to match the starting field number.
 func ConsumeFieldValue(num Number, typ Type, b []byte) (n int) ***REMOVED***
+	return consumeFieldValueD(num, typ, b, DefaultRecursionLimit)
+***REMOVED***
+
+func consumeFieldValueD(num Number, typ Type, b []byte, depth int) (n int) ***REMOVED***
 	switch typ ***REMOVED***
 	case VarintType:
 		_, n = ConsumeVarint(b)
@@ -126,6 +132,9 @@ func ConsumeFieldValue(num Number, typ Type, b []byte) (n int) ***REMOVED***
 		_, n = ConsumeBytes(b)
 		return n
 	case StartGroupType:
+		if depth < 0 ***REMOVED***
+			return errCodeRecursionDepth
+		***REMOVED***
 		n0 := len(b)
 		for ***REMOVED***
 			num2, typ2, n := ConsumeTag(b)
@@ -140,7 +149,7 @@ func ConsumeFieldValue(num Number, typ Type, b []byte) (n int) ***REMOVED***
 				return n0 - len(b)
 			***REMOVED***
 
-			n = ConsumeFieldValue(num2, typ2, b)
+			n = consumeFieldValueD(num2, typ2, b, depth-1)
 			if n < 0 ***REMOVED***
 				return n // forward error code
 			***REMOVED***
@@ -507,6 +516,7 @@ func EncodeTag(num Number, typ Type) uint64 ***REMOVED***
 ***REMOVED***
 
 // DecodeZigZag decodes a zig-zag-encoded uint64 as an int64.
+//
 //	Input:  ***REMOVED***…,  5,  3,  1,  0,  2,  4,  6, …***REMOVED***
 //	Output: ***REMOVED***…, -3, -2, -1,  0, +1, +2, +3, …***REMOVED***
 func DecodeZigZag(x uint64) int64 ***REMOVED***
@@ -514,6 +524,7 @@ func DecodeZigZag(x uint64) int64 ***REMOVED***
 ***REMOVED***
 
 // EncodeZigZag encodes an int64 as a zig-zag-encoded uint64.
+//
 //	Input:  ***REMOVED***…, -3, -2, -1,  0, +1, +2, +3, …***REMOVED***
 //	Output: ***REMOVED***…,  5,  3,  1,  0,  2,  4,  6, …***REMOVED***
 func EncodeZigZag(x int64) uint64 ***REMOVED***
@@ -521,6 +532,7 @@ func EncodeZigZag(x int64) uint64 ***REMOVED***
 ***REMOVED***
 
 // DecodeBool decodes a uint64 as a bool.
+//
 //	Input:  ***REMOVED***    0,    1,    2, …***REMOVED***
 //	Output: ***REMOVED***false, true, true, …***REMOVED***
 func DecodeBool(x uint64) bool ***REMOVED***
@@ -528,6 +540,7 @@ func DecodeBool(x uint64) bool ***REMOVED***
 ***REMOVED***
 
 // EncodeBool encodes a bool as a uint64.
+//
 //	Input:  ***REMOVED***false, true***REMOVED***
 //	Output: ***REMOVED***    0,    1***REMOVED***
 func EncodeBool(x bool) uint64 ***REMOVED***

@@ -49,7 +49,7 @@ import (
 // NewServerHandlerTransport returns a ServerTransport handling gRPC
 // from inside an http.Handler. It requires that the http Server
 // supports HTTP/2.
-func NewServerHandlerTransport(w http.ResponseWriter, r *http.Request, stats stats.Handler) (ServerTransport, error) ***REMOVED***
+func NewServerHandlerTransport(w http.ResponseWriter, r *http.Request, stats []stats.Handler) (ServerTransport, error) ***REMOVED***
 	if r.ProtoMajor != 2 ***REMOVED***
 		return nil, errors.New("gRPC requires HTTP/2")
 	***REMOVED***
@@ -138,7 +138,7 @@ type serverHandlerTransport struct ***REMOVED***
 	// TODO make sure this is consistent across handler_server and http2_server
 	contentSubtype string
 
-	stats stats.Handler
+	stats []stats.Handler
 ***REMOVED***
 
 func (ht *serverHandlerTransport) Close() ***REMOVED***
@@ -228,10 +228,10 @@ func (ht *serverHandlerTransport) WriteStatus(s *Stream, st *status.Status) erro
 	***REMOVED***)
 
 	if err == nil ***REMOVED*** // transport has not been closed
-		if ht.stats != nil ***REMOVED***
-			// Note: The trailer fields are compressed with hpack after this call returns.
-			// No WireLength field is set here.
-			ht.stats.HandleRPC(s.Context(), &stats.OutTrailer***REMOVED***
+		// Note: The trailer fields are compressed with hpack after this call returns.
+		// No WireLength field is set here.
+		for _, sh := range ht.stats ***REMOVED***
+			sh.HandleRPC(s.Context(), &stats.OutTrailer***REMOVED***
 				Trailer: s.trailer.Copy(),
 			***REMOVED***)
 		***REMOVED***
@@ -314,10 +314,10 @@ func (ht *serverHandlerTransport) WriteHeader(s *Stream, md metadata.MD) error *
 	***REMOVED***)
 
 	if err == nil ***REMOVED***
-		if ht.stats != nil ***REMOVED***
+		for _, sh := range ht.stats ***REMOVED***
 			// Note: The header fields are compressed with hpack after this call returns.
 			// No WireLength field is set here.
-			ht.stats.HandleRPC(s.Context(), &stats.OutHeader***REMOVED***
+			sh.HandleRPC(s.Context(), &stats.OutHeader***REMOVED***
 				Header:      md.Copy(),
 				Compression: s.sendCompress,
 			***REMOVED***)
@@ -369,14 +369,14 @@ func (ht *serverHandlerTransport) HandleStreams(startStream func(*Stream), trace
 	***REMOVED***
 	ctx = metadata.NewIncomingContext(ctx, ht.headerMD)
 	s.ctx = peer.NewContext(ctx, pr)
-	if ht.stats != nil ***REMOVED***
-		s.ctx = ht.stats.TagRPC(s.ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: s.method***REMOVED***)
+	for _, sh := range ht.stats ***REMOVED***
+		s.ctx = sh.TagRPC(s.ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: s.method***REMOVED***)
 		inHeader := &stats.InHeader***REMOVED***
 			FullMethod:  s.method,
 			RemoteAddr:  ht.RemoteAddr(),
 			Compression: s.recvCompress,
 		***REMOVED***
-		ht.stats.HandleRPC(s.ctx, inHeader)
+		sh.HandleRPC(s.ctx, inHeader)
 	***REMOVED***
 	s.trReader = &transportReader***REMOVED***
 		reader:        &recvBufferReader***REMOVED***ctx: s.ctx, ctxDone: s.ctx.Done(), recv: s.buf, freeBuffer: func(*bytes.Buffer) ***REMOVED******REMOVED******REMOVED***,

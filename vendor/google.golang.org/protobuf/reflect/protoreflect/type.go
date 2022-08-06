@@ -480,6 +480,7 @@ type ExtensionDescriptors interface ***REMOVED***
 // relative to the parent that it is declared within.
 //
 // For example:
+//
 //	syntax = "proto2";
 //	package example;
 //	message FooMessage ***REMOVED***

@@ -12,16 +12,16 @@ import (
 	ptag "google.golang.org/protobuf/internal/encoding/tag"
 	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/pragma"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	preg "google.golang.org/protobuf/reflect/protoregistry"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 func (xi *ExtensionInfo) initToLegacy() ***REMOVED***
 	xd := xi.desc
-	var parent piface.MessageV1
+	var parent protoiface.MessageV1
 	messageName := xd.ContainingMessage().FullName()
-	if mt, _ := preg.GlobalTypes.FindMessageByName(messageName); mt != nil ***REMOVED***
+	if mt, _ := protoregistry.GlobalTypes.FindMessageByName(messageName); mt != nil ***REMOVED***
 		// Create a new parent message and unwrap it if possible.
 		mv := mt.New().Interface()
 		t := reflect.TypeOf(mv)
@@ -31,7 +31,7 @@ func (xi *ExtensionInfo) initToLegacy() ***REMOVED***
 
 		// Check whether the message implements the legacy v1 Message interface.
 		mz := reflect.Zero(t).Interface()
-		if mz, ok := mz.(piface.MessageV1); ok ***REMOVED***
+		if mz, ok := mz.(protoiface.MessageV1); ok ***REMOVED***
 			parent = mz
 		***REMOVED***
 	***REMOVED***
@@ -46,7 +46,7 @@ func (xi *ExtensionInfo) initToLegacy() ***REMOVED***
 
 	// Reconstruct the legacy enum full name.
 	var enumName string
-	if xd.Kind() == pref.EnumKind ***REMOVED***
+	if xd.Kind() == protoreflect.EnumKind ***REMOVED***
 		enumName = legacyEnumName(xd.Enum())
 	***REMOVED***
 
@@ -77,16 +77,16 @@ func (xi *ExtensionInfo) initFromLegacy() ***REMOVED***
 	// field number is specified. In such a case, use a placeholder.
 	if xi.ExtendedType == nil || xi.ExtensionType == nil ***REMOVED***
 		xd := placeholderExtension***REMOVED***
-			name:   pref.FullName(xi.Name),
-			number: pref.FieldNumber(xi.Field),
+			name:   protoreflect.FullName(xi.Name),
+			number: protoreflect.FieldNumber(xi.Field),
 		***REMOVED***
 		xi.desc = extensionTypeDescriptor***REMOVED***xd, xi***REMOVED***
 		return
 	***REMOVED***
 
 	// Resolve enum or message dependencies.
-	var ed pref.EnumDescriptor
-	var md pref.MessageDescriptor
+	var ed protoreflect.EnumDescriptor
+	var md protoreflect.MessageDescriptor
 	t := reflect.TypeOf(xi.ExtensionType)
 	isOptional := t.Kind() == reflect.Ptr && t.Elem().Kind() != reflect.Struct
 	isRepeated := t.Kind() == reflect.Slice && t.Elem().Kind() != reflect.Uint8
@@ -94,18 +94,18 @@ func (xi *ExtensionInfo) initFromLegacy() ***REMOVED***
 		t = t.Elem()
 	***REMOVED***
 	switch v := reflect.Zero(t).Interface().(type) ***REMOVED***
-	case pref.Enum:
+	case protoreflect.Enum:
 		ed = v.Descriptor()
 	case enumV1:
 		ed = LegacyLoadEnumDesc(t)
-	case pref.ProtoMessage:
+	case protoreflect.ProtoMessage:
 		md = v.ProtoReflect().Descriptor()
 	case messageV1:
 		md = LegacyLoadMessageDesc(t)
 	***REMOVED***
 
 	// Derive basic field information from the struct tag.
-	var evs pref.EnumValueDescriptors
+	var evs protoreflect.EnumValueDescriptors
 	if ed != nil ***REMOVED***
 		evs = ed.Values()
 	***REMOVED***
@@ -114,8 +114,8 @@ func (xi *ExtensionInfo) initFromLegacy() ***REMOVED***
 	// Construct a v2 ExtensionType.
 	xd := &filedesc.Extension***REMOVED***L2: new(filedesc.ExtensionL2)***REMOVED***
 	xd.L0.ParentFile = filedesc.SurrogateProto2
-	xd.L0.FullName = pref.FullName(xi.Name)
-	xd.L1.Number = pref.FieldNumber(xi.Field)
+	xd.L0.FullName = protoreflect.FullName(xi.Name)
+	xd.L1.Number = protoreflect.FieldNumber(xi.Field)
 	xd.L1.Cardinality = fd.L1.Cardinality
 	xd.L1.Kind = fd.L1.Kind
 	xd.L2.IsPacked = fd.L1.IsPacked
@@ -138,39 +138,39 @@ func (xi *ExtensionInfo) initFromLegacy() ***REMOVED***
 ***REMOVED***
 
 type placeholderExtension struct ***REMOVED***
-	name   pref.FullName
-	number pref.FieldNumber
+	name   protoreflect.FullName
+	number protoreflect.FieldNumber
 ***REMOVED***
 
-func (x placeholderExtension) ParentFile() pref.FileDescriptor            ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) Parent() pref.Descriptor                    ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) Index() int                                 ***REMOVED*** return 0 ***REMOVED***
-func (x placeholderExtension) Syntax() pref.Syntax                        ***REMOVED*** return 0 ***REMOVED***
-func (x placeholderExtension) Name() pref.Name                            ***REMOVED*** return x.name.Name() ***REMOVED***
-func (x placeholderExtension) FullName() pref.FullName                    ***REMOVED*** return x.name ***REMOVED***
-func (x placeholderExtension) IsPlaceholder() bool                        ***REMOVED*** return true ***REMOVED***
-func (x placeholderExtension) Options() pref.ProtoMessage                 ***REMOVED*** return descopts.Field ***REMOVED***
-func (x placeholderExtension) Number() pref.FieldNumber                   ***REMOVED*** return x.number ***REMOVED***
-func (x placeholderExtension) Cardinality() pref.Cardinality              ***REMOVED*** return 0 ***REMOVED***
-func (x placeholderExtension) Kind() pref.Kind                            ***REMOVED*** return 0 ***REMOVED***
-func (x placeholderExtension) HasJSONName() bool                          ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) JSONName() string                           ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
-func (x placeholderExtension) TextName() string                           ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
-func (x placeholderExtension) HasPresence() bool                          ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) HasOptionalKeyword() bool                   ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) IsExtension() bool                          ***REMOVED*** return true ***REMOVED***
-func (x placeholderExtension) IsWeak() bool                               ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) IsPacked() bool                             ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) IsList() bool                               ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) IsMap() bool                                ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) MapKey() pref.FieldDescriptor               ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) MapValue() pref.FieldDescriptor             ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) HasDefault() bool                           ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) Default() pref.Value                        ***REMOVED*** return pref.Value***REMOVED******REMOVED*** ***REMOVED***
-func (x placeholderExtension) DefaultEnumValue() pref.EnumValueDescriptor ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) ContainingOneof() pref.OneofDescriptor      ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) ContainingMessage() pref.MessageDescriptor  ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) Enum() pref.EnumDescriptor                  ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) Message() pref.MessageDescriptor            ***REMOVED*** return nil ***REMOVED***
-func (x placeholderExtension) ProtoType(pref.FieldDescriptor)             ***REMOVED*** return ***REMOVED***
-func (x placeholderExtension) ProtoInternal(pragma.DoNotImplement)        ***REMOVED*** return ***REMOVED***
+func (x placeholderExtension) ParentFile() protoreflect.FileDescriptor            ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) Parent() protoreflect.Descriptor                    ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) Index() int                                         ***REMOVED*** return 0 ***REMOVED***
+func (x placeholderExtension) Syntax() protoreflect.Syntax                        ***REMOVED*** return 0 ***REMOVED***
+func (x placeholderExtension) Name() protoreflect.Name                            ***REMOVED*** return x.name.Name() ***REMOVED***
+func (x placeholderExtension) FullName() protoreflect.FullName                    ***REMOVED*** return x.name ***REMOVED***
+func (x placeholderExtension) IsPlaceholder() bool                                ***REMOVED*** return true ***REMOVED***
+func (x placeholderExtension) Options() protoreflect.ProtoMessage                 ***REMOVED*** return descopts.Field ***REMOVED***
+func (x placeholderExtension) Number() protoreflect.FieldNumber                   ***REMOVED*** return x.number ***REMOVED***
+func (x placeholderExtension) Cardinality() protoreflect.Cardinality              ***REMOVED*** return 0 ***REMOVED***
+func (x placeholderExtension) Kind() protoreflect.Kind                            ***REMOVED*** return 0 ***REMOVED***
+func (x placeholderExtension) HasJSONName() bool                                  ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) JSONName() string                                   ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
+func (x placeholderExtension) TextName() string                                   ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
+func (x placeholderExtension) HasPresence() bool                                  ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) HasOptionalKeyword() bool                           ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) IsExtension() bool                                  ***REMOVED*** return true ***REMOVED***
+func (x placeholderExtension) IsWeak() bool                                       ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) IsPacked() bool                                     ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) IsList() bool                                       ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) IsMap() bool                                        ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) MapKey() protoreflect.FieldDescriptor               ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) MapValue() protoreflect.FieldDescriptor             ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) HasDefault() bool                                   ***REMOVED*** return false ***REMOVED***
+func (x placeholderExtension) Default() protoreflect.Value                        ***REMOVED*** return protoreflect.Value***REMOVED******REMOVED*** ***REMOVED***
+func (x placeholderExtension) DefaultEnumValue() protoreflect.EnumValueDescriptor ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) ContainingOneof() protoreflect.OneofDescriptor      ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) ContainingMessage() protoreflect.MessageDescriptor  ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) Enum() protoreflect.EnumDescriptor                  ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) Message() protoreflect.MessageDescriptor            ***REMOVED*** return nil ***REMOVED***
+func (x placeholderExtension) ProtoType(protoreflect.FieldDescriptor)             ***REMOVED*** return ***REMOVED***
+func (x placeholderExtension) ProtoInternal(pragma.DoNotImplement)                ***REMOVED*** return ***REMOVED***

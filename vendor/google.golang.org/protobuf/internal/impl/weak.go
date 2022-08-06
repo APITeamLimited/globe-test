@@ -7,7 +7,7 @@ package impl
 import (
 	"fmt"
 
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
@@ -17,32 +17,32 @@ import (
 // defined directly on it.
 type weakFields WeakFields
 
-func (w weakFields) get(num pref.FieldNumber) (pref.ProtoMessage, bool) ***REMOVED***
+func (w weakFields) get(num protoreflect.FieldNumber) (protoreflect.ProtoMessage, bool) ***REMOVED***
 	m, ok := w[int32(num)]
 	return m, ok
 ***REMOVED***
 
-func (w *weakFields) set(num pref.FieldNumber, m pref.ProtoMessage) ***REMOVED***
+func (w *weakFields) set(num protoreflect.FieldNumber, m protoreflect.ProtoMessage) ***REMOVED***
 	if *w == nil ***REMOVED***
 		*w = make(weakFields)
 	***REMOVED***
 	(*w)[int32(num)] = m
 ***REMOVED***
 
-func (w *weakFields) clear(num pref.FieldNumber) ***REMOVED***
+func (w *weakFields) clear(num protoreflect.FieldNumber) ***REMOVED***
 	delete(*w, int32(num))
 ***REMOVED***
 
-func (Export) HasWeak(w WeakFields, num pref.FieldNumber) bool ***REMOVED***
+func (Export) HasWeak(w WeakFields, num protoreflect.FieldNumber) bool ***REMOVED***
 	_, ok := w[int32(num)]
 	return ok
 ***REMOVED***
 
-func (Export) ClearWeak(w *WeakFields, num pref.FieldNumber) ***REMOVED***
+func (Export) ClearWeak(w *WeakFields, num protoreflect.FieldNumber) ***REMOVED***
 	delete(*w, int32(num))
 ***REMOVED***
 
-func (Export) GetWeak(w WeakFields, num pref.FieldNumber, name pref.FullName) pref.ProtoMessage ***REMOVED***
+func (Export) GetWeak(w WeakFields, num protoreflect.FieldNumber, name protoreflect.FullName) protoreflect.ProtoMessage ***REMOVED***
 	if m, ok := w[int32(num)]; ok ***REMOVED***
 		return m
 	***REMOVED***
@@ -53,7 +53,7 @@ func (Export) GetWeak(w WeakFields, num pref.FieldNumber, name pref.FullName) pr
 	return mt.Zero().Interface()
 ***REMOVED***
 
-func (Export) SetWeak(w *WeakFields, num pref.FieldNumber, name pref.FullName, m pref.ProtoMessage) ***REMOVED***
+func (Export) SetWeak(w *WeakFields, num protoreflect.FieldNumber, name protoreflect.FullName, m protoreflect.ProtoMessage) ***REMOVED***
 	if m != nil ***REMOVED***
 		mt, _ := protoregistry.GlobalTypes.FindMessageByName(name)
 		if mt == nil ***REMOVED***

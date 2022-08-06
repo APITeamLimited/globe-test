@@ -105,6 +105,7 @@ func getPartialConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 // Gets configuration from CLI flags.
 func getConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 	opts, err := getOptions(flags)
+
 	if err != nil ***REMOVED***
 		return Config***REMOVED******REMOVED***, err
 	***REMOVED***

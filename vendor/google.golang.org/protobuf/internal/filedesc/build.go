@@ -12,8 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	preg "google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 // Builder construct a protoreflect.FileDescriptor from the raw descriptor.
@@ -38,7 +37,7 @@ type Builder struct ***REMOVED***
 	// TypeResolver resolves extension field types for descriptor options.
 	// If nil, it uses protoregistry.GlobalTypes.
 	TypeResolver interface ***REMOVED***
-		preg.ExtensionTypeResolver
+		protoregistry.ExtensionTypeResolver
 	***REMOVED***
 
 	// FileRegistry is use to lookup file, enum, and message dependencies.
@@ -46,8 +45,8 @@ type Builder struct ***REMOVED***
 	// If nil, it uses protoregistry.GlobalFiles.
 	FileRegistry interface ***REMOVED***
 		FindFileByPath(string) (protoreflect.FileDescriptor, error)
-		FindDescriptorByName(pref.FullName) (pref.Descriptor, error)
-		RegisterFile(pref.FileDescriptor) error
+		FindDescriptorByName(protoreflect.FullName) (protoreflect.Descriptor, error)
+		RegisterFile(protoreflect.FileDescriptor) error
 	***REMOVED***
 ***REMOVED***
 
@@ -55,8 +54,8 @@ type Builder struct ***REMOVED***
 // If so, it permits looking up an enum or message dependency based on the
 // sub-list and element index into filetype.Builder.DependencyIndexes.
 type resolverByIndex interface ***REMOVED***
-	FindEnumByIndex(int32, int32, []Enum, []Message) pref.EnumDescriptor
-	FindMessageByIndex(int32, int32, []Enum, []Message) pref.MessageDescriptor
+	FindEnumByIndex(int32, int32, []Enum, []Message) protoreflect.EnumDescriptor
+	FindMessageByIndex(int32, int32, []Enum, []Message) protoreflect.MessageDescriptor
 ***REMOVED***
 
 // Indexes of each sub-list in filetype.Builder.DependencyIndexes.
@@ -70,7 +69,7 @@ const (
 
 // Out is the output of the Builder.
 type Out struct ***REMOVED***
-	File pref.FileDescriptor
+	File protoreflect.FileDescriptor
 
 	// Enums is all enum descriptors in "flattened ordering".
 	Enums []Enum
@@ -97,10 +96,10 @@ func (db Builder) Build() (out Out) ***REMOVED***
 
 	// Initialize resolvers and registries if unpopulated.
 	if db.TypeResolver == nil ***REMOVED***
-		db.TypeResolver = preg.GlobalTypes
+		db.TypeResolver = protoregistry.GlobalTypes
 	***REMOVED***
 	if db.FileRegistry == nil ***REMOVED***
-		db.FileRegistry = preg.GlobalFiles
+		db.FileRegistry = protoregistry.GlobalFiles
 	***REMOVED***
 
 	fd := newRawFile(db)

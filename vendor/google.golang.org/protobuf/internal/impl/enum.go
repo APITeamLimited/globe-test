@@ -7,15 +7,15 @@ package impl
 import (
 	"reflect"
 
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type EnumInfo struct ***REMOVED***
 	GoReflectType reflect.Type // int32 kind
-	Desc          pref.EnumDescriptor
+	Desc          protoreflect.EnumDescriptor
 ***REMOVED***
 
-func (t *EnumInfo) New(n pref.EnumNumber) pref.Enum ***REMOVED***
-	return reflect.ValueOf(n).Convert(t.GoReflectType).Interface().(pref.Enum)
+func (t *EnumInfo) New(n protoreflect.EnumNumber) protoreflect.Enum ***REMOVED***
+	return reflect.ValueOf(n).Convert(t.GoReflectType).Interface().(protoreflect.Enum)
 ***REMOVED***
-func (t *EnumInfo) Descriptor() pref.EnumDescriptor ***REMOVED*** return t.Desc ***REMOVED***
+func (t *EnumInfo) Descriptor() protoreflect.EnumDescriptor ***REMOVED*** return t.Desc ***REMOVED***

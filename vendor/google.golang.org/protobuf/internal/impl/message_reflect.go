@@ -10,17 +10,17 @@ import (
 
 	"google.golang.org/protobuf/internal/detrand"
 	"google.golang.org/protobuf/internal/pragma"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type reflectMessageInfo struct ***REMOVED***
-	fields map[pref.FieldNumber]*fieldInfo
-	oneofs map[pref.Name]*oneofInfo
+	fields map[protoreflect.FieldNumber]*fieldInfo
+	oneofs map[protoreflect.Name]*oneofInfo
 
 	// fieldTypes contains the zero value of an enum or message field.
 	// For lists, it contains the element type.
 	// For maps, it contains the entry value type.
-	fieldTypes map[pref.FieldNumber]interface***REMOVED******REMOVED***
+	fieldTypes map[protoreflect.FieldNumber]interface***REMOVED******REMOVED***
 
 	// denseFields is a subset of fields where:
 	//	0 < fieldDesc.Number() < len(denseFields)
@@ -30,8 +30,8 @@ type reflectMessageInfo struct ***REMOVED***
 	// rangeInfos is a list of all fields (not belonging to a oneof) and oneofs.
 	rangeInfos []interface***REMOVED******REMOVED*** // either *fieldInfo or *oneofInfo
 
-	getUnknown   func(pointer) pref.RawFields
-	setUnknown   func(pointer, pref.RawFields)
+	getUnknown   func(pointer) protoreflect.RawFields
+	setUnknown   func(pointer, protoreflect.RawFields)
 	extensionMap func(pointer) *extensionMap
 
 	nilMessage atomicNilMessage
@@ -52,7 +52,7 @@ func (mi *MessageInfo) makeReflectFuncs(t reflect.Type, si structInfo) ***REMOVE
 // This code assumes that the struct is well-formed and panics if there are
 // any discrepancies.
 func (mi *MessageInfo) makeKnownFieldsFunc(si structInfo) ***REMOVED***
-	mi.fields = map[pref.FieldNumber]*fieldInfo***REMOVED******REMOVED***
+	mi.fields = map[protoreflect.FieldNumber]*fieldInfo***REMOVED******REMOVED***
 	md := mi.Desc
 	fds := md.Fields()
 	for i := 0; i < fds.Len(); i++ ***REMOVED***
@@ -82,7 +82,7 @@ func (mi *MessageInfo) makeKnownFieldsFunc(si structInfo) ***REMOVED***
 		mi.fields[fd.Number()] = &fi
 	***REMOVED***
 
-	mi.oneofs = map[pref.Name]*oneofInfo***REMOVED******REMOVED***
+	mi.oneofs = map[protoreflect.Name]*oneofInfo***REMOVED******REMOVED***
 	for i := 0; i < md.Oneofs().Len(); i++ ***REMOVED***
 		od := md.Oneofs().Get(i)
 		mi.oneofs[od.Name()] = makeOneofInfo(od, si, mi.Exporter)
@@ -117,13 +117,13 @@ func (mi *MessageInfo) makeUnknownFieldsFunc(t reflect.Type, si structInfo) ***R
 	switch ***REMOVED***
 	case si.unknownOffset.IsValid() && si.unknownType == unknownFieldsAType:
 		// Handle as []byte.
-		mi.getUnknown = func(p pointer) pref.RawFields ***REMOVED***
+		mi.getUnknown = func(p pointer) protoreflect.RawFields ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				return nil
 			***REMOVED***
 			return *p.Apply(mi.unknownOffset).Bytes()
 		***REMOVED***
-		mi.setUnknown = func(p pointer, b pref.RawFields) ***REMOVED***
+		mi.setUnknown = func(p pointer, b protoreflect.RawFields) ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				panic("invalid SetUnknown on nil Message")
 			***REMOVED***
@@ -131,7 +131,7 @@ func (mi *MessageInfo) makeUnknownFieldsFunc(t reflect.Type, si structInfo) ***R
 		***REMOVED***
 	case si.unknownOffset.IsValid() && si.unknownType == unknownFieldsBType:
 		// Handle as *[]byte.
-		mi.getUnknown = func(p pointer) pref.RawFields ***REMOVED***
+		mi.getUnknown = func(p pointer) protoreflect.RawFields ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				return nil
 			***REMOVED***
@@ -141,7 +141,7 @@ func (mi *MessageInfo) makeUnknownFieldsFunc(t reflect.Type, si structInfo) ***R
 			***REMOVED***
 			return **bp
 		***REMOVED***
-		mi.setUnknown = func(p pointer, b pref.RawFields) ***REMOVED***
+		mi.setUnknown = func(p pointer, b protoreflect.RawFields) ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				panic("invalid SetUnknown on nil Message")
 			***REMOVED***
@@ -152,10 +152,10 @@ func (mi *MessageInfo) makeUnknownFieldsFunc(t reflect.Type, si structInfo) ***R
 			**bp = b
 		***REMOVED***
 	default:
-		mi.getUnknown = func(pointer) pref.RawFields ***REMOVED***
+		mi.getUnknown = func(pointer) protoreflect.RawFields ***REMOVED***
 			return nil
 		***REMOVED***
-		mi.setUnknown = func(p pointer, _ pref.RawFields) ***REMOVED***
+		mi.setUnknown = func(p pointer, _ protoreflect.RawFields) ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				panic("invalid SetUnknown on nil Message")
 			***REMOVED***
@@ -224,7 +224,7 @@ func (mi *MessageInfo) makeFieldTypes(si structInfo) ***REMOVED***
 		***REMOVED***
 		if ft != nil ***REMOVED***
 			if mi.fieldTypes == nil ***REMOVED***
-				mi.fieldTypes = make(map[pref.FieldNumber]interface***REMOVED******REMOVED***)
+				mi.fieldTypes = make(map[protoreflect.FieldNumber]interface***REMOVED******REMOVED***)
 			***REMOVED***
 			mi.fieldTypes[fd.Number()] = reflect.Zero(ft).Interface()
 		***REMOVED***
@@ -233,7 +233,7 @@ func (mi *MessageInfo) makeFieldTypes(si structInfo) ***REMOVED***
 
 type extensionMap map[int32]ExtensionField
 
-func (m *extensionMap) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
+func (m *extensionMap) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) ***REMOVED***
 	if m != nil ***REMOVED***
 		for _, x := range *m ***REMOVED***
 			xd := x.Type().TypeDescriptor()
@@ -247,7 +247,7 @@ func (m *extensionMap) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***R
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
-func (m *extensionMap) Has(xt pref.ExtensionType) (ok bool) ***REMOVED***
+func (m *extensionMap) Has(xt protoreflect.ExtensionType) (ok bool) ***REMOVED***
 	if m == nil ***REMOVED***
 		return false
 	***REMOVED***
@@ -266,10 +266,10 @@ func (m *extensionMap) Has(xt pref.ExtensionType) (ok bool) ***REMOVED***
 	***REMOVED***
 	return true
 ***REMOVED***
-func (m *extensionMap) Clear(xt pref.ExtensionType) ***REMOVED***
+func (m *extensionMap) Clear(xt protoreflect.ExtensionType) ***REMOVED***
 	delete(*m, int32(xt.TypeDescriptor().Number()))
 ***REMOVED***
-func (m *extensionMap) Get(xt pref.ExtensionType) pref.Value ***REMOVED***
+func (m *extensionMap) Get(xt protoreflect.ExtensionType) protoreflect.Value ***REMOVED***
 	xd := xt.TypeDescriptor()
 	if m != nil ***REMOVED***
 		if x, ok := (*m)[int32(xd.Number())]; ok ***REMOVED***
@@ -278,7 +278,7 @@ func (m *extensionMap) Get(xt pref.ExtensionType) pref.Value ***REMOVED***
 	***REMOVED***
 	return xt.Zero()
 ***REMOVED***
-func (m *extensionMap) Set(xt pref.ExtensionType, v pref.Value) ***REMOVED***
+func (m *extensionMap) Set(xt protoreflect.ExtensionType, v protoreflect.Value) ***REMOVED***
 	xd := xt.TypeDescriptor()
 	isValid := true
 	switch ***REMOVED***
@@ -302,9 +302,9 @@ func (m *extensionMap) Set(xt pref.ExtensionType, v pref.Value) ***REMOVED***
 	x.Set(xt, v)
 	(*m)[int32(xd.Number())] = x
 ***REMOVED***
-func (m *extensionMap) Mutable(xt pref.ExtensionType) pref.Value ***REMOVED***
+func (m *extensionMap) Mutable(xt protoreflect.ExtensionType) protoreflect.Value ***REMOVED***
 	xd := xt.TypeDescriptor()
-	if xd.Kind() != pref.MessageKind && xd.Kind() != pref.GroupKind && !xd.IsList() && !xd.IsMap() ***REMOVED***
+	if xd.Kind() != protoreflect.MessageKind && xd.Kind() != protoreflect.GroupKind && !xd.IsList() && !xd.IsMap() ***REMOVED***
 		panic("invalid Mutable on field with non-composite type")
 	***REMOVED***
 	if x, ok := (*m)[int32(xd.Number())]; ok ***REMOVED***
@@ -319,7 +319,6 @@ func (m *extensionMap) Mutable(xt pref.ExtensionType) pref.Value ***REMOVED***
 // concrete message. It provides a way to implement the ProtoReflect method
 // in an allocation-free way without needing to have a shadow Go type generated
 // for every message type. This technique only works using unsafe.
-//
 //
 // Example generated code:
 //
@@ -351,12 +350,11 @@ func (m *extensionMap) Mutable(xt pref.ExtensionType) pref.Value ***REMOVED***
 // It has access to the message info as its first field, and a pointer to the
 // MessageState is identical to a pointer to the concrete message value.
 //
-//
 // Requirements:
-//	• The type M must implement protoreflect.ProtoMessage.
-//	• The address of m must not be nil.
-//	• The address of m and the address of m.state must be equal,
-//	even though they are different Go types.
+//   - The type M must implement protoreflect.ProtoMessage.
+//   - The address of m must not be nil.
+//   - The address of m and the address of m.state must be equal,
+//     even though they are different Go types.
 type MessageState struct ***REMOVED***
 	pragma.NoUnkeyedLiterals
 	pragma.DoNotCompare
@@ -368,8 +366,8 @@ type MessageState struct ***REMOVED***
 type messageState MessageState
 
 var (
-	_ pref.Message = (*messageState)(nil)
-	_ unwrapper    = (*messageState)(nil)
+	_ protoreflect.Message = (*messageState)(nil)
+	_ unwrapper            = (*messageState)(nil)
 )
 
 // messageDataType is a tuple of a pointer to the message data and
@@ -387,16 +385,16 @@ type (
 )
 
 var (
-	_ pref.Message      = (*messageReflectWrapper)(nil)
-	_ unwrapper         = (*messageReflectWrapper)(nil)
-	_ pref.ProtoMessage = (*messageIfaceWrapper)(nil)
-	_ unwrapper         = (*messageIfaceWrapper)(nil)
+	_ protoreflect.Message      = (*messageReflectWrapper)(nil)
+	_ unwrapper                 = (*messageReflectWrapper)(nil)
+	_ protoreflect.ProtoMessage = (*messageIfaceWrapper)(nil)
+	_ unwrapper                 = (*messageIfaceWrapper)(nil)
 )
 
 // MessageOf returns a reflective view over a message. The input must be a
 // pointer to a named Go struct. If the provided type has a ProtoReflect method,
 // it must be implemented by calling this method.
-func (mi *MessageInfo) MessageOf(m interface***REMOVED******REMOVED***) pref.Message ***REMOVED***
+func (mi *MessageInfo) MessageOf(m interface***REMOVED******REMOVED***) protoreflect.Message ***REMOVED***
 	if reflect.TypeOf(m) != mi.GoReflectType ***REMOVED***
 		panic(fmt.Sprintf("type mismatch: got %T, want %v", m, mi.GoReflectType))
 	***REMOVED***
@@ -421,7 +419,7 @@ func (m *messageIfaceWrapper) Reset() ***REMOVED***
 		rv.Elem().Set(reflect.Zero(rv.Type().Elem()))
 	***REMOVED***
 ***REMOVED***
-func (m *messageIfaceWrapper) ProtoReflect() pref.Message ***REMOVED***
+func (m *messageIfaceWrapper) ProtoReflect() protoreflect.Message ***REMOVED***
 	return (*messageReflectWrapper)(m)
 ***REMOVED***
 func (m *messageIfaceWrapper) protoUnwrap() interface***REMOVED******REMOVED*** ***REMOVED***
@@ -430,7 +428,7 @@ func (m *messageIfaceWrapper) protoUnwrap() interface***REMOVED******REMOVED*** 
 
 // checkField verifies that the provided field descriptor is valid.
 // Exactly one of the returned values is populated.
-func (mi *MessageInfo) checkField(fd pref.FieldDescriptor) (*fieldInfo, pref.ExtensionType) ***REMOVED***
+func (mi *MessageInfo) checkField(fd protoreflect.FieldDescriptor) (*fieldInfo, protoreflect.ExtensionType) ***REMOVED***
 	var fi *fieldInfo
 	if n := fd.Number(); 0 < n && int(n) < len(mi.denseFields) ***REMOVED***
 		fi = mi.denseFields[n]
@@ -455,7 +453,7 @@ func (mi *MessageInfo) checkField(fd pref.FieldDescriptor) (*fieldInfo, pref.Ext
 		if !mi.Desc.ExtensionRanges().Has(fd.Number()) ***REMOVED***
 			panic(fmt.Sprintf("extension %v extends %v outside the extension range", fd.FullName(), mi.Desc.FullName()))
 		***REMOVED***
-		xtd, ok := fd.(pref.ExtensionTypeDescriptor)
+		xtd, ok := fd.(protoreflect.ExtensionTypeDescriptor)
 		if !ok ***REMOVED***
 			panic(fmt.Sprintf("extension %v does not implement protoreflect.ExtensionTypeDescriptor", fd.FullName()))
 		***REMOVED***

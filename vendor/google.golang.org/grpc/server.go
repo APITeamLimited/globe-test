@@ -73,6 +73,12 @@ func init() ***REMOVED***
 	internal.DrainServerTransports = func(srv *Server, addr string) ***REMOVED***
 		srv.drainServerTransports(addr)
 	***REMOVED***
+	internal.AddExtraServerOptions = func(opt ...ServerOption) ***REMOVED***
+		extraServerOptions = opt
+	***REMOVED***
+	internal.ClearExtraServerOptions = func() ***REMOVED***
+		extraServerOptions = nil
+	***REMOVED***
 ***REMOVED***
 
 var statusOK = status.New(codes.OK, "")
@@ -150,7 +156,7 @@ type serverOptions struct ***REMOVED***
 	chainUnaryInts        []UnaryServerInterceptor
 	chainStreamInts       []StreamServerInterceptor
 	inTapHandle           tap.ServerInHandle
-	statsHandler          stats.Handler
+	statsHandlers         []stats.Handler
 	maxConcurrentStreams  uint32
 	maxReceiveMessageSize int
 	maxSendMessageSize    int
@@ -174,6 +180,7 @@ var defaultServerOptions = serverOptions***REMOVED***
 	writeBufferSize:       defaultWriteBufSize,
 	readBufferSize:        defaultReadBufSize,
 ***REMOVED***
+var extraServerOptions []ServerOption
 
 // A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
 type ServerOption interface ***REMOVED***
@@ -435,7 +442,7 @@ func InTapHandle(h tap.ServerInHandle) ServerOption ***REMOVED***
 // StatsHandler returns a ServerOption that sets the stats handler for the server.
 func StatsHandler(h stats.Handler) ServerOption ***REMOVED***
 	return newFuncServerOption(func(o *serverOptions) ***REMOVED***
-		o.statsHandler = h
+		o.statsHandlers = append(o.statsHandlers, h)
 	***REMOVED***)
 ***REMOVED***
 
@@ -560,6 +567,9 @@ func (s *Server) stopServerWorkers() ***REMOVED***
 // started to accept requests yet.
 func NewServer(opt ...ServerOption) *Server ***REMOVED***
 	opts := defaultServerOptions
+	for _, o := range extraServerOptions ***REMOVED***
+		o.apply(&opts)
+	***REMOVED***
 	for _, o := range opt ***REMOVED***
 		o.apply(&opts)
 	***REMOVED***
@@ -867,7 +877,7 @@ func (s *Server) newHTTP2Transport(c net.Conn) transport.ServerTransport ***REMO
 		ConnectionTimeout:     s.opts.connectionTimeout,
 		Credentials:           s.opts.creds,
 		InTapHandle:           s.opts.inTapHandle,
-		StatsHandler:          s.opts.statsHandler,
+		StatsHandlers:         s.opts.statsHandlers,
 		KeepaliveParams:       s.opts.keepaliveParams,
 		KeepalivePolicy:       s.opts.keepalivePolicy,
 		InitialWindowSize:     s.opts.initialWindowSize,
@@ -963,7 +973,7 @@ var _ http.Handler = (*Server)(nil)
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a
 // later release.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) ***REMOVED***
-	st, err := transport.NewServerHandlerTransport(w, r, s.opts.statsHandler)
+	st, err := transport.NewServerHandlerTransport(w, r, s.opts.statsHandlers)
 	if err != nil ***REMOVED***
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1076,8 +1086,10 @@ func (s *Server) sendResponse(t transport.ServerTransport, stream *transport.Str
 		return status.Errorf(codes.ResourceExhausted, "grpc: trying to send message larger than max (%d vs. %d)", len(payload), s.opts.maxSendMessageSize)
 	***REMOVED***
 	err = t.Write(stream, hdr, payload, opts)
-	if err == nil && s.opts.statsHandler != nil ***REMOVED***
-		s.opts.statsHandler.HandleRPC(stream.Context(), outPayload(false, msg, data, payload, time.Now()))
+	if err == nil ***REMOVED***
+		for _, sh := range s.opts.statsHandlers ***REMOVED***
+			sh.HandleRPC(stream.Context(), outPayload(false, msg, data, payload, time.Now()))
+		***REMOVED***
 	***REMOVED***
 	return err
 ***REMOVED***
@@ -1124,13 +1136,13 @@ func chainUnaryInterceptors(interceptors []UnaryServerInterceptor) UnaryServerIn
 ***REMOVED***
 
 func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.Stream, info *serviceInfo, md *MethodDesc, trInfo *traceInfo) (err error) ***REMOVED***
-	sh := s.opts.statsHandler
-	if sh != nil || trInfo != nil || channelz.IsOn() ***REMOVED***
+	shs := s.opts.statsHandlers
+	if len(shs) != 0 || trInfo != nil || channelz.IsOn() ***REMOVED***
 		if channelz.IsOn() ***REMOVED***
 			s.incrCallsStarted()
 		***REMOVED***
 		var statsBegin *stats.Begin
-		if sh != nil ***REMOVED***
+		for _, sh := range shs ***REMOVED***
 			beginTime := time.Now()
 			statsBegin = &stats.Begin***REMOVED***
 				BeginTime:      beginTime,
@@ -1161,7 +1173,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 				trInfo.tr.Finish()
 			***REMOVED***
 
-			if sh != nil ***REMOVED***
+			for _, sh := range shs ***REMOVED***
 				end := &stats.End***REMOVED***
 					BeginTime: statsBegin.BeginTime,
 					EndTime:   time.Now(),
@@ -1243,7 +1255,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 	***REMOVED***
 
 	var payInfo *payloadInfo
-	if sh != nil || binlog != nil ***REMOVED***
+	if len(shs) != 0 || binlog != nil ***REMOVED***
 		payInfo = &payloadInfo***REMOVED******REMOVED***
 	***REMOVED***
 	d, err := recvAndDecompress(&parser***REMOVED***r: stream***REMOVED***, stream, dc, s.opts.maxReceiveMessageSize, payInfo, decomp)
@@ -1260,7 +1272,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		if err := s.getCodec(stream.ContentSubtype()).Unmarshal(d, v); err != nil ***REMOVED***
 			return status.Errorf(codes.Internal, "grpc: error unmarshalling request: %v", err)
 		***REMOVED***
-		if sh != nil ***REMOVED***
+		for _, sh := range shs ***REMOVED***
 			sh.HandleRPC(stream.Context(), &stats.InPayload***REMOVED***
 				RecvTime:   time.Now(),
 				Payload:    v,
@@ -1418,16 +1430,18 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 	if channelz.IsOn() ***REMOVED***
 		s.incrCallsStarted()
 	***REMOVED***
-	sh := s.opts.statsHandler
+	shs := s.opts.statsHandlers
 	var statsBegin *stats.Begin
-	if sh != nil ***REMOVED***
+	if len(shs) != 0 ***REMOVED***
 		beginTime := time.Now()
 		statsBegin = &stats.Begin***REMOVED***
 			BeginTime:      beginTime,
 			IsClientStream: sd.ClientStreams,
 			IsServerStream: sd.ServerStreams,
 		***REMOVED***
-		sh.HandleRPC(stream.Context(), statsBegin)
+		for _, sh := range shs ***REMOVED***
+			sh.HandleRPC(stream.Context(), statsBegin)
+		***REMOVED***
 	***REMOVED***
 	ctx := NewContextWithServerTransportStream(stream.Context(), stream)
 	ss := &serverStream***REMOVED***
@@ -1439,10 +1453,10 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		maxReceiveMessageSize: s.opts.maxReceiveMessageSize,
 		maxSendMessageSize:    s.opts.maxSendMessageSize,
 		trInfo:                trInfo,
-		statsHandler:          sh,
+		statsHandler:          shs,
 	***REMOVED***
 
-	if sh != nil || trInfo != nil || channelz.IsOn() ***REMOVED***
+	if len(shs) != 0 || trInfo != nil || channelz.IsOn() ***REMOVED***
 		// See comment in processUnaryRPC on defers.
 		defer func() ***REMOVED***
 			if trInfo != nil ***REMOVED***
@@ -1456,7 +1470,7 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 				ss.mu.Unlock()
 			***REMOVED***
 
-			if sh != nil ***REMOVED***
+			if len(shs) != 0 ***REMOVED***
 				end := &stats.End***REMOVED***
 					BeginTime: statsBegin.BeginTime,
 					EndTime:   time.Now(),
@@ -1464,7 +1478,9 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 				if err != nil && err != io.EOF ***REMOVED***
 					end.Error = toRPCErr(err)
 				***REMOVED***
-				sh.HandleRPC(stream.Context(), end)
+				for _, sh := range shs ***REMOVED***
+					sh.HandleRPC(stream.Context(), end)
+				***REMOVED***
 			***REMOVED***
 
 			if channelz.IsOn() ***REMOVED***

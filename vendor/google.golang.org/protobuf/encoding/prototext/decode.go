@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/internal/set"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
@@ -103,7 +103,7 @@ func (d decoder) syntaxError(pos int, f string, x ...interface***REMOVED******RE
 ***REMOVED***
 
 // unmarshalMessage unmarshals into the given protoreflect.Message.
-func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REMOVED***
+func (d decoder) unmarshalMessage(m protoreflect.Message, checkDelims bool) error ***REMOVED***
 	messageDesc := m.Descriptor()
 	if !flags.ProtoLegacy && messageset.IsMessageSet(messageDesc) ***REMOVED***
 		return errors.New("no support for proto1 MessageSets")
@@ -150,24 +150,24 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 		***REMOVED***
 
 		// Resolve the field descriptor.
-		var name pref.Name
-		var fd pref.FieldDescriptor
-		var xt pref.ExtensionType
+		var name protoreflect.Name
+		var fd protoreflect.FieldDescriptor
+		var xt protoreflect.ExtensionType
 		var xtErr error
 		var isFieldNumberName bool
 
 		switch tok.NameKind() ***REMOVED***
 		case text.IdentName:
-			name = pref.Name(tok.IdentName())
+			name = protoreflect.Name(tok.IdentName())
 			fd = fieldDescs.ByTextName(string(name))
 
 		case text.TypeName:
 			// Handle extensions only. This code path is not for Any.
-			xt, xtErr = d.opts.Resolver.FindExtensionByName(pref.FullName(tok.TypeName()))
+			xt, xtErr = d.opts.Resolver.FindExtensionByName(protoreflect.FullName(tok.TypeName()))
 
 		case text.FieldNumber:
 			isFieldNumberName = true
-			num := pref.FieldNumber(tok.FieldNumber())
+			num := protoreflect.FieldNumber(tok.FieldNumber())
 			if !num.IsValid() ***REMOVED***
 				return d.newError(tok.Pos(), "invalid field number: %d", num)
 			***REMOVED***
@@ -215,7 +215,7 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 		switch ***REMOVED***
 		case fd.IsList():
 			kind := fd.Kind()
-			if kind != pref.MessageKind && kind != pref.GroupKind && !tok.HasSeparator() ***REMOVED***
+			if kind != protoreflect.MessageKind && kind != protoreflect.GroupKind && !tok.HasSeparator() ***REMOVED***
 				return d.syntaxError(tok.Pos(), "missing field separator :")
 			***REMOVED***
 
@@ -232,7 +232,7 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 
 		default:
 			kind := fd.Kind()
-			if kind != pref.MessageKind && kind != pref.GroupKind && !tok.HasSeparator() ***REMOVED***
+			if kind != protoreflect.MessageKind && kind != protoreflect.GroupKind && !tok.HasSeparator() ***REMOVED***
 				return d.syntaxError(tok.Pos(), "missing field separator :")
 			***REMOVED***
 
@@ -262,11 +262,11 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 
 // unmarshalSingular unmarshals a non-repeated field value specified by the
 // given FieldDescriptor.
-func (d decoder) unmarshalSingular(fd pref.FieldDescriptor, m pref.Message) error ***REMOVED***
-	var val pref.Value
+func (d decoder) unmarshalSingular(fd protoreflect.FieldDescriptor, m protoreflect.Message) error ***REMOVED***
+	var val protoreflect.Value
 	var err error
 	switch fd.Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
+	case protoreflect.MessageKind, protoreflect.GroupKind:
 		val = m.NewField(fd)
 		err = d.unmarshalMessage(val.Message(), true)
 	default:
@@ -280,94 +280,94 @@ func (d decoder) unmarshalSingular(fd pref.FieldDescriptor, m pref.Message) erro
 
 // unmarshalScalar unmarshals a scalar/enum protoreflect.Value specified by the
 // given FieldDescriptor.
-func (d decoder) unmarshalScalar(fd pref.FieldDescriptor) (pref.Value, error) ***REMOVED***
+func (d decoder) unmarshalScalar(fd protoreflect.FieldDescriptor) (protoreflect.Value, error) ***REMOVED***
 	tok, err := d.Read()
 	if err != nil ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, err
+		return protoreflect.Value***REMOVED******REMOVED***, err
 	***REMOVED***
 
 	if tok.Kind() != text.Scalar ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, d.unexpectedTokenError(tok)
+		return protoreflect.Value***REMOVED******REMOVED***, d.unexpectedTokenError(tok)
 	***REMOVED***
 
 	kind := fd.Kind()
 	switch kind ***REMOVED***
-	case pref.BoolKind:
+	case protoreflect.BoolKind:
 		if b, ok := tok.Bool(); ok ***REMOVED***
-			return pref.ValueOfBool(b), nil
+			return protoreflect.ValueOfBool(b), nil
 		***REMOVED***
 
-	case pref.Int32Kind, pref.Sint32Kind, pref.Sfixed32Kind:
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		if n, ok := tok.Int32(); ok ***REMOVED***
-			return pref.ValueOfInt32(n), nil
+			return protoreflect.ValueOfInt32(n), nil
 		***REMOVED***
 
-	case pref.Int64Kind, pref.Sint64Kind, pref.Sfixed64Kind:
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 		if n, ok := tok.Int64(); ok ***REMOVED***
-			return pref.ValueOfInt64(n), nil
+			return protoreflect.ValueOfInt64(n), nil
 		***REMOVED***
 
-	case pref.Uint32Kind, pref.Fixed32Kind:
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		if n, ok := tok.Uint32(); ok ***REMOVED***
-			return pref.ValueOfUint32(n), nil
+			return protoreflect.ValueOfUint32(n), nil
 		***REMOVED***
 
-	case pref.Uint64Kind, pref.Fixed64Kind:
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 		if n, ok := tok.Uint64(); ok ***REMOVED***
-			return pref.ValueOfUint64(n), nil
+			return protoreflect.ValueOfUint64(n), nil
 		***REMOVED***
 
-	case pref.FloatKind:
+	case protoreflect.FloatKind:
 		if n, ok := tok.Float32(); ok ***REMOVED***
-			return pref.ValueOfFloat32(n), nil
+			return protoreflect.ValueOfFloat32(n), nil
 		***REMOVED***
 
-	case pref.DoubleKind:
+	case protoreflect.DoubleKind:
 		if n, ok := tok.Float64(); ok ***REMOVED***
-			return pref.ValueOfFloat64(n), nil
+			return protoreflect.ValueOfFloat64(n), nil
 		***REMOVED***
 
-	case pref.StringKind:
+	case protoreflect.StringKind:
 		if s, ok := tok.String(); ok ***REMOVED***
 			if strs.EnforceUTF8(fd) && !utf8.ValidString(s) ***REMOVED***
-				return pref.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "contains invalid UTF-8")
+				return protoreflect.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "contains invalid UTF-8")
 			***REMOVED***
-			return pref.ValueOfString(s), nil
+			return protoreflect.ValueOfString(s), nil
 		***REMOVED***
 
-	case pref.BytesKind:
+	case protoreflect.BytesKind:
 		if b, ok := tok.String(); ok ***REMOVED***
-			return pref.ValueOfBytes([]byte(b)), nil
+			return protoreflect.ValueOfBytes([]byte(b)), nil
 		***REMOVED***
 
-	case pref.EnumKind:
+	case protoreflect.EnumKind:
 		if lit, ok := tok.Enum(); ok ***REMOVED***
 			// Lookup EnumNumber based on name.
-			if enumVal := fd.Enum().Values().ByName(pref.Name(lit)); enumVal != nil ***REMOVED***
-				return pref.ValueOfEnum(enumVal.Number()), nil
+			if enumVal := fd.Enum().Values().ByName(protoreflect.Name(lit)); enumVal != nil ***REMOVED***
+				return protoreflect.ValueOfEnum(enumVal.Number()), nil
 			***REMOVED***
 		***REMOVED***
 		if num, ok := tok.Int32(); ok ***REMOVED***
-			return pref.ValueOfEnum(pref.EnumNumber(num)), nil
+			return protoreflect.ValueOfEnum(protoreflect.EnumNumber(num)), nil
 		***REMOVED***
 
 	default:
 		panic(fmt.Sprintf("invalid scalar kind %v", kind))
 	***REMOVED***
 
-	return pref.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v type: %v", kind, tok.RawString())
+	return protoreflect.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v type: %v", kind, tok.RawString())
 ***REMOVED***
 
 // unmarshalList unmarshals into given protoreflect.List. A list value can
 // either be in [] syntax or simply just a single scalar/message value.
-func (d decoder) unmarshalList(fd pref.FieldDescriptor, list pref.List) error ***REMOVED***
+func (d decoder) unmarshalList(fd protoreflect.FieldDescriptor, list protoreflect.List) error ***REMOVED***
 	tok, err := d.Peek()
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
 	switch fd.Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
+	case protoreflect.MessageKind, protoreflect.GroupKind:
 		switch tok.Kind() ***REMOVED***
 		case text.ListOpen:
 			d.Read()
@@ -441,22 +441,22 @@ func (d decoder) unmarshalList(fd pref.FieldDescriptor, list pref.List) error **
 
 // unmarshalMap unmarshals into given protoreflect.Map. A map value is a
 // textproto message containing ***REMOVED***key: <kvalue>, value: <mvalue>***REMOVED***.
-func (d decoder) unmarshalMap(fd pref.FieldDescriptor, mmap pref.Map) error ***REMOVED***
+func (d decoder) unmarshalMap(fd protoreflect.FieldDescriptor, mmap protoreflect.Map) error ***REMOVED***
 	// Determine ahead whether map entry is a scalar type or a message type in
 	// order to call the appropriate unmarshalMapValue func inside
 	// unmarshalMapEntry.
-	var unmarshalMapValue func() (pref.Value, error)
+	var unmarshalMapValue func() (protoreflect.Value, error)
 	switch fd.MapValue().Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
-		unmarshalMapValue = func() (pref.Value, error) ***REMOVED***
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		unmarshalMapValue = func() (protoreflect.Value, error) ***REMOVED***
 			pval := mmap.NewValue()
 			if err := d.unmarshalMessage(pval.Message(), true); err != nil ***REMOVED***
-				return pref.Value***REMOVED******REMOVED***, err
+				return protoreflect.Value***REMOVED******REMOVED***, err
 			***REMOVED***
 			return pval, nil
 		***REMOVED***
 	default:
-		unmarshalMapValue = func() (pref.Value, error) ***REMOVED***
+		unmarshalMapValue = func() (protoreflect.Value, error) ***REMOVED***
 			return d.unmarshalScalar(fd.MapValue())
 		***REMOVED***
 	***REMOVED***
@@ -494,9 +494,9 @@ func (d decoder) unmarshalMap(fd pref.FieldDescriptor, mmap pref.Map) error ***R
 
 // unmarshalMap unmarshals into given protoreflect.Map. A map value is a
 // textproto message containing ***REMOVED***key: <kvalue>, value: <mvalue>***REMOVED***.
-func (d decoder) unmarshalMapEntry(fd pref.FieldDescriptor, mmap pref.Map, unmarshalMapValue func() (pref.Value, error)) error ***REMOVED***
-	var key pref.MapKey
-	var pval pref.Value
+func (d decoder) unmarshalMapEntry(fd protoreflect.FieldDescriptor, mmap protoreflect.Map, unmarshalMapValue func() (protoreflect.Value, error)) error ***REMOVED***
+	var key protoreflect.MapKey
+	var pval protoreflect.Value
 Loop:
 	for ***REMOVED***
 		// Read field name.
@@ -520,7 +520,7 @@ Loop:
 			return d.unexpectedTokenError(tok)
 		***REMOVED***
 
-		switch name := pref.Name(tok.IdentName()); name ***REMOVED***
+		switch name := protoreflect.Name(tok.IdentName()); name ***REMOVED***
 		case genid.MapEntry_Key_field_name:
 			if !tok.HasSeparator() ***REMOVED***
 				return d.syntaxError(tok.Pos(), "missing field separator :")
@@ -535,7 +535,7 @@ Loop:
 			key = val.MapKey()
 
 		case genid.MapEntry_Value_field_name:
-			if kind := fd.MapValue().Kind(); (kind != pref.MessageKind) && (kind != pref.GroupKind) ***REMOVED***
+			if kind := fd.MapValue().Kind(); (kind != protoreflect.MessageKind) && (kind != protoreflect.GroupKind) ***REMOVED***
 				if !tok.HasSeparator() ***REMOVED***
 					return d.syntaxError(tok.Pos(), "missing field separator :")
 				***REMOVED***
@@ -561,7 +561,7 @@ Loop:
 	***REMOVED***
 	if !pval.IsValid() ***REMOVED***
 		switch fd.MapValue().Kind() ***REMOVED***
-		case pref.MessageKind, pref.GroupKind:
+		case protoreflect.MessageKind, protoreflect.GroupKind:
 			// If value field is not set for message/group types, construct an
 			// empty one as default.
 			pval = mmap.NewValue()
@@ -575,7 +575,7 @@ Loop:
 
 // unmarshalAny unmarshals an Any textproto. It can either be in expanded form
 // or non-expanded form.
-func (d decoder) unmarshalAny(m pref.Message, checkDelims bool) error ***REMOVED***
+func (d decoder) unmarshalAny(m protoreflect.Message, checkDelims bool) error ***REMOVED***
 	var typeURL string
 	var bValue []byte
 	var seenTypeUrl bool
@@ -619,7 +619,7 @@ Loop:
 				return d.syntaxError(tok.Pos(), "missing field separator :")
 			***REMOVED***
 
-			switch name := pref.Name(tok.IdentName()); name ***REMOVED***
+			switch name := protoreflect.Name(tok.IdentName()); name ***REMOVED***
 			case genid.Any_TypeUrl_field_name:
 				if seenTypeUrl ***REMOVED***
 					return d.newError(tok.Pos(), "duplicate %v field", genid.Any_TypeUrl_field_fullname)
@@ -686,10 +686,10 @@ Loop:
 
 	fds := m.Descriptor().Fields()
 	if len(typeURL) > 0 ***REMOVED***
-		m.Set(fds.ByNumber(genid.Any_TypeUrl_field_number), pref.ValueOfString(typeURL))
+		m.Set(fds.ByNumber(genid.Any_TypeUrl_field_number), protoreflect.ValueOfString(typeURL))
 	***REMOVED***
 	if len(bValue) > 0 ***REMOVED***
-		m.Set(fds.ByNumber(genid.Any_Value_field_number), pref.ValueOfBytes(bValue))
+		m.Set(fds.ByNumber(genid.Any_Value_field_number), protoreflect.ValueOfBytes(bValue))
 	***REMOVED***
 	return nil
 ***REMOVED***

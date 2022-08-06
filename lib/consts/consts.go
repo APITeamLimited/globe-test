@@ -56,6 +56,8 @@ func Banner() string ***REMOVED***
 		`    /  \/    \    |     (   /   ‾‾\  `,
 		`   /          \   |  |\  \ |  (‾)  | `,
 		`  / __________ \  |__| \__\ \_____/ .io`,
+		``,
+		`  On the APITeam Cloud Network`,
 	***REMOVED***, "\n")
 
 	return banner

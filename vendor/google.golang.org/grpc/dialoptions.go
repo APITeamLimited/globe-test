@@ -35,6 +35,15 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
+func init() ***REMOVED***
+	internal.AddExtraDialOptions = func(opt ...DialOption) ***REMOVED***
+		extraDialOptions = append(extraDialOptions, opt...)
+	***REMOVED***
+	internal.ClearExtraDialOptions = func() ***REMOVED***
+		extraDialOptions = nil
+	***REMOVED***
+***REMOVED***
+
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
 // values passed to Dial.
 type dialOptions struct ***REMOVED***
@@ -69,6 +78,8 @@ type dialOptions struct ***REMOVED***
 type DialOption interface ***REMOVED***
 	apply(*dialOptions)
 ***REMOVED***
+
+var extraDialOptions []DialOption
 
 // EmptyDialOption does not alter the dial configuration. It can be embedded in
 // another structure to build custom dial options.
@@ -380,7 +391,7 @@ func WithDialer(f func(string, time.Duration) (net.Conn, error)) DialOption ***R
 // all the RPCs and underlying network connections in this ClientConn.
 func WithStatsHandler(h stats.Handler) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
-		o.copts.StatsHandler = h
+		o.copts.StatsHandlers = append(o.copts.StatsHandlers, h)
 	***REMOVED***)
 ***REMOVED***
 

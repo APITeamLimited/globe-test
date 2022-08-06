@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type mapConverter struct ***REMOVED***
@@ -16,7 +16,7 @@ type mapConverter struct ***REMOVED***
 	keyConv, valConv Converter
 ***REMOVED***
 
-func newMapConverter(t reflect.Type, fd pref.FieldDescriptor) *mapConverter ***REMOVED***
+func newMapConverter(t reflect.Type, fd protoreflect.FieldDescriptor) *mapConverter ***REMOVED***
 	if t.Kind() != reflect.Map ***REMOVED***
 		panic(fmt.Sprintf("invalid Go type %v for field %v", t, fd.FullName()))
 	***REMOVED***
@@ -27,18 +27,18 @@ func newMapConverter(t reflect.Type, fd pref.FieldDescriptor) *mapConverter ***R
 	***REMOVED***
 ***REMOVED***
 
-func (c *mapConverter) PBValueOf(v reflect.Value) pref.Value ***REMOVED***
+func (c *mapConverter) PBValueOf(v reflect.Value) protoreflect.Value ***REMOVED***
 	if v.Type() != c.goType ***REMOVED***
 		panic(fmt.Sprintf("invalid type: got %v, want %v", v.Type(), c.goType))
 	***REMOVED***
-	return pref.ValueOfMap(&mapReflect***REMOVED***v, c.keyConv, c.valConv***REMOVED***)
+	return protoreflect.ValueOfMap(&mapReflect***REMOVED***v, c.keyConv, c.valConv***REMOVED***)
 ***REMOVED***
 
-func (c *mapConverter) GoValueOf(v pref.Value) reflect.Value ***REMOVED***
+func (c *mapConverter) GoValueOf(v protoreflect.Value) reflect.Value ***REMOVED***
 	return v.Map().(*mapReflect).v
 ***REMOVED***
 
-func (c *mapConverter) IsValidPB(v pref.Value) bool ***REMOVED***
+func (c *mapConverter) IsValidPB(v protoreflect.Value) bool ***REMOVED***
 	mapv, ok := v.Interface().(*mapReflect)
 	if !ok ***REMOVED***
 		return false
@@ -50,11 +50,11 @@ func (c *mapConverter) IsValidGo(v reflect.Value) bool ***REMOVED***
 	return v.IsValid() && v.Type() == c.goType
 ***REMOVED***
 
-func (c *mapConverter) New() pref.Value ***REMOVED***
+func (c *mapConverter) New() protoreflect.Value ***REMOVED***
 	return c.PBValueOf(reflect.MakeMap(c.goType))
 ***REMOVED***
 
-func (c *mapConverter) Zero() pref.Value ***REMOVED***
+func (c *mapConverter) Zero() protoreflect.Value ***REMOVED***
 	return c.PBValueOf(reflect.Zero(c.goType))
 ***REMOVED***
 
@@ -67,29 +67,29 @@ type mapReflect struct ***REMOVED***
 func (ms *mapReflect) Len() int ***REMOVED***
 	return ms.v.Len()
 ***REMOVED***
-func (ms *mapReflect) Has(k pref.MapKey) bool ***REMOVED***
+func (ms *mapReflect) Has(k protoreflect.MapKey) bool ***REMOVED***
 	rk := ms.keyConv.GoValueOf(k.Value())
 	rv := ms.v.MapIndex(rk)
 	return rv.IsValid()
 ***REMOVED***
-func (ms *mapReflect) Get(k pref.MapKey) pref.Value ***REMOVED***
+func (ms *mapReflect) Get(k protoreflect.MapKey) protoreflect.Value ***REMOVED***
 	rk := ms.keyConv.GoValueOf(k.Value())
 	rv := ms.v.MapIndex(rk)
 	if !rv.IsValid() ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***
+		return protoreflect.Value***REMOVED******REMOVED***
 	***REMOVED***
 	return ms.valConv.PBValueOf(rv)
 ***REMOVED***
-func (ms *mapReflect) Set(k pref.MapKey, v pref.Value) ***REMOVED***
+func (ms *mapReflect) Set(k protoreflect.MapKey, v protoreflect.Value) ***REMOVED***
 	rk := ms.keyConv.GoValueOf(k.Value())
 	rv := ms.valConv.GoValueOf(v)
 	ms.v.SetMapIndex(rk, rv)
 ***REMOVED***
-func (ms *mapReflect) Clear(k pref.MapKey) ***REMOVED***
+func (ms *mapReflect) Clear(k protoreflect.MapKey) ***REMOVED***
 	rk := ms.keyConv.GoValueOf(k.Value())
 	ms.v.SetMapIndex(rk, reflect.Value***REMOVED******REMOVED***)
 ***REMOVED***
-func (ms *mapReflect) Mutable(k pref.MapKey) pref.Value ***REMOVED***
+func (ms *mapReflect) Mutable(k protoreflect.MapKey) protoreflect.Value ***REMOVED***
 	if _, ok := ms.valConv.(*messageConverter); !ok ***REMOVED***
 		panic("invalid Mutable on map with non-message value type")
 	***REMOVED***
@@ -100,7 +100,7 @@ func (ms *mapReflect) Mutable(k pref.MapKey) pref.Value ***REMOVED***
 	***REMOVED***
 	return v
 ***REMOVED***
-func (ms *mapReflect) Range(f func(pref.MapKey, pref.Value) bool) ***REMOVED***
+func (ms *mapReflect) Range(f func(protoreflect.MapKey, protoreflect.Value) bool) ***REMOVED***
 	iter := mapRange(ms.v)
 	for iter.Next() ***REMOVED***
 		k := ms.keyConv.PBValueOf(iter.Key()).MapKey()
@@ -110,7 +110,7 @@ func (ms *mapReflect) Range(f func(pref.MapKey, pref.Value) bool) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
-func (ms *mapReflect) NewValue() pref.Value ***REMOVED***
+func (ms *mapReflect) NewValue() protoreflect.Value ***REMOVED***
 	return ms.valConv.New()
 ***REMOVED***
 func (ms *mapReflect) IsValid() bool ***REMOVED***

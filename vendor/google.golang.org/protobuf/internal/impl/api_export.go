@@ -12,8 +12,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/proto"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 // Export is a zero-length named type that exists only to export a set of
@@ -32,11 +32,11 @@ type enum = interface***REMOVED******REMOVED***
 
 // EnumOf returns the protoreflect.Enum interface over e.
 // It returns nil if e is nil.
-func (Export) EnumOf(e enum) pref.Enum ***REMOVED***
+func (Export) EnumOf(e enum) protoreflect.Enum ***REMOVED***
 	switch e := e.(type) ***REMOVED***
 	case nil:
 		return nil
-	case pref.Enum:
+	case protoreflect.Enum:
 		return e
 	default:
 		return legacyWrapEnum(reflect.ValueOf(e))
@@ -45,11 +45,11 @@ func (Export) EnumOf(e enum) pref.Enum ***REMOVED***
 
 // EnumDescriptorOf returns the protoreflect.EnumDescriptor for e.
 // It returns nil if e is nil.
-func (Export) EnumDescriptorOf(e enum) pref.EnumDescriptor ***REMOVED***
+func (Export) EnumDescriptorOf(e enum) protoreflect.EnumDescriptor ***REMOVED***
 	switch e := e.(type) ***REMOVED***
 	case nil:
 		return nil
-	case pref.Enum:
+	case protoreflect.Enum:
 		return e.Descriptor()
 	default:
 		return LegacyLoadEnumDesc(reflect.TypeOf(e))
@@ -58,11 +58,11 @@ func (Export) EnumDescriptorOf(e enum) pref.EnumDescriptor ***REMOVED***
 
 // EnumTypeOf returns the protoreflect.EnumType for e.
 // It returns nil if e is nil.
-func (Export) EnumTypeOf(e enum) pref.EnumType ***REMOVED***
+func (Export) EnumTypeOf(e enum) protoreflect.EnumType ***REMOVED***
 	switch e := e.(type) ***REMOVED***
 	case nil:
 		return nil
-	case pref.Enum:
+	case protoreflect.Enum:
 		return e.Type()
 	default:
 		return legacyLoadEnumType(reflect.TypeOf(e))
@@ -71,7 +71,7 @@ func (Export) EnumTypeOf(e enum) pref.EnumType ***REMOVED***
 
 // EnumStringOf returns the enum value as a string, either as the name if
 // the number is resolvable, or the number formatted as a string.
-func (Export) EnumStringOf(ed pref.EnumDescriptor, n pref.EnumNumber) string ***REMOVED***
+func (Export) EnumStringOf(ed protoreflect.EnumDescriptor, n protoreflect.EnumNumber) string ***REMOVED***
 	ev := ed.Values().ByNumber(n)
 	if ev != nil ***REMOVED***
 		return string(ev.Name())
@@ -84,7 +84,7 @@ func (Export) EnumStringOf(ed pref.EnumDescriptor, n pref.EnumNumber) string ***
 type message = interface***REMOVED******REMOVED***
 
 // legacyMessageWrapper wraps a v2 message as a v1 message.
-type legacyMessageWrapper struct***REMOVED*** m pref.ProtoMessage ***REMOVED***
+type legacyMessageWrapper struct***REMOVED*** m protoreflect.ProtoMessage ***REMOVED***
 
 func (m legacyMessageWrapper) Reset()         ***REMOVED*** proto.Reset(m.m) ***REMOVED***
 func (m legacyMessageWrapper) String() string ***REMOVED*** return Export***REMOVED******REMOVED***.MessageStringOf(m.m) ***REMOVED***
@@ -92,30 +92,30 @@ func (m legacyMessageWrapper) ProtoMessage()  ***REMOVED******REMOVED***
 
 // ProtoMessageV1Of converts either a v1 or v2 message to a v1 message.
 // It returns nil if m is nil.
-func (Export) ProtoMessageV1Of(m message) piface.MessageV1 ***REMOVED***
+func (Export) ProtoMessageV1Of(m message) protoiface.MessageV1 ***REMOVED***
 	switch mv := m.(type) ***REMOVED***
 	case nil:
 		return nil
-	case piface.MessageV1:
+	case protoiface.MessageV1:
 		return mv
 	case unwrapper:
 		return Export***REMOVED******REMOVED***.ProtoMessageV1Of(mv.protoUnwrap())
-	case pref.ProtoMessage:
+	case protoreflect.ProtoMessage:
 		return legacyMessageWrapper***REMOVED***mv***REMOVED***
 	default:
 		panic(fmt.Sprintf("message %T is neither a v1 or v2 Message", m))
 	***REMOVED***
 ***REMOVED***
 
-func (Export) protoMessageV2Of(m message) pref.ProtoMessage ***REMOVED***
+func (Export) protoMessageV2Of(m message) protoreflect.ProtoMessage ***REMOVED***
 	switch mv := m.(type) ***REMOVED***
 	case nil:
 		return nil
-	case pref.ProtoMessage:
+	case protoreflect.ProtoMessage:
 		return mv
 	case legacyMessageWrapper:
 		return mv.m
-	case piface.MessageV1:
+	case protoiface.MessageV1:
 		return nil
 	default:
 		panic(fmt.Sprintf("message %T is neither a v1 or v2 Message", m))
@@ -124,7 +124,7 @@ func (Export) protoMessageV2Of(m message) pref.ProtoMessage ***REMOVED***
 
 // ProtoMessageV2Of converts either a v1 or v2 message to a v2 message.
 // It returns nil if m is nil.
-func (Export) ProtoMessageV2Of(m message) pref.ProtoMessage ***REMOVED***
+func (Export) ProtoMessageV2Of(m message) protoreflect.ProtoMessage ***REMOVED***
 	if m == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -136,7 +136,7 @@ func (Export) ProtoMessageV2Of(m message) pref.ProtoMessage ***REMOVED***
 
 // MessageOf returns the protoreflect.Message interface over m.
 // It returns nil if m is nil.
-func (Export) MessageOf(m message) pref.Message ***REMOVED***
+func (Export) MessageOf(m message) protoreflect.Message ***REMOVED***
 	if m == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -148,7 +148,7 @@ func (Export) MessageOf(m message) pref.Message ***REMOVED***
 
 // MessageDescriptorOf returns the protoreflect.MessageDescriptor for m.
 // It returns nil if m is nil.
-func (Export) MessageDescriptorOf(m message) pref.MessageDescriptor ***REMOVED***
+func (Export) MessageDescriptorOf(m message) protoreflect.MessageDescriptor ***REMOVED***
 	if m == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -160,7 +160,7 @@ func (Export) MessageDescriptorOf(m message) pref.MessageDescriptor ***REMOVED**
 
 // MessageTypeOf returns the protoreflect.MessageType for m.
 // It returns nil if m is nil.
-func (Export) MessageTypeOf(m message) pref.MessageType ***REMOVED***
+func (Export) MessageTypeOf(m message) protoreflect.MessageType ***REMOVED***
 	if m == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -172,6 +172,6 @@ func (Export) MessageTypeOf(m message) pref.MessageType ***REMOVED***
 
 // MessageStringOf returns the message value as a string,
 // which is the message serialized in the protobuf text format.
-func (Export) MessageStringOf(m pref.ProtoMessage) string ***REMOVED***
+func (Export) MessageStringOf(m protoreflect.ProtoMessage) string ***REMOVED***
 	return prototext.MarshalOptions***REMOVED***Multiline: false***REMOVED***.Format(m)
 ***REMOVED***

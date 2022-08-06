@@ -17,31 +17,30 @@ import (
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-type FileImports []pref.FileImport
+type FileImports []protoreflect.FileImport
 
 func (p *FileImports) Len() int                            ***REMOVED*** return len(*p) ***REMOVED***
-func (p *FileImports) Get(i int) pref.FileImport           ***REMOVED*** return (*p)[i] ***REMOVED***
+func (p *FileImports) Get(i int) protoreflect.FileImport   ***REMOVED*** return (*p)[i] ***REMOVED***
 func (p *FileImports) Format(s fmt.State, r rune)          ***REMOVED*** descfmt.FormatList(s, r, p) ***REMOVED***
 func (p *FileImports) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
 
 type Names struct ***REMOVED***
-	List []pref.Name
+	List []protoreflect.Name
 	once sync.Once
-	has  map[pref.Name]int // protected by once
+	has  map[protoreflect.Name]int // protected by once
 ***REMOVED***
 
 func (p *Names) Len() int                            ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *Names) Get(i int) pref.Name                 ***REMOVED*** return p.List[i] ***REMOVED***
-func (p *Names) Has(s pref.Name) bool                ***REMOVED*** return p.lazyInit().has[s] > 0 ***REMOVED***
+func (p *Names) Get(i int) protoreflect.Name         ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *Names) Has(s protoreflect.Name) bool        ***REMOVED*** return p.lazyInit().has[s] > 0 ***REMOVED***
 func (p *Names) Format(s fmt.State, r rune)          ***REMOVED*** descfmt.FormatList(s, r, p) ***REMOVED***
 func (p *Names) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
 func (p *Names) lazyInit() *Names ***REMOVED***
 	p.once.Do(func() ***REMOVED***
 		if len(p.List) > 0 ***REMOVED***
-			p.has = make(map[pref.Name]int, len(p.List))
+			p.has = make(map[protoreflect.Name]int, len(p.List))
 			for _, s := range p.List ***REMOVED***
 				p.has[s] = p.has[s] + 1
 			***REMOVED***
@@ -67,14 +66,14 @@ func (p *Names) CheckValid() error ***REMOVED***
 ***REMOVED***
 
 type EnumRanges struct ***REMOVED***
-	List   [][2]pref.EnumNumber // start inclusive; end inclusive
+	List   [][2]protoreflect.EnumNumber // start inclusive; end inclusive
 	once   sync.Once
-	sorted [][2]pref.EnumNumber // protected by once
+	sorted [][2]protoreflect.EnumNumber // protected by once
 ***REMOVED***
 
-func (p *EnumRanges) Len() int                     ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *EnumRanges) Get(i int) [2]pref.EnumNumber ***REMOVED*** return p.List[i] ***REMOVED***
-func (p *EnumRanges) Has(n pref.EnumNumber) bool ***REMOVED***
+func (p *EnumRanges) Len() int                             ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *EnumRanges) Get(i int) [2]protoreflect.EnumNumber ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *EnumRanges) Has(n protoreflect.EnumNumber) bool ***REMOVED***
 	for ls := p.lazyInit().sorted; len(ls) > 0; ***REMOVED***
 		i := len(ls) / 2
 		switch r := enumRange(ls[i]); ***REMOVED***
@@ -129,14 +128,14 @@ func (r enumRange) String() string ***REMOVED***
 ***REMOVED***
 
 type FieldRanges struct ***REMOVED***
-	List   [][2]pref.FieldNumber // start inclusive; end exclusive
+	List   [][2]protoreflect.FieldNumber // start inclusive; end exclusive
 	once   sync.Once
-	sorted [][2]pref.FieldNumber // protected by once
+	sorted [][2]protoreflect.FieldNumber // protected by once
 ***REMOVED***
 
-func (p *FieldRanges) Len() int                      ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *FieldRanges) Get(i int) [2]pref.FieldNumber ***REMOVED*** return p.List[i] ***REMOVED***
-func (p *FieldRanges) Has(n pref.FieldNumber) bool ***REMOVED***
+func (p *FieldRanges) Len() int                              ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *FieldRanges) Get(i int) [2]protoreflect.FieldNumber ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *FieldRanges) Has(n protoreflect.FieldNumber) bool ***REMOVED***
 	for ls := p.lazyInit().sorted; len(ls) > 0; ***REMOVED***
 		i := len(ls) / 2
 		switch r := fieldRange(ls[i]); ***REMOVED***
@@ -221,17 +220,17 @@ func (r fieldRange) String() string ***REMOVED***
 ***REMOVED***
 
 type FieldNumbers struct ***REMOVED***
-	List []pref.FieldNumber
+	List []protoreflect.FieldNumber
 	once sync.Once
-	has  map[pref.FieldNumber]struct***REMOVED******REMOVED*** // protected by once
+	has  map[protoreflect.FieldNumber]struct***REMOVED******REMOVED*** // protected by once
 ***REMOVED***
 
-func (p *FieldNumbers) Len() int                   ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *FieldNumbers) Get(i int) pref.FieldNumber ***REMOVED*** return p.List[i] ***REMOVED***
-func (p *FieldNumbers) Has(n pref.FieldNumber) bool ***REMOVED***
+func (p *FieldNumbers) Len() int                           ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *FieldNumbers) Get(i int) protoreflect.FieldNumber ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *FieldNumbers) Has(n protoreflect.FieldNumber) bool ***REMOVED***
 	p.once.Do(func() ***REMOVED***
 		if len(p.List) > 0 ***REMOVED***
-			p.has = make(map[pref.FieldNumber]struct***REMOVED******REMOVED***, len(p.List))
+			p.has = make(map[protoreflect.FieldNumber]struct***REMOVED******REMOVED***, len(p.List))
 			for _, n := range p.List ***REMOVED***
 				p.has[n] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 			***REMOVED***
@@ -244,30 +243,38 @@ func (p *FieldNumbers) Format(s fmt.State, r rune)          ***REMOVED*** descfm
 func (p *FieldNumbers) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
 
 type OneofFields struct ***REMOVED***
-	List   []pref.FieldDescriptor
+	List   []protoreflect.FieldDescriptor
 	once   sync.Once
-	byName map[pref.Name]pref.FieldDescriptor        // protected by once
-	byJSON map[string]pref.FieldDescriptor           // protected by once
-	byText map[string]pref.FieldDescriptor           // protected by once
-	byNum  map[pref.FieldNumber]pref.FieldDescriptor // protected by once
+	byName map[protoreflect.Name]protoreflect.FieldDescriptor        // protected by once
+	byJSON map[string]protoreflect.FieldDescriptor                   // protected by once
+	byText map[string]protoreflect.FieldDescriptor                   // protected by once
+	byNum  map[protoreflect.FieldNumber]protoreflect.FieldDescriptor // protected by once
 ***REMOVED***
 
-func (p *OneofFields) Len() int                                         ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *OneofFields) Get(i int) pref.FieldDescriptor                   ***REMOVED*** return p.List[i] ***REMOVED***
-func (p *OneofFields) ByName(s pref.Name) pref.FieldDescriptor          ***REMOVED*** return p.lazyInit().byName[s] ***REMOVED***
-func (p *OneofFields) ByJSONName(s string) pref.FieldDescriptor         ***REMOVED*** return p.lazyInit().byJSON[s] ***REMOVED***
-func (p *OneofFields) ByTextName(s string) pref.FieldDescriptor         ***REMOVED*** return p.lazyInit().byText[s] ***REMOVED***
-func (p *OneofFields) ByNumber(n pref.FieldNumber) pref.FieldDescriptor ***REMOVED*** return p.lazyInit().byNum[n] ***REMOVED***
-func (p *OneofFields) Format(s fmt.State, r rune)                       ***REMOVED*** descfmt.FormatList(s, r, p) ***REMOVED***
-func (p *OneofFields) ProtoInternal(pragma.DoNotImplement)              ***REMOVED******REMOVED***
+func (p *OneofFields) Len() int                               ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *OneofFields) Get(i int) protoreflect.FieldDescriptor ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *OneofFields) ByName(s protoreflect.Name) protoreflect.FieldDescriptor ***REMOVED***
+	return p.lazyInit().byName[s]
+***REMOVED***
+func (p *OneofFields) ByJSONName(s string) protoreflect.FieldDescriptor ***REMOVED***
+	return p.lazyInit().byJSON[s]
+***REMOVED***
+func (p *OneofFields) ByTextName(s string) protoreflect.FieldDescriptor ***REMOVED***
+	return p.lazyInit().byText[s]
+***REMOVED***
+func (p *OneofFields) ByNumber(n protoreflect.FieldNumber) protoreflect.FieldDescriptor ***REMOVED***
+	return p.lazyInit().byNum[n]
+***REMOVED***
+func (p *OneofFields) Format(s fmt.State, r rune)          ***REMOVED*** descfmt.FormatList(s, r, p) ***REMOVED***
+func (p *OneofFields) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
 
 func (p *OneofFields) lazyInit() *OneofFields ***REMOVED***
 	p.once.Do(func() ***REMOVED***
 		if len(p.List) > 0 ***REMOVED***
-			p.byName = make(map[pref.Name]pref.FieldDescriptor, len(p.List))
-			p.byJSON = make(map[string]pref.FieldDescriptor, len(p.List))
-			p.byText = make(map[string]pref.FieldDescriptor, len(p.List))
-			p.byNum = make(map[pref.FieldNumber]pref.FieldDescriptor, len(p.List))
+			p.byName = make(map[protoreflect.Name]protoreflect.FieldDescriptor, len(p.List))
+			p.byJSON = make(map[string]protoreflect.FieldDescriptor, len(p.List))
+			p.byText = make(map[string]protoreflect.FieldDescriptor, len(p.List))
+			p.byNum = make(map[protoreflect.FieldNumber]protoreflect.FieldDescriptor, len(p.List))
 			for _, f := range p.List ***REMOVED***
 				// Field names and numbers are guaranteed to be unique.
 				p.byName[f.Name()] = f
@@ -284,123 +291,123 @@ type SourceLocations struct ***REMOVED***
 	// List is a list of SourceLocations.
 	// The SourceLocation.Next field does not need to be populated
 	// as it will be lazily populated upon first need.
-	List []pref.SourceLocation
+	List []protoreflect.SourceLocation
 
 	// File is the parent file descriptor that these locations are relative to.
 	// If non-nil, ByDescriptor verifies that the provided descriptor
 	// is a child of this file descriptor.
-	File pref.FileDescriptor
+	File protoreflect.FileDescriptor
 
 	once   sync.Once
 	byPath map[pathKey]int
 ***REMOVED***
 
-func (p *SourceLocations) Len() int                      ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *SourceLocations) Get(i int) pref.SourceLocation ***REMOVED*** return p.lazyInit().List[i] ***REMOVED***
-func (p *SourceLocations) byKey(k pathKey) pref.SourceLocation ***REMOVED***
+func (p *SourceLocations) Len() int                              ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *SourceLocations) Get(i int) protoreflect.SourceLocation ***REMOVED*** return p.lazyInit().List[i] ***REMOVED***
+func (p *SourceLocations) byKey(k pathKey) protoreflect.SourceLocation ***REMOVED***
 	if i, ok := p.lazyInit().byPath[k]; ok ***REMOVED***
 		return p.List[i]
 	***REMOVED***
-	return pref.SourceLocation***REMOVED******REMOVED***
+	return protoreflect.SourceLocation***REMOVED******REMOVED***
 ***REMOVED***
-func (p *SourceLocations) ByPath(path pref.SourcePath) pref.SourceLocation ***REMOVED***
+func (p *SourceLocations) ByPath(path protoreflect.SourcePath) protoreflect.SourceLocation ***REMOVED***
 	return p.byKey(newPathKey(path))
 ***REMOVED***
-func (p *SourceLocations) ByDescriptor(desc pref.Descriptor) pref.SourceLocation ***REMOVED***
+func (p *SourceLocations) ByDescriptor(desc protoreflect.Descriptor) protoreflect.SourceLocation ***REMOVED***
 	if p.File != nil && desc != nil && p.File != desc.ParentFile() ***REMOVED***
-		return pref.SourceLocation***REMOVED******REMOVED*** // mismatching parent files
+		return protoreflect.SourceLocation***REMOVED******REMOVED*** // mismatching parent files
 	***REMOVED***
 	var pathArr [16]int32
 	path := pathArr[:0]
 	for ***REMOVED***
 		switch desc.(type) ***REMOVED***
-		case pref.FileDescriptor:
+		case protoreflect.FileDescriptor:
 			// Reverse the path since it was constructed in reverse.
 			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 ***REMOVED***
 				path[i], path[j] = path[j], path[i]
 			***REMOVED***
 			return p.byKey(newPathKey(path))
-		case pref.MessageDescriptor:
+		case protoreflect.MessageDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.FileDescriptor:
+			case protoreflect.FileDescriptor:
 				path = append(path, int32(genid.FileDescriptorProto_MessageType_field_number))
-			case pref.MessageDescriptor:
+			case protoreflect.MessageDescriptor:
 				path = append(path, int32(genid.DescriptorProto_NestedType_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
-		case pref.FieldDescriptor:
-			isExtension := desc.(pref.FieldDescriptor).IsExtension()
+		case protoreflect.FieldDescriptor:
+			isExtension := desc.(protoreflect.FieldDescriptor).IsExtension()
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			if isExtension ***REMOVED***
 				switch desc.(type) ***REMOVED***
-				case pref.FileDescriptor:
+				case protoreflect.FileDescriptor:
 					path = append(path, int32(genid.FileDescriptorProto_Extension_field_number))
-				case pref.MessageDescriptor:
+				case protoreflect.MessageDescriptor:
 					path = append(path, int32(genid.DescriptorProto_Extension_field_number))
 				default:
-					return pref.SourceLocation***REMOVED******REMOVED***
+					return protoreflect.SourceLocation***REMOVED******REMOVED***
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				switch desc.(type) ***REMOVED***
-				case pref.MessageDescriptor:
+				case protoreflect.MessageDescriptor:
 					path = append(path, int32(genid.DescriptorProto_Field_field_number))
 				default:
-					return pref.SourceLocation***REMOVED******REMOVED***
+					return protoreflect.SourceLocation***REMOVED******REMOVED***
 				***REMOVED***
 			***REMOVED***
-		case pref.OneofDescriptor:
+		case protoreflect.OneofDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.MessageDescriptor:
+			case protoreflect.MessageDescriptor:
 				path = append(path, int32(genid.DescriptorProto_OneofDecl_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
-		case pref.EnumDescriptor:
+		case protoreflect.EnumDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.FileDescriptor:
+			case protoreflect.FileDescriptor:
 				path = append(path, int32(genid.FileDescriptorProto_EnumType_field_number))
-			case pref.MessageDescriptor:
+			case protoreflect.MessageDescriptor:
 				path = append(path, int32(genid.DescriptorProto_EnumType_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
-		case pref.EnumValueDescriptor:
+		case protoreflect.EnumValueDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.EnumDescriptor:
+			case protoreflect.EnumDescriptor:
 				path = append(path, int32(genid.EnumDescriptorProto_Value_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
-		case pref.ServiceDescriptor:
+		case protoreflect.ServiceDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.FileDescriptor:
+			case protoreflect.FileDescriptor:
 				path = append(path, int32(genid.FileDescriptorProto_Service_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
-		case pref.MethodDescriptor:
+		case protoreflect.MethodDescriptor:
 			path = append(path, int32(desc.Index()))
 			desc = desc.Parent()
 			switch desc.(type) ***REMOVED***
-			case pref.ServiceDescriptor:
+			case protoreflect.ServiceDescriptor:
 				path = append(path, int32(genid.ServiceDescriptorProto_Method_field_number))
 			default:
-				return pref.SourceLocation***REMOVED******REMOVED***
+				return protoreflect.SourceLocation***REMOVED******REMOVED***
 			***REMOVED***
 		default:
-			return pref.SourceLocation***REMOVED******REMOVED***
+			return protoreflect.SourceLocation***REMOVED******REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -435,7 +442,7 @@ type pathKey struct ***REMOVED***
 	str string    // used if the path does not fit in arr
 ***REMOVED***
 
-func newPathKey(p pref.SourcePath) (k pathKey) ***REMOVED***
+func newPathKey(p protoreflect.SourcePath) (k pathKey) ***REMOVED***
 	if len(p) < len(k.arr) ***REMOVED***
 		for i, ps := range p ***REMOVED***
 			if ps < 0 || math.MaxUint8 <= ps ***REMOVED***

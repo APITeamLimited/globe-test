@@ -18,7 +18,6 @@ import (
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
@@ -164,8 +163,8 @@ type typeURLFieldRanger struct ***REMOVED***
 	typeURL string
 ***REMOVED***
 
-func (m typeURLFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
-	if !f(typeFieldDesc, pref.ValueOfString(m.typeURL)) ***REMOVED***
+func (m typeURLFieldRanger) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) ***REMOVED***
+	if !f(typeFieldDesc, protoreflect.ValueOfString(m.typeURL)) ***REMOVED***
 		return
 	***REMOVED***
 	m.FieldRanger.Range(f)
@@ -173,9 +172,9 @@ func (m typeURLFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) bool)
 
 // unpopulatedFieldRanger wraps a protoreflect.Message and modifies its Range
 // method to additionally iterate over unpopulated fields.
-type unpopulatedFieldRanger struct***REMOVED*** pref.Message ***REMOVED***
+type unpopulatedFieldRanger struct***REMOVED*** protoreflect.Message ***REMOVED***
 
-func (m unpopulatedFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
+func (m unpopulatedFieldRanger) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) ***REMOVED***
 	fds := m.Descriptor().Fields()
 	for i := 0; i < fds.Len(); i++ ***REMOVED***
 		fd := fds.Get(i)
@@ -184,10 +183,10 @@ func (m unpopulatedFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) b
 		***REMOVED***
 
 		v := m.Get(fd)
-		isProto2Scalar := fd.Syntax() == pref.Proto2 && fd.Default().IsValid()
-		isSingularMessage := fd.Cardinality() != pref.Repeated && fd.Message() != nil
+		isProto2Scalar := fd.Syntax() == protoreflect.Proto2 && fd.Default().IsValid()
+		isSingularMessage := fd.Cardinality() != protoreflect.Repeated && fd.Message() != nil
 		if isProto2Scalar || isSingularMessage ***REMOVED***
-			v = pref.Value***REMOVED******REMOVED*** // use invalid value to emit null
+			v = protoreflect.Value***REMOVED******REMOVED*** // use invalid value to emit null
 		***REMOVED***
 		if !f(fd, v) ***REMOVED***
 			return
@@ -199,7 +198,7 @@ func (m unpopulatedFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) b
 // marshalMessage marshals the fields in the given protoreflect.Message.
 // If the typeURL is non-empty, then a synthetic "@type" field is injected
 // containing the URL as the value.
-func (e encoder) marshalMessage(m pref.Message, typeURL string) error ***REMOVED***
+func (e encoder) marshalMessage(m protoreflect.Message, typeURL string) error ***REMOVED***
 	if !flags.ProtoLegacy && messageset.IsMessageSet(m.Descriptor()) ***REMOVED***
 		return errors.New("no support for proto1 MessageSets")
 	***REMOVED***
@@ -220,7 +219,7 @@ func (e encoder) marshalMessage(m pref.Message, typeURL string) error ***REMOVED
 	***REMOVED***
 
 	var err error
-	order.RangeFields(fields, order.IndexNameFieldOrder, func(fd pref.FieldDescriptor, v pref.Value) bool ***REMOVED***
+	order.RangeFields(fields, order.IndexNameFieldOrder, func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool ***REMOVED***
 		name := fd.JSONName()
 		if e.opts.UseProtoNames ***REMOVED***
 			name = fd.TextName()
@@ -238,7 +237,7 @@ func (e encoder) marshalMessage(m pref.Message, typeURL string) error ***REMOVED
 ***REMOVED***
 
 // marshalValue marshals the given protoreflect.Value.
-func (e encoder) marshalValue(val pref.Value, fd pref.FieldDescriptor) error ***REMOVED***
+func (e encoder) marshalValue(val protoreflect.Value, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	switch ***REMOVED***
 	case fd.IsList():
 		return e.marshalList(val.List(), fd)
@@ -251,44 +250,44 @@ func (e encoder) marshalValue(val pref.Value, fd pref.FieldDescriptor) error ***
 
 // marshalSingular marshals the given non-repeated field value. This includes
 // all scalar types, enums, messages, and groups.
-func (e encoder) marshalSingular(val pref.Value, fd pref.FieldDescriptor) error ***REMOVED***
+func (e encoder) marshalSingular(val protoreflect.Value, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	if !val.IsValid() ***REMOVED***
 		e.WriteNull()
 		return nil
 	***REMOVED***
 
 	switch kind := fd.Kind(); kind ***REMOVED***
-	case pref.BoolKind:
+	case protoreflect.BoolKind:
 		e.WriteBool(val.Bool())
 
-	case pref.StringKind:
+	case protoreflect.StringKind:
 		if e.WriteString(val.String()) != nil ***REMOVED***
 			return errors.InvalidUTF8(string(fd.FullName()))
 		***REMOVED***
 
-	case pref.Int32Kind, pref.Sint32Kind, pref.Sfixed32Kind:
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		e.WriteInt(val.Int())
 
-	case pref.Uint32Kind, pref.Fixed32Kind:
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		e.WriteUint(val.Uint())
 
-	case pref.Int64Kind, pref.Sint64Kind, pref.Uint64Kind,
-		pref.Sfixed64Kind, pref.Fixed64Kind:
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Uint64Kind,
+		protoreflect.Sfixed64Kind, protoreflect.Fixed64Kind:
 		// 64-bit integers are written out as JSON string.
 		e.WriteString(val.String())
 
-	case pref.FloatKind:
+	case protoreflect.FloatKind:
 		// Encoder.WriteFloat handles the special numbers NaN and infinites.
 		e.WriteFloat(val.Float(), 32)
 
-	case pref.DoubleKind:
+	case protoreflect.DoubleKind:
 		// Encoder.WriteFloat handles the special numbers NaN and infinites.
 		e.WriteFloat(val.Float(), 64)
 
-	case pref.BytesKind:
+	case protoreflect.BytesKind:
 		e.WriteString(base64.StdEncoding.EncodeToString(val.Bytes()))
 
-	case pref.EnumKind:
+	case protoreflect.EnumKind:
 		if fd.Enum().FullName() == genid.NullValue_enum_fullname ***REMOVED***
 			e.WriteNull()
 		***REMOVED*** else ***REMOVED***
@@ -300,7 +299,7 @@ func (e encoder) marshalSingular(val pref.Value, fd pref.FieldDescriptor) error 
 			***REMOVED***
 		***REMOVED***
 
-	case pref.MessageKind, pref.GroupKind:
+	case protoreflect.MessageKind, protoreflect.GroupKind:
 		if err := e.marshalMessage(val.Message(), ""); err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -312,7 +311,7 @@ func (e encoder) marshalSingular(val pref.Value, fd pref.FieldDescriptor) error 
 ***REMOVED***
 
 // marshalList marshals the given protoreflect.List.
-func (e encoder) marshalList(list pref.List, fd pref.FieldDescriptor) error ***REMOVED***
+func (e encoder) marshalList(list protoreflect.List, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	e.StartArray()
 	defer e.EndArray()
 
@@ -326,12 +325,12 @@ func (e encoder) marshalList(list pref.List, fd pref.FieldDescriptor) error ***R
 ***REMOVED***
 
 // marshalMap marshals given protoreflect.Map.
-func (e encoder) marshalMap(mmap pref.Map, fd pref.FieldDescriptor) error ***REMOVED***
+func (e encoder) marshalMap(mmap protoreflect.Map, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	e.StartObject()
 	defer e.EndObject()
 
 	var err error
-	order.RangeEntries(mmap, order.GenericKeyOrder, func(k pref.MapKey, v pref.Value) bool ***REMOVED***
+	order.RangeEntries(mmap, order.GenericKeyOrder, func(k protoreflect.MapKey, v protoreflect.Value) bool ***REMOVED***
 		if err = e.WriteName(k.String()); err != nil ***REMOVED***
 			return false
 		***REMOVED***

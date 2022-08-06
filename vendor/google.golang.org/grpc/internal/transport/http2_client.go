@@ -90,7 +90,7 @@ type http2Client struct ***REMOVED***
 	kp               keepalive.ClientParameters
 	keepaliveEnabled bool
 
-	statsHandler stats.Handler
+	statsHandlers []stats.Handler
 
 	initialWindowSize int32
 
@@ -311,7 +311,7 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		isSecure:              isSecure,
 		perRPCCreds:           perRPCCreds,
 		kp:                    kp,
-		statsHandler:          opts.StatsHandler,
+		statsHandlers:         opts.StatsHandlers,
 		initialWindowSize:     initialWindowSize,
 		onPrefaceReceipt:      onPrefaceReceipt,
 		nextID:                1,
@@ -341,15 +341,15 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 			updateFlowControl: t.updateFlowControl,
 		***REMOVED***
 	***REMOVED***
-	if t.statsHandler != nil ***REMOVED***
-		t.ctx = t.statsHandler.TagConn(t.ctx, &stats.ConnTagInfo***REMOVED***
+	for _, sh := range t.statsHandlers ***REMOVED***
+		t.ctx = sh.TagConn(t.ctx, &stats.ConnTagInfo***REMOVED***
 			RemoteAddr: t.remoteAddr,
 			LocalAddr:  t.localAddr,
 		***REMOVED***)
 		connBegin := &stats.ConnBegin***REMOVED***
 			Client: true,
 		***REMOVED***
-		t.statsHandler.HandleConn(t.ctx, connBegin)
+		sh.HandleConn(t.ctx, connBegin)
 	***REMOVED***
 	t.channelzID, err = channelz.RegisterNormalSocket(t, opts.ChannelzParentID, fmt.Sprintf("%s -> %s", t.localAddr, t.remoteAddr))
 	if err != nil ***REMOVED***
@@ -773,24 +773,27 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 			return nil, &NewStreamError***REMOVED***Err: ErrConnClosing, AllowTransparentRetry: true***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	if t.statsHandler != nil ***REMOVED***
+	if len(t.statsHandlers) != 0 ***REMOVED***
 		header, ok := metadata.FromOutgoingContext(ctx)
 		if ok ***REMOVED***
 			header.Set("user-agent", t.userAgent)
 		***REMOVED*** else ***REMOVED***
 			header = metadata.Pairs("user-agent", t.userAgent)
 		***REMOVED***
-		// Note: The header fields are compressed with hpack after this call returns.
-		// No WireLength field is set here.
-		outHeader := &stats.OutHeader***REMOVED***
-			Client:      true,
-			FullMethod:  callHdr.Method,
-			RemoteAddr:  t.remoteAddr,
-			LocalAddr:   t.localAddr,
-			Compression: callHdr.SendCompress,
-			Header:      header,
+		for _, sh := range t.statsHandlers ***REMOVED***
+			// Note: The header fields are compressed with hpack after this call returns.
+			// No WireLength field is set here.
+			// Note: Creating a new stats object to prevent pollution.
+			outHeader := &stats.OutHeader***REMOVED***
+				Client:      true,
+				FullMethod:  callHdr.Method,
+				RemoteAddr:  t.remoteAddr,
+				LocalAddr:   t.localAddr,
+				Compression: callHdr.SendCompress,
+				Header:      header,
+			***REMOVED***
+			sh.HandleRPC(s.ctx, outHeader)
 		***REMOVED***
-		t.statsHandler.HandleRPC(s.ctx, outHeader)
 	***REMOVED***
 	return s, nil
 ***REMOVED***
@@ -916,11 +919,11 @@ func (t *http2Client) Close(err error) ***REMOVED***
 	for _, s := range streams ***REMOVED***
 		t.closeStream(s, err, false, http2.ErrCodeNo, st, nil, false)
 	***REMOVED***
-	if t.statsHandler != nil ***REMOVED***
+	for _, sh := range t.statsHandlers ***REMOVED***
 		connEnd := &stats.ConnEnd***REMOVED***
 			Client: true,
 		***REMOVED***
-		t.statsHandler.HandleConn(t.ctx, connEnd)
+		sh.HandleConn(t.ctx, connEnd)
 	***REMOVED***
 ***REMOVED***
 
@@ -1432,7 +1435,7 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 		close(s.headerChan)
 	***REMOVED***
 
-	if t.statsHandler != nil ***REMOVED***
+	for _, sh := range t.statsHandlers ***REMOVED***
 		if isHeader ***REMOVED***
 			inHeader := &stats.InHeader***REMOVED***
 				Client:      true,
@@ -1440,14 +1443,14 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 				Header:      metadata.MD(mdata).Copy(),
 				Compression: s.recvCompress,
 			***REMOVED***
-			t.statsHandler.HandleRPC(s.ctx, inHeader)
+			sh.HandleRPC(s.ctx, inHeader)
 		***REMOVED*** else ***REMOVED***
 			inTrailer := &stats.InTrailer***REMOVED***
 				Client:     true,
 				WireLength: int(frame.Header().Length),
 				Trailer:    metadata.MD(mdata).Copy(),
 			***REMOVED***
-			t.statsHandler.HandleRPC(s.ctx, inTrailer)
+			sh.HandleRPC(s.ctx, inTrailer)
 		***REMOVED***
 	***REMOVED***
 

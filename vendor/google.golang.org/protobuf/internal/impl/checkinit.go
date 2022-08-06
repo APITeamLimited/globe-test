@@ -8,18 +8,18 @@ import (
 	"sync"
 
 	"google.golang.org/protobuf/internal/errors"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
-func (mi *MessageInfo) checkInitialized(in piface.CheckInitializedInput) (piface.CheckInitializedOutput, error) ***REMOVED***
+func (mi *MessageInfo) checkInitialized(in protoiface.CheckInitializedInput) (protoiface.CheckInitializedOutput, error) ***REMOVED***
 	var p pointer
 	if ms, ok := in.Message.(*messageState); ok ***REMOVED***
 		p = ms.pointer()
 	***REMOVED*** else ***REMOVED***
 		p = in.Message.(*messageReflectWrapper).pointer()
 	***REMOVED***
-	return piface.CheckInitializedOutput***REMOVED******REMOVED***, mi.checkInitializedPointer(p)
+	return protoiface.CheckInitializedOutput***REMOVED******REMOVED***, mi.checkInitializedPointer(p)
 ***REMOVED***
 
 func (mi *MessageInfo) checkInitializedPointer(p pointer) error ***REMOVED***
@@ -90,7 +90,7 @@ var (
 // needsInitCheck reports whether a message needs to be checked for partial initialization.
 //
 // It returns true if the message transitively includes any required or extension fields.
-func needsInitCheck(md pref.MessageDescriptor) bool ***REMOVED***
+func needsInitCheck(md protoreflect.MessageDescriptor) bool ***REMOVED***
 	if v, ok := needsInitCheckMap.Load(md); ok ***REMOVED***
 		if has, ok := v.(bool); ok ***REMOVED***
 			return has
@@ -101,7 +101,7 @@ func needsInitCheck(md pref.MessageDescriptor) bool ***REMOVED***
 	return needsInitCheckLocked(md)
 ***REMOVED***
 
-func needsInitCheckLocked(md pref.MessageDescriptor) (has bool) ***REMOVED***
+func needsInitCheckLocked(md protoreflect.MessageDescriptor) (has bool) ***REMOVED***
 	if v, ok := needsInitCheckMap.Load(md); ok ***REMOVED***
 		// If has is true, we've previously determined that this message
 		// needs init checks.

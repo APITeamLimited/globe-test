@@ -16,9 +16,9 @@ import (
 	"google.golang.org/protobuf/internal/flags"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
-	preg "google.golang.org/protobuf/reflect/protoregistry"
-	piface "google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 // ValidationStatus is the result of validating the wire-format encoding of a message.
@@ -56,20 +56,20 @@ func (v ValidationStatus) String() string ***REMOVED***
 // of the message type.
 //
 // This function is exposed for testing.
-func Validate(mt pref.MessageType, in piface.UnmarshalInput) (out piface.UnmarshalOutput, _ ValidationStatus) ***REMOVED***
+func Validate(mt protoreflect.MessageType, in protoiface.UnmarshalInput) (out protoiface.UnmarshalOutput, _ ValidationStatus) ***REMOVED***
 	mi, ok := mt.(*MessageInfo)
 	if !ok ***REMOVED***
 		return out, ValidationUnknown
 	***REMOVED***
 	if in.Resolver == nil ***REMOVED***
-		in.Resolver = preg.GlobalTypes
+		in.Resolver = protoregistry.GlobalTypes
 	***REMOVED***
 	o, st := mi.validate(in.Buf, 0, unmarshalOptions***REMOVED***
 		flags:    in.Flags,
 		resolver: in.Resolver,
 	***REMOVED***)
 	if o.initialized ***REMOVED***
-		out.Flags |= piface.UnmarshalInitialized
+		out.Flags |= protoiface.UnmarshalInitialized
 	***REMOVED***
 	return out, st
 ***REMOVED***
@@ -106,22 +106,22 @@ const (
 	validationTypeMessageSetItem
 )
 
-func newFieldValidationInfo(mi *MessageInfo, si structInfo, fd pref.FieldDescriptor, ft reflect.Type) validationInfo ***REMOVED***
+func newFieldValidationInfo(mi *MessageInfo, si structInfo, fd protoreflect.FieldDescriptor, ft reflect.Type) validationInfo ***REMOVED***
 	var vi validationInfo
 	switch ***REMOVED***
 	case fd.ContainingOneof() != nil && !fd.ContainingOneof().IsSynthetic():
 		switch fd.Kind() ***REMOVED***
-		case pref.MessageKind:
+		case protoreflect.MessageKind:
 			vi.typ = validationTypeMessage
 			if ot, ok := si.oneofWrappersByNumber[fd.Number()]; ok ***REMOVED***
 				vi.mi = getMessageInfo(ot.Field(0).Type)
 			***REMOVED***
-		case pref.GroupKind:
+		case protoreflect.GroupKind:
 			vi.typ = validationTypeGroup
 			if ot, ok := si.oneofWrappersByNumber[fd.Number()]; ok ***REMOVED***
 				vi.mi = getMessageInfo(ot.Field(0).Type)
 			***REMOVED***
-		case pref.StringKind:
+		case protoreflect.StringKind:
 			if strs.EnforceUTF8(fd) ***REMOVED***
 				vi.typ = validationTypeUTF8String
 			***REMOVED***
@@ -129,7 +129,7 @@ func newFieldValidationInfo(mi *MessageInfo, si structInfo, fd pref.FieldDescrip
 	default:
 		vi = newValidationInfo(fd, ft)
 	***REMOVED***
-	if fd.Cardinality() == pref.Required ***REMOVED***
+	if fd.Cardinality() == protoreflect.Required ***REMOVED***
 		// Avoid overflow. The required field check is done with a 64-bit mask, with
 		// any message containing more than 64 required fields always reported as
 		// potentially uninitialized, so it is not important to get a precise count
@@ -142,22 +142,22 @@ func newFieldValidationInfo(mi *MessageInfo, si structInfo, fd pref.FieldDescrip
 	return vi
 ***REMOVED***
 
-func newValidationInfo(fd pref.FieldDescriptor, ft reflect.Type) validationInfo ***REMOVED***
+func newValidationInfo(fd protoreflect.FieldDescriptor, ft reflect.Type) validationInfo ***REMOVED***
 	var vi validationInfo
 	switch ***REMOVED***
 	case fd.IsList():
 		switch fd.Kind() ***REMOVED***
-		case pref.MessageKind:
+		case protoreflect.MessageKind:
 			vi.typ = validationTypeMessage
 			if ft.Kind() == reflect.Slice ***REMOVED***
 				vi.mi = getMessageInfo(ft.Elem())
 			***REMOVED***
-		case pref.GroupKind:
+		case protoreflect.GroupKind:
 			vi.typ = validationTypeGroup
 			if ft.Kind() == reflect.Slice ***REMOVED***
 				vi.mi = getMessageInfo(ft.Elem())
 			***REMOVED***
-		case pref.StringKind:
+		case protoreflect.StringKind:
 			vi.typ = validationTypeBytes
 			if strs.EnforceUTF8(fd) ***REMOVED***
 				vi.typ = validationTypeUTF8String
@@ -175,33 +175,33 @@ func newValidationInfo(fd pref.FieldDescriptor, ft reflect.Type) validationInfo 
 	case fd.IsMap():
 		vi.typ = validationTypeMap
 		switch fd.MapKey().Kind() ***REMOVED***
-		case pref.StringKind:
+		case protoreflect.StringKind:
 			if strs.EnforceUTF8(fd) ***REMOVED***
 				vi.keyType = validationTypeUTF8String
 			***REMOVED***
 		***REMOVED***
 		switch fd.MapValue().Kind() ***REMOVED***
-		case pref.MessageKind:
+		case protoreflect.MessageKind:
 			vi.valType = validationTypeMessage
 			if ft.Kind() == reflect.Map ***REMOVED***
 				vi.mi = getMessageInfo(ft.Elem())
 			***REMOVED***
-		case pref.StringKind:
+		case protoreflect.StringKind:
 			if strs.EnforceUTF8(fd) ***REMOVED***
 				vi.valType = validationTypeUTF8String
 			***REMOVED***
 		***REMOVED***
 	default:
 		switch fd.Kind() ***REMOVED***
-		case pref.MessageKind:
+		case protoreflect.MessageKind:
 			vi.typ = validationTypeMessage
 			if !fd.IsWeak() ***REMOVED***
 				vi.mi = getMessageInfo(ft)
 			***REMOVED***
-		case pref.GroupKind:
+		case protoreflect.GroupKind:
 			vi.typ = validationTypeGroup
 			vi.mi = getMessageInfo(ft)
-		case pref.StringKind:
+		case protoreflect.StringKind:
 			vi.typ = validationTypeBytes
 			if strs.EnforceUTF8(fd) ***REMOVED***
 				vi.typ = validationTypeUTF8String
@@ -314,11 +314,11 @@ State:
 							break
 						***REMOVED***
 						messageName := fd.Message().FullName()
-						messageType, err := preg.GlobalTypes.FindMessageByName(messageName)
+						messageType, err := protoregistry.GlobalTypes.FindMessageByName(messageName)
 						switch err ***REMOVED***
 						case nil:
 							vi.mi, _ = messageType.(*MessageInfo)
-						case preg.NotFound:
+						case protoregistry.NotFound:
 							vi.typ = validationTypeBytes
 						default:
 							return out, ValidationUnknown
@@ -335,7 +335,7 @@ State:
 				// unmarshaling to begin failing. Supporting this requires some way to
 				// determine if the resolver is frozen.
 				xt, err := opts.resolver.FindExtensionByNumber(st.mi.Desc.FullName(), num)
-				if err != nil && err != preg.NotFound ***REMOVED***
+				if err != nil && err != protoregistry.NotFound ***REMOVED***
 					return out, ValidationUnknown
 				***REMOVED***
 				if err == nil ***REMOVED***
@@ -513,7 +513,7 @@ State:
 					***REMOVED***
 					xt, err := opts.resolver.FindExtensionByNumber(st.mi.Desc.FullName(), typeid)
 					switch ***REMOVED***
-					case err == preg.NotFound:
+					case err == protoregistry.NotFound:
 						b = b[n:]
 					case err != nil:
 						return out, ValidationUnknown

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"regexp"
 	"strconv"
 	"unicode/utf8"
 
@@ -381,7 +380,7 @@ func (d *Decoder) currentOpenKind() (Kind, byte) ***REMOVED***
 	case '[':
 		return ListOpen, ']'
 	***REMOVED***
-	panic(fmt.Sprintf("Decoder: openStack contains invalid byte %s", string(openCh)))
+	panic(fmt.Sprintf("Decoder: openStack contains invalid byte %c", openCh))
 ***REMOVED***
 
 func (d *Decoder) pushOpenStack(ch byte) ***REMOVED***
@@ -421,7 +420,7 @@ func (d *Decoder) parseFieldName() (tok Token, err error) ***REMOVED***
 		return Token***REMOVED******REMOVED***, d.newSyntaxError("invalid field number: %s", d.in[:num.size])
 	***REMOVED***
 
-	return Token***REMOVED******REMOVED***, d.newSyntaxError("invalid field name: %s", errRegexp.Find(d.in))
+	return Token***REMOVED******REMOVED***, d.newSyntaxError("invalid field name: %s", errId(d.in))
 ***REMOVED***
 
 // parseTypeName parses Any type URL or extension field name. The name is
@@ -571,7 +570,7 @@ func (d *Decoder) parseScalar() (Token, error) ***REMOVED***
 		return tok, nil
 	***REMOVED***
 
-	return Token***REMOVED******REMOVED***, d.newSyntaxError("invalid scalar value: %s", errRegexp.Find(d.in))
+	return Token***REMOVED******REMOVED***, d.newSyntaxError("invalid scalar value: %s", errId(d.in))
 ***REMOVED***
 
 // parseLiteralValue parses a literal value. A literal value is used for
@@ -653,8 +652,29 @@ func consume(b []byte, n int) []byte ***REMOVED***
 	return b
 ***REMOVED***
 
-// Any sequence that looks like a non-delimiter (for error reporting).
-var errRegexp = regexp.MustCompile(`^([-+._a-zA-Z0-9\/]+|.)`)
+// errId extracts a byte sequence that looks like an invalid ID
+// (for the purposes of error reporting).
+func errId(seq []byte) []byte ***REMOVED***
+	const maxLen = 32
+	for i := 0; i < len(seq); ***REMOVED***
+		if i > maxLen ***REMOVED***
+			return append(seq[:i:i], "…"...)
+		***REMOVED***
+		r, size := utf8.DecodeRune(seq[i:])
+		if r > utf8.RuneSelf || (r != '/' && isDelim(byte(r))) ***REMOVED***
+			if i == 0 ***REMOVED***
+				// Either the first byte is invalid UTF-8 or a
+				// delimiter, or the first rune is non-ASCII.
+				// Return it as-is.
+				i = size
+			***REMOVED***
+			return seq[:i:i]
+		***REMOVED***
+		i += size
+	***REMOVED***
+	// No delimiter found.
+	return seq
+***REMOVED***
 
 // isDelim returns true if given byte is a delimiter character.
 func isDelim(c byte) bool ***REMOVED***

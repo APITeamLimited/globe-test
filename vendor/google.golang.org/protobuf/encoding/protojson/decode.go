@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/internal/set"
 	"google.golang.org/protobuf/proto"
-	pref "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
@@ -113,7 +113,7 @@ func (d decoder) syntaxError(pos int, f string, x ...interface***REMOVED******RE
 ***REMOVED***
 
 // unmarshalMessage unmarshals a message into the given protoreflect.Message.
-func (d decoder) unmarshalMessage(m pref.Message, skipTypeURL bool) error ***REMOVED***
+func (d decoder) unmarshalMessage(m protoreflect.Message, skipTypeURL bool) error ***REMOVED***
 	if unmarshal := wellKnownTypeUnmarshaler(m.Descriptor().FullName()); unmarshal != nil ***REMOVED***
 		return unmarshal(d, m)
 	***REMOVED***
@@ -159,10 +159,10 @@ func (d decoder) unmarshalMessage(m pref.Message, skipTypeURL bool) error ***REM
 		***REMOVED***
 
 		// Get the FieldDescriptor.
-		var fd pref.FieldDescriptor
+		var fd protoreflect.FieldDescriptor
 		if strings.HasPrefix(name, "[") && strings.HasSuffix(name, "]") ***REMOVED***
 			// Only extension names are in [name] format.
-			extName := pref.FullName(name[1 : len(name)-1])
+			extName := protoreflect.FullName(name[1 : len(name)-1])
 			extType, err := d.opts.Resolver.FindExtensionByName(extName)
 			if err != nil && err != protoregistry.NotFound ***REMOVED***
 				return d.newError(tok.Pos(), "unable to resolve %s: %v", tok.RawString(), err)
@@ -240,23 +240,23 @@ func (d decoder) unmarshalMessage(m pref.Message, skipTypeURL bool) error ***REM
 	***REMOVED***
 ***REMOVED***
 
-func isKnownValue(fd pref.FieldDescriptor) bool ***REMOVED***
+func isKnownValue(fd protoreflect.FieldDescriptor) bool ***REMOVED***
 	md := fd.Message()
 	return md != nil && md.FullName() == genid.Value_message_fullname
 ***REMOVED***
 
-func isNullValue(fd pref.FieldDescriptor) bool ***REMOVED***
+func isNullValue(fd protoreflect.FieldDescriptor) bool ***REMOVED***
 	ed := fd.Enum()
 	return ed != nil && ed.FullName() == genid.NullValue_enum_fullname
 ***REMOVED***
 
 // unmarshalSingular unmarshals to the non-repeated field specified
 // by the given FieldDescriptor.
-func (d decoder) unmarshalSingular(m pref.Message, fd pref.FieldDescriptor) error ***REMOVED***
-	var val pref.Value
+func (d decoder) unmarshalSingular(m protoreflect.Message, fd protoreflect.FieldDescriptor) error ***REMOVED***
+	var val protoreflect.Value
 	var err error
 	switch fd.Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
+	case protoreflect.MessageKind, protoreflect.GroupKind:
 		val = m.NewField(fd)
 		err = d.unmarshalMessage(val.Message(), false)
 	default:
@@ -272,63 +272,63 @@ func (d decoder) unmarshalSingular(m pref.Message, fd pref.FieldDescriptor) erro
 
 // unmarshalScalar unmarshals to a scalar/enum protoreflect.Value specified by
 // the given FieldDescriptor.
-func (d decoder) unmarshalScalar(fd pref.FieldDescriptor) (pref.Value, error) ***REMOVED***
+func (d decoder) unmarshalScalar(fd protoreflect.FieldDescriptor) (protoreflect.Value, error) ***REMOVED***
 	const b32 int = 32
 	const b64 int = 64
 
 	tok, err := d.Read()
 	if err != nil ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, err
+		return protoreflect.Value***REMOVED******REMOVED***, err
 	***REMOVED***
 
 	kind := fd.Kind()
 	switch kind ***REMOVED***
-	case pref.BoolKind:
+	case protoreflect.BoolKind:
 		if tok.Kind() == json.Bool ***REMOVED***
-			return pref.ValueOfBool(tok.Bool()), nil
+			return protoreflect.ValueOfBool(tok.Bool()), nil
 		***REMOVED***
 
-	case pref.Int32Kind, pref.Sint32Kind, pref.Sfixed32Kind:
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		if v, ok := unmarshalInt(tok, b32); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.Int64Kind, pref.Sint64Kind, pref.Sfixed64Kind:
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 		if v, ok := unmarshalInt(tok, b64); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.Uint32Kind, pref.Fixed32Kind:
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		if v, ok := unmarshalUint(tok, b32); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.Uint64Kind, pref.Fixed64Kind:
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 		if v, ok := unmarshalUint(tok, b64); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.FloatKind:
+	case protoreflect.FloatKind:
 		if v, ok := unmarshalFloat(tok, b32); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.DoubleKind:
+	case protoreflect.DoubleKind:
 		if v, ok := unmarshalFloat(tok, b64); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.StringKind:
+	case protoreflect.StringKind:
 		if tok.Kind() == json.String ***REMOVED***
-			return pref.ValueOfString(tok.ParsedString()), nil
+			return protoreflect.ValueOfString(tok.ParsedString()), nil
 		***REMOVED***
 
-	case pref.BytesKind:
+	case protoreflect.BytesKind:
 		if v, ok := unmarshalBytes(tok); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
 
-	case pref.EnumKind:
+	case protoreflect.EnumKind:
 		if v, ok := unmarshalEnum(tok, fd); ok ***REMOVED***
 			return v, nil
 		***REMOVED***
@@ -337,10 +337,10 @@ func (d decoder) unmarshalScalar(fd pref.FieldDescriptor) (pref.Value, error) **
 		panic(fmt.Sprintf("unmarshalScalar: invalid scalar kind %v", kind))
 	***REMOVED***
 
-	return pref.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v type: %v", kind, tok.RawString())
+	return protoreflect.Value***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v type: %v", kind, tok.RawString())
 ***REMOVED***
 
-func unmarshalInt(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func unmarshalInt(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	switch tok.Kind() ***REMOVED***
 	case json.Number:
 		return getInt(tok, bitSize)
@@ -349,30 +349,30 @@ func unmarshalInt(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
 		// Decode number from string.
 		s := strings.TrimSpace(tok.ParsedString())
 		if len(s) != len(tok.ParsedString()) ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		return getInt(tok, bitSize)
 	***REMOVED***
-	return pref.Value***REMOVED******REMOVED***, false
+	return protoreflect.Value***REMOVED******REMOVED***, false
 ***REMOVED***
 
-func getInt(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func getInt(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	n, ok := tok.Int(bitSize)
 	if !ok ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, false
+		return protoreflect.Value***REMOVED******REMOVED***, false
 	***REMOVED***
 	if bitSize == 32 ***REMOVED***
-		return pref.ValueOfInt32(int32(n)), true
+		return protoreflect.ValueOfInt32(int32(n)), true
 	***REMOVED***
-	return pref.ValueOfInt64(n), true
+	return protoreflect.ValueOfInt64(n), true
 ***REMOVED***
 
-func unmarshalUint(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func unmarshalUint(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	switch tok.Kind() ***REMOVED***
 	case json.Number:
 		return getUint(tok, bitSize)
@@ -381,30 +381,30 @@ func unmarshalUint(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
 		// Decode number from string.
 		s := strings.TrimSpace(tok.ParsedString())
 		if len(s) != len(tok.ParsedString()) ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		return getUint(tok, bitSize)
 	***REMOVED***
-	return pref.Value***REMOVED******REMOVED***, false
+	return protoreflect.Value***REMOVED******REMOVED***, false
 ***REMOVED***
 
-func getUint(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func getUint(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	n, ok := tok.Uint(bitSize)
 	if !ok ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, false
+		return protoreflect.Value***REMOVED******REMOVED***, false
 	***REMOVED***
 	if bitSize == 32 ***REMOVED***
-		return pref.ValueOfUint32(uint32(n)), true
+		return protoreflect.ValueOfUint32(uint32(n)), true
 	***REMOVED***
-	return pref.ValueOfUint64(n), true
+	return protoreflect.ValueOfUint64(n), true
 ***REMOVED***
 
-func unmarshalFloat(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func unmarshalFloat(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	switch tok.Kind() ***REMOVED***
 	case json.Number:
 		return getFloat(tok, bitSize)
@@ -414,49 +414,49 @@ func unmarshalFloat(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED**
 		switch s ***REMOVED***
 		case "NaN":
 			if bitSize == 32 ***REMOVED***
-				return pref.ValueOfFloat32(float32(math.NaN())), true
+				return protoreflect.ValueOfFloat32(float32(math.NaN())), true
 			***REMOVED***
-			return pref.ValueOfFloat64(math.NaN()), true
+			return protoreflect.ValueOfFloat64(math.NaN()), true
 		case "Infinity":
 			if bitSize == 32 ***REMOVED***
-				return pref.ValueOfFloat32(float32(math.Inf(+1))), true
+				return protoreflect.ValueOfFloat32(float32(math.Inf(+1))), true
 			***REMOVED***
-			return pref.ValueOfFloat64(math.Inf(+1)), true
+			return protoreflect.ValueOfFloat64(math.Inf(+1)), true
 		case "-Infinity":
 			if bitSize == 32 ***REMOVED***
-				return pref.ValueOfFloat32(float32(math.Inf(-1))), true
+				return protoreflect.ValueOfFloat32(float32(math.Inf(-1))), true
 			***REMOVED***
-			return pref.ValueOfFloat64(math.Inf(-1)), true
+			return protoreflect.ValueOfFloat64(math.Inf(-1)), true
 		***REMOVED***
 
 		// Decode number from string.
 		if len(s) != len(strings.TrimSpace(s)) ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil ***REMOVED***
-			return pref.Value***REMOVED******REMOVED***, false
+			return protoreflect.Value***REMOVED******REMOVED***, false
 		***REMOVED***
 		return getFloat(tok, bitSize)
 	***REMOVED***
-	return pref.Value***REMOVED******REMOVED***, false
+	return protoreflect.Value***REMOVED******REMOVED***, false
 ***REMOVED***
 
-func getFloat(tok json.Token, bitSize int) (pref.Value, bool) ***REMOVED***
+func getFloat(tok json.Token, bitSize int) (protoreflect.Value, bool) ***REMOVED***
 	n, ok := tok.Float(bitSize)
 	if !ok ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, false
+		return protoreflect.Value***REMOVED******REMOVED***, false
 	***REMOVED***
 	if bitSize == 32 ***REMOVED***
-		return pref.ValueOfFloat32(float32(n)), true
+		return protoreflect.ValueOfFloat32(float32(n)), true
 	***REMOVED***
-	return pref.ValueOfFloat64(n), true
+	return protoreflect.ValueOfFloat64(n), true
 ***REMOVED***
 
-func unmarshalBytes(tok json.Token) (pref.Value, bool) ***REMOVED***
+func unmarshalBytes(tok json.Token) (protoreflect.Value, bool) ***REMOVED***
 	if tok.Kind() != json.String ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, false
+		return protoreflect.Value***REMOVED******REMOVED***, false
 	***REMOVED***
 
 	s := tok.ParsedString()
@@ -469,36 +469,36 @@ func unmarshalBytes(tok json.Token) (pref.Value, bool) ***REMOVED***
 	***REMOVED***
 	b, err := enc.DecodeString(s)
 	if err != nil ***REMOVED***
-		return pref.Value***REMOVED******REMOVED***, false
+		return protoreflect.Value***REMOVED******REMOVED***, false
 	***REMOVED***
-	return pref.ValueOfBytes(b), true
+	return protoreflect.ValueOfBytes(b), true
 ***REMOVED***
 
-func unmarshalEnum(tok json.Token, fd pref.FieldDescriptor) (pref.Value, bool) ***REMOVED***
+func unmarshalEnum(tok json.Token, fd protoreflect.FieldDescriptor) (protoreflect.Value, bool) ***REMOVED***
 	switch tok.Kind() ***REMOVED***
 	case json.String:
 		// Lookup EnumNumber based on name.
 		s := tok.ParsedString()
-		if enumVal := fd.Enum().Values().ByName(pref.Name(s)); enumVal != nil ***REMOVED***
-			return pref.ValueOfEnum(enumVal.Number()), true
+		if enumVal := fd.Enum().Values().ByName(protoreflect.Name(s)); enumVal != nil ***REMOVED***
+			return protoreflect.ValueOfEnum(enumVal.Number()), true
 		***REMOVED***
 
 	case json.Number:
 		if n, ok := tok.Int(32); ok ***REMOVED***
-			return pref.ValueOfEnum(pref.EnumNumber(n)), true
+			return protoreflect.ValueOfEnum(protoreflect.EnumNumber(n)), true
 		***REMOVED***
 
 	case json.Null:
 		// This is only valid for google.protobuf.NullValue.
 		if isNullValue(fd) ***REMOVED***
-			return pref.ValueOfEnum(0), true
+			return protoreflect.ValueOfEnum(0), true
 		***REMOVED***
 	***REMOVED***
 
-	return pref.Value***REMOVED******REMOVED***, false
+	return protoreflect.Value***REMOVED******REMOVED***, false
 ***REMOVED***
 
-func (d decoder) unmarshalList(list pref.List, fd pref.FieldDescriptor) error ***REMOVED***
+func (d decoder) unmarshalList(list protoreflect.List, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	tok, err := d.Read()
 	if err != nil ***REMOVED***
 		return err
@@ -508,7 +508,7 @@ func (d decoder) unmarshalList(list pref.List, fd pref.FieldDescriptor) error **
 	***REMOVED***
 
 	switch fd.Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
+	case protoreflect.MessageKind, protoreflect.GroupKind:
 		for ***REMOVED***
 			tok, err := d.Peek()
 			if err != nil ***REMOVED***
@@ -549,7 +549,7 @@ func (d decoder) unmarshalList(list pref.List, fd pref.FieldDescriptor) error **
 	return nil
 ***REMOVED***
 
-func (d decoder) unmarshalMap(mmap pref.Map, fd pref.FieldDescriptor) error ***REMOVED***
+func (d decoder) unmarshalMap(mmap protoreflect.Map, fd protoreflect.FieldDescriptor) error ***REMOVED***
 	tok, err := d.Read()
 	if err != nil ***REMOVED***
 		return err
@@ -561,18 +561,18 @@ func (d decoder) unmarshalMap(mmap pref.Map, fd pref.FieldDescriptor) error ***R
 	// Determine ahead whether map entry is a scalar type or a message type in
 	// order to call the appropriate unmarshalMapValue func inside the for loop
 	// below.
-	var unmarshalMapValue func() (pref.Value, error)
+	var unmarshalMapValue func() (protoreflect.Value, error)
 	switch fd.MapValue().Kind() ***REMOVED***
-	case pref.MessageKind, pref.GroupKind:
-		unmarshalMapValue = func() (pref.Value, error) ***REMOVED***
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		unmarshalMapValue = func() (protoreflect.Value, error) ***REMOVED***
 			val := mmap.NewValue()
 			if err := d.unmarshalMessage(val.Message(), false); err != nil ***REMOVED***
-				return pref.Value***REMOVED******REMOVED***, err
+				return protoreflect.Value***REMOVED******REMOVED***, err
 			***REMOVED***
 			return val, nil
 		***REMOVED***
 	default:
-		unmarshalMapValue = func() (pref.Value, error) ***REMOVED***
+		unmarshalMapValue = func() (protoreflect.Value, error) ***REMOVED***
 			return d.unmarshalScalar(fd.MapValue())
 		***REMOVED***
 	***REMOVED***
@@ -618,7 +618,7 @@ Loop:
 
 // unmarshalMapKey converts given token of Name kind into a protoreflect.MapKey.
 // A map key type is any integral or string type.
-func (d decoder) unmarshalMapKey(tok json.Token, fd pref.FieldDescriptor) (pref.MapKey, error) ***REMOVED***
+func (d decoder) unmarshalMapKey(tok json.Token, fd protoreflect.FieldDescriptor) (protoreflect.MapKey, error) ***REMOVED***
 	const b32 = 32
 	const b64 = 64
 	const base10 = 10
@@ -626,40 +626,40 @@ func (d decoder) unmarshalMapKey(tok json.Token, fd pref.FieldDescriptor) (pref.
 	name := tok.Name()
 	kind := fd.Kind()
 	switch kind ***REMOVED***
-	case pref.StringKind:
-		return pref.ValueOfString(name).MapKey(), nil
+	case protoreflect.StringKind:
+		return protoreflect.ValueOfString(name).MapKey(), nil
 
-	case pref.BoolKind:
+	case protoreflect.BoolKind:
 		switch name ***REMOVED***
 		case "true":
-			return pref.ValueOfBool(true).MapKey(), nil
+			return protoreflect.ValueOfBool(true).MapKey(), nil
 		case "false":
-			return pref.ValueOfBool(false).MapKey(), nil
+			return protoreflect.ValueOfBool(false).MapKey(), nil
 		***REMOVED***
 
-	case pref.Int32Kind, pref.Sint32Kind, pref.Sfixed32Kind:
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		if n, err := strconv.ParseInt(name, base10, b32); err == nil ***REMOVED***
-			return pref.ValueOfInt32(int32(n)).MapKey(), nil
+			return protoreflect.ValueOfInt32(int32(n)).MapKey(), nil
 		***REMOVED***
 
-	case pref.Int64Kind, pref.Sint64Kind, pref.Sfixed64Kind:
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 		if n, err := strconv.ParseInt(name, base10, b64); err == nil ***REMOVED***
-			return pref.ValueOfInt64(int64(n)).MapKey(), nil
+			return protoreflect.ValueOfInt64(int64(n)).MapKey(), nil
 		***REMOVED***
 
-	case pref.Uint32Kind, pref.Fixed32Kind:
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		if n, err := strconv.ParseUint(name, base10, b32); err == nil ***REMOVED***
-			return pref.ValueOfUint32(uint32(n)).MapKey(), nil
+			return protoreflect.ValueOfUint32(uint32(n)).MapKey(), nil
 		***REMOVED***
 
-	case pref.Uint64Kind, pref.Fixed64Kind:
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 		if n, err := strconv.ParseUint(name, base10, b64); err == nil ***REMOVED***
-			return pref.ValueOfUint64(uint64(n)).MapKey(), nil
+			return protoreflect.ValueOfUint64(uint64(n)).MapKey(), nil
 		***REMOVED***
 
 	default:
 		panic(fmt.Sprintf("invalid kind for map key: %v", kind))
 	***REMOVED***
 
-	return pref.MapKey***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v key: %s", kind, tok.RawString())
+	return protoreflect.MapKey***REMOVED******REMOVED***, d.newError(tok.Pos(), "invalid value for %v key: %s", kind, tok.RawString())
 ***REMOVED***
