@@ -56,6 +56,8 @@ func Banner() string {
 		`    /  \/    \    |     (   /   ‾‾\  `,
 		`   /          \   |  |\  \ |  (‾)  | `,
 		`  / __________ \  |__| \__\ \_____/ .io`,
+		``,
+		`  On the APITeam Cloud Network`,
 	}, "\n")
 
 	return banner

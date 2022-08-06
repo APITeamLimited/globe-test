@@ -105,6 +105,7 @@ func getPartialConfig(flags *pflag.FlagSet) (Config, error) {
 // Gets configuration from CLI flags.
 func getConfig(flags *pflag.FlagSet) (Config, error) {
 	opts, err := getOptions(flags)
+
 	if err != nil {
 		return Config{}, err
 	}

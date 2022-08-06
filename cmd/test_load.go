@@ -57,6 +57,7 @@ func loadTest(gs *globalState, cmd *cobra.Command, args []string) (*loadedTest, 
 
 	gs.logger.Debugf("Gathering k6 runtime options...")
 	runtimeOptions, err := getRuntimeOptions(cmd.Flags(), gs.envVars)
+	fmt.Println("runtimeOptions:", runtimeOptions)
 	if err != nil {
 		return nil, err
 	}

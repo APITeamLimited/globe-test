@@ -54,11 +54,18 @@ type cmdRun struct {
 }
 
 // TODO: split apart some more
+//
 //nolint:funlen,gocognit,gocyclo,cyclop
 func (c *cmdRun) run(cmd *cobra.Command, args []string) error {
+	// K6 logo banner
 	printBanner(c.gs)
 
+	fmt.Println("Starting k6..., args, args", args)
+
 	test, err := loadAndConfigureTest(c.gs, cmd, args, getConfig)
+
+	fmt.Println("loaded", test.loadedTest)
+
 	if err != nil {
 		return err
 	}

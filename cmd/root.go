@@ -268,6 +268,8 @@ func (c *rootCommand) persistentPreRunE(cmd *cobra.Command, args []string) error
 }
 
 func (c *rootCommand) execute() {
+	fmt.Println("new execute")
+
 	ctx, cancel := context.WithCancel(c.globalState.ctx)
 	defer cancel()
 	c.globalState.ctx = ctx
