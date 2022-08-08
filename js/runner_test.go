@@ -43,6 +43,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc/test/grpc_testing"
 	"gopkg.in/guregu/null.v3"
 
@@ -147,6 +148,53 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestRunnerRPSLimit(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	var nilLimiter *rate.Limiter
+
+	variants := []struct ***REMOVED***
+		name    string
+		options lib.Options
+		limiter *rate.Limiter
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:    "RPS not defined",
+			options: lib.Options***REMOVED******REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to non-zero int",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(9)***REMOVED***,
+			limiter: rate.NewLimiter(rate.Limit(9), 1),
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to zero",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(0)***REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to below zero value",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(-1)***REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, variant := range variants ***REMOVED***
+		variant := variant
+
+		t.Run(variant.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			r, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+			require.NoError(t, err)
+			err = r.SetOptions(variant.options)
+			require.NoError(t, err)
+			assert.Equal(t, variant.limiter, r.RPSLimit)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
