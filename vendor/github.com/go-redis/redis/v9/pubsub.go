@@ -156,7 +156,7 @@ func (c *PubSub) closeTheCn(reason error) error {
 		return nil
 	}
 	if !c.closed {
-		internal.Logger.Printf(c.getContext(), "redis: discarding bad PubSub connection: %s", reason)
+		//internal.Logger.Printf(c.getContext(), "redis: discarding bad PubSub connection: %s", reason)
 	}
 	err := c.closeConn(c.cn)
 	c.cn = nil

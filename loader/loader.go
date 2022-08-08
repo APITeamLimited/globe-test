@@ -202,6 +202,8 @@ func Load(
 
 	data, err := afero.ReadFile(filesystems[scheme], pathOnFs)
 
+	fmt.Println("data", string(data))
+
 	if err == nil {
 		return &SourceData{URL: moduleSpecifier, Data: data}, nil
 	}
