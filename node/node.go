@@ -60,8 +60,6 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, msg *redis.Mes
 		return
 	***REMOVED***
 
-	fmt.Println("job", job, job["assignedNode"])
-
 	// TODO: check if has capacity to execute here
 
 	// Check node['assignedNode'] is nil
@@ -85,25 +83,6 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, msg *redis.Mes
 	***REMOVED***
 
 	// We got the job
-	handleExecution(ctx, client, job, nodeId)
-***REMOVED***
-
-func handleExecution(ctx context.Context,
-	client *redis.Client, job map[string]string, nodeId string) ***REMOVED***
-	// Check if redis message is a uuid
-
-	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
-
-	client.Publish(ctx, fmt.Sprintf("k6:executionUpdates:%s", job["id"]), fmt.Sprintf("Node %s: Execution Started", nodeId))
-
-	jobScript := job["script"]
-
-	if jobScript == "" ***REMOVED***
-		fmt.Println("No script")
-		client.Publish(ctx, fmt.Sprintf("k6:executionUpdates:%s", job["id"]), fmt.Sprintf("Node %s: Execution Error, job not found", nodeId))
-		return
-	***REMOVED***
-
-	// Run the job
-
+	updateStatus(ctx, client, jobId.String(), nodeId, "ASSIGNED")
+	go handleExecution(ctx, client, job, nodeId)
 ***REMOVED***

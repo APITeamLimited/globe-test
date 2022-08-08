@@ -21,9 +21,11 @@
 package main
 
 import (
-	"go.k6.io/k6/cmd"
+	//"go.k6.io/k6/cmd"
+	"go.k6.io/k6/node"
 )
 
 func main() ***REMOVED***
-	cmd.Execute()
+	//cmd.Execute()
+	node.Run()
 ***REMOVED***

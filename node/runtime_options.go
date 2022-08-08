@@ -18,7 +18,7 @@
  *
  */
 
-package cmd
+package node
 
 import (
 	"fmt"
@@ -87,8 +87,6 @@ func getRuntimeOptions(flags *pflag.FlagSet, environment map[string]string) (lib
 		SummaryExport:        getNullString(flags, "summary-export"),
 		Env:                  make(map[string]string),
 	***REMOVED***
-
-	fmt.Println("opts:", opts.TestType, opts.IncludeSystemEnvVars, opts.CompatibilityMode, opts.NoThresholds, opts.NoSummary, opts.SummaryExport)
 
 	if envVar, ok := environment["K6_TYPE"]; ok && !opts.TestType.Valid ***REMOVED***
 		// Only override if not explicitly set via the CLI flag

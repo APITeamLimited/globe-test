@@ -156,7 +156,7 @@ func (c *PubSub) closeTheCn(reason error) error ***REMOVED***
 		return nil
 	***REMOVED***
 	if !c.closed ***REMOVED***
-		internal.Logger.Printf(c.getContext(), "redis: discarding bad PubSub connection: %s", reason)
+		//internal.Logger.Printf(c.getContext(), "redis: discarding bad PubSub connection: %s", reason)
 	***REMOVED***
 	err := c.closeConn(c.cn)
 	c.cn = nil
