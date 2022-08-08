@@ -188,7 +188,7 @@ func (lt *nodeLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job map[string]string,
 ) (*nodeLoadedAndConfiguredTest, error) ***REMOVED***
 
-	// TODO: implement consolidateDeriveAndValidateConfig behavior#
+	// TODO: implement consolidateDeriveAndValidateConfig behavior
 
 	var parsedOptions lib.Options
 	err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
