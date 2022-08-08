@@ -29,14 +29,14 @@ func handleExecution(ctx context.Context,
 
 	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
 
-	updateStatus(ctx, client, job["id"], nodeId, "LOADING")
+	go updateStatus(ctx, client, job["id"], nodeId, "LOADING")
 
-	globalState := newGlobalState(ctx)
+	globalState := newGlobalState(ctx, client, job["id"], nodeId)
 
 	test, err := loadAndConfigureTest(globalState, job)
 
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Failed to loadAndConfigureTest", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("failed to loadAndConfigureTest: %s", err.Error()))
 		return
 	}
 
@@ -46,7 +46,7 @@ func handleExecution(ctx context.Context,
 	conf := test.derivedConfig
 	testRunState, err := test.buildTestRunState(conf.Options)
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error building testRunState", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error building testRunState", err))
 		return
 	}
 
@@ -71,7 +71,7 @@ func handleExecution(ctx context.Context,
 	logger.Debug("Initializing the execution scheduler...")
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error initializing the execution scheduler", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error initializing the execution scheduler:", err))
 		return
 	}
 
@@ -96,7 +96,7 @@ func handleExecution(ctx context.Context,
 	executionPlan := execScheduler.GetExecutionPlan()
 	outputs, err := createOutputs(globalState, test, executionPlan)
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating outputs", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating outputs", err))
 		return
 	}
 
@@ -108,7 +108,7 @@ func handleExecution(ctx context.Context,
 	initBar.Modify(pb.WithConstProgress(0, "Init engine"))
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating engine", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating engine", err))
 		return
 	}
 
@@ -117,7 +117,7 @@ func handleExecution(ctx context.Context,
 	// TODO: directly create the MutputManager here, not in the Engine
 	err = engine.OutputManager.StartOutputs()
 	if err != nil {
-		handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error starting outputs", err))
+		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error starting outputs", err))
 		return
 	}
 	defer engine.OutputManager.StopOutputs()
@@ -135,17 +135,17 @@ func handleExecution(ctx context.Context,
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	dispatchMessage(ctx, client, job["id"], nodeId, "Init VUs...")
+	go dispatchMessage(ctx, client, job["id"], nodeId, "Init VUs...")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
-		handleError(ctx, client, job["id"], nodeId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
+		go handleError(ctx, client, job["id"], nodeId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return
 	}
 
 	// Start the test run
-	updateStatus(ctx, client, job["id"], nodeId, "RUNNING")
+	go updateStatus(ctx, client, job["id"], nodeId, "RUNNING")
 	var interrupt error
 	err = engineRun()
 	if err != nil {
@@ -160,14 +160,14 @@ func handleExecution(ctx context.Context,
 		}
 	}
 	runCancel()
-	dispatchMessage(ctx, client, job["id"], nodeId, "Engine run terminated cleanly")
+	go dispatchMessage(ctx, client, job["id"], nodeId, "Engine run terminated cleanly")
 
 	progressCancel()
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 {
-		dispatchMessage(ctx, client, job["id"], nodeId, "No script iterations finished, consider making the test duration longer")
+		go dispatchMessage(ctx, client, job["id"], nodeId, "No script iterations finished, consider making the test duration longer")
 	}
 
 	// Handle the end-of-test summary.
@@ -178,10 +178,6 @@ func handleExecution(ctx context.Context,
 			RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
 			TestRunDuration: executionState.GetCurrentTestRunDuration(),
 			NoColor:         globalState.flags.noColor,
-			UIState: lib.UIState{
-				IsStdOutTTY: globalState.stdOut.isTTY,
-				IsStdErrTTY: globalState.stdErr.isTTY,
-			},
 		})
 		engine.MetricsEngine.MetricsLock.Unlock()
 		if err == nil {
@@ -189,23 +185,10 @@ func handleExecution(ctx context.Context,
 			err = handleSummaryResult(globalState.fs, globalState.stdOut, globalState.stdErr, summaryResult)
 		}
 		if err != nil {
-			logger.WithError(err).Error("failed to handle the end-of-test summary")
+			handleError(ctx, client, job["id"], nodeId, err)
 		}
 	}
 
-	if conf.Linger.Bool {
-		select {
-		case <-lingerCtx.Done():
-			// do nothing, we were interrupted by Ctrl+C already
-		default:
-			logger.Debug("Linger set; waiting for Ctrl+C...")
-			//if !globalState.flags.quiet {
-			//	printToStdout(globalState, "Linger set; waiting for Ctrl+C...")
-			//}
-			<-lingerCtx.Done()
-			logger.Debug("Ctrl+C received, exiting...")
-		}
-	}
 	globalCancel() // signal the Engine that it should wind down
 	logger.Debug("Waiting for engine processes to finish...")
 	engineWait()

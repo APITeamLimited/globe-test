@@ -1,11 +1,12 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"io"
-	"os"
 	"sync"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/spf13/afero"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/loader"
@@ -13,13 +14,10 @@ import (
 )
 
 type consoleWriter struct {
-	rawOut *os.File
-	writer io.Writer
-	isTTY  bool
-	mutex  *sync.Mutex
-
-	// Used for flicker-free persistent objects like the progressbars
-	persistentText func()
+	ctx    context.Context
+	client *redis.Client
+	jobId  string
+	nodeId string
 }
 
 type nodeLoadedTest struct {

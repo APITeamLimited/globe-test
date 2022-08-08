@@ -83,6 +83,6 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, msg *redis.Mes
 	}
 
 	// We got the job
-	updateStatus(ctx, client, jobId.String(), nodeId, "ASSIGNED")
+	go updateStatus(ctx, client, jobId.String(), nodeId, "ASSIGNED")
 	go handleExecution(ctx, client, job, nodeId)
 }

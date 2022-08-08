@@ -12,7 +12,6 @@ file_name = "demo.js"
 with open(file_name, 'r') as f:
     file = f.read()
 
-
 id = str(uuid())
 
 job = {
@@ -21,8 +20,22 @@ job = {
     "source": str(file),
     "status": "pending",
     "options": json.dumps({
-        "Iterations": 100,
-        "VUs": 1,
+        "scenarios": {
+            "contacts": {
+                "executor": 'constant-vus',
+                "exec": 'contacts',
+                "vus": 50,
+                "duration": '30s',
+            },
+            "news": {
+                "executor": 'per-vu-iterations',
+                "exec": 'news',
+                "vus": 50,
+                "iterations": 100,
+                "startTime": '30s',
+                "maxDuration": '1m',
+            },
+        },
     })
 }
 
@@ -38,13 +51,13 @@ print(f"Job {id} added to redis")
 
 # Listen for updates on the job
 print(f"Listening for updates on job {id}:")
+
 while True:
     sub = r.pubsub()
     sub.subscribe(f"k6:executionUpdates:{id}")
     for message in sub.listen():
         if message is not None:
-            try :
+            try:
                 print(message['data'].decode('utf-8'))
             except Exception as e:
                 pass
-    
