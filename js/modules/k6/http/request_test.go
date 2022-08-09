@@ -5,11 +5,21 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"runtime"
 	"strconv"
@@ -30,6 +40,7 @@ import (
 
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/netext"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/metrics"
@@ -2337,54 +2348,131 @@ func TestErrorsWithDecompression(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRequestAndBatchTLS(t *testing.T) ***REMOVED***
-	if runtime.GOOS == "windows" ***REMOVED***
-		t.Skip()
-	***REMOVED***
 	t.Parallel()
-	_, _, samples, rt, _ := newRuntime(t) //nolint:dogsled
 
 	t.Run("cert_expired", func(t *testing.T) ***REMOVED***
-		_, err := rt.RunString(`http.get("https://expired.badssl.com/");`)
+		t.Parallel()
+		_, state, _, rt, _ := newRuntime(t)
+		cert, key := GenerateTLSCertificate(t, "expired.localhost", time.Now().Add(-time.Hour), 0)
+		s, client := GetTestServerWithCertificate(t, cert, key)
+		go func() ***REMOVED***
+			_ = s.Config.Serve(s.Listener)
+		***REMOVED***()
+		t.Cleanup(func() ***REMOVED***
+			require.NoError(t, s.Config.Close())
+		***REMOVED***)
+		host, port, err := net.SplitHostPort(s.Listener.Addr().String())
+		require.NoError(t, err)
+		ip := net.ParseIP(host)
+		mybadsslHostname, err := lib.NewHostAddress(ip, port)
+		require.NoError(t, err)
+		state.Transport = client.Transport
+		state.TLSConfig = s.TLS
+		state.Dialer = &netext.Dialer***REMOVED***Hosts: map[string]*lib.HostAddress***REMOVED***"expired.localhost": mybadsslHostname***REMOVED******REMOVED***
+		client.Transport.(*http.Transport).DialContext = state.Dialer.DialContext //nolint:forcetypeassert
+		_, err = rt.RunString(`throw JSON.stringify(http.get("https://expired.localhost/"));`)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "x509: certificate has expired or is not yet valid")
 	***REMOVED***)
 	tlsVersionTests := []struct ***REMOVED***
 		Name, URL, Version string
 	***REMOVED******REMOVED***
-		***REMOVED***Name: "tls10", URL: "https://tls-v1-0.badssl.com:1010/", Version: "http.TLS_1_0"***REMOVED***,
-		***REMOVED***Name: "tls11", URL: "https://tls-v1-1.badssl.com:1011/", Version: "http.TLS_1_1"***REMOVED***,
-		***REMOVED***Name: "tls12", URL: "https://badssl.com/", Version: "http.TLS_1_2"***REMOVED***,
+		***REMOVED***Name: "tls10", URL: "tlsv10.localhost", Version: "http.TLS_1_0"***REMOVED***,
+		***REMOVED***Name: "tls11", URL: "tlsv11.localhost", Version: "http.TLS_1_1"***REMOVED***,
+		***REMOVED***Name: "tls12", URL: "tlsv12.localhost", Version: "http.TLS_1_2"***REMOVED***,
 	***REMOVED***
 	for _, versionTest := range tlsVersionTests ***REMOVED***
 		versionTest := versionTest
 		t.Run(versionTest.Name, func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(fmt.Sprintf(`
-					var res = http.get("%s");
+			t.Parallel()
+			_, state, samples, rt, _ := newRuntime(t)
+			cert, key := GenerateTLSCertificate(t, versionTest.URL, time.Now(), time.Hour)
+			s, client := GetTestServerWithCertificate(t, cert, key)
+
+			switch versionTest.Name ***REMOVED***
+			case "tls10":
+				s.TLS.MaxVersion = tls.VersionTLS10
+			case "tls11":
+				s.TLS.MaxVersion = tls.VersionTLS11
+			case "tls12":
+				s.TLS.MaxVersion = tls.VersionTLS12
+			default:
+				panic(versionTest.Name + " unsupported")
+			***REMOVED***
+			go func() ***REMOVED***
+				_ = s.Config.Serve(s.Listener)
+			***REMOVED***()
+			t.Cleanup(func() ***REMOVED***
+				require.NoError(t, s.Config.Close())
+			***REMOVED***)
+			host, port, err := net.SplitHostPort(s.Listener.Addr().String())
+			require.NoError(t, err)
+			ip := net.ParseIP(host)
+			mybadsslHostname, err := lib.NewHostAddress(ip, port)
+			require.NoError(t, err)
+			state.Dialer = &netext.Dialer***REMOVED***Hosts: map[string]*lib.HostAddress***REMOVED***
+				versionTest.URL: mybadsslHostname,
+			***REMOVED******REMOVED***
+			state.Transport = client.Transport
+			state.TLSConfig = s.TLS
+			client.Transport.(*http.Transport).DialContext = state.Dialer.DialContext //nolint:forcetypeassert
+			realURL := "https://" + versionTest.URL + "/"
+			_, err = rt.RunString(fmt.Sprintf(`
+            var res = http.get("%s");
 					if (res.tls_version != %s) ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
-				`, versionTest.URL, versionTest.Version))
+				`, realURL, versionTest.Version))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", versionTest.URL, "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", realURL, "", 200, "")
 		***REMOVED***)
 	***REMOVED***
 	tlsCipherSuiteTests := []struct ***REMOVED***
 		Name, URL, CipherSuite string
+		suite                  uint16
 	***REMOVED******REMOVED***
-		***REMOVED***Name: "cipher_suite_cbc", URL: "https://cbc.badssl.com/", CipherSuite: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"***REMOVED***,
-		***REMOVED***Name: "cipher_suite_ecc384", URL: "https://ecc384.badssl.com/", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"***REMOVED***,
+		***REMOVED***Name: "cipher_suite_cbc", URL: "cbc.localhost", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA", suite: tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA***REMOVED***, // TODO fix this to RSA instead of ECDSA
+		***REMOVED***Name: "cipher_suite_ecc384", URL: "ecc384.localhost", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", suite: tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256***REMOVED***,
 	***REMOVED***
 	for _, cipherSuiteTest := range tlsCipherSuiteTests ***REMOVED***
 		cipherSuiteTest := cipherSuiteTest
 		t.Run(cipherSuiteTest.Name, func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(fmt.Sprintf(`
+			t.Parallel()
+			_, state, samples, rt, _ := newRuntime(t)
+			cert, key := GenerateTLSCertificate(t, cipherSuiteTest.URL, time.Now(), time.Hour)
+			s, client := GetTestServerWithCertificate(t, cert, key, cipherSuiteTest.suite)
+			go func() ***REMOVED***
+				_ = s.Config.Serve(s.Listener)
+			***REMOVED***()
+			t.Cleanup(func() ***REMOVED***
+				require.NoError(t, s.Config.Close())
+			***REMOVED***)
+			host, port, err := net.SplitHostPort(s.Listener.Addr().String())
+			require.NoError(t, err)
+			ip := net.ParseIP(host)
+			mybadsslHostname, err := lib.NewHostAddress(ip, port)
+			require.NoError(t, err)
+			state.Dialer = &netext.Dialer***REMOVED***Hosts: map[string]*lib.HostAddress***REMOVED***
+				cipherSuiteTest.URL: mybadsslHostname,
+			***REMOVED******REMOVED***
+			state.Transport = client.Transport
+			state.TLSConfig = s.TLS
+			client.Transport.(*http.Transport).DialContext = state.Dialer.DialContext //nolint:forcetypeassert
+			realURL := "https://" + cipherSuiteTest.URL + "/"
+			_, err = rt.RunString(fmt.Sprintf(`
 					var res = http.get("%s");
 					if (res.tls_cipher_suite != "%s") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
-				`, cipherSuiteTest.URL, cipherSuiteTest.CipherSuite))
+				`, realURL, cipherSuiteTest.CipherSuite))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", cipherSuiteTest.URL, "", 200, "")
+			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", realURL, "", 200, "")
 		***REMOVED***)
 	***REMOVED***
 	t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		if runtime.GOOS == "windows" ***REMOVED***
+			t.Skip("this doesn't work on windows for some reason")
+		***REMOVED***
 		website := "https://www.wikipedia.org/"
+		tb, state, samples, rt, _ := newRuntime(t)
+		state.Dialer = tb.Dialer
 		_, err := rt.RunString(fmt.Sprintf(`
 			var res = http.request("GET", "%s");
 			if (res.ocsp.status != http.OCSP_STATUS_GOOD) ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.status); ***REMOVED***
@@ -2438,4 +2526,125 @@ func TestBinaryResponseWithStatus0(t *testing.T) ***REMOVED***
 		if (res.body !== null) ***REMOVED*** throw new Error("wrong body: " + JSON.stringify(res.body)); ***REMOVED***
 	`)
 	require.NoError(t, err)
+***REMOVED***
+
+func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, validFor time.Duration) ([]byte, []byte) ***REMOVED***
+	priv, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	// priv, err := ecdsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
+	// KeyUsage bits set in the x509.Certificate template
+	keyUsage := x509.KeyUsageDigitalSignature
+	// Only RSA subject keys should have the KeyEncipherment KeyUsage bits set. In
+	// the context of TLS this KeyUsage is particular to RSA key exchange and
+	// authentication.
+	keyUsage |= x509.KeyUsageKeyEncipherment
+
+	notAfter := notBefore.Add(validFor)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	require.NoError(t, err)
+
+	template := x509.Certificate***REMOVED***
+		SerialNumber: serialNumber,
+		Subject: pkix.Name***REMOVED***
+			Organization: []string***REMOVED***"Acme Co"***REMOVED***,
+		***REMOVED***,
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              keyUsage,
+		ExtKeyUsage:           []x509.ExtKeyUsage***REMOVED***x509.ExtKeyUsageServerAuth***REMOVED***,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+	***REMOVED***
+
+	hosts := strings.Split(host, ",")
+	for _, h := range hosts ***REMOVED***
+		if ip := net.ParseIP(h); ip != nil ***REMOVED***
+			template.IPAddresses = append(template.IPAddresses, ip)
+		***REMOVED*** else ***REMOVED***
+			template.DNSNames = append(template.DNSNames, h)
+		***REMOVED***
+	***REMOVED***
+
+	template.IsCA = true
+	template.KeyUsage |= x509.KeyUsageCertSign
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	certPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "CERTIFICATE", Bytes: derBytes***REMOVED***)
+	require.NoError(t, err)
+
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	require.NoError(t, err)
+	keyPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "PRIVATE KEY", Bytes: privBytes***REMOVED***)
+	require.NoError(t, err)
+	return certPem, keyPem
+***REMOVED***
+
+func GetTestServerWithCertificate(t *testing.T, certPem, key []byte, suitesIds ...uint16) (*httptest.Server, *http.Client) ***REMOVED***
+	server := &http.Server***REMOVED***
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			w.WriteHeader(200)
+		***REMOVED***),
+		ReadHeaderTimeout: time.Second,
+		ReadTimeout:       time.Second,
+	***REMOVED***
+	s := &httptest.Server***REMOVED******REMOVED***
+	s.Config = server
+
+	s.TLS = new(tls.Config)
+	if s.TLS.NextProtos == nil ***REMOVED***
+		nextProtos := []string***REMOVED***"http/1.1"***REMOVED***
+		if s.EnableHTTP2 ***REMOVED***
+			nextProtos = []string***REMOVED***"h2"***REMOVED***
+		***REMOVED***
+		s.TLS.NextProtos = nextProtos
+	***REMOVED***
+	cert, err := tls.X509KeyPair(certPem, key)
+	require.NoError(t, err)
+	s.TLS.Certificates = append(s.TLS.Certificates, cert)
+	suites := tls.CipherSuites()
+	if len(suitesIds) > 0 ***REMOVED***
+		newSuites := make([]*tls.CipherSuite, 0, len(suitesIds))
+		for _, suite := range suites ***REMOVED***
+			for _, id := range suitesIds ***REMOVED***
+				if id == suite.ID ***REMOVED***
+					newSuites = append(newSuites, suite)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		suites = newSuites
+	***REMOVED***
+	if len(suites) == 0 ***REMOVED***
+		panic("no suites enabled")
+	***REMOVED***
+	for _, suite := range suites ***REMOVED***
+		s.TLS.CipherSuites = append(s.TLS.CipherSuites, suite.ID)
+	***REMOVED***
+	certpool := x509.NewCertPool()
+	certificate, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+	certpool.AddCert(certificate)
+	client := &http.Client***REMOVED***Transport: &http.Transport***REMOVED******REMOVED******REMOVED***
+	client.Transport = &http.Transport***REMOVED***
+		TLSClientConfig: &tls.Config***REMOVED*** //nolint:gosec
+			RootCAs:      certpool,
+			MinVersion:   tls.VersionTLS10,
+			MaxVersion:   tls.VersionTLS12, // this so that the ciphersuite work
+			CipherSuites: suitesIds,
+		***REMOVED***,
+		ForceAttemptHTTP2:     s.EnableHTTP2,
+		TLSHandshakeTimeout:   time.Second,
+		ResponseHeaderTimeout: time.Second,
+		IdleConnTimeout:       time.Second,
+	***REMOVED***
+	s.Listener, err = net.Listen("tcp", "")
+	require.NoError(t, err)
+	s.Listener = tls.NewListener(s.Listener, s.TLS)
+	return s, client
 ***REMOVED***
