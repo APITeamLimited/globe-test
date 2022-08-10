@@ -1,11 +1,17 @@
 import http from 'k6/http';
 import ***REMOVED*** sleep ***REMOVED*** from 'k6';
 
+import ***REMOVED*** Trend ***REMOVED*** from 'k6/metrics';
+
+
+const myTrend = new Trend('waiting_time2');
+
 export function contacts() ***REMOVED***
   const res = http.get('https://test.k6.io/contacts.php', ***REMOVED***
     tags: ***REMOVED*** my_custom_tag: 'contacts' ***REMOVED***,
   ***REMOVED***);
   console.log('contacts');
+  myTrend.add(res.timings.waiting);
   sleep(1);
 ***REMOVED***
 

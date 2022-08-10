@@ -1,4 +1,4 @@
-package node
+package worker
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ import (
 )
 
 func createOutputs(
-	gs *globalState, test *nodeLoadedAndConfiguredTest, executionPlan []lib.ExecutionStep,
+	gs *globalState, test *workerLoadedAndConfiguredTest, executionPlan []lib.ExecutionStep,
 ) ([]output.Output, error) ***REMOVED***
 	outputConstructors, err := getAllOutputConstructors()
 	if err != nil ***REMOVED***

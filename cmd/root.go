@@ -238,7 +238,7 @@ func newRootCommand(gs *globalState) *rootCommand ***REMOVED***
 	subCommands := []func(*globalState) *cobra.Command***REMOVED***
 		getCmdArchive, getCmdCloud, getCmdConvert, getCmdInspect,
 		getCmdLogin, getCmdPause, getCmdResume, getCmdScale, getCmdRun,
-		getCmdStats, getCmdStatus, getCmdVersion,
+		getCmdStats, getCmdStatus, getCmdVersion, getCmdWorker,
 	***REMOVED***
 
 	for _, sc := range subCommands ***REMOVED***
@@ -268,8 +268,6 @@ func (c *rootCommand) persistentPreRunE(cmd *cobra.Command, args []string) error
 ***REMOVED***
 
 func (c *rootCommand) execute() ***REMOVED***
-	fmt.Println("new execute")
-
 	ctx, cancel := context.WithCancel(c.globalState.ctx)
 	defer cancel()
 	c.globalState.ctx = ctx

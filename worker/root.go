@@ -18,7 +18,7 @@
  *
  */
 
-package node
+package worker
 
 import (
 	"context"
@@ -87,13 +87,13 @@ type globalState struct ***REMOVED***
 // global variables and functions from the os package. Anywhere else, things
 // like os.Stdout, os.Stderr, os.Stdin, os.Getenv(), etc. should be removed and
 // the respective properties of globalState used instead.
-func newGlobalState(ctx context.Context, client *redis.Client, jobId string, nodeId string) *globalState ***REMOVED***
-	stdOut := &consoleWriter***REMOVED***ctx, client, jobId, nodeId***REMOVED***
-	stdErr := &consoleWriter***REMOVED***ctx, client, jobId, nodeId***REMOVED***
+func newGlobalState(ctx context.Context, client *redis.Client, jobId string, workerId string) *globalState ***REMOVED***
+	stdOut := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
+	stdErr := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
 
 	envVars := buildEnvMap(os.Environ())
 
-	hook, err := NewRedisHook(client, ctx, jobId, nodeId)
+	hook, err := NewRedisHook(client, ctx, jobId, workerId)
 	if err != nil ***REMOVED***
 		panic(err)
 
@@ -139,7 +139,7 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, nod
 
 func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	origLen := len(p)
-	go dispatchMessage(w.ctx, w.client, w.jobId, w.nodeId, string(p))
+	go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
 	return origLen, err
 ***REMOVED***
 

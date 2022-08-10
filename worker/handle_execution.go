@@ -1,15 +1,14 @@
-package node
+package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
 	"github.com/go-redis/redis/v9"
-	"github.com/spf13/afero"
 	"go.k6.io/k6/core"
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/errext"
@@ -20,33 +19,33 @@ import (
 )
 
 /*
-This is the main function that is called when the node is started.
+This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context,
-	client *redis.Client, job map[string]string, nodeId string) ***REMOVED***
+	client *redis.Client, job map[string]string, workerId string) ***REMOVED***
 	// Check if redis message is a uuid
 
 	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
 
-	go updateStatus(ctx, client, job["id"], nodeId, "LOADING")
+	go updateStatus(ctx, client, job["id"], workerId, "LOADING")
 
-	globalState := newGlobalState(ctx, client, job["id"], nodeId)
+	globalState := newGlobalState(ctx, client, job["id"], workerId)
 
 	test, err := loadAndConfigureTest(globalState, job)
 
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("failed to loadAndConfigureTest: %s", err.Error()))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to loadAndConfigureTest: %s", err.Error()))
 		return
 	***REMOVED***
 
-	fmt.Println("Loaded test", test.nodeLoadedTest.sourceRootPath)
+	go dispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full consolidated *and derived* options back to the Runner.
 	conf := test.derivedConfig
 	testRunState, err := test.buildTestRunState(conf.Options)
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error building testRunState", err))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -71,7 +70,7 @@ func handleExecution(ctx context.Context,
 	logger.Debug("Initializing the execution scheduler...")
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error initializing the execution scheduler:", err))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -81,7 +80,6 @@ func handleExecution(ctx context.Context,
 	// state one last time, after the test run has finished.
 	_, progressCancel := context.WithCancel(globalCtx)
 	defer progressCancel()
-	initBar := execScheduler.GetInitProgressBar()
 	progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 	progressBarWG.Add(1)
 	go func() ***REMOVED***
@@ -96,7 +94,7 @@ func handleExecution(ctx context.Context,
 	executionPlan := execScheduler.GetExecutionPlan()
 	outputs, err := createOutputs(globalState, test, executionPlan)
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating outputs", err))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -105,19 +103,17 @@ func handleExecution(ctx context.Context,
 
 	// TODO: remove this completely
 	// Create the engine.
-	initBar.Modify(pb.WithConstProgress(0, "Init engine"))
+	go dispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error creating engine", err))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return
 	***REMOVED***
 
 	// We do this here so we can get any output URLs below.
-	initBar.Modify(pb.WithConstProgress(0, "Starting outputs"))
-	// TODO: directly create the MutputManager here, not in the Engine
 	err = engine.OutputManager.StartOutputs()
 	if err != nil ***REMOVED***
-		go handleError(ctx, client, job["id"], nodeId, fmt.Errorf("Error starting outputs", err))
+		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
 		return
 	***REMOVED***
 	defer engine.OutputManager.StopOutputs()
@@ -135,17 +131,17 @@ func handleExecution(ctx context.Context,
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	go dispatchMessage(ctx, client, job["id"], nodeId, "Init VUs...")
+	go dispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
 	if err != nil ***REMOVED***
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
-		go handleError(ctx, client, job["id"], nodeId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
+		go handleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return
 	***REMOVED***
 
 	// Start the test run
-	go updateStatus(ctx, client, job["id"], nodeId, "RUNNING")
+	go updateStatus(ctx, client, job["id"], workerId, "RUNNING")
 	var interrupt error
 	err = engineRun()
 	if err != nil ***REMOVED***
@@ -160,34 +156,35 @@ func handleExecution(ctx context.Context,
 		***REMOVED***
 	***REMOVED***
 	runCancel()
-	go dispatchMessage(ctx, client, job["id"], nodeId, "Engine run terminated cleanly")
+	go dispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
 
 	progressCancel()
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 ***REMOVED***
-		go dispatchMessage(ctx, client, job["id"], nodeId, "No script iterations finished, consider making the test duration longer")
+		go dispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	***REMOVED***
 
 	// Handle the end-of-test summary.
 	if !testRunState.RuntimeOptions.NoSummary.Bool ***REMOVED***
 		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-		summaryResult, err := test.initRunner.HandleSummary(globalCtx, &lib.Summary***REMOVED***
+		summaryResult := &lib.Summary***REMOVED***
 			Metrics:         engine.MetricsEngine.ObservedMetrics,
 			RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
 			TestRunDuration: executionState.GetCurrentTestRunDuration(),
 			NoColor:         globalState.flags.noColor,
-		***REMOVED***)
-		engine.MetricsEngine.MetricsLock.Unlock()
-		if err == nil ***REMOVED***
-			fmt.Println("TODO: handle summary result")
-			err = handleSummaryResult(globalState.fs, globalState.stdOut, globalState.stdErr, summaryResult)
 		***REMOVED***
-		if err != nil ***REMOVED***
-			handleError(ctx, client, job["id"], nodeId, err)
+		engine.MetricsEngine.MetricsLock.Unlock()
+		summaryResultMarshalled, err := json.Marshal(summaryResult)
+		if err == nil ***REMOVED***
+			dispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
+		***REMOVED*** else ***REMOVED***
+			handleError(ctx, client, job["id"], workerId, err)
 		***REMOVED***
 	***REMOVED***
+
+	updateStatus(ctx, client, job["id"], workerId, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
 	logger.Debug("Waiting for engine processes to finish...")
@@ -205,29 +202,4 @@ func handleExecution(ctx context.Context,
 		fmt.Println(errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return
 	***REMOVED***
-***REMOVED***
-
-func handleSummaryResult(fs afero.Fs, stdOut, stdErr io.Writer, result map[string]io.Reader) error ***REMOVED***
-	var errs []error
-
-	getWriter := func(path string) (io.Writer, error) ***REMOVED***
-		switch path ***REMOVED***
-		case "stdout":
-			return stdOut, nil
-		case "stderr":
-			return stdErr, nil
-		default:
-			return fs.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
-		***REMOVED***
-	***REMOVED***
-
-	for path, value := range result ***REMOVED***
-		if writer, err := getWriter(path); err != nil ***REMOVED***
-			errs = append(errs, fmt.Errorf("could not open '%s': %w", path, err))
-		***REMOVED*** else if n, err := io.Copy(writer, value); err != nil ***REMOVED***
-			errs = append(errs, fmt.Errorf("error saving summary to '%s' after %d bytes: %w", path, n, err))
-		***REMOVED***
-	***REMOVED***
-
-	return consolidateErrorMessage(errs, "Could not save some summary information:")
 ***REMOVED***

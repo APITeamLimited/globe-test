@@ -1,6 +1,6 @@
 // Custom loader for execution from redis
 
-package node
+package worker
 
 import (
 	"archive/tar"
@@ -28,7 +28,7 @@ import (
 func loadAndConfigureTest(
 	gs *globalState,
 	job map[string]string,
-) (*nodeLoadedAndConfiguredTest, error) ***REMOVED***
+) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
 	test, err := loadTest(gs, job)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -37,7 +37,7 @@ func loadAndConfigureTest(
 	return test.consolidateDeriveAndValidateConfig(gs, job)
 ***REMOVED***
 
-func loadTest(gs *globalState, job map[string]string) (*nodeLoadedTest, error) ***REMOVED***
+func loadTest(gs *globalState, job map[string]string) (*workerLoadedTest, error) ***REMOVED***
 	sourceName := job["sourceName"]
 
 	if sourceName == "" ***REMOVED***
@@ -94,7 +94,7 @@ func loadTest(gs *globalState, job map[string]string) (*nodeLoadedTest, error) *
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	***REMOVED***
 
-	test := &nodeLoadedTest***REMOVED***
+	test := &workerLoadedTest***REMOVED***
 		sourceRootPath: sourceRootPath,
 		source:         source,
 		fs:             gs.fs,
@@ -118,7 +118,7 @@ func detectTestType(data []byte) string ***REMOVED***
 	return testTypeJS
 ***REMOVED***
 
-func (lt *nodeLoadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
+func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState) error ***REMOVED***
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
@@ -184,9 +184,9 @@ func (lt *nodeLoadedTest) initializeFirstRunner(gs *globalState) error ***REMOVE
 	***REMOVED***
 ***REMOVED***
 
-func (lt *nodeLoadedTest) consolidateDeriveAndValidateConfig(
+func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job map[string]string,
-) (*nodeLoadedAndConfiguredTest, error) ***REMOVED***
+) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
 
 	// TODO: implement consolidateDeriveAndValidateConfig behavior
 
@@ -224,8 +224,8 @@ func (lt *nodeLoadedTest) consolidateDeriveAndValidateConfig(
 		return nil, err
 	***REMOVED***
 
-	return &nodeLoadedAndConfiguredTest***REMOVED***
-		nodeLoadedTest:     lt,
+	return &workerLoadedAndConfiguredTest***REMOVED***
+		workerLoadedTest:   lt,
 		consolidatedConfig: consolidatedConfig,
 		derivedConfig:      derivedConfig,
 	***REMOVED***, nil
@@ -275,7 +275,7 @@ func validateScenarioConfig(conf lib.ExecutorConfig, isExecutable func(string) b
 	return nil
 ***REMOVED***
 
-func (lct *nodeLoadedAndConfiguredTest) buildTestRunState(
+func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 	configToReinject lib.Options,
 ) (*lib.TestRunState, error) ***REMOVED***
 	// This might be the full derived or just the consodlidated options
@@ -283,7 +283,7 @@ func (lct *nodeLoadedAndConfiguredTest) buildTestRunState(
 		return nil, err
 	***REMOVED***
 
-	// TODO: init atlas root node, etc.
+	// TODO: init atlas root worker, etc.
 
 	return &lib.TestRunState***REMOVED***
 		TestPreInitState: lct.preInitState,
