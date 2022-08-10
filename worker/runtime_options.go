@@ -18,7 +18,7 @@
  *
  */
 
-package node
+package worker
 
 import (
 	"fmt"

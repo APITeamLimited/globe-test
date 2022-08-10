@@ -1,4 +1,4 @@
-package node
+package worker
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 )
 
 type consoleWriter struct {
-	ctx    context.Context
-	client *redis.Client
-	jobId  string
-	nodeId string
+	ctx      context.Context
+	client   *redis.Client
+	jobId    string
+	workerId string
 }
 
-type nodeLoadedTest struct {
+type workerLoadedTest struct {
 	sourceRootPath string
 	source         *loader.SourceData
 	fs             afero.Fs
@@ -45,8 +45,8 @@ type Config struct {
 
 // loadedAndConfiguredTest contains the whole loadedTest, as well as the
 // consolidated test config and the full test run state.
-type nodeLoadedAndConfiguredTest struct {
-	*nodeLoadedTest
+type workerLoadedAndConfiguredTest struct {
+	*workerLoadedTest
 	consolidatedConfig Config
 	derivedConfig      Config
 }

@@ -1,4 +1,4 @@
-package node
+package worker
 
 import (
 	"context"
@@ -9,26 +9,26 @@ import (
 
 // RedisHook to sends logs to Redis server
 type RedisHook struct {
-	ctx    context.Context
-	client *redis.Client
-	jobId  string
-	nodeId string
+	ctx      context.Context
+	client   *redis.Client
+	jobId    string
+	workerId string
 }
 
 // NewRedisHook creates a hook to be added to an instance of logger
-func NewRedisHook(client *redis.Client, ctx context.Context, jobId string, nodeId string) (*RedisHook, error) {
+func NewRedisHook(client *redis.Client, ctx context.Context, jobId string, workerId string) (*RedisHook, error) {
 	return &RedisHook{
-		client: client,
-		ctx:    ctx,
-		jobId:  jobId,
-		nodeId: nodeId,
+		client:   client,
+		ctx:      ctx,
+		jobId:    jobId,
+		workerId: workerId,
 	}, nil
 
 }
 
 // Fire is called when a log event is fired.
 func (hook *RedisHook) Fire(entry *logrus.Entry) error {
-	go dispatchMessage(hook.ctx, hook.client, hook.jobId, hook.nodeId, entry.Message)
+	go dispatchMessage(hook.ctx, hook.client, hook.jobId, hook.workerId, entry.Message, "MESSAGE")
 	return nil
 }
 

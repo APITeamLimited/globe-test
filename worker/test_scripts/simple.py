@@ -6,9 +6,9 @@ import redis
 
 # Connect to redis
 r = redis.Redis(host='localhost', port=6379, db=0)
-file_name = "demo.js"
+file_name = "simple.js"
 
-# Load demo.js from disk
+# Load file from disk
 with open(file_name, 'r') as f:
     file = f.read()
 
@@ -24,16 +24,16 @@ job = {
             "contacts": {
                 "executor": 'constant-vus',
                 "exec": 'contacts',
-                "vus": 50,
-                "duration": '30s',
+                "vus": 1,
+                "duration": '1s',
             },
             "news": {
                 "executor": 'per-vu-iterations',
                 "exec": 'news',
-                "vus": 50,
-                "iterations": 100,
-                "startTime": '30s',
-                "maxDuration": '1m',
+                "vus": 1,
+                "iterations": 1,
+                "startTime": '0s',
+                "maxDuration": '5s',
             },
         },
     })
@@ -47,17 +47,19 @@ for key, value in job.items():
 
 r.publish('k6:execution', id)
 
+# Add to history in case no worker none is listening
+r.sadd('k6:executionHistory', id)
+
 print(f"Job {id} added to redis")
 
 # Listen for updates on the job
-print(f"Listening for updates on job {id}:")
+print(f"Listening for updates on at:", f"k6:executionUpdates:{id}")
 
 while True:
     sub = r.pubsub()
     sub.subscribe(f"k6:executionUpdates:{id}")
     for message in sub.listen():
-        if message is not None:
-            try:
-                print(message['data'].decode('utf-8'))
-            except Exception as e:
-                pass
+        try:
+            print(json.loads(message['data']))
+        except Exception as e:
+            print(e)

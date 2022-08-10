@@ -1,17 +1,26 @@
-<h4>
+<h2>
 K6 Worker
-</h4>
+</h2>
 
 K6 Worker exposes a redis client that can accept and run multiple test jobs concurrently and supports streaming and reporting of results back to redis. The setup is aimed to make it easy to run tests in a distributed and headless environment.
 
 The underlying K6 execution engine has been changed as little as possible to support the K6 Javascript API.
 For more information on K6, please see the upstream repo <a>https://github.com/grafana/k6</a>
 
-NOTE: This is very very early stage and not functional
+NOTE: This is very very early stage and not functional.
 
 <h3>
 Usage
 </h3>
+
+To Start a worker, run the following command:
+
+```
+go run main.go worker
+```
+
+Or similar equivalent in docker etc. this will spin up a worker that will listen on the default redis port.
+
 
 Currently only localhost redis hardcoded
 
