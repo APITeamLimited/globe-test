@@ -1,23 +1,3 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2017 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package cloudapi
 
 import (
@@ -86,7 +66,7 @@ type Config struct {
 	//       since it could lead to a huge loss of granularity and the masking
 	//       of any outlier samples in the data.
 	//     - By default (since AggregationSkipOutlierDetection is not enabled),
-	//       the collected HTTP trails will be checked for outliers, so we don't loose
+	//       the collected HTTP trails will be checked for outliers, so we don't lose
 	//       granularity by accidentally aggregating them. That happens by finding
 	//       the "quartiles" (by default the 75th and 25th percentiles) in the
 	//       sub-bucket datapoints and using the inter-quartile range (IQR) to find
