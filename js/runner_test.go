@@ -1,36 +1,22 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package js
 
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"go/build"
 	"io/ioutil"
 	stdlog "log"
+	"math/big"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -43,6 +29,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc/test/grpc_testing"
 	"gopkg.in/guregu/null.v3"
 
@@ -147,6 +134,53 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestRunnerRPSLimit(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	var nilLimiter *rate.Limiter
+
+	variants := []struct ***REMOVED***
+		name    string
+		options lib.Options
+		limiter *rate.Limiter
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:    "RPS not defined",
+			options: lib.Options***REMOVED******REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to non-zero int",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(9)***REMOVED***,
+			limiter: rate.NewLimiter(rate.Limit(9), 1),
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to zero",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(0)***REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+		***REMOVED***
+			name:    "RPS set to below zero value",
+			options: lib.Options***REMOVED***RPS: null.IntFrom(-1)***REMOVED***,
+			limiter: nilLimiter,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, variant := range variants ***REMOVED***
+		variant := variant
+
+		t.Run(variant.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			r, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+			require.NoError(t, err)
+			err = r.SetOptions(variant.options)
+			require.NoError(t, err)
+			assert.Equal(t, variant.limiter, r.RPSLimit)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -818,8 +852,127 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, validFor time.Duration) ([]byte, []byte) ***REMOVED***
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
+	// KeyUsage bits set in the x509.Certificate template
+	keyUsage := x509.KeyUsageDigitalSignature
+	// Only RSA subject keys should have the KeyEncipherment KeyUsage bits set. In
+	// the context of TLS this KeyUsage is particular to RSA key exchange and
+	// authentication.
+	keyUsage |= x509.KeyUsageKeyEncipherment
+
+	notAfter := notBefore.Add(validFor)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	require.NoError(t, err)
+
+	template := x509.Certificate***REMOVED***
+		SerialNumber: serialNumber,
+		Subject: pkix.Name***REMOVED***
+			Organization: []string***REMOVED***"Acme Co"***REMOVED***,
+		***REMOVED***,
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              keyUsage,
+		ExtKeyUsage:           []x509.ExtKeyUsage***REMOVED***x509.ExtKeyUsageServerAuth***REMOVED***,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+	***REMOVED***
+
+	hosts := strings.Split(host, ",")
+	for _, h := range hosts ***REMOVED***
+		if ip := net.ParseIP(h); ip != nil ***REMOVED***
+			template.IPAddresses = append(template.IPAddresses, ip)
+		***REMOVED*** else ***REMOVED***
+			template.DNSNames = append(template.DNSNames, h)
+		***REMOVED***
+	***REMOVED***
+
+	template.IsCA = true
+	template.KeyUsage |= x509.KeyUsageCertSign
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	certPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "CERTIFICATE", Bytes: derBytes***REMOVED***)
+	require.NoError(t, err)
+
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	require.NoError(t, err)
+	keyPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "PRIVATE KEY", Bytes: privBytes***REMOVED***)
+	require.NoError(t, err)
+	return certPem, keyPem
+***REMOVED***
+
+func GetTestServerWithCertificate(t *testing.T, certPem, key []byte) *httptest.Server ***REMOVED***
+	server := &http.Server***REMOVED***
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			w.WriteHeader(200)
+		***REMOVED***),
+		ReadHeaderTimeout: time.Second,
+		ReadTimeout:       time.Second,
+	***REMOVED***
+	s := &httptest.Server***REMOVED******REMOVED***
+	s.Config = server
+
+	s.TLS = new(tls.Config)
+	if s.TLS.NextProtos == nil ***REMOVED***
+		nextProtos := []string***REMOVED***"http/1.1"***REMOVED***
+		if s.EnableHTTP2 ***REMOVED***
+			nextProtos = []string***REMOVED***"h2"***REMOVED***
+		***REMOVED***
+		s.TLS.NextProtos = nextProtos
+	***REMOVED***
+	cert, err := tls.X509KeyPair(certPem, key)
+	require.NoError(t, err)
+	s.TLS.Certificates = append(s.TLS.Certificates, cert)
+	for _, suite := range tls.CipherSuites() ***REMOVED***
+		if !strings.Contains(suite.Name, "256") ***REMOVED***
+			continue
+		***REMOVED***
+		s.TLS.CipherSuites = append(s.TLS.CipherSuites, suite.ID)
+	***REMOVED***
+	certpool := x509.NewCertPool()
+	certificate, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+	certpool.AddCert(certificate)
+	client := &http.Client***REMOVED***Transport: &http.Transport***REMOVED******REMOVED******REMOVED***
+	client.Transport = &http.Transport***REMOVED***
+		TLSClientConfig: &tls.Config***REMOVED*** //nolint:gosec
+			RootCAs: certpool,
+		***REMOVED***,
+		ForceAttemptHTTP2: s.EnableHTTP2,
+	***REMOVED***
+	s.Listener, err = net.Listen("tcp", "")
+	require.NoError(t, err)
+	s.Listener = tls.NewListener(s.Listener, s.TLS)
+	s.URL = "https://" + s.Listener.Addr().String()
+	return s
+***REMOVED***
+
 func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	t.Parallel()
+	certPem, keyPem := GenerateTLSCertificate(t, "mybadssl.localhost", time.Now(), 0)
+	s := GetTestServerWithCertificate(t, certPem, keyPem)
+	go func() ***REMOVED***
+		_ = s.Config.Serve(s.Listener)
+	***REMOVED***()
+	t.Cleanup(func() ***REMOVED***
+		require.NoError(t, s.Config.Close())
+	***REMOVED***)
+	host, port, err := net.SplitHostPort(s.Listener.Addr().String())
+	require.NoError(t, err)
+	ip := net.ParseIP(host)
+	mybadsslHostname, err := lib.NewHostAddress(ip, port)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(s.TLS.Certificates[0].Certificate[0])
+	require.NoError(t, err)
+
 	testdata := map[string]struct ***REMOVED***
 		opts   lib.Options
 		errMsg string
@@ -842,12 +995,15 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
-					var http = require("k6/http");;
-					exports.default = function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
+			  var http = require("k6/http");;
+        exports.default = function() ***REMOVED*** http.get("https://mybadssl.localhost/"); ***REMOVED***
 				`)
 			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
+			r1.Bundle.Options.Hosts = map[string]*lib.HostAddress***REMOVED***
+				"mybadssl.localhost": mybadsslHostname,
+			***REMOVED***
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			r2, err := NewFromArchive(
@@ -866,6 +1022,8 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
 					require.NoError(t, err)
+					initVU.(*VU).TLSConfig.RootCAs = x509.NewCertPool() //nolint:forcetypeassert
+					initVU.(*VU).TLSConfig.RootCAs.AddCert(cert)        //nolint:forcetypeassert
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -1109,6 +1267,19 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	t.Parallel()
+	certPem, keyPem := GenerateTLSCertificate(t, "sha256-badssl.localhost", time.Now(), time.Hour)
+	s := GetTestServerWithCertificate(t, certPem, keyPem)
+	go func() ***REMOVED***
+		_ = s.Config.Serve(s.Listener)
+	***REMOVED***()
+	t.Cleanup(func() ***REMOVED***
+		require.NoError(t, s.Config.Close())
+	***REMOVED***)
+	host, port, err := net.SplitHostPort(s.Listener.Addr().String())
+	require.NoError(t, err)
+	ip := net.ParseIP(host)
+	mybadsslHostname, err := lib.NewHostAddress(ip, port)
+	require.NoError(t, err)
 	unsupportedVersionErrorMsg := "remote error: tls: handshake failure"
 	for _, tag := range build.Default.ReleaseTags ***REMOVED***
 		if tag == "go1.12" ***REMOVED***
@@ -1129,7 +1300,10 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 			"",
 		***REMOVED***,
 		"UnsupportedCipherSuite": ***REMOVED***
-			lib.Options***REMOVED***TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_RC4_128_SHA***REMOVED******REMOVED***,
+			lib.Options***REMOVED***
+				TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_RC4_128_SHA***REMOVED***,
+				TLSVersion:      &lib.TLSVersions***REMOVED***Max: tls.VersionTLS12***REMOVED***,
+			***REMOVED***,
 			"remote error: tls: handshake failure",
 		***REMOVED***,
 		"NullVersion": ***REMOVED***
@@ -1147,17 +1321,22 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	cert, err := x509.ParseCertificate(s.TLS.Certificates[0].Certificate[0])
+	require.NoError(t, err)
 	for name, data := range testdata ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
-					exports.default = function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
+					exports.default = function() ***REMOVED*** http.get("https://sha256-badssl.localhost/"); ***REMOVED***
 				`)
 			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
+			r1.Bundle.Options.Hosts = map[string]*lib.HostAddress***REMOVED***
+				"sha256-badssl.localhost": mybadsslHostname,
+			***REMOVED***
 			r2, err := NewFromArchive(
 				&lib.TestPreInitState***REMOVED***
 					Logger:         testutils.NewLogger(t),
@@ -1175,12 +1354,14 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 
 					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
 					require.NoError(t, err)
+					initVU.(*VU).TLSConfig.RootCAs = x509.NewCertPool() //nolint:forcetypeassert
+					initVU.(*VU).TLSConfig.RootCAs.AddCert(cert)        //nolint:forcetypeassert
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 					err = vu.RunOnce()
 					if data.errMsg != "" ***REMOVED***
-						require.Error(t, err)
+						require.Error(t, err, "for message %q", data.errMsg)
 						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
 						require.NoError(t, err)
