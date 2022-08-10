@@ -3,7 +3,6 @@ import ***REMOVED*** sleep ***REMOVED*** from 'k6';
 
 import ***REMOVED*** Trend ***REMOVED*** from 'k6/metrics';
 
-
 const myTrend = new Trend('waiting_time2');
 
 export function contacts() ***REMOVED***
