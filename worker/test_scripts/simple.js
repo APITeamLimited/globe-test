@@ -3,7 +3,6 @@ import { sleep } from 'k6';
 
 import { Trend } from 'k6/metrics';
 
-
 const myTrend = new Trend('waiting_time2');
 
 export function contacts() {

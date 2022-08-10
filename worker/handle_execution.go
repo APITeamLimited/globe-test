@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/go-redis/redis/v9"
 	"go.k6.io/k6/core"
@@ -15,7 +14,6 @@ import (
 	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/ui/pb"
 )
 
 /*
@@ -73,22 +71,6 @@ func handleExecution(ctx context.Context,
 		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return
 	}
-
-	// This is manually triggered after the Engine's Run() has completed,
-	// and things like a single Ctrl+C don't affect it. We use it to make
-	// sure that the progressbars finish updating with the latest execution
-	// state one last time, after the test run has finished.
-	_, progressCancel := context.WithCancel(globalCtx)
-	defer progressCancel()
-	progressBarWG := &sync.WaitGroup{}
-	progressBarWG.Add(1)
-	go func() {
-		pbs := []*pb.ProgressBar{execScheduler.GetInitProgressBar()}
-		for _, s := range execScheduler.GetExecutors() {
-			pbs = append(pbs, s.GetProgress())
-		}
-		progressBarWG.Done()
-	}()
 
 	// Create all outputs.
 	executionPlan := execScheduler.GetExecutionPlan()
@@ -157,8 +139,6 @@ func handleExecution(ctx context.Context,
 	}
 	runCancel()
 	go dispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
-
-	progressCancel()
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
