@@ -28,7 +28,7 @@ func NewRedisHook(client *redis.Client, ctx context.Context, jobId string, worke
 
 // Fire is called when a log event is fired.
 func (hook *RedisHook) Fire(entry *logrus.Entry) error ***REMOVED***
-	go dispatchMessage(hook.ctx, hook.client, hook.jobId, hook.workerId, entry.Message, messageType)
+	go dispatchMessage(hook.ctx, hook.client, hook.jobId, hook.workerId, entry.Message, "MESSAGE")
 	return nil
 ***REMOVED***
 

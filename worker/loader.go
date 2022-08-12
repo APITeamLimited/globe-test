@@ -193,6 +193,8 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	var parsedOptions lib.Options
 	err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
 
+	// Get from source data
+
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("could not parse options: %w", err)
 	***REMOVED***

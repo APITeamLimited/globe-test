@@ -21,12 +21,6 @@ job = ***REMOVED***
     "status": "pending",
     "options": json.dumps(***REMOVED***
         "scenarios": ***REMOVED***
-            "contacts": ***REMOVED***
-                "executor": 'constant-vus',
-                "exec": 'contacts',
-                "vus": 1,
-                "duration": '1s',
-            ***REMOVED***,
             "news": ***REMOVED***
                 "executor": 'per-vu-iterations',
                 "exec": 'news',
@@ -60,6 +54,13 @@ while True:
     sub.subscribe(f"k6:executionUpdates:***REMOVED***id***REMOVED***")
     for message in sub.listen():
         try:
-            print(json.loads(message['data']))
+            parsed = json.loads(message['data'])['message']
+
+            # Check if 'msg=' is in the message
+            if 'msg=' in parsed:
+                # Get msg and make sure nothing else besides msg is in the message
+                msg = json.loads(json.loads(parsed.split('msg=')[1].split(' source=console')[0]))
+                
+                print(msg)
         except Exception as e:
             print(e)

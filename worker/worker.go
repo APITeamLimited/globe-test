@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -10,6 +11,14 @@ import (
 	"github.com/google/uuid"
 	"go.k6.io/k6/lib/consts"
 )
+
+type ExecutionList struct ***REMOVED***
+	currentJobs            map[string]map[string]string
+	mutex                  sync.Mutex
+	maxJobs                int
+	maxIterationsPerSecond int
+	maxVUs                 int
+***REMOVED***
 
 func Run() ***REMOVED***
 	ctx := context.Background()
@@ -24,6 +33,13 @@ func Run() ***REMOVED***
 
 	currentTime := time.Now().UnixMilli()
 
+	executionList := &ExecutionList***REMOVED***
+		currentJobs:            make(map[string]map[string]string),
+		maxJobs:                -1,
+		maxIterationsPerSecond: -1,
+		maxVUs:                 -1,
+	***REMOVED***
+
 	//Set the worker id and current time
 	client.HSet(ctx, "k6:workers", workerId.String(), currentTime)
 
@@ -33,7 +49,7 @@ func Run() ***REMOVED***
 
 	fmt.Printf("Listening for new jobs on %s...\n", client.Options().Addr)
 
-	go startupJobCheck(ctx, client, workerId.String())
+	go checkForQueuedJobs(ctx, client, workerId.String(), executionList)
 
 	// Subscribe to the execution channel
 	psc := client.Subscribe(ctx, "k6:execution")
@@ -46,14 +62,15 @@ func Run() ***REMOVED***
 			fmt.Println("Error, got did not parse job id")
 			return
 		***REMOVED***
-		checkIfCanExecute(ctx, client, jobId.String(), workerId.String())
+		checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
 	***REMOVED***
 ***REMOVED***
 
 /*
-Check for jobs existing on startup
+Check for queued jobs that were deferered as they couldn't be executed when they
+were queued as no workers were available.
 */
-func startupJobCheck(ctx context.Context, client *redis.Client, workerId string) ***REMOVED***
+func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) ***REMOVED***
 	// Check for job keys in the "k6:executionHistory" set
 	historyIds, err := client.SMembers(ctx, "k6:executionHistory").Result()
 	if err != nil ***REMOVED***
@@ -61,11 +78,11 @@ func startupJobCheck(ctx context.Context, client *redis.Client, workerId string)
 	***REMOVED***
 
 	for _, jobId := range historyIds ***REMOVED***
-		checkIfCanExecute(ctx, client, jobId, workerId)
+		go checkIfCanExecute(ctx, client, jobId, workerId, executionList)
 	***REMOVED***
 ***REMOVED***
 
-func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, workerId string) ***REMOVED***
+func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, workerId string, executionList *ExecutionList) ***REMOVED***
 	// Try to HGetAll the worker id
 	job, err := client.HGetAll(ctx, jobId).Result()
 
@@ -78,6 +95,11 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 
 	// Check worker['assignedWorker'] is nil
 	if job["assignedWorker"] != "" ***REMOVED***
+		return
+	***REMOVED***
+
+	// Check if currently full execution list
+	if !checkExecutionCapacity(executionList) ***REMOVED***
 		return
 	***REMOVED***
 
@@ -95,6 +117,35 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	***REMOVED***
 
 	// We got the job
+	executionList.addJob(job)
 	go updateStatus(ctx, client, jobId, workerId, "ASSIGNED")
-	go handleExecution(ctx, client, job, workerId)
+	handleExecution(ctx, client, job, workerId)
+	executionList.removeJob(jobId)
+	// Capacity was freed, so check for queued jobs
+	checkForQueuedJobs(ctx, client, workerId, executionList)
+***REMOVED***
+
+func (e *ExecutionList) addJob(job map[string]string) ***REMOVED***
+	e.mutex.Lock()
+	e.currentJobs[job["id"]] = job
+	e.mutex.Unlock()
+***REMOVED***
+
+func (e *ExecutionList) removeJob(jobId string) ***REMOVED***
+	e.mutex.Lock()
+	delete(e.currentJobs, jobId)
+	e.mutex.Unlock()
+***REMOVED***
+
+func checkExecutionCapacity(executionList *ExecutionList) bool ***REMOVED***
+	// TODO: check if has capacity to execute here
+
+	// If more than max jobs, return false
+	if executionList.maxJobs >= 0 && len(executionList.currentJobs) >= executionList.maxJobs ***REMOVED***
+		return false
+	***REMOVED***
+
+	// TODO: implement more capacity checks
+
+	return true
 ***REMOVED***
