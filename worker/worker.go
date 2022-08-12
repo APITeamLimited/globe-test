@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -10,6 +11,14 @@ import (
 	"github.com/google/uuid"
 	"go.k6.io/k6/lib/consts"
 )
+
+type ExecutionList struct {
+	currentJobs            map[string]map[string]string
+	mutex                  sync.Mutex
+	maxJobs                int
+	maxIterationsPerSecond int
+	maxVUs                 int
+}
 
 func Run() {
 	ctx := context.Background()
@@ -24,6 +33,13 @@ func Run() {
 
 	currentTime := time.Now().UnixMilli()
 
+	executionList := &ExecutionList{
+		currentJobs:            make(map[string]map[string]string),
+		maxJobs:                -1,
+		maxIterationsPerSecond: -1,
+		maxVUs:                 -1,
+	}
+
 	//Set the worker id and current time
 	client.HSet(ctx, "k6:workers", workerId.String(), currentTime)
 
@@ -33,7 +49,7 @@ func Run() {
 
 	fmt.Printf("Listening for new jobs on %s...\n", client.Options().Addr)
 
-	go startupJobCheck(ctx, client, workerId.String())
+	go checkForQueuedJobs(ctx, client, workerId.String(), executionList)
 
 	// Subscribe to the execution channel
 	psc := client.Subscribe(ctx, "k6:execution")
@@ -46,14 +62,15 @@ func Run() {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		checkIfCanExecute(ctx, client, jobId.String(), workerId.String())
+		checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
 	}
 }
 
 /*
-Check for jobs existing on startup
+Check for queued jobs that were deferered as they couldn't be executed when they
+were queued as no workers were available.
 */
-func startupJobCheck(ctx context.Context, client *redis.Client, workerId string) {
+func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) {
 	// Check for job keys in the "k6:executionHistory" set
 	historyIds, err := client.SMembers(ctx, "k6:executionHistory").Result()
 	if err != nil {
@@ -61,11 +78,11 @@ func startupJobCheck(ctx context.Context, client *redis.Client, workerId string)
 	}
 
 	for _, jobId := range historyIds {
-		checkIfCanExecute(ctx, client, jobId, workerId)
+		go checkIfCanExecute(ctx, client, jobId, workerId, executionList)
 	}
 }
 
-func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, workerId string) {
+func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, workerId string, executionList *ExecutionList) {
 	// Try to HGetAll the worker id
 	job, err := client.HGetAll(ctx, jobId).Result()
 
@@ -78,6 +95,11 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 
 	// Check worker['assignedWorker'] is nil
 	if job["assignedWorker"] != "" {
+		return
+	}
+
+	// Check if currently full execution list
+	if !checkExecutionCapacity(executionList) {
 		return
 	}
 
@@ -95,6 +117,35 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	}
 
 	// We got the job
+	executionList.addJob(job)
 	go updateStatus(ctx, client, jobId, workerId, "ASSIGNED")
-	go handleExecution(ctx, client, job, workerId)
+	handleExecution(ctx, client, job, workerId)
+	executionList.removeJob(jobId)
+	// Capacity was freed, so check for queued jobs
+	checkForQueuedJobs(ctx, client, workerId, executionList)
+}
+
+func (e *ExecutionList) addJob(job map[string]string) {
+	e.mutex.Lock()
+	e.currentJobs[job["id"]] = job
+	e.mutex.Unlock()
+}
+
+func (e *ExecutionList) removeJob(jobId string) {
+	e.mutex.Lock()
+	delete(e.currentJobs, jobId)
+	e.mutex.Unlock()
+}
+
+func checkExecutionCapacity(executionList *ExecutionList) bool {
+	// TODO: check if has capacity to execute here
+
+	// If more than max jobs, return false
+	if executionList.maxJobs >= 0 && len(executionList.currentJobs) >= executionList.maxJobs {
+		return false
+	}
+
+	// TODO: implement more capacity checks
+
+	return true
 }
