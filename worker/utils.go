@@ -21,6 +21,8 @@ func dispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 	timestamp := time.Now().UnixMilli()
 	stampedTag := fmt.Sprintf("%d:%s", timestamp, workerId)
 
+	fmt.Println("Dispatching message: ", message)
+
 	var messageStruct = Message{
 		JobId:       jobId,
 		Time:        timestamp,

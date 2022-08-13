@@ -139,7 +139,27 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 
 func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	origLen := len(p)
-	go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+
+	// Intercept the write message so can assess log errors
+
+	stringP := string(p)
+
+	// See if stringP contains 'source=stacktrace' or 'source=console'
+	if strings.Contains(stringP, "source=stacktrace") || strings.Contains(stringP, "source=console") {
+		// Determine level of message
+		if strings.Contains(stringP, "level=error") {
+			// Get bit after msg=" and before next "
+			msg1 := strings.Split(stringP, "msg=\"")[1]
+			msg2 := strings.Split(msg1, "\"")[0]
+
+			go handleStringError(w.ctx, w.client, w.jobId, w.workerId, msg2)
+		} else {
+			go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+		}
+	} else {
+		go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+	}
+
 	return origLen, err
 }
 
