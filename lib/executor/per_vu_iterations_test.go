@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -40,7 +41,11 @@ func TestPerVUIterationsRun(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 
 	var totalIters uint64
 	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***
@@ -74,7 +79,11 @@ func TestPerVUIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 
 	val, ok := result.Load(slowVUID)
 	assert.True(t, ok)
@@ -115,7 +124,11 @@ func TestPerVuIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(5), count)
 	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterationsName))

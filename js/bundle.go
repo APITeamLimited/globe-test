@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/dop251/goja"
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
@@ -54,7 +55,7 @@ type BundleInstance struct ***REMOVED***
 
 // NewBundle creates a new bundle from a source file and a filesystem.
 func NewBundle(
-	piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs,
+	piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, client *redis.Client,
 ) (*Bundle, error) ***REMOVED***
 	compatMode, err := lib.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
 	if err != nil ***REMOVED***
@@ -85,7 +86,7 @@ func NewBundle(
 		exports:           make(map[string]goja.Callable),
 		registry:          piState.Registry,
 	***REMOVED***
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0); err != nil ***REMOVED***
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, client); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -98,7 +99,7 @@ func NewBundle(
 ***REMOVED***
 
 // NewBundleFromArchive creates a new bundle from an lib.Archive.
-func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive) (*Bundle, error) ***REMOVED***
+func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, client *redis.Client) (*Bundle, error) ***REMOVED***
 	if arc.Type != "js" ***REMOVED***
 		return nil, fmt.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
@@ -149,7 +150,7 @@ func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive) (*Bun
 		registry:          piState.Registry,
 	***REMOVED***
 
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0); err != nil ***REMOVED***
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, client); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -231,12 +232,12 @@ func (b *Bundle) getExports(logger logrus.FieldLogger, rt *goja.Runtime, options
 ***REMOVED***
 
 // Instantiate creates a new runtime from this bundle.
-func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64) (*BundleInstance, error) ***REMOVED***
+func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, client *redis.Client) (*BundleInstance, error) ***REMOVED***
 	// Instantiate the bundle into a new VM using a bound init context. This uses a context with a
 	// runtime, but no state, to allow module-provided types to function within the init context.
 	vuImpl := &moduleVUImpl***REMOVED***runtime: goja.New()***REMOVED***
 	init := newBoundInitContext(b.BaseInitContext, vuImpl)
-	if err := b.instantiate(logger, vuImpl.runtime, init, vuID); err != nil ***REMOVED***
+	if err := b.instantiate(logger, vuImpl.runtime, init, vuID, client); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -295,7 +296,7 @@ func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) pr
 	return pgm
 ***REMOVED***
 
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64) (err error) ***REMOVED***
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, client *redis.Client) (err error) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
@@ -316,6 +317,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		FileSystems: init.filesystems,
 		CWD:         init.pwd,
 		Registry:    b.registry,
+		Client:      client,
 	***REMOVED***
 	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.ctx = context.Background()

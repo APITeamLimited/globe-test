@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
@@ -64,7 +65,11 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 
 		t.Run("NewVU", func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			vuc, ok := initVU.(*VU)
 			require.True(t, ok)

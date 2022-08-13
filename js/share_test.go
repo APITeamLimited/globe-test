@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +70,11 @@ exports.default = function() ***REMOVED***
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 	entries = hook.Drain()
 	require.Len(t, entries, 1)
@@ -82,7 +87,11 @@ exports.default = function() ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.NewVU(1, 1, samples)
+			initVU, err := r.NewVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())

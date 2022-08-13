@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/metrics"
@@ -16,6 +17,7 @@ import (
 )
 
 // TODO: remove globals and use some type of explicit dependency injection?
+//
 //nolint:gochecknoglobals
 var (
 	executorConfigTypesMutex   sync.RWMutex
@@ -99,7 +101,7 @@ type ScenarioState struct ***REMOVED***
 
 // InitVUFunc is just a shorthand so we don't have to type the function
 // signature every time.
-type InitVUFunc func(context.Context, *logrus.Entry) (InitializedVU, error)
+type InitVUFunc func(context.Context, *logrus.Entry, *redis.Client) (InitializedVU, error)
 
 // Executor is the interface all executors should implement
 type Executor interface ***REMOVED***
@@ -108,7 +110,7 @@ type Executor interface ***REMOVED***
 	GetLogger() *logrus.Entry
 
 	Init(ctx context.Context) error
-	Run(ctx context.Context, engineOut chan<- metrics.SampleContainer) error
+	Run(ctx context.Context, engineOut chan<- metrics.SampleContainer, client *redis.Client) error
 ***REMOVED***
 
 // PausableExecutor should be implemented by the executors that can be paused

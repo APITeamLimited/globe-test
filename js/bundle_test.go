@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +47,7 @@ func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.Runti
 	***REMOVED***
 ***REMOVED***
 
-func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
+func getSimpleBundle(tb testing.TB, filename, data string, client *redis.Client, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	var rtOpts *lib.RuntimeOptions
 	var logger *logrus.Logger
@@ -70,6 +71,7 @@ func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***R
 			Data: []byte(data),
 		***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
+		client,
 	)
 ***REMOVED***
 

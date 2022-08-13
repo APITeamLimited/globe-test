@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,11 @@ func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
 	for _, entry := range entries ***REMOVED***
@@ -97,7 +102,11 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		assert.InDelta(t, 50, currentCount, 3)
 	***REMOVED***()
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
 ***REMOVED***
@@ -137,7 +146,11 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
+	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)) (lib.InitializedVU, error) ***REMOVED***
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
 		time.Sleep(time.Second / 2)
@@ -160,7 +173,11 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 		return runner.NewVU(idl, idg, engineOut)
 	***REMOVED***)
 
-	assert.NoError(t, test.executor.Run(test.ctx, engineOut))
+	assert.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 	assert.Empty(t, test.logHook.Drain())
 
 	droppedIters := sumMetricValues(engineOut, metrics.DroppedIterationsName)

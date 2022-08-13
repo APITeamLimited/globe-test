@@ -22,6 +22,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -120,7 +121,7 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 
 	return &globalState***REMOVED***
 		ctx:            ctx,
-		fs:             afero.NewOsFs(),
+		fs:             afero.NewMemMapFs(),
 		getwd:          os.Getwd,
 		args:           append(make([]string, 0, len(os.Args)), os.Args...), // copy
 		envVars:        envVars,
@@ -143,6 +144,8 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	// Intercept the write message so can assess log errors
 
 	stringP := string(p)
+
+	fmt.Println("stringP:", stringP)
 
 	// See if stringP contains 'source=stacktrace' or 'source=console'
 	if strings.Contains(stringP, "source=stacktrace") || strings.Contains(stringP, "source=console") ***REMOVED***

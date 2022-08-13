@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -190,8 +191,9 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 // time should iteration X begin) different, but keep everything else the same.
 // This will allow us to implement https://github.com/k6io/k6/issues/1386
 // and things like all of the TODOs below in one place only.
+//
 //nolint:funlen,cyclop
-func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer) (err error) ***REMOVED***
+func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, client *redis.Client) (err error) ***REMOVED***
 	gracefulStop := car.config.GetGracefulStop()
 	duration := car.config.Duration.TimeDuration()
 	preAllocatedVUs := car.config.GetPreAllocatedVUs(car.executionState.ExecutionTuple)
@@ -288,7 +290,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 		defer close(returnedVUs)
 		for range makeUnplannedVUCh ***REMOVED***
 			car.logger.Debug("Starting initialization of an unplanned VU...")
-			initVU, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger)
+			initVU, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger, client)
 			if err != nil ***REMOVED***
 				// TODO figure out how to return it to the Run goroutine
 				car.logger.WithError(err).Error("Error while allocating unplanned VU")

@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"go.k6.io/k6/metrics"
@@ -16,9 +17,11 @@ type InitEnvironment struct ***REMOVED***
 	FileSystems map[string]afero.Fs
 	CWD         *url.URL
 	Registry    *metrics.Registry
+	Client      *redis.Client
 	// TODO: add RuntimeOptions and other properties, goja sources, etc.
 	// ideally, we should leave this as the only data structure necessary for
 	// executing the init context for all JS modules
+
 ***REMOVED***
 
 // GetAbsFilePath should be used to access the FileSystems, since afero has a
