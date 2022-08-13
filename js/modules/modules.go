@@ -12,6 +12,7 @@ import (
 )
 
 const extPrefix string = "k6/x/"
+const apiteamPrefix string = "apiteam/"
 
 //nolint:gochecknoglobals
 var (

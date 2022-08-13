@@ -151,7 +151,11 @@ func TestSetupData(t *testing.T) {
 
 			globalCtx, globalCancel := context.WithCancel(context.Background())
 			runCtx, runCancel := context.WithCancel(globalCtx)
-			run, wait, err := engine.Init(globalCtx, runCtx)
+			run, wait, err := engine.Init(globalCtx, runCtx, redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			}))
 			require.NoError(t, err)
 
 			defer wait()

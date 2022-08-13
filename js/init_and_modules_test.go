@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,13 +69,21 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) {
 			URL:  &url.URL{Path: "blah", Scheme: "file"},
 			Data: []byte(script),
 		},
-		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": afero.NewMemMapFs()},
+		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": afero.NewMemMapFs()}, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 1)
 	assert.Equal(t, checkModule.vuCtxCalled, 0)
 
-	vu, err := runner.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	vu, err := runner.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 2)
 	assert.Equal(t, checkModule.vuCtxCalled, 0)
@@ -100,11 +109,19 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) {
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: rtOptions,
-		}, arc)
+		}, arc, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 3) // changes because we need to get the exported functions
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
-	vuFromArc, err := runnerFromArc.NewVU(2, 2, make(chan metrics.SampleContainer, 100))
+	vuFromArc, err := runnerFromArc.NewVU(2, 2, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 4)
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
