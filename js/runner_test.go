@@ -106,7 +106,11 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 	assert.NotNil(t, r2.GetDefaultGroup())
 ***REMOVED***
@@ -123,7 +127,11 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -220,7 +228,11 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 			require.Equal(t, newOptions, r.GetOptions())
 
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.NewVU(1, 1, samples)
+			initVU, err := r.NewVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -261,7 +273,11 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r2.GetOptions())
@@ -277,7 +293,11 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
 
-			initVU, err := r.NewVU(1, 1, samples)
+			initVU, err := r.NewVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -365,7 +385,11 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	defer engine.OutputManager.StopOutputs()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	run, wait, err := engine.Init(ctx, ctx)
+	run, wait, err := engine.Init(ctx, ctx, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 
 	require.Empty(t, runner.defaultGroup.Groups)
@@ -414,7 +438,11 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 			samples := make(chan metrics.SampleContainer, 100)
 
 			require.NoError(t, r.Setup(ctx, samples))
-			initVU, err := r.NewVU(1, 1, samples)
+			initVU, err := r.NewVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			require.NoError(t, vu.RunOnce())
@@ -475,7 +503,11 @@ func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.NewVU(1, 1, samples)
+			initVU, err := r.NewVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -556,14 +588,22 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 						Logger:         testutils.NewLogger(t),
 						BuiltinMetrics: builtinMetrics,
 						Registry:       registry,
-					***REMOVED***, r1.MakeArchive())
+					***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 				require.NoError(t, err)
 
 				testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 				for name, r := range testdata ***REMOVED***
 					r := r
 					t.Run(name, func(t *testing.T) ***REMOVED***
-						initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+						initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+							Addr:     "localhost:6379",
+							Password: "", // no password set
+							DB:       0,  // use default DB
+						***REMOVED***))
 						require.NoError(t, err)
 						ctx, cancel := context.WithCancel(context.Background())
 						defer cancel()
@@ -593,7 +633,11 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -601,7 +645,11 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			vu, err := r.newVU(1, 1, make(chan metrics.SampleContainer, 100))
+			vu, err := r.newVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			fnCalled := false
@@ -644,7 +692,11 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -658,7 +710,11 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***()
 
-			vu, err := r.newVU(1, 1, samples)
+			vu, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
@@ -686,7 +742,11 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -703,7 +763,11 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 			***REMOVED***()
 			var wg sync.WaitGroup
 
-			initVU, err := r.newVU(1, 1, samples)
+			initVU, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			for i := 0; i < 1000; i++ ***REMOVED***
 				wg.Add(1)
@@ -751,7 +815,11 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -759,7 +827,11 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			vu, err := r.newVU(1, 1, make(chan metrics.SampleContainer, 100))
+			vu, err := r.newVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			fnOuterCalled := false
@@ -811,7 +883,11 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -821,7 +897,11 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
 			defer close(samples)
-			vu, err := r.newVU(1, 1, samples)
+			vu, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1016,7 +1096,11 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive())
+				***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				***REMOVED***))
 			require.NoError(t, err)
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
@@ -1025,7 +1109,11 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
 
-					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 					require.NoError(t, err)
 					initVU.(*VU).TLSConfig.RootCAs = x509.NewCertPool() //nolint:forcetypeassert
 					initVU.(*VU).TLSConfig.RootCAs.AddCert(cert)        //nolint:forcetypeassert
@@ -1069,7 +1157,11 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1077,7 +1169,11 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1110,7 +1206,11 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1119,7 +1219,11 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1153,7 +1257,11 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1162,7 +1270,11 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVu, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVu, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1196,7 +1308,11 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1205,7 +1321,11 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVu, err := r.NewVU(0, 0, make(chan metrics.SampleContainer, 100))
+			initVu, err := r.NewVU(0, 0, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1250,7 +1370,11 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1258,7 +1382,11 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1347,7 +1475,11 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive())
+				***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				***REMOVED***))
 			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1357,7 +1489,11 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
 
-					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 					require.NoError(t, err)
 					initVU.(*VU).TLSConfig.RootCAs = x509.NewCertPool() //nolint:forcetypeassert
 					initVU.(*VU).TLSConfig.RootCAs.AddCert(cert)        //nolint:forcetypeassert
@@ -1384,7 +1520,11 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1402,7 +1542,11 @@ func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1432,7 +1576,11 @@ func TestVUDoesOpenUnderV0Condition(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 ***REMOVED***
 
@@ -1456,7 +1604,11 @@ func TestVUDoesNotOpenUnderConditions(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
 ***REMOVED***
@@ -1480,7 +1632,11 @@ func TestVUDoesNonExistingPathnUnderConditions(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+	_, err = r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
 ***REMOVED***
@@ -1520,7 +1676,11 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1528,7 +1688,11 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1580,7 +1744,11 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1588,7 +1756,11 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1620,7 +1792,11 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1628,7 +1804,11 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1234, 1234, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1234, 1234, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1776,7 +1956,11 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive())
+				***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				***REMOVED***))
 			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1785,7 +1969,11 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				t.Run(name, func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
-					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 					require.NoError(t, err)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -1941,7 +2129,11 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1956,7 +2148,11 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 			err = r.Setup(ctx, ch)
 			cancel()
 			require.NoError(t, err)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			ctx, cancel = context.WithCancel(context.Background())
 			defer cancel()
@@ -1986,7 +2182,11 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	// we do want this to error here as this is where we find out that a given file is not in the
 	// archive
 	require.Error(t, err)
@@ -2039,7 +2239,11 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ch := make(chan metrics.SampleContainer, 1000)
-	initVU, err := r.NewVU(1, 1, ch)
+	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2073,7 +2277,11 @@ func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ch := make(chan metrics.SampleContainer, 1000)
-	initVU, err := r.NewVU(1, 1, ch)
+	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2155,7 +2363,11 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			vu, err := r.NewVU(uint64(num), 0, samples)
+			vu, err := r.NewVU(uint64(num), 0, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***
 				RunContext: ctx,
@@ -2199,7 +2411,11 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive())
+		***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -2207,7 +2423,11 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			initVU, err := r.NewVU(1, 1234, make(chan metrics.SampleContainer, 100))
+			initVU, err := r.NewVU(1, 1234, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			logger := logrus.New()
@@ -2273,7 +2493,11 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 			URL:  &url.URL***REMOVED***Path: tc.cwd + "/script.js", Scheme: "file"***REMOVED***,
 			Data: []byte(tc.script),
 		***REMOVED***,
-		tc.fses,
+		tc.fses, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***),
 	)
 	if tc.expInitErr ***REMOVED***
 		require.Error(t, err)
@@ -2284,7 +2508,11 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 	options := runner.GetOptions()
 	require.Empty(t, options.Validate())
 
-	vu, err := runner.NewVU(1, 1, tc.samples)
+	vu, err := runner.NewVU(1, 1, tc.samples, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 
 	jsVU, ok := vu.(*VU)
@@ -2310,9 +2538,17 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: tc.rtOpts,
-		***REMOVED***, arc)
+		***REMOVED***, arc, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	require.NoError(t, err)
-	vuFromArc, err := runnerFromArc.NewVU(2, 2, tc.samples)
+	vuFromArc, err := runnerFromArc.NewVU(2, 2, tc.samples, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 	jsVUFromArc, ok := vuFromArc.(*VU)
 	require.True(t, ok)
@@ -2448,7 +2684,11 @@ func TestMinIterationDurationIsCancellable(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ch := make(chan metrics.SampleContainer, 1000)
-	initVU, err := r.NewVU(1, 1, ch)
+	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2534,14 +2774,22 @@ func TestForceHTTP1Feature(t *testing.T) ***REMOVED***
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive())
+				***REMOVED***, r1.MakeArchive(), redis.NewClient(&redis.Options***REMOVED***
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				***REMOVED***))
 			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
-					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100))
+					initVU, err := r.NewVU(1, 1, make(chan metrics.SampleContainer, 100), redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
@@ -2623,7 +2871,11 @@ func TestExecutionInfo(t *testing.T) ***REMOVED***
 
 			r.Bundle.Options.SystemTags = metrics.NewSystemTagSet(metrics.DefaultSystemTagSet)
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.NewVU(1, 10, samples)
+			initVU, err := r.NewVU(1, 10, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			testRunState := &lib.TestRunState***REMOVED***

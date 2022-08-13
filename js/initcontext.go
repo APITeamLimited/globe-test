@@ -17,6 +17,7 @@ import (
 	"go.k6.io/k6/js/compiler"
 	"go.k6.io/k6/js/eventloop"
 	"go.k6.io/k6/js/modules"
+	"go.k6.io/k6/js/modules/apiteam"
 	"go.k6.io/k6/js/modules/k6"
 	"go.k6.io/k6/js/modules/k6/crypto"
 	"go.k6.io/k6/js/modules/k6/crypto/x509"
@@ -117,6 +118,13 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 		// Builtin or external modules ("k6", "k6/*", or "k6/x/*") are handled
 		// specially, as they don't exist on the filesystem. This intentionally
 		// shadows attempts to name your own modules this.
+		v, err := i.requireModule(arg)
+		if err != nil ***REMOVED***
+			common.Throw(i.moduleVUImpl.runtime, err)
+		***REMOVED***
+		return v
+	case arg == "apiteam", strings.HasPrefix(arg, "apiteam/"):
+		// Handle apiteam modules like k6 modules
 		v, err := i.requireModule(arg)
 		if err != nil ***REMOVED***
 			common.Throw(i.moduleVUImpl.runtime, err)
@@ -361,6 +369,8 @@ func getInternalJSModules() map[string]interface***REMOVED******REMOVED*** ***RE
 		"k6/http":        http.New(),
 		"k6/metrics":     metrics.New(),
 		"k6/ws":          ws.New(),
+		"apiteam":        apiteam.New(),
+		"apiteam/http":   html.New(),
 	***REMOVED***
 ***REMOVED***
 

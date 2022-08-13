@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
@@ -52,14 +53,22 @@ func setupExecutor(t testing.TB, config lib.ExecutorConfig, es *lib.ExecutionSta
 	testLog.SetOutput(ioutil.Discard)
 	logEntry := logrus.NewEntry(testLog)
 
-	initVUFunc := func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
+	initVUFunc := func(_ context.Context, logger *logrus.Entry, client *redis.NewClient) (lib.InitializedVU, error) ***REMOVED***
 		idl, idg := es.GetUniqueVUIdentifiers()
-		return es.Test.Runner.NewVU(idl, idg, engineOut)
+		return es.Test.Runner.NewVU(idl, idg, engineOut, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
 	***REMOVED***
 	es.SetInitVUFunc(initVUFunc)
 
 	maxPlannedVUs := lib.GetMaxPlannedVUs(config.GetExecutionRequirements(es.ExecutionTuple))
-	initializeVUs(ctx, t, logEntry, es, maxPlannedVUs, initVUFunc)
+	initializeVUs(ctx, t, logEntry, es, maxPlannedVUs, initVUFunc, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***))
 
 	executor, err := config.NewExecutor(es, logEntry)
 	require.NoError(t, err)

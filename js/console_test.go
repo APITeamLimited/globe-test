@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
@@ -75,7 +76,11 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
 		***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
+		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***),
 	)
 ***REMOVED***
 
@@ -208,7 +213,11 @@ func TestConsoleLog(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.newVU(1, 1, samples)
+			initVU, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			***REMOVED***))
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -265,7 +274,11 @@ func TestConsoleLevels(t *testing.T) ***REMOVED***
 					require.NoError(t, err)
 
 					samples := make(chan metrics.SampleContainer, 100)
-					initVU, err := r.newVU(1, 1, samples)
+					initVU, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					***REMOVED***))
 					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
@@ -362,7 +375,11 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							require.NoError(t, err)
 
 							samples := make(chan metrics.SampleContainer, 100)
-							initVU, err := r.newVU(1, 1, samples)
+							initVU, err := r.newVU(1, 1, samples, redis.NewClient(&redis.Options***REMOVED***
+								Addr:     "localhost:6379",
+								Password: "", // no password set
+								DB:       0,  // use default DB
+							***REMOVED***))
 							require.NoError(t, err)
 
 							ctx, cancel := context.WithCancel(context.Background())

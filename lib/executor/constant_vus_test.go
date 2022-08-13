@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -41,7 +42,11 @@ func TestConstantVUsRun(t *testing.T) ***REMOVED***
 	test := setupExecutorTest(t, "", "", lib.Options***REMOVED******REMOVED***, runner, getTestConstantVUsConfig())
 	defer test.cancel()
 
-	require.NoError(t, test.executor.Run(test.ctx, nil))
+	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 
 	var totalIters uint64
 	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***

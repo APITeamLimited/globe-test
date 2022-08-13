@@ -75,10 +75,20 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 		***REMOVED***
 	***REMOVED***()
 
-	require.NoError(t, execScheduler.Init(ctx, samples))
+	require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options***REMOVED***
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	***REMOVED***)))
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED***
+		errCh <- execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options***REMOVED***
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		***REMOVED***))
+	***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
