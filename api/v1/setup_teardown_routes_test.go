@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -119,6 +120,11 @@ func TestSetupData(t *testing.T) {
 			piState := getTestPreInitState(t)
 			runner, err := js.New(
 				piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: testCase.script}, nil,
+				redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				}),
 			)
 			require.NoError(t, err)
 			require.NoError(t, runner.SetOptions(lib.Options{

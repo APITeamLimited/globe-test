@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/cmd/integration_tests/testmodules/events"
@@ -36,7 +37,11 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 	}
 
 	script = []byte("import {setTimeout} from 'k6/x/events';\n" + string(script))
-	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil)
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

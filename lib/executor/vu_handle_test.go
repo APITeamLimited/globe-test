@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,11 @@ func TestVUHandleRace(t *testing.T) {
 	var getVUCount int64
 	var returnVUCount int64
 	getVU := func() (lib.InitializedVU, error) {
-		return runner.NewVU(uint64(atomic.AddInt64(&getVUCount, 1)), 0, nil)
+		return runner.NewVU(uint64(atomic.AddInt64(&getVUCount, 1)), 0, nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
 	}
 
 	returnVU := func(_ lib.InitializedVU) {
@@ -134,7 +139,11 @@ func TestVUHandleStartStopRace(t *testing.T) {
 
 	getVU := func() (lib.InitializedVU, error) {
 		returned = make(chan struct{})
-		return runner.NewVU(atomic.AddUint64(&vuID, 1), 0, nil)
+		return runner.NewVU(atomic.AddUint64(&vuID, 1), 0, nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
 	}
 
 	returnVU := func(v lib.InitializedVU) {
@@ -196,7 +205,11 @@ type handleVUTest struct {
 }
 
 func (h *handleVUTest) getVU() (lib.InitializedVU, error) {
-	return h.runner.NewVU(uint64(atomic.AddUint32(&h.getVUCount, 1)), 0, nil)
+	return h.runner.NewVU(uint64(atomic.AddUint32(&h.getVUCount, 1)), 0, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 }
 
 func (h *handleVUTest) returnVU(_ lib.InitializedVU) {
@@ -371,7 +384,11 @@ func BenchmarkVUHandleIterations(b *testing.B) {
 		return nil
 	}
 	getVU := func() (lib.InitializedVU, error) {
-		return runner.NewVU(uint64(atomic.AddUint32(&getVUCount, 1)), 0, nil)
+		return runner.NewVU(uint64(atomic.AddUint32(&getVUCount, 1)), 0, nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
 	}
 
 	returnVU := func(_ lib.InitializedVU) {

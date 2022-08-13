@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -39,7 +40,15 @@ func TestSharedIterationsRun(t *testing.T) {
 	test := setupExecutorTest(t, "", "", lib.Options{}, runner, getTestSharedIterationsConfig())
 	defer test.cancel()
 
-	require.NoError(t, test.executor.Run(test.ctx, nil))
+	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})), redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	assert.Equal(t, uint64(100), doneIters)
 }
 
@@ -70,7 +79,11 @@ func TestSharedIterationsRunVariableVU(t *testing.T) {
 	test := setupExecutorTest(t, "", "", lib.Options{}, runner, getTestSharedIterationsConfig())
 	defer test.cancel()
 
-	require.NoError(t, test.executor.Run(test.ctx, nil))
+	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 
 	var totalIters uint64
 	result.Range(func(key, value interface{}) bool {
@@ -106,7 +119,11 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) {
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(5), count)
 	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterationsName))
@@ -148,7 +165,11 @@ func TestSharedIterationsGlobalIters(t *testing.T) {
 			defer test.cancel()
 
 			engineOut := make(chan metrics.SampleContainer, 100)
-			require.NoError(t, test.executor.Run(test.ctx, engineOut))
+			require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})))
 			sort.Slice(gotIters, func(i, j int) bool { return gotIters[i] < gotIters[j] })
 			assert.Equal(t, tc.expIters, gotIters)
 		})

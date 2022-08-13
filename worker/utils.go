@@ -59,3 +59,12 @@ func handleError(ctx context.Context, client *redis.Client, jobId string, worker
 	dispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
 	updateStatus(ctx, client, jobId, workerId, "FAILED")
 }
+
+// Splits an outputted console.log message into a message type and message
+//func splitLogMessage(message string) (string[] string[]) {
+//	var level = ""
+//
+//	if (string.Contains("level=info") {
+//		level = "INFO"
+//	} e
+//}

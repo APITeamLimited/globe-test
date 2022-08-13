@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/lib"
@@ -22,7 +23,11 @@ func BenchmarkEmptyIteration(b *testing.B) {
 		for range ch {
 		}
 	}()
-	initVU, err := r.NewVU(1, 1, ch)
+	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

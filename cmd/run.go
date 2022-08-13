@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -163,7 +164,11 @@ func (c *cmdRun) run(cmd *cobra.Command, args []string) error {
 
 	// Initialize the engine
 	initBar.Modify(pb.WithConstProgress(0, "Init VUs..."))
-	engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
+	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one

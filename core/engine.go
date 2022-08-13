@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
@@ -95,17 +96,17 @@ func NewEngine(testState *lib.TestRunState, ex lib.ExecutionScheduler, outputs [
 // wait() functions.
 //
 // Things to note:
-//  - The first lambda, Run(), synchronously executes the actual load test.
-//  - It can be prematurely aborted by cancelling the runCtx - this won't stop
-//    the metrics collection by the Engine.
-//  - Stopping the metrics collection can be done at any time after Run() has
-//    returned by cancelling the globalCtx
-//  - The second returned lambda can be used to wait for that process to finish.
-func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait func(), err error) {
+//   - The first lambda, Run(), synchronously executes the actual load test.
+//   - It can be prematurely aborted by cancelling the runCtx - this won't stop
+//     the metrics collection by the Engine.
+//   - Stopping the metrics collection can be done at any time after Run() has
+//     returned by cancelling the globalCtx
+//   - The second returned lambda can be used to wait for that process to finish.
+func (e *Engine) Init(globalCtx, runCtx context.Context, client *redis.Client) (run func() error, wait func(), err error) {
 	e.logger.Debug("Initialization starting...")
 	// TODO: if we ever need metrics processing in the init context, we can move
 	// this below the other components... or even start them concurrently?
-	if err := e.ExecutionScheduler.Init(runCtx, e.Samples); err != nil {
+	if err := e.ExecutionScheduler.Init(runCtx, e.Samples, client); err != nil {
 		return nil, nil, err
 	}
 
@@ -116,7 +117,7 @@ func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait
 	processMetricsAfterRun := make(chan struct{})
 	runFn := func() error {
 		e.logger.Debug("Execution scheduler starting...")
-		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples)
+		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples, client)
 		e.logger.WithError(err).Debug("Execution scheduler terminated")
 
 		select {

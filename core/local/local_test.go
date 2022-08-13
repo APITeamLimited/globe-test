@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -86,7 +87,11 @@ func newTestExecutionScheduler(
 		}
 	}()
 
-	require.NoError(t, execScheduler.Init(ctx, samples))
+	require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 
 	return ctx, cancel, execScheduler, samples
 }
@@ -97,7 +102,13 @@ func TestExecutionSchedulerRun(t *testing.T) {
 	defer cancel()
 
 	err := make(chan error, 1)
-	go func() { err <- execScheduler.Run(ctx, ctx, samples) }()
+	go func() {
+		err <- execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
+	}()
 	assert.NoError(t, <-err)
 }
 
@@ -130,7 +141,11 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) {
 			runner, err := js.New(
 				piState, &loader.SourceData{
 					URL: &url.URL{Path: "/script.js"}, Data: []byte(tc.script),
-				}, nil)
+				}, nil, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				}))
 			require.NoError(t, err)
 
 			testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
@@ -144,12 +159,20 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) {
 			done := make(chan struct{})
 			samples := make(chan metrics.SampleContainer)
 			go func() {
-				err := execScheduler.Init(ctx, samples)
+				err := execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				}))
 				if tc.expErr != "" {
 					assert.EqualError(t, err, tc.expErr)
 				} else {
 					assert.NoError(t, err)
-					assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+					assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					})))
 				}
 				close(done)
 			}()
@@ -247,7 +270,11 @@ func TestExecutionSchedulerRunEnv(t *testing.T) {
 				piState, &loader.SourceData{
 					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				}, nil,
+				}, nil, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				}),
 			)
 			require.NoError(t, err)
 
@@ -261,8 +288,16 @@ func TestExecutionSchedulerRunEnv(t *testing.T) {
 			done := make(chan struct{})
 			samples := make(chan metrics.SampleContainer)
 			go func() {
-				assert.NoError(t, execScheduler.Init(ctx, samples))
-				assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+				assert.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				})))
+				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				})))
 				close(done)
 			}()
 			for {
@@ -313,7 +348,11 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 		piState, &loader.SourceData{
 			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(script),
-		}, nil)
+		}, nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
 	require.NoError(t, err)
 
 	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(lib.Options{
@@ -331,8 +370,16 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		require.NoError(t, execScheduler.Init(ctx, samples))
-		require.NoError(t, execScheduler.Run(ctx, ctx, samples))
+		require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
+		require.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
 	}()
 
 	expCommonTrailTags := metrics.IntoSampleTags(&map[string]string{
@@ -456,7 +503,11 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) {
 				piState, &loader.SourceData{
 					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				}, nil,
+				}, nil, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				}),
 			)
 			require.NoError(t, err)
 
@@ -471,8 +522,16 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) {
 			samples := make(chan metrics.SampleContainer)
 			go func() {
 				defer close(done)
-				require.NoError(t, execScheduler.Init(ctx, samples))
-				require.NoError(t, execScheduler.Run(ctx, ctx, samples))
+				require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				})))
+				require.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+					Addr:     "localhost:6379",
+					Password: "", // no password set
+					DB:       0,  // use default DB
+				})))
 			}()
 			var gotTrailTag, gotNetTrailTag bool
 			for {
@@ -620,7 +679,11 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(script),
 		},
-		nil,
+		nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}),
 	)
 	require.NoError(t, err)
 
@@ -633,8 +696,16 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 
 	samples := make(chan metrics.SampleContainer)
 	go func() {
-		assert.NoError(t, execScheduler.Init(ctx, samples))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+		assert.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
 		close(samples)
 	}()
 
@@ -713,7 +784,13 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options{})
 
 		err := make(chan error, 1)
-		go func() { err <- execScheduler.Run(ctx, ctx, samples) }()
+		go func() {
+			err <- execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			}))
+		}()
 		defer cancel()
 		<-setupC
 		<-teardownC
@@ -728,7 +805,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 		}
 		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options{})
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "setup error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})), "setup error")
 	})
 	t.Run("Don't Run Setup", func(t *testing.T) {
 		t.Parallel()
@@ -746,7 +827,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 			Iterations: null.IntFrom(1),
 		})
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})), "teardown error")
 	})
 
 	t.Run("Teardown Error", func(t *testing.T) {
@@ -765,7 +850,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 		})
 		defer cancel()
 
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})), "teardown error")
 	})
 	t.Run("Don't Run Teardown", func(t *testing.T) {
 		t.Parallel()
@@ -783,7 +872,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 			Iterations: null.IntFrom(1),
 		})
 		defer cancel()
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
 	})
 }
 
@@ -828,7 +921,11 @@ func TestExecutionSchedulerStages(t *testing.T) {
 				Stages: data.Stages,
 			})
 			defer cancel()
-			assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+			assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379",
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})))
 			assert.True(t, execScheduler.GetState().GetCurrentTestRunDuration() >= data.Duration)
 		})
 	}
@@ -853,7 +950,11 @@ func TestExecutionSchedulerEndTime(t *testing.T) {
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -880,7 +981,11 @@ func TestExecutionSchedulerRuntimeErrors(t *testing.T) {
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -917,7 +1022,11 @@ func TestExecutionSchedulerEndErrors(t *testing.T) {
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -958,8 +1067,16 @@ func TestExecutionSchedulerEndIterations(t *testing.T) {
 	require.NoError(t, err)
 
 	samples := make(chan metrics.SampleContainer, 300)
-	require.NoError(t, execScheduler.Init(ctx, samples))
-	require.NoError(t, execScheduler.Run(ctx, ctx, samples))
+	require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
+	require.NoError(t, execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})))
 
 	assert.Equal(t, uint64(100), execScheduler.GetState().GetFullIterationCount())
 	assert.Equal(t, uint64(0), execScheduler.GetState().GetPartialIterationCount())
@@ -984,7 +1101,13 @@ func TestExecutionSchedulerIsRunning(t *testing.T) {
 	state := execScheduler.GetState()
 
 	err := make(chan error)
-	go func() { err <- execScheduler.Run(ctx, ctx, nil) }()
+	go func() {
+		err <- execScheduler.Run(ctx, ctx, nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}))
+	}()
 	for !state.HasStarted() {
 		time.Sleep(10 * time.Microsecond)
 	}
@@ -1070,7 +1193,11 @@ func TestDNSResolver(t *testing.T) {
 					},
 					&loader.SourceData{
 						URL: &url.URL{Path: "/script.js"}, Data: []byte(script),
-					}, nil)
+					}, nil, redis.NewClient(&redis.Options{
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					}))
 				require.NoError(t, err)
 
 				mr := mockresolver.New(nil, net.LookupIP)
@@ -1086,7 +1213,13 @@ func TestDNSResolver(t *testing.T) {
 				defer mr.Unset("myhost")
 
 				errCh := make(chan error, 1)
-				go func() { errCh <- execScheduler.Run(ctx, ctx, samples) }()
+				go func() {
+					errCh <- execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options{
+						Addr:     "localhost:6379",
+						Password: "", // no password set
+						DB:       0,  // use default DB
+					}))
+				}()
 
 				select {
 				case err := <-errCh:
@@ -1145,7 +1278,11 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 	}`)
 
 	piState := getTestPreInitState(t)
-	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil)
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(t, err)
 
 	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options{
@@ -1167,8 +1304,16 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 	done := make(chan struct{})
 	sampleContainers := make(chan metrics.SampleContainer)
 	go func() {
-		require.NoError(t, execScheduler.Init(ctx, sampleContainers))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers))
+		require.NoError(t, execScheduler.Init(ctx, sampleContainers, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})))
 		close(done)
 	}()
 
@@ -1396,7 +1541,11 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) {
 		Registry:       registry,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	}
-	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil)
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)

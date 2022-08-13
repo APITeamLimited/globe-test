@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/dop251/goja"
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
@@ -54,7 +55,7 @@ type BundleInstance struct {
 
 // NewBundle creates a new bundle from a source file and a filesystem.
 func NewBundle(
-	piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs,
+	piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, client *redis.Client,
 ) (*Bundle, error) {
 	compatMode, err := lib.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
 	if err != nil {
@@ -85,7 +86,7 @@ func NewBundle(
 		exports:           make(map[string]goja.Callable),
 		registry:          piState.Registry,
 	}
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0); err != nil {
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, client); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +99,7 @@ func NewBundle(
 }
 
 // NewBundleFromArchive creates a new bundle from an lib.Archive.
-func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive) (*Bundle, error) {
+func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, client *redis.Client) (*Bundle, error) {
 	if arc.Type != "js" {
 		return nil, fmt.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	}
@@ -149,7 +150,7 @@ func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive) (*Bun
 		registry:          piState.Registry,
 	}
 
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0); err != nil {
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, client); err != nil {
 		return nil, err
 	}
 
@@ -231,12 +232,12 @@ func (b *Bundle) getExports(logger logrus.FieldLogger, rt *goja.Runtime, options
 }
 
 // Instantiate creates a new runtime from this bundle.
-func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64) (*BundleInstance, error) {
+func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, client *redis.Client) (*BundleInstance, error) {
 	// Instantiate the bundle into a new VM using a bound init context. This uses a context with a
 	// runtime, but no state, to allow module-provided types to function within the init context.
 	vuImpl := &moduleVUImpl{runtime: goja.New()}
 	init := newBoundInitContext(b.BaseInitContext, vuImpl)
-	if err := b.instantiate(logger, vuImpl.runtime, init, vuID); err != nil {
+	if err := b.instantiate(logger, vuImpl.runtime, init, vuID, client); err != nil {
 		return nil, err
 	}
 
@@ -295,7 +296,7 @@ func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) pr
 	return pgm
 }
 
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64) (err error) {
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, client *redis.Client) (err error) {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	rt.SetRandSource(common.NewRandSource())
 
@@ -316,6 +317,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		FileSystems: init.filesystems,
 		CWD:         init.pwd,
 		Registry:    b.registry,
+		Client:      client,
 	}
 	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.ctx = context.Background()

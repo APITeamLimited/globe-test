@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/metrics"
@@ -37,11 +38,11 @@ type ExecutionScheduler interface {
 	GetExecutors() []Executor
 
 	// Init initializes all executors, including all of their needed VUs.
-	Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer) error
+	Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, client *redis.Client) error
 
 	// Run the ExecutionScheduler, funneling the generated metric samples
 	// through the supplied out channel.
-	Run(globalCtx, runCtx context.Context, samplesOut chan<- metrics.SampleContainer) error
+	Run(globalCtx, runCtx context.Context, samplesOut chan<- metrics.SampleContainer, client *redis.Client) error
 
 	// Pause a test, or start/resume it. To check if a test is paused, use
 	// GetState().IsPaused().
@@ -84,6 +85,7 @@ const MaxRetriesGetPlannedVU = 5
 
 // ExecutionStatus is similar to RunStatus, but more fine grained and concerns
 // only local execution.
+//
 //go:generate enumer -type=ExecutionStatus -trimprefix ExecutionStatus -output execution_status_gen.go
 type ExecutionStatus uint32
 
@@ -103,13 +105,13 @@ const (
 )
 
 // ExecutionState contains a few different things:
-//  -  Some convenience items, that are needed by all executors, like the
+//   - Some convenience items, that are needed by all executors, like the
 //     execution segment and the unique VU ID generator. By keeping those here,
 //     we can just pass the ExecutionState to the different executors, instead of
 //     individually passing them each item.
-//  -  Mutable counters that different executors modify and other parts of
+//   - Mutable counters that different executors modify and other parts of
 //     k6 can read, e.g. for the vus and vus_max metrics k6 emits every second.
-//  -  Pausing controls and statistics.
+//   - Pausing controls and statistics.
 //
 // The counters and timestamps here are primarily meant to be used for
 // information extraction and avoidance of ID collisions. Using many of the
@@ -498,9 +500,10 @@ func (es *ExecutionState) Resume() error {
 //
 // And, since tests won't be paused most of the time, it's
 // probably better to check for that like this:
-//   if executionState.IsPaused() {
-//       <-executionState.ResumeNotify()
-//   }
+//
+//	if executionState.IsPaused() {
+//	    <-executionState.ResumeNotify()
+//	}
 func (es *ExecutionState) ResumeNotify() <-chan struct{} {
 	es.pauseStateLock.RLock()
 	defer es.pauseStateLock.RUnlock()
@@ -558,7 +561,7 @@ func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) {
 // Executors are trusted to correctly declare their needs (via their
 // GetExecutionRequirements() methods) and then to never ask for more VUs than
 // they have specified in those requirements.
-func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry) (InitializedVU, error) {
+func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry, client *redis.Client) (InitializedVU, error) {
 	remVUs := atomic.AddInt64(es.uninitializedUnplannedVUs, -1)
 	if remVUs < 0 {
 		logger.Debug("Reusing a previously initialized unplanned VU")
@@ -567,16 +570,16 @@ func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Ent
 	}
 
 	logger.Debug("Initializing an unplanned VU, this may affect test results")
-	return es.InitializeNewVU(ctx, logger)
+	return es.InitializeNewVU(ctx, logger, client)
 }
 
 // InitializeNewVU creates and returns a brand new VU, updating the relevant
 // tracking counters.
-func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry) (InitializedVU, error) {
+func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry, client *redis.Client) (InitializedVU, error) {
 	if es.initVUFunc == nil {
 		return nil, fmt.Errorf("initVUFunc wasn't set in the execution state")
 	}
-	newVU, err := es.initVUFunc(ctx, logger)
+	newVU, err := es.initVUFunc(ctx, logger, client)
 	if err != nil {
 		return nil, err
 	}

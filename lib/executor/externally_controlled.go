@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -411,7 +412,7 @@ func (rs *externallyControlledRunState) progressFn() (float64, []string) {
 	return progress, right
 }
 
-func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg ExternallyControlledConfigParams) error {
+func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg ExternallyControlledConfigParams, client *redis.Client) error {
 	executionState := rs.executor.executionState
 	et := executionState.ExecutionTuple
 	oldActiveVUs := et.ScaleInt64(oldCfg.VUs.Int64)
@@ -430,7 +431,7 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 			return rs.ctx.Err()
 		default: // do nothing
 		}
-		initVU, vuInitErr := executionState.InitializeNewVU(rs.ctx, rs.executor.logger)
+		initVU, vuInitErr := executionState.InitializeNewVU(rs.ctx, rs.executor.logger, client)
 		if vuInitErr != nil {
 			return vuInitErr
 		}
@@ -478,8 +479,9 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 // Run constantly loops through as many iterations as possible on a variable
 // dynamically controlled number of VUs either for the specified duration, or
 // until the test is manually stopped.
+//
 //nolint:funlen,gocognit
-func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metrics.SampleContainer) (err error) {
+func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, client *redis.Client) (err error) {
 	mex.configLock.RLock()
 	// Safely get the current config - it's important that the close of the
 	// hasStarted channel is inside of the lock, so that there are no data races
@@ -538,13 +540,13 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metri
 	}()
 
 	err = runState.handleConfigChange( // Start by setting MaxVUs to the starting MaxVUs
-		ExternallyControlledConfigParams{MaxVUs: mex.config.MaxVUs}, currentControlConfig,
+		ExternallyControlledConfigParams{MaxVUs: mex.config.MaxVUs}, currentControlConfig, client,
 	)
 	if err != nil {
 		return err
 	}
 	defer func() { // Make sure we release the VUs at the end
-		err = runState.handleConfigChange(currentControlConfig, ExternallyControlledConfigParams{})
+		err = runState.handleConfigChange(currentControlConfig, ExternallyControlledConfigParams{}, client)
 	}()
 
 	for {
@@ -552,7 +554,7 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- metri
 		case <-ctx.Done():
 			return nil
 		case updateConfigEvent := <-mex.newControlConfigs:
-			err := runState.handleConfigChange(currentControlConfig, updateConfigEvent.newConfig)
+			err := runState.handleConfigChange(currentControlConfig, updateConfigEvent.newConfig, client)
 			if err != nil {
 				updateConfigEvent.err <- err
 				if ctx.Err() == err {

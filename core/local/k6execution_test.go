@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +78,11 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil,
+		nil, redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		}),
 	)
 	require.NoError(t, err)
 
