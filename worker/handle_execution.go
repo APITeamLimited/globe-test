@@ -37,7 +37,7 @@ func handleExecution(ctx context.Context,
 		return
 	}
 
-	go dispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
+	go DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full consolidated *and derived* options back to the Runner.
 	conf := test.derivedConfig
@@ -85,7 +85,7 @@ func handleExecution(ctx context.Context,
 
 	// TODO: remove this completely
 	// Create the engine.
-	go dispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
+	go DispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil {
 		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
@@ -113,7 +113,7 @@ func handleExecution(ctx context.Context,
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	go dispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
+	go DispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, client)
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
@@ -138,12 +138,12 @@ func handleExecution(ctx context.Context,
 		}
 	}
 	runCancel()
-	go dispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
+	go DispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 {
-		go dispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
+		go DispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	}
 
 	// Handle the end-of-test summary.
@@ -158,7 +158,7 @@ func handleExecution(ctx context.Context,
 		engine.MetricsEngine.MetricsLock.Unlock()
 		summaryResultMarshalled, err := json.Marshal(summaryResult)
 		if err == nil {
-			dispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
+			DispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
 		} else {
 			handleError(ctx, client, job["id"], workerId, err)
 		}
