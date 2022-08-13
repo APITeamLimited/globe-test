@@ -157,10 +157,10 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 
 			go handleStringError(w.ctx, w.client, w.jobId, w.workerId, msg2)
 		***REMOVED*** else ***REMOVED***
-			go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+			go DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		go dispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+		go DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
 	***REMOVED***
 
 	return origLen, err

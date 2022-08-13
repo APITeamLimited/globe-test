@@ -17,7 +17,7 @@ type Message struct ***REMOVED***
 	MessageType string `json:"messageType"`
 ***REMOVED***
 
-func dispatchMessage(ctx context.Context, client *redis.Client, jobId string, workerId string, message string, messageType string) ***REMOVED***
+func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, workerId string, message string, messageType string) ***REMOVED***
 	timestamp := time.Now().UnixMilli()
 	stampedTag := fmt.Sprintf("%d:%s", timestamp, workerId)
 
@@ -47,16 +47,16 @@ func dispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 
 func updateStatus(ctx context.Context, client *redis.Client, jobId string, workerId string, status string) ***REMOVED***
 	client.HSet(ctx, jobId, "status", status)
-	dispatchMessage(ctx, client, jobId, workerId, status, "STATUS")
+	DispatchMessage(ctx, client, jobId, workerId, status, "STATUS")
 ***REMOVED***
 
 func handleStringError(ctx context.Context, client *redis.Client, jobId string, workerId string, errString string) ***REMOVED***
-	dispatchMessage(ctx, client, jobId, workerId, errString, "ERROR")
+	DispatchMessage(ctx, client, jobId, workerId, errString, "ERROR")
 	updateStatus(ctx, client, jobId, workerId, "FAILED")
 ***REMOVED***
 
 func handleError(ctx context.Context, client *redis.Client, jobId string, workerId string, err error) ***REMOVED***
-	dispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
+	DispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
 	updateStatus(ctx, client, jobId, workerId, "FAILED")
 ***REMOVED***
 
