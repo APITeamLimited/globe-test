@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 
 	"go.k6.io/k6/js"
@@ -50,11 +49,7 @@ func TestBuildK6RequestObject(t *testing.T) {
 		}, &loader.SourceData{
 			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(fmt.Sprintf("export default function() { res = http.batch([%v]); }", v)),
-		}, nil, redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		}))
+		}, nil, lib.GetTestWorkerInfo())
 	assert.NoError(t, err)
 }
 

@@ -47,7 +47,7 @@ func TestExternallyControlledRun(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		test.state.MarkStarted()
-		errCh <- test.executor.Run(test.ctx, nil)
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 		test.state.MarkEnded()
 		close(doneCh)
 	}()

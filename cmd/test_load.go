@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -118,11 +117,7 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error {
 	switch testType {
 	case testTypeJS:
 		logger.Debug("Trying to load as a JS test...")
-		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		}))
+		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, lib.GetTestWorkerInfo())
 		// TODO: should we use common.UnwrapGojaInterruptedError() here?
 		if err != nil {
 			return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
@@ -143,11 +138,7 @@ func (lt *loadedTest) initializeFirstRunner(gs *globalState) error {
 		switch arc.Type {
 		case testTypeJS:
 			logger.Debug("Evaluating JS from archive bundle...")
-			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc, redis.NewClient(&redis.Options{
-				Addr:     "localhost:6379",
-				Password: "", // no password set
-				DB:       0,  // use default DB
-			}))
+			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc, lib.GetTestWorkerInfo())
 			if err != nil {
 				return fmt.Errorf("could not load JS from test archive bundle '%s': %w", testPath, err)
 			}

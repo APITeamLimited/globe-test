@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,11 +77,7 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil, redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		}),
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -103,7 +98,7 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 	}
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
 
 	select {
 	case err := <-errCh:
@@ -195,7 +190,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -203,7 +198,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
 
 	scStats := map[string]uint64{}
 
@@ -277,7 +272,7 @@ func TestSharedIterationsStable(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -285,7 +280,7 @@ func TestSharedIterationsStable(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
 
 	expIters := [50]int64{}
 	for i := 0; i < 50; i++ {
@@ -411,14 +406,14 @@ func TestExecutionInfoAll(t *testing.T) {
 				&loader.SourceData{
 					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				}, nil)
+				}, nil, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options{})
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() { errCh <- execScheduler.Run(ctx, ctx, samples) }()
+			go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
 
 			select {
 			case err := <-errCh:

@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"go.k6.io/k6/errext"
@@ -29,9 +28,9 @@ import (
 func loadAndConfigureTest(
 	gs *globalState,
 	job map[string]string,
-	client *redis.Client,
+	workerInfo *lib.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) {
-	test, err := loadTest(gs, job, client)
+	test, err := loadTest(gs, job, workerInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +38,7 @@ func loadAndConfigureTest(
 	return test.consolidateDeriveAndValidateConfig(gs, job)
 }
 
-func loadTest(gs *globalState, job map[string]string, client *redis.Client) (*workerLoadedTest, error) {
+func loadTest(gs *globalState, job map[string]string, workerInfo *lib.WorkerInfo) (*workerLoadedTest, error) {
 	sourceName := job["sourceName"]
 
 	if sourceName == "" {
@@ -106,7 +105,7 @@ func loadTest(gs *globalState, job map[string]string, client *redis.Client) (*wo
 	}
 
 	gs.logger.Debugf("Initializing k6 runner for '%s' (%s)...", sourceRootPath)
-	if err := test.initializeFirstRunner(gs, client); err != nil {
+	if err := test.initializeFirstRunner(gs, workerInfo); err != nil {
 		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
 	}
 	gs.logger.Debug("Runner successfully initialized!")
@@ -120,7 +119,7 @@ func detectTestType(data []byte) string {
 	return testTypeJS
 }
 
-func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, client *redis.Client) error {
+func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *lib.WorkerInfo) error {
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
@@ -152,7 +151,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, client *redis
 	switch testType {
 	case testTypeJS:
 		logger.Debug("Trying to load as a JS test...")
-		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, client)
+		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
 		// TODO: should we use common.UnwrapGojaInterruptedError() here?
 		if err != nil {
 			return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
@@ -173,7 +172,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, client *redis
 		switch arc.Type {
 		case testTypeJS:
 			logger.Debug("Evaluating JS from archive bundle...")
-			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc, client)
+			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc, workerInfo)
 			if err != nil {
 				return fmt.Errorf("could not load JS from test archive bundle '%s': %w", testPath, err)
 			}

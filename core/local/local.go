@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
@@ -136,12 +135,12 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep {
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 func (e *ExecutionScheduler) initVU(
-	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger, client *redis.Client,
+	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger, workerInfo *lib.WorkerInfo,
 ) (lib.InitializedVU, error) {
 	// Get the VU IDs here, so that the VUs are (mostly) ordered by their
 	// number in the channel buffer
 	vuIDLocal, vuIDGlobal := e.state.GetUniqueVUIdentifiers()
-	vu, err := e.state.Test.Runner.NewVU(vuIDLocal, vuIDGlobal, samplesOut, client)
+	vu, err := e.state.Test.Runner.NewVU(vuIDLocal, vuIDGlobal, samplesOut, workerInfo)
 	if err != nil {
 		return nil, errext.WithHint(err, fmt.Sprintf("error while initializing VU #%d", vuIDGlobal))
 	}
@@ -173,7 +172,7 @@ func (e *ExecutionScheduler) getRunStats() string {
 func (e *ExecutionScheduler) initVUsConcurrently(
 	ctx context.Context, samplesOut chan<- metrics.SampleContainer, count uint64,
 	concurrency int, logger logrus.FieldLogger,
-	client *redis.Client,
+	workerInfo *lib.WorkerInfo,
 ) chan error {
 	doneInits := make(chan error, count) // poor man's early-return waitgroup
 	limiter := make(chan struct{})
@@ -181,7 +180,7 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			for range limiter {
-				newVU, err := e.initVU(samplesOut, logger, client)
+				newVU, err := e.initVU(samplesOut, logger, workerInfo)
 				if err == nil {
 					e.state.AddInitializedVU(newVU)
 				}
@@ -253,7 +252,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 
 // Init concurrently initializes all of the planned VUs and then sequentially
 // initializes all of the configured executors.
-func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, client *redis.Client) error {
+func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) error {
 	e.emitVUsAndVUsMax(ctx, samplesOut)
 
 	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-init")
@@ -267,7 +266,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 	defer cancel()
 
 	e.state.SetExecutionStatus(lib.ExecutionStatusInitVUs)
-	doneInits := e.initVUsConcurrently(subctx, samplesOut, vusToInitialize, runtime.GOMAXPROCS(0), logger, client)
+	doneInits := e.initVUsConcurrently(subctx, samplesOut, vusToInitialize, runtime.GOMAXPROCS(0), logger, workerInfo)
 
 	initializedVUs := new(uint64)
 	vusFmt := pb.GetFixedLengthIntFormat(int64(vusToInitialize))
@@ -294,8 +293,8 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 		}
 	}
 
-	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry, client *redis.Client) (lib.InitializedVU, error) {
-		return e.initVU(samplesOut, logger, client)
+	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) {
+		return e.initVU(samplesOut, logger, workerInfo)
 	})
 
 	e.state.SetExecutionStatus(lib.ExecutionStatusInitExecutors)
@@ -319,7 +318,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 // configured startTime for the specific executor and then running its Run()
 // method.
 func (e *ExecutionScheduler) runExecutor(
-	runCtx context.Context, runResults chan<- error, engineOut chan<- metrics.SampleContainer, executor lib.Executor, client *redis.Client,
+	runCtx context.Context, runResults chan<- error, engineOut chan<- metrics.SampleContainer, executor lib.Executor, workerInfo *lib.WorkerInfo,
 ) {
 	executorConfig := executor.GetConfig()
 	executorStartTime := executorConfig.GetStartTime()
@@ -356,7 +355,7 @@ func (e *ExecutionScheduler) runExecutor(
 		pb.WithConstProgress(0, "started"),
 	)
 	executorLogger.Debugf("Starting executor")
-	err := executor.Run(runCtx, engineOut, client) // executor should handle context cancel itself
+	err := executor.Run(runCtx, engineOut, workerInfo) // executor should handle context cancel itself
 	if err == nil {
 		executorLogger.Debugf("Executor finished successfully")
 	} else {
@@ -369,7 +368,7 @@ func (e *ExecutionScheduler) runExecutor(
 // out channel.
 //
 //nolint:funlen
-func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- metrics.SampleContainer, client *redis.Client) error {
+func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) error {
 	defer func() {
 		close(e.stopVUsEmission)
 		<-e.vusEmissionStopped
@@ -431,7 +430,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	// This is for addressing test.abort().
 	execCtx := executor.Context(runSubCtx)
 	for _, exec := range e.executors {
-		go e.runExecutor(execCtx, runResults, engineOut, exec, client)
+		go e.runExecutor(execCtx, runResults, engineOut, exec, workerInfo)
 	}
 
 	// Wait for all executors to finish

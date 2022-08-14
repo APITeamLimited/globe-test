@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -120,11 +119,7 @@ func TestPatchStatus(t *testing.T) {
 			defer engine.OutputManager.StopOutputs()
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			run, wait, err := engine.Init(ctx, ctx, redis.NewClient(&redis.Options{
-				Addr:     "localhost:6379",
-				Password: "", // no password set
-				DB:       0,  // use default DB
-			}))
+			run, wait, err := engine.Init(ctx, ctx, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			defer func() {

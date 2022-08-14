@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -107,11 +106,7 @@ func TestSetupDataMarshalling(t *testing.T) {
 		},
 
 		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
-		nil, redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		}),
+		nil, lib.GetTestWorkerInfo(),
 	)
 
 	require.NoError(t, err)
@@ -130,11 +125,7 @@ func TestSetupDataMarshalling(t *testing.T) {
 	if !assert.NoError(t, runner.Setup(ctx, samples)) {
 		return
 	}
-	initVU, err := runner.NewVU(1, 1, samples, redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	}))
+	initVU, err := runner.NewVU(1, 1, samples, lib.GetTestWorkerInfo())
 	if assert.NoError(t, err) {
 		vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
 		err := vu.RunOnce()

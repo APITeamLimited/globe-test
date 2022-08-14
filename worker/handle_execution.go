@@ -30,7 +30,11 @@ func handleExecution(ctx context.Context,
 
 	globalState := newGlobalState(ctx, client, job["id"], workerId)
 
-	test, err := loadAndConfigureTest(globalState, job, client)
+	workerInfo := &lib.WorkerInfo{
+		Client: client,
+	}
+
+	test, err := loadAndConfigureTest(globalState, job, workerInfo)
 
 	if err != nil {
 		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to loadAndConfigureTest: %s", err.Error()))
@@ -114,7 +118,7 @@ func handleExecution(ctx context.Context,
 
 	// Initialize the engine
 	go DispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
-	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, client)
+	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, workerInfo)
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one

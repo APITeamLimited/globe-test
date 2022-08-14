@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/go-redis/redis/v9"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/metrics"
 )
@@ -38,7 +37,7 @@ func (r MiniRunner) MakeArchive() *lib.Archive {
 }
 
 // NewVU returns a new VU with an incremental ID.
-func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- metrics.SampleContainer, client *redis.Client) (lib.InitializedVU, error) {
+func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) {
 	state := &lib.State{VUID: idLocal, VUIDGlobal: idGlobal, Iteration: int64(-1)}
 	return &VU{
 		R:            r,

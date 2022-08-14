@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -165,7 +164,7 @@ func (si *SharedIterations) Init(ctx context.Context) error {
 // the configured VUs.
 //
 //nolint:funlen
-func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, client *redis.Client) (err error) {
+func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (err error) {
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
 	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
 	duration := si.config.MaxDuration.TimeDuration()
