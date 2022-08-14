@@ -109,14 +109,14 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := lib.NewExecutionState(nil, et, 10, 20)
-	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
+	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry, _ *lib.WorkerInfo) (lib.InitializedVU, error) ***REMOVED***
 		return &minirunner.VU***REMOVED******REMOVED***, nil
 	***REMOVED***)
 
 	var vu lib.InitializedVU
 	for i := 0; i < 10; i++ ***REMOVED***
 		require.EqualValues(t, i, es.GetInitializedVUsCount())
-		vu, err = es.InitializeNewVU(context.Background(), logEntry)
+		vu, err = es.InitializeNewVU(context.Background(), logEntry, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
 		es.ReturnVU(vu, false)
@@ -149,7 +149,7 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	// Test getting uninitialized vus will work
 	for i := 0; i < 10; i++ ***REMOVED***
 		require.EqualValues(t, 10+i, es.GetInitializedVUsCount())
-		vu, err = es.GetUnplannedVU(context.Background(), logEntry)
+		vu, err = es.GetUnplannedVU(context.Background(), logEntry, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		require.Empty(t, logHook.Drain())
 		require.NotNil(t, vu)
@@ -158,7 +158,7 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	// Check that getting 1 more unplanned VU will error out
-	vu, err = es.GetUnplannedVU(context.Background(), logEntry)
+	vu, err = es.GetUnplannedVU(context.Background(), logEntry, lib.GetTestWorkerInfo())
 	require.Nil(t, vu)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "could not get a VU from the buffer in")

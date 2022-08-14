@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -40,15 +39,7 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	test := setupExecutorTest(t, "", "", lib.Options***REMOVED******REMOVED***, runner, getTestSharedIterationsConfig())
 	defer test.cancel()
 
-	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)), redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	require.NoError(t, test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo()), lib.GetTestWorkerInfo())
 	assert.Equal(t, uint64(100), doneIters)
 ***REMOVED***
 
@@ -79,11 +70,7 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	test := setupExecutorTest(t, "", "", lib.Options***REMOVED******REMOVED***, runner, getTestSharedIterationsConfig())
 	defer test.cancel()
 
-	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo()))
 
 	var totalIters uint64
 	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***
@@ -119,11 +106,7 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(5), count)
 	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterationsName))
@@ -165,11 +148,7 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 			defer test.cancel()
 
 			engineOut := make(chan metrics.SampleContainer, 100)
-			require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
-				Addr:     "localhost:6379",
-				Password: "", // no password set
-				DB:       0,  // use default DB
-			***REMOVED***)))
+			require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 			sort.Slice(gotIters, func(i, j int) bool ***REMOVED*** return gotIters[i] < gotIters[j] ***REMOVED***)
 			assert.Equal(t, tc.expIters, gotIters)
 		***REMOVED***)

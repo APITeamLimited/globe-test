@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -305,7 +304,7 @@ func noNegativeSqrt(f float64) float64 ***REMOVED***
 // and things like all of the TODOs below in one place only.
 //
 //nolint:funlen,cyclop
-func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, client *redis.Client) (err error) ***REMOVED***
+func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (err error) ***REMOVED***
 	segment := varr.executionState.ExecutionTuple.Segment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
@@ -415,7 +414,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 
 		for range makeUnplannedVUCh ***REMOVED***
 			varr.logger.Debug("Starting initialization of an unplanned VU...")
-			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger, client)
+			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger, workerInfo)
 			if err != nil ***REMOVED***
 				// TODO figure out how to return it to the Run goroutine
 				varr.logger.WithError(err).Error("Error while allocating unplanned VU")

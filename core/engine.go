@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
@@ -102,11 +101,11 @@ func NewEngine(testState *lib.TestRunState, ex lib.ExecutionScheduler, outputs [
 //   - Stopping the metrics collection can be done at any time after Run() has
 //     returned by cancelling the globalCtx
 //   - The second returned lambda can be used to wait for that process to finish.
-func (e *Engine) Init(globalCtx, runCtx context.Context, client *redis.Client) (run func() error, wait func(), err error) ***REMOVED***
+func (e *Engine) Init(globalCtx, runCtx context.Context, workerInfo *lib.WorkerInfo) (run func() error, wait func(), err error) ***REMOVED***
 	e.logger.Debug("Initialization starting...")
 	// TODO: if we ever need metrics processing in the init context, we can move
 	// this below the other components... or even start them concurrently?
-	if err := e.ExecutionScheduler.Init(runCtx, e.Samples, client); err != nil ***REMOVED***
+	if err := e.ExecutionScheduler.Init(runCtx, e.Samples, workerInfo); err != nil ***REMOVED***
 		return nil, nil, err
 	***REMOVED***
 
@@ -117,7 +116,7 @@ func (e *Engine) Init(globalCtx, runCtx context.Context, client *redis.Client) (
 	processMetricsAfterRun := make(chan struct***REMOVED******REMOVED***)
 	runFn := func() error ***REMOVED***
 		e.logger.Debug("Execution scheduler starting...")
-		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples, client)
+		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples, workerInfo)
 		e.logger.WithError(err).Debug("Execution scheduler terminated")
 
 		select ***REMOVED***

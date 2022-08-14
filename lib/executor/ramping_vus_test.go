@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -84,11 +83,7 @@ func TestRampingVUsRun(t *testing.T) ***REMOVED***
 
 	errCh := make(chan error)
 	go func() ***REMOVED***
-		errCh <- test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	result := make([]int64, len(sampleTimes))
@@ -139,11 +134,7 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 
 	errCh := make(chan error)
 	go func() ***REMOVED***
-		errCh <- test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	<-started
@@ -191,11 +182,7 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 
 	errCh := make(chan error)
 	go func() ***REMOVED***
-		errCh <- test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	<-started
@@ -252,11 +239,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 
 	errCh := make(chan error)
 	go func() ***REMOVED***
-		errCh <- test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	<-started
@@ -341,11 +324,7 @@ func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
 
 	// run the executor: this should finish in ~70ms
 	// sum(stages) + GracefulRampDown
-	require.NoError(t, test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo()))
 
 	assert.Equal(t, wantVuInterrupted, atomic.LoadUint32(&gotVuInterrupted))
 	assert.Equal(t, wantVuFinished, atomic.LoadUint32(&gotVuFinished))
@@ -389,11 +368,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 
 	errCh := make(chan error)
 	go func() ***REMOVED***
-		errCh <- test.executor.Run(test.ctx, nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- test.executor.Run(test.ctx, nil, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	result := make([]int64, len(sampleTimes)+rampDownSamples)

@@ -94,7 +94,7 @@ func newTestEngineWithTestPreInitState( //nolint:golint
 	***REMOVED*** else ***REMOVED***
 		runCtx, runCancel = context.WithCancel(globalCtx)
 	***REMOVED***
-	run, waitFn, err := engine.Init(globalCtx, runCtx)
+	run, waitFn, err := engine.Init(globalCtx, runCtx, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	var test *testStruct
@@ -594,7 +594,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		r, err := js.New(
 			getTestPreInitState(t),
 			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
-			nil,
+			nil, lib.GetTestWorkerInfo(),
 		)
 		require.NoError(t, err)
 
@@ -734,6 +734,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
+		lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -810,7 +811,7 @@ func TestSetupException(t *testing.T) ***REMOVED***
 	runner, err := js.New(
 		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***,
+		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -858,7 +859,7 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 	runner, err := js.New(
 		piState,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -874,7 +875,7 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, _, err = engine.Init(ctx, ctx) // no need for 2 different contexts
+	_, _, err = engine.Init(ctx, ctx, lib.GetTestWorkerInfo()) // no need for 2 different contexts
 
 	require.Error(t, err)
 
@@ -925,7 +926,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	runner, err := js.New(
 		getTestPreInitState(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -1029,7 +1030,7 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 					%s
 				***REMOVED***
 				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
-				nil,
+				nil, lib.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -1114,7 +1115,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 			runner, err := js.New(
 				getTestPreInitState(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
-				nil,
+				nil, lib.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -1229,7 +1230,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 		RuntimeOptions: rtOpts,
 	***REMOVED***
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil)
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
@@ -1247,7 +1248,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 	engine, err := NewEngine(testState, execScheduler, []output.Output***REMOVED***mockOutput***REMOVED***)
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
-	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
+	run, waitFn, err := engine.Init(ctx, ctx, lib.GetTestWorkerInfo()) // no need for 2 different contexts
 	require.NoError(t, err)
 
 	errC := make(chan error)

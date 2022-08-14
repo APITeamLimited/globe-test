@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/metrics"
@@ -38,11 +37,11 @@ type ExecutionScheduler interface ***REMOVED***
 	GetExecutors() []Executor
 
 	// Init initializes all executors, including all of their needed VUs.
-	Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, client *redis.Client) error
+	Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *WorkerInfo) error
 
 	// Run the ExecutionScheduler, funneling the generated metric samples
 	// through the supplied out channel.
-	Run(globalCtx, runCtx context.Context, samplesOut chan<- metrics.SampleContainer, client *redis.Client) error
+	Run(globalCtx, runCtx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *WorkerInfo) error
 
 	// Pause a test, or start/resume it. To check if a test is paused, use
 	// GetState().IsPaused().
@@ -561,7 +560,7 @@ func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) ***REMOVED***
 // Executors are trusted to correctly declare their needs (via their
 // GetExecutionRequirements() methods) and then to never ask for more VUs than
 // they have specified in those requirements.
-func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry, client *redis.Client) (InitializedVU, error) ***REMOVED***
+func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) ***REMOVED***
 	remVUs := atomic.AddInt64(es.uninitializedUnplannedVUs, -1)
 	if remVUs < 0 ***REMOVED***
 		logger.Debug("Reusing a previously initialized unplanned VU")
@@ -570,16 +569,16 @@ func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Ent
 	***REMOVED***
 
 	logger.Debug("Initializing an unplanned VU, this may affect test results")
-	return es.InitializeNewVU(ctx, logger, client)
+	return es.InitializeNewVU(ctx, logger, workerInfo)
 ***REMOVED***
 
 // InitializeNewVU creates and returns a brand new VU, updating the relevant
 // tracking counters.
-func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry, client *redis.Client) (InitializedVU, error) ***REMOVED***
+func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) ***REMOVED***
 	if es.initVUFunc == nil ***REMOVED***
 		return nil, fmt.Errorf("initVUFunc wasn't set in the execution state")
 	***REMOVED***
-	newVU, err := es.initVUFunc(ctx, logger, client)
+	newVU, err := es.initVUFunc(ctx, logger, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

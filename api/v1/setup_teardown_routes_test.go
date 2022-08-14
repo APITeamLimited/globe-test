@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -120,11 +119,7 @@ func TestSetupData(t *testing.T) ***REMOVED***
 			piState := getTestPreInitState(t)
 			runner, err := js.New(
 				piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: testCase.script***REMOVED***, nil,
-				redis.NewClient(&redis.Options***REMOVED***
-					Addr:     "localhost:6379",
-					Password: "", // no password set
-					DB:       0,  // use default DB
-				***REMOVED***),
+				lib.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 			require.NoError(t, runner.SetOptions(lib.Options***REMOVED***
@@ -151,11 +146,7 @@ func TestSetupData(t *testing.T) ***REMOVED***
 
 			globalCtx, globalCancel := context.WithCancel(context.Background())
 			runCtx, runCancel := context.WithCancel(globalCtx)
-			run, wait, err := engine.Init(globalCtx, runCtx, redis.NewClient(&redis.Options***REMOVED***
-				Addr:     "localhost:6379",
-				Password: "", // no password set
-				DB:       0,  // use default DB
-			***REMOVED***))
+			run, wait, err := engine.Init(globalCtx, runCtx, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			defer wait()

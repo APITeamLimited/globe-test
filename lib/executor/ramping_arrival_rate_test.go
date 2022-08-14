@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,11 +55,7 @@ func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
 	for _, entry := range entries ***REMOVED***
@@ -102,11 +97,7 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		assert.InDelta(t, 50, currentCount, 3)
 	***REMOVED***()
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
 ***REMOVED***
@@ -146,11 +137,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)) (lib.InitializedVU, error) ***REMOVED***
+	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) ***REMOVED***
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
 		time.Sleep(time.Second / 2)
@@ -170,14 +157,10 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 		cur = atomic.LoadInt64(&count)
 		require.NotEqual(t, cur, int64(2))
 		idl, idg := test.state.GetUniqueVUIdentifiers()
-		return runner.NewVU(idl, idg, engineOut)
+		return runner.NewVU(idl, idg, engineOut, lib.GetTestWorkerInfo())
 	***REMOVED***)
 
-	assert.NoError(t, test.executor.Run(test.ctx, engineOut, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	assert.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 
 	droppedIters := sumMetricValues(engineOut, metrics.DroppedIterationsName)
@@ -214,7 +197,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
+	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) ***REMOVED***
 		t.Log("init")
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
@@ -225,10 +208,10 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 		require.NotEqual(t, cur, int64(1))
 
 		idl, idg := test.state.GetUniqueVUIdentifiers()
-		return runner.NewVU(idl, idg, engineOut)
+		return runner.NewVU(idl, idg, engineOut, lib.GetTestWorkerInfo())
 	***REMOVED***)
 
-	assert.NoError(t, test.executor.Run(test.ctx, engineOut))
+	assert.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(0), test.state.GetCurrentlyActiveVUsCount())
 	assert.Equal(t, int64(2), test.state.GetInitializedVUsCount())
@@ -264,7 +247,7 @@ func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
 	engineOut := make(chan metrics.SampleContainer, 1000)
 	defer close(engineOut)
 
-	assert.NoError(t, test.executor.Run(test.ctx, engineOut))
+	assert.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	assert.Equal(t, int64(0), test.state.GetCurrentlyActiveVUsCount())
 	assert.Equal(t, int64(10), test.state.GetInitializedVUsCount())
 	assert.Equal(t, uint64(10), test.state.GetFullIterationCount())
@@ -326,7 +309,7 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
 			b.ResetTimer()
 			start := time.Now()
 
-			err := executor.Run(ctx, engineOut)
+			err := executor.Run(ctx, engineOut, lib.GetTestWorkerInfo())
 			took := time.Since(start)
 			assert.NoError(b, err)
 
@@ -726,7 +709,7 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			defer test.cancel()
 
 			engineOut := make(chan metrics.SampleContainer, 100)
-			require.NoError(t, test.executor.Run(test.ctx, engineOut))
+			require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 			assert.Equal(t, tc.expIters, gotIters)
 		***REMOVED***)
 	***REMOVED***

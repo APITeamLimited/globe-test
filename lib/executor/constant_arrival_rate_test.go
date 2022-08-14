@@ -57,7 +57,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
 	for _, entry := range entries ***REMOVED***
@@ -94,7 +94,7 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
 ***REMOVED***
@@ -211,7 +211,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 			***REMOVED***()
 			startTime = time.Now()
 			engineOut := make(chan metrics.SampleContainer, 1000)
-			err = execTest.executor.Run(execTest.ctx, engineOut)
+			err = execTest.executor.Run(execTest.ctx, engineOut, lib.GetTestWorkerInfo())
 			wg.Wait()
 			require.NoError(t, err)
 			require.Empty(t, execTest.logHook.Drain())
@@ -251,7 +251,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 				defer wg.Done()
 
 				engineOut := make(chan metrics.SampleContainer, 1000)
-				errCh <- test.executor.Run(test.ctx, engineOut)
+				errCh <- test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo())
 				close(weAreDoneCh)
 			***REMOVED***()
 
@@ -295,7 +295,7 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 	defer test.cancel()
 
 	engineOut := make(chan metrics.SampleContainer, 1000)
-	require.NoError(t, test.executor.Run(test.ctx, engineOut))
+	require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 	logs := test.logHook.Drain()
 	require.Len(t, logs, 1)
 	assert.Contains(t, logs[0].Message, "cannot initialize more")
@@ -341,7 +341,7 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			defer test.cancel()
 
 			engineOut := make(chan metrics.SampleContainer, 100)
-			require.NoError(t, test.executor.Run(test.ctx, engineOut))
+			require.NoError(t, test.executor.Run(test.ctx, engineOut, lib.GetTestWorkerInfo()))
 			assert.Equal(t, tc.expIters, gotIters)
 		***REMOVED***)
 	***REMOVED***

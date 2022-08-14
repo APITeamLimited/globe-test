@@ -44,15 +44,15 @@ type Stores struct ***REMOVED***
 // IsGreater returns true if a is greater than b, or false otherwise, setting textual result message.
 func (s *Stores) StoreResult(key, value string) bool ***REMOVED***
 	// Store the result in the global state.
-	
-	stringedMessage = 
 
-	s.vu.State().Logger().Info(
+	//stringedMessage =
+	//
+	//s.vu.State().Logger().Info(
 ***REMOVED***
 
 // Exports implements the modules.Instance interface and returns the exported types for the JS module.
 func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
-    return modules.Exports***REMOVED***
-        Default: s.stores
-    ***REMOVED***
+	return modules.Exports***REMOVED***
+		//Default: s.stores
+	***REMOVED***
 ***REMOVED***

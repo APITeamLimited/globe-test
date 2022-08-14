@@ -93,7 +93,7 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 				Logger:         testutils.NewLogger(t),
 				BuiltinMetrics: builtinMetrics,
 				Registry:       registry,
-			***REMOVED***, arc)
+			***REMOVED***, arc, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -103,7 +103,7 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 					t.Parallel()
 					ch := newDevNullSampleChannel()
 					defer close(ch)
-					initVU, err := r.NewVU(1, 1, ch)
+					initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -151,7 +151,7 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -161,7 +161,7 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -206,7 +206,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -216,7 +216,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -259,7 +259,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -269,7 +269,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -278,7 +278,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			// run a second VU
-			initVU, err = r.NewVU(2, 2, ch)
+			initVU, err = r.NewVU(2, 2, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel = context.WithCancel(context.Background())
 			defer cancel()
@@ -331,7 +331,7 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -341,7 +341,7 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -401,7 +401,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -411,7 +411,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -473,7 +473,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -483,7 +483,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := make(chan metrics.SampleContainer, 100)
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -524,7 +524,7 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -534,7 +534,7 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -566,7 +566,7 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) ***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc)
+		***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -576,7 +576,7 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -626,7 +626,7 @@ func TestOptionsAreGloballyReadable(t *testing.T) ***REMOVED***
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,
 		Registry:       registry,
-	***REMOVED***, arc)
+	***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -636,7 +636,7 @@ func TestOptionsAreGloballyReadable(t *testing.T) ***REMOVED***
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch)
+			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -685,7 +685,7 @@ func TestOptionsAreNotGloballyWritable(t *testing.T) ***REMOVED***
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,
 		Registry:       registry,
-	***REMOVED***, arc)
+	***REMOVED***, arc, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	require.EqualValues(t, time.Minute*5, r2.GetOptions().MinIterationDuration.Duration)

@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -133,7 +132,7 @@ var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 // Run executes a specific number of iterations with each configured VU.
 //
 //nolint:funlen
-func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, client *redis.Client) (err error) ***REMOVED***
+func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (err error) ***REMOVED***
 	numVUs := pvi.config.GetVUs(pvi.executionState.ExecutionTuple)
 	iterations := pvi.config.GetIterations()
 	duration := pvi.config.MaxDuration.TimeDuration()

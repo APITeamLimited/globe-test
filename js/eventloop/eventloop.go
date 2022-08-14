@@ -82,28 +82,28 @@ func (e *EventLoop) wakeup() ***REMOVED***
 //
 // A common pattern for async work is something like this:
 //
-//    func doAsyncWork(vu modules.VU) *goja.Promise ***REMOVED***
-//        enqueueCallback := vu.RegisterCallback()
-//        p, resolve, reject := vu.Runtime().NewPromise()
+//	func doAsyncWork(vu modules.VU) *goja.Promise ***REMOVED***
+//	    enqueueCallback := vu.RegisterCallback()
+//	    p, resolve, reject := vu.Runtime().NewPromise()
 //
-//        // Do the actual async work in a new independent goroutine, but make
-//        // sure that the Promise resolution is done on the main thread:
-//        go func() ***REMOVED***
-//            // Also make sure to abort early if the context is cancelled, so
-//            // the VU is not stuck when the scenario ends or Ctrl+C is used:
-//            result, err := doTheActualAsyncWork(vu.Context())
-//            enqueueCallback(func() error ***REMOVED***
-//                if err != nil ***REMOVED***
-//                    reject(err)
-//                ***REMOVED*** else ***REMOVED***
-//                    resolve(result)
-//                ***REMOVED***
-//                return nil  // do not abort the iteration
-//            ***REMOVED***)
-//        ***REMOVED***()
+//	    // Do the actual async work in a new independent goroutine, but make
+//	    // sure that the Promise resolution is done on the main thread:
+//	    go func() ***REMOVED***
+//	        // Also make sure to abort early if the context is cancelled, so
+//	        // the VU is not stuck when the scenario ends or Ctrl+C is used:
+//	        result, err := doTheActualAsyncWork(vu.Context())
+//	        enqueueCallback(func() error ***REMOVED***
+//	            if err != nil ***REMOVED***
+//	                reject(err)
+//	            ***REMOVED*** else ***REMOVED***
+//	                resolve(result)
+//	            ***REMOVED***
+//	            return nil  // do not abort the iteration
+//	        ***REMOVED***)
+//	    ***REMOVED***()
 //
-//        return p
-//    ***REMOVED***
+//	    return p
+//	***REMOVED***
 //
 // This ensures that the actual work happens asynchronously, while the Promise
 // is immediately returned and the main thread resumes execution. It also

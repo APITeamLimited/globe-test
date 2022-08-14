@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,7 @@ func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.Runti
 	***REMOVED***
 ***REMOVED***
 
-func getSimpleBundle(tb testing.TB, filename, data string, client *redis.Client, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
+func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *lib.WorkerInfo, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	var rtOpts *lib.RuntimeOptions
 	var logger *logrus.Logger
@@ -71,7 +70,7 @@ func getSimpleBundle(tb testing.TB, filename, data string, client *redis.Client,
 			Data: []byte(data),
 		***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
-		client,
+		workerInfo,
 	)
 ***REMOVED***
 
@@ -79,50 +78,50 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", "")
+		_, err := getSimpleBundle(t, "/script.js", "", lib.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", "\x00")
+		_, err := getSimpleBundle(t, "/script.js", "\x00", lib.GetTestWorkerInfo())
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 	***REMOVED***)
 	t.Run("Error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
+		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`, lib.GetTestWorkerInfo())
 		exception := new(scriptException)
 		require.ErrorAs(t, err, &exception)
 		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:2:7(3)\n\tat native\n")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`)
+		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`, lib.GetTestWorkerInfo())
 		require.EqualError(t, err, "exports must be an object")
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`)
+		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`, lib.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default null;`)
+		_, err := getSimpleBundle(t, "/script.js", `export default null;`, lib.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`)
+		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`, lib.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`)
+		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 	***REMOVED***)
 	t.Run("stdin", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`)
+		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		assert.Equal(t, "file://-", b.Filename.String())
 		assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
@@ -138,7 +137,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`module.exports.default = function() ***REMOVED******REMOVED***
 				if (global.Math != Math) ***REMOVED***
 					throw new Error("global is not defined");
-				***REMOVED***`, rtOpts)
+				***REMOVED***`, lib.GetTestWorkerInfo(), rtOpts)
 
 			require.NoError(t, err)
 		***REMOVED***)
@@ -148,7 +147,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
 			***REMOVED***
 			_, err := getSimpleBundle(t, "/script.js",
-				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
+				`module.exports.default = function() ***REMOVED******REMOVED***;`, lib.GetTestWorkerInfo(), rtOpts)
 			require.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/err", func(t *testing.T) ***REMOVED***
@@ -181,7 +180,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				t.Run(tc.name, func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-					_, err := getSimpleBundle(t, "/script.js", tc.code, rtOpts)
+					_, err := getSimpleBundle(t, "/script.js", tc.code, lib.GetTestWorkerInfo(), rtOpts)
 					require.EqualError(t, err, tc.expErr)
 				***REMOVED***)
 			***REMOVED***
@@ -194,7 +193,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			_, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED******REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
@@ -210,7 +209,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					_, err := getSimpleBundle(t, "/script.js", fmt.Sprintf(`
 						export let options = %s;
 						export default function() ***REMOVED******REMOVED***;
-					`, data.Expr))
+					`, data.Expr), lib.GetTestWorkerInfo())
 					require.EqualError(t, err, data.Error)
 				***REMOVED***)
 			***REMOVED***
@@ -223,7 +222,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					paused: true,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.Paused)
 		***REMOVED***)
@@ -234,7 +233,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					vus: 100,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.VUs)
 		***REMOVED***)
@@ -245,7 +244,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					duration: "10s",
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
 		***REMOVED***)
@@ -256,7 +255,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					iterations: 100,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.Iterations)
 		***REMOVED***)
@@ -267,7 +266,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					stages: [],
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Stages, 0)
 
@@ -280,7 +279,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						],
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
 				require.Equal(t, lib.Stage***REMOVED******REMOVED***, b.Options.Stages[0])
@@ -294,7 +293,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						],
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
 				require.Equal(t, lib.Stage***REMOVED***Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
@@ -308,7 +307,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						],
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
 				require.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
@@ -322,7 +321,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						],
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
 				require.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
@@ -337,7 +336,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						],
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 2)
 				assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
@@ -351,7 +350,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					maxRedirects: 10,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(10), b.Options.MaxRedirects)
 		***REMOVED***)
@@ -362,7 +361,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					insecureSkipTLSVerify: true,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
 		***REMOVED***)
@@ -379,7 +378,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					`
 					script = fmt.Sprintf(script, suiteName)
 
-					b, err := getSimpleBundle(t, "/script.js", script)
+					b, err := getSimpleBundle(t, "/script.js", script, lib.GetTestWorkerInfo())
 					require.NoError(t, err)
 					require.Len(t, *b.Options.TLSCipherSuites, 1)
 					require.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
@@ -398,7 +397,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
 				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
@@ -410,7 +409,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 						tlsVersion: "tls1.0"
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
-				`)
+				`, lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
 				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS10))
@@ -425,7 +424,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`)
+			`, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Thresholds["http_req_duration"].Thresholds, 1)
 			require.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
@@ -448,7 +447,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					***REMOVED***,
 				***REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
-			`, logger)
+			`, lib.GetTestWorkerInfo(), logger)
 			require.NoError(t, err)
 			entries := hook.Drain()
 			require.Len(t, entries, 1)
@@ -460,7 +459,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func getArchive(tb testing.TB, data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
-	b, err := getSimpleBundle(tb, "script.js", data, rtOpts)
+	b, err := getSimpleBundle(tb, "script.js", data, lib.GetTestWorkerInfo(), rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -478,7 +477,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	logger := testutils.NewLogger(t)
 	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
 		require.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-		bi, err := b.Instantiate(logger, 0)
+		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -486,7 +485,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
-		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc)
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc, lib.GetTestWorkerInfo())
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
 			require.Contains(t, err.Error(), expError)
@@ -569,9 +568,9 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
 			Filesystems: nil,
 		***REMOVED***
-		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc)
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
-		bi, err := b.Instantiate(logger, 0)
+		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -701,21 +700,21 @@ func TestOpen(t *testing.T) ***REMOVED***
 						export let file = open("` + openPath + `");
 						export default function() ***REMOVED*** return file ***REMOVED***;`
 
-					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
+					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, lib.GetTestWorkerInfo(), fs)
 					if tCase.isError ***REMOVED***
 						require.Error(t, err)
 						return
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive())
+					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive(), lib.GetTestWorkerInfo())
 
 					require.NoError(t, err)
 
 					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
 						b := b
 						t.Run(source, func(t *testing.T) ***REMOVED***
-							bi, err := b.Instantiate(logger, 0)
+							bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
@@ -747,11 +746,11 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		***REMOVED***;
 		let val = true;
 		export default function() ***REMOVED*** return val; ***REMOVED***
-	`)
+	`, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0)
+		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -767,11 +766,11 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 			***REMOVED***;
 			let val = true;
 			export default function() ***REMOVED*** return val; ***REMOVED***
-		`)
+		`, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0)
+		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		// Ensure `options` properties are correctly marshalled
 		jsOptions := bi.pgm.exports.Get("options").ToObject(bi.Runtime)
@@ -783,7 +782,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
-		bi2, err := b.Instantiate(logger, 0)
+		bi2, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		jsOptions = bi2.pgm.exports.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
@@ -804,11 +803,11 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
 		***REMOVED***
 	`
-	b1, err := getSimpleBundle(t, "/script.js", data, rtOpts)
+	b1, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), rtOpts)
 	require.NoError(t, err)
 
 	logger := testutils.NewLogger(t)
-	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
@@ -819,7 +818,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			require.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
 			require.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
 
-			bi, err := b.Instantiate(logger, 0)
+			bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			require.NoError(t, err)
@@ -841,11 +840,11 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	`
-	b1, err := getSimpleBundle(t, "/script.js", data)
+	b1, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
@@ -855,7 +854,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for i := 0; i < vus; i++ ***REMOVED***
-				bi, err := b.Instantiate(logger, uint64(i))
+				bi, err := b.Instantiate(logger, uint64(i), lib.GetTestWorkerInfo())
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
@@ -902,7 +901,7 @@ func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0o644)
 
 			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
-			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, fs, rtOpts)
+			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, lib.GetTestWorkerInfo(), fs, rtOpts)
 			require.NoError(t, err)
 
 			arc := b.makeArchive()

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/cmd/integration_tests/testmodules/events"
@@ -37,11 +36,7 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 	***REMOVED***
 
 	script = []byte("import ***REMOVED***setTimeout***REMOVED*** from 'k6/x/events';\n" + string(script))
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,19 +70,11 @@ func eventLoopTest(t *testing.T, script []byte, testHandle func(context.Context,
 		***REMOVED***
 	***REMOVED***()
 
-	require.NoError(t, execScheduler.Init(ctx, samples, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***)))
+	require.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
 
 	errCh := make(chan error, 1)
 	go func() ***REMOVED***
-		errCh <- execScheduler.Run(ctx, ctx, samples, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo())
 	***REMOVED***()
 
 	select ***REMOVED***

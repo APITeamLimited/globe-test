@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-redis/redis/v9"
 	"github.com/oxtoacart/bpool"
 	"github.com/spf13/afero"
 	"golang.org/x/net/http2"
@@ -60,8 +59,8 @@ type Runner struct ***REMOVED***
 ***REMOVED***
 
 // New returns a new Runner for the provided source
-func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, client *redis.Client) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundle(piState, src, filesystems, client)
+func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *lib.WorkerInfo) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundle(piState, src, filesystems, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -70,8 +69,8 @@ func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[
 ***REMOVED***
 
 // NewFromArchive returns a new Runner from the source in the provided archive
-func NewFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, client *redis.Client) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundleFromArchive(piState, arc, client)
+func NewFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, workerInfo *lib.WorkerInfo) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundleFromArchive(piState, arc, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -112,8 +111,8 @@ func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, client *redis.Client) (lib.InitializedVU, error) ***REMOVED***
-	vu, err := r.newVU(idLocal, idGlobal, samplesOut, client)
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) ***REMOVED***
+	vu, err := r.newVU(idLocal, idGlobal, samplesOut, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -121,9 +120,9 @@ func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 ***REMOVED***
 
 //nolint:funlen
-func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, client *redis.Client) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, client)
+	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -349,11 +348,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		***REMOVED***
 	***REMOVED***()
 
-	vu, err := r.newVU(0, 0, out, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	vu, err := r.newVU(0, 0, out, lib.GetTestWorkerInfo())
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -493,11 +488,7 @@ func (r *Runner) runPart(
 	name string,
 	arg interface***REMOVED******REMOVED***,
 ) (goja.Value, error) ***REMOVED***
-	vu, err := r.newVU(0, 0, out, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	vu, err := r.newVU(0, 0, out, lib.GetTestWorkerInfo())
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***

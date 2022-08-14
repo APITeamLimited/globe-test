@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
@@ -53,22 +52,14 @@ func setupExecutor(t testing.TB, config lib.ExecutorConfig, es *lib.ExecutionSta
 	testLog.SetOutput(ioutil.Discard)
 	logEntry := logrus.NewEntry(testLog)
 
-	initVUFunc := func(_ context.Context, logger *logrus.Entry, client *redis.NewClient) (lib.InitializedVU, error) ***REMOVED***
+	initVUFunc := func(_ context.Context, logger *logrus.Entry, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) ***REMOVED***
 		idl, idg := es.GetUniqueVUIdentifiers()
-		return es.Test.Runner.NewVU(idl, idg, engineOut, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***))
+		return es.Test.Runner.NewVU(idl, idg, engineOut, lib.GetTestWorkerInfo())
 	***REMOVED***
 	es.SetInitVUFunc(initVUFunc)
 
 	maxPlannedVUs := lib.GetMaxPlannedVUs(config.GetExecutionRequirements(es.ExecutionTuple))
-	initializeVUs(ctx, t, logEntry, es, maxPlannedVUs, initVUFunc, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	initializeVUs(ctx, t, logEntry, es, maxPlannedVUs, initVUFunc)
 
 	executor, err := config.NewExecutor(es, logEntry)
 	require.NoError(t, err)
@@ -85,7 +76,7 @@ func initializeVUs(
 	for i := uint64(0); i < number; i++ ***REMOVED***
 		// Not calling es.InitializeNewVU() here to avoid a double increment of initializedVUs,
 		// which is done in es.AddInitializedVU().
-		vu, err := initVU(ctx, logEntry)
+		vu, err := initVU(ctx, logEntry, lib.GetTestWorkerInfo())
 		require.NoError(t, err)
 		es.AddInitializedVU(vu)
 	***REMOVED***

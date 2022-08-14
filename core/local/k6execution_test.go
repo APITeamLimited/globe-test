@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,11 +77,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil, redis.NewClient(&redis.Options***REMOVED***
-			Addr:     "localhost:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		***REMOVED***),
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -103,7 +98,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
@@ -195,7 +190,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -203,7 +198,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
 
 	scStats := map[string]uint64***REMOVED******REMOVED***
 
@@ -277,7 +272,7 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil,
+		nil, lib.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -285,7 +280,7 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
 
 	expIters := [50]int64***REMOVED******REMOVED***
 	for i := 0; i < 50; i++ ***REMOVED***
@@ -411,14 +406,14 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 				&loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
-				***REMOVED***, nil)
+				***REMOVED***, nil, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
 
 			select ***REMOVED***
 			case err := <-errCh:

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -41,11 +40,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
-	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -83,11 +78,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
-	initVU, err := r.NewVU(1, 1, ch, redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	***REMOVED***))
+	initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
 	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
