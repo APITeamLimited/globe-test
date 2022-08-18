@@ -2,8 +2,7 @@
 package apiteam
 
 import (
-	"time"
-
+	"github.com/dop251/goja"
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 )
@@ -47,18 +46,18 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 func (mi *APITeam) Exports() modules.Exports {
 	return modules.Exports{
 		Named: map[string]interface{}{
-			"sleep": mi.Sleep,
+			"info": mi.Info,
 		},
 	}
 }
 
-// Sleep waits the provided seconds before continuing the execution.
-func (mi *APITeam) Sleep(secs float64) {
-	ctx := mi.vu.Context()
-	timer := time.NewTimer(time.Duration(secs * float64(time.Second)))
-	select {
-	case <-timer.C:
-	case <-ctx.Done():
-		timer.Stop()
-	}
+// Info returns current info about the APITeam Execution Context.
+func (mi *APITeam) Info(secs float64) *goja.Object {
+	workerInfo := mi.vu.InitEnv().WorkerInfo
+	workerId := workerInfo.WorkerId
+
+	newObject := mi.vu.Runtime().CreateObject(&goja.Object{})
+	newObject.Set("workerId", workerId)
+
+	return newObject
 }
