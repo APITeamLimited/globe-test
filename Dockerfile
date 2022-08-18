@@ -1,4 +1,4 @@
-FROM k6-base:latest
+FROM worker-base:latest
 
 COPY . /app
 WORKDIR /app
