@@ -31,7 +31,11 @@ func handleExecution(ctx context.Context,
 	globalState := newGlobalState(ctx, client, job["id"], workerId)
 
 	workerInfo := &lib.WorkerInfo***REMOVED***
-		Client: client,
+		Client:         client,
+		JobId:          job["id"],
+		ScopeId:        job["scopeId"],
+		OrchestratorId: job["orchestratorId"],
+		WorkerId:       workerId,
 	***REMOVED***
 
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)

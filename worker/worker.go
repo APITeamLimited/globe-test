@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
+	"go.k6.io/k6/environment"
 	"go.k6.io/k6/lib/consts"
 )
 
@@ -26,9 +27,9 @@ func Run() ***REMOVED***
 	workerId := uuid.New()
 
 	client := redis.NewClient(&redis.Options***REMOVED***
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     fmt.Sprintf("%s:%s", environment.GetEnvVariable("CLIENT_HOST", "localhost"), environment.GetEnvVariable("CLIENT_PORT", "6978")),
+		Password: environment.GetEnvVariable("CLIENT_PASSWORD", ""),
+		DB:       0, // use default DB
 	***REMOVED***)
 
 	currentTime := time.Now().UnixMilli()
