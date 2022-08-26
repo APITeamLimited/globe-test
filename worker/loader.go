@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -20,6 +21,7 @@ import (
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
+	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
 	"gopkg.in/guregu/null.v3"
@@ -200,11 +202,10 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		return nil, fmt.Errorf("could not parse options: %w", err)
 	}
 
-	consolidatedConfig := Config{
-		Options: parsedOptions,
-	}
+	consolidatedConfig := getConsolidatedConfig(parsedOptions)
 
-	gs.logger.Debug("Parsing thresholds and validating config...")
+	// TODO: get other config sources eg
+
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
 	// invalid configuration error.
@@ -232,6 +233,16 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		consolidatedConfig: consolidatedConfig,
 		derivedConfig:      derivedConfig,
 	}, nil
+}
+
+func getConsolidatedConfig(parsedOptions lib.Options) Config {
+	consolidatedConfig := Config{
+		Options: parsedOptions,
+	}
+
+	consolidatedConfig = applyDefault(consolidatedConfig)
+
+	return consolidatedConfig
 }
 
 func deriveAndValidateConfig(
@@ -293,4 +304,30 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 		Runner:           lct.initRunner,
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
 	}, nil
+}
+
+func applyDefault(conf Config) Config {
+	if conf.SystemTags == nil {
+		conf.SystemTags = &metrics.DefaultSystemTagSet
+	}
+	if conf.SummaryTrendStats == nil {
+		conf.SummaryTrendStats = lib.DefaultSummaryTrendStats
+	}
+	defDNS := types.DefaultDNSConfig()
+	if !conf.DNS.TTL.Valid {
+		conf.DNS.TTL = defDNS.TTL
+	}
+	if !conf.DNS.Select.Valid {
+		conf.DNS.Select = defDNS.Select
+	}
+	if !conf.DNS.Policy.Valid {
+		conf.DNS.Policy = defDNS.Policy
+	}
+	if !conf.SetupTimeout.Valid {
+		conf.SetupTimeout.Duration = types.Duration(60 * time.Second)
+	}
+	if !conf.TeardownTimeout.Valid {
+		conf.TeardownTimeout.Duration = types.Duration(60 * time.Second)
+	}
+	return conf
 }

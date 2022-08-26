@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -158,16 +157,15 @@ func handleExecution(ctx context.Context,
 	// Handle the end-of-test summary.
 	if !testRunState.RuntimeOptions.NoSummary.Bool {
 		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-		summaryResult := &lib.Summary{
+		marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &lib.Summary{
 			Metrics:         engine.MetricsEngine.ObservedMetrics,
 			RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
 			TestRunDuration: executionState.GetCurrentTestRunDuration(),
-			NoColor:         globalState.flags.noColor,
-		}
+		})
 		engine.MetricsEngine.MetricsLock.Unlock()
-		summaryResultMarshalled, err := json.Marshal(summaryResult)
+
 		if err == nil {
-			lib.DispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
+			lib.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "METRICS")
 		} else {
 			lib.HandleError(ctx, client, job["id"], workerId, err)
 		}
