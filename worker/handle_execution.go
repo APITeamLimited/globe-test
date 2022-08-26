@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-redis/redis/v9"
+	"github.com/APITeamLimited/redis/v9"
 	"go.k6.io/k6/core"
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/errext"
@@ -26,7 +26,7 @@ func handleExecution(ctx context.Context,
 
 	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
 
-	go updateStatus(ctx, client, job["id"], workerId, "LOADING")
+	go lib.UpdateStatus(ctx, client, job["id"], workerId, "LOADING")
 
 	globalState := newGlobalState(ctx, client, job["id"], workerId)
 
@@ -36,22 +36,23 @@ func handleExecution(ctx context.Context,
 		ScopeId:        job["scopeId"],
 		OrchestratorId: job["orchestratorId"],
 		WorkerId:       workerId,
+		Ctx:            ctx,
 	***REMOVED***
 
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)
 
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to loadAndConfigureTest: %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to loadAndConfigureTest: %s", err.Error()))
 		return
 	***REMOVED***
 
-	go DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full consolidated *and derived* options back to the Runner.
 	conf := test.derivedConfig
 	testRunState, err := test.buildTestRunState(conf.Options)
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -76,7 +77,7 @@ func handleExecution(ctx context.Context,
 	logger.Debug("Initializing the execution scheduler...")
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -84,7 +85,7 @@ func handleExecution(ctx context.Context,
 	executionPlan := execScheduler.GetExecutionPlan()
 	outputs, err := createOutputs(globalState, test, executionPlan)
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -93,17 +94,17 @@ func handleExecution(ctx context.Context,
 
 	// TODO: remove this completely
 	// Create the engine.
-	go DispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return
 	***REMOVED***
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
 	if err != nil ***REMOVED***
-		go handleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
 		return
 	***REMOVED***
 	defer engine.OutputManager.StopOutputs()
@@ -121,17 +122,17 @@ func handleExecution(ctx context.Context,
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	go DispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, workerInfo)
 	if err != nil ***REMOVED***
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
-		go handleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
+		go lib.HandleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return
 	***REMOVED***
 
 	// Start the test run
-	go updateStatus(ctx, client, job["id"], workerId, "RUNNING")
+	go lib.UpdateStatus(ctx, client, job["id"], workerId, "RUNNING")
 	var interrupt error
 	err = engineRun()
 	if err != nil ***REMOVED***
@@ -146,12 +147,12 @@ func handleExecution(ctx context.Context,
 		***REMOVED***
 	***REMOVED***
 	runCancel()
-	go DispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 ***REMOVED***
-		go DispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
+		go lib.DispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	***REMOVED***
 
 	// Handle the end-of-test summary.
@@ -166,13 +167,13 @@ func handleExecution(ctx context.Context,
 		engine.MetricsEngine.MetricsLock.Unlock()
 		summaryResultMarshalled, err := json.Marshal(summaryResult)
 		if err == nil ***REMOVED***
-			DispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
+			lib.DispatchMessage(ctx, client, job["id"], workerId, string(summaryResultMarshalled), "RESULTS")
 		***REMOVED*** else ***REMOVED***
-			handleError(ctx, client, job["id"], workerId, err)
+			lib.HandleError(ctx, client, job["id"], workerId, err)
 		***REMOVED***
 	***REMOVED***
 
-	updateStatus(ctx, client, job["id"], workerId, "SUCCESS")
+	lib.UpdateStatus(ctx, client, job["id"], workerId, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
 	logger.Debug("Waiting for engine processes to finish...")

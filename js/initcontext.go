@@ -370,7 +370,6 @@ func getInternalJSModules() map[string]interface***REMOVED******REMOVED*** ***RE
 		"k6/metrics":     metrics.New(),
 		"k6/ws":          ws.New(),
 		"apiteam":        apiteam.New(),
-		"apiteam/http":   html.New(),
 	***REMOVED***
 ***REMOVED***
 

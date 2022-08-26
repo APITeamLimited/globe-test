@@ -22,7 +22,7 @@ package worker
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
@@ -31,9 +31,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v9"
+	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
+	"go.k6.io/k6/lib"
 )
 
 const (
@@ -81,7 +82,7 @@ type globalState struct ***REMOVED***
 	signalStop   func(chan<- os.Signal)
 
 	logger         *logrus.Logger
-	fallbackLogger logrus.FieldLogger
+	fallbackLogger *logrus.Logger
 ***REMOVED***
 
 // Ideally, this should be the only function in the whole codebase where we use
@@ -101,8 +102,8 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 	***REMOVED***
 
 	logger := &logrus.Logger***REMOVED***
-		Out:       stdErr,
-		Formatter: new(logrus.TextFormatter),
+		Out:       stdOut,
+		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
 	***REMOVED***
@@ -141,27 +142,23 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	origLen := len(p)
 
-	// Intercept the write message so can assess log errors
-
-	stringP := string(p)
-
-	fmt.Println("stringP:", stringP)
-
-	// See if stringP contains 'source=stacktrace' or 'source=console'
-	if strings.Contains(stringP, "source=stacktrace") || strings.Contains(stringP, "source=console") ***REMOVED***
-		// Determine level of message
-		if strings.Contains(stringP, "level=error") ***REMOVED***
-			// Get bit after msg=" and before next "
-			msg1 := strings.Split(stringP, "msg=\"")[1]
-			msg2 := strings.Split(msg1, "\"")[0]
-
-			go handleStringError(w.ctx, w.client, w.jobId, w.workerId, msg2)
-		***REMOVED*** else ***REMOVED***
-			go DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		go DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "MESSAGE")
+	// Intercept the write message so can assess log errors parse json
+	parsed := make(map[string]interface***REMOVED******REMOVED***)
+	if err := json.Unmarshal(p, &parsed); err != nil ***REMOVED***
+		return origLen, err
 	***REMOVED***
+
+	// Check message level, if error then log error
+	if parsed["level"] == "error" ***REMOVED***
+		if parsed["error"] != nil ***REMOVED***
+			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
+		***REMOVED*** else ***REMOVED***
+			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
+		***REMOVED***
+		return
+	***REMOVED***
+
+	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
 
 	return origLen, err
 ***REMOVED***
@@ -217,9 +214,9 @@ func buildEnvMap(environ []string) map[string]string ***REMOVED***
 ***REMOVED***
 
 // RawFormatter it does nothing with the message just prints it
-type RawFormatter struct***REMOVED******REMOVED***
-
-// Format renders a single log entry
-func (f RawFormatter) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
-	return append([]byte(entry.Message), '\n'), nil
-***REMOVED***
+//type RawFormatter struct***REMOVED******REMOVED***
+//
+//// Format renders a single log entry
+//func (f RawFormatter) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
+//	return append([]byte(entry.Message), '\n'), nil
+//***REMOVED***

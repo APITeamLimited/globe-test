@@ -318,6 +318,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		Registry:    b.registry,
 		WorkerInfo:  workerInfo,
 	***REMOVED***
+
 	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.ctx = context.Background()
 	init.moduleVUImpl.initEnv = initenv
@@ -355,7 +356,9 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	init.programs[b.Filename.String()] = pgm
 	unbindInit()
 	init.moduleVUImpl.ctx = nil
-	init.moduleVUImpl.initEnv = nil
+
+	// We need the initenv
+	//init.moduleVUImpl.initEnv = nil
 
 	// If we've already initialized the original VU init context, forbid
 	// any subsequent VUs to open new files

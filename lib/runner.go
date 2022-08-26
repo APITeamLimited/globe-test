@@ -93,9 +93,9 @@ type UIState struct ***REMOVED***
 
 // Summary contains all of the data the summary handler gets.
 type Summary struct ***REMOVED***
-	Metrics         map[string]*metrics.Metric
-	RootGroup       *Group
-	TestRunDuration time.Duration // TODO: use lib.ExecutionState-based interface instead?
-	NoColor         bool          // TODO: drop this when noColor is part of the (runtime) options
-	UIState         UIState
+	Metrics         map[string]*metrics.Metric `json:"metrics"`
+	RootGroup       *Group                     `json:"rootGroup"`
+	TestRunDuration time.Duration              `json:"testRunDuration"`
+	NoColor         bool                       `json:"noColor"`
+	UIState         UIState                    `json:"uiState"`
 ***REMOVED***

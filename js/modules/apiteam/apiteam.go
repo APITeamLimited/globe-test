@@ -2,9 +2,13 @@
 package apiteam
 
 import (
-	"github.com/dop251/goja"
+	"encoding/json"
+	"fmt"
+	"strings"
+
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
+	"go.k6.io/k6/lib"
 )
 
 var (
@@ -46,18 +50,44 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED*
 func (mi *APITeam) Exports() modules.Exports ***REMOVED***
 	return modules.Exports***REMOVED***
 		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
-			"info": mi.Info,
+			"context": mi.Context,
+			"tag":     mi.Tag,
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
 // Info returns current info about the APITeam Execution Context.
-func (mi *APITeam) Info(secs float64) *goja.Object ***REMOVED***
+func (mi *APITeam) Context() *lib.WorkerInfo ***REMOVED***
 	workerInfo := mi.vu.InitEnv().WorkerInfo
-	workerId := workerInfo.WorkerId
 
-	newObject := mi.vu.Runtime().CreateObject(&goja.Object***REMOVED******REMOVED***)
-	newObject.Set("workerId", workerId)
+	return workerInfo
+***REMOVED***
 
-	return newObject
+type tagMessage struct ***REMOVED***
+	Filename string      `json:"filename"`
+	Message  interface***REMOVED******REMOVED*** `json:"message"`
+***REMOVED***
+
+// Returns a tagged value to the orchestrator
+func (mi *APITeam) Tag(filename string, value interface***REMOVED******REMOVED***) error ***REMOVED***
+	workerInfo := mi.vu.InitEnv().WorkerInfo
+
+	// Ensure no ':' in the filename
+	if strings.Contains(filename, ":") ***REMOVED***
+		return fmt.Errorf("filename cannot contain ':'")
+	***REMOVED***
+
+	tagMessage := tagMessage***REMOVED***
+		Filename: filename,
+		Message:  value,
+	***REMOVED***
+
+	marshalled, err := json.Marshal(tagMessage)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	lib.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalled), "TAG")
+
+	return nil
 ***REMOVED***

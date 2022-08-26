@@ -1,3 +1,13 @@
+# github.com/APITeamLimited/redis/v9 v9.0.6
+## explicit; go 1.17
+github.com/APITeamLimited/redis/v9
+github.com/APITeamLimited/redis/v9/internal
+github.com/APITeamLimited/redis/v9/internal/hashtag
+github.com/APITeamLimited/redis/v9/internal/hscan
+github.com/APITeamLimited/redis/v9/internal/pool
+github.com/APITeamLimited/redis/v9/internal/proto
+github.com/APITeamLimited/redis/v9/internal/rand
+github.com/APITeamLimited/redis/v9/internal/util
 # github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e
 ## explicit
 github.com/Azure/go-ntlmssp
@@ -44,18 +54,6 @@ github.com/dop251/goja/unistring
 github.com/fatih/color
 # github.com/garyburd/redigo v1.6.3
 ## explicit; go 1.17
-github.com/garyburd/redigo/internal
-github.com/garyburd/redigo/redis
-# github.com/go-redis/redis/v9 v9.0.0-beta.2
-## explicit; go 1.17
-github.com/go-redis/redis/v9
-github.com/go-redis/redis/v9/internal
-github.com/go-redis/redis/v9/internal/hashtag
-github.com/go-redis/redis/v9/internal/hscan
-github.com/go-redis/redis/v9/internal/pool
-github.com/go-redis/redis/v9/internal/proto
-github.com/go-redis/redis/v9/internal/rand
-github.com/go-redis/redis/v9/internal/util
 # github.com/go-sourcemap/sourcemap v2.1.4-0.20211119122758-180fcef48034+incompatible
 ## explicit
 github.com/go-sourcemap/sourcemap
