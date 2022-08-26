@@ -336,6 +336,11 @@ func (r *Runner) IsExecutable(name string) bool ***REMOVED***
 	return exists
 ***REMOVED***
 
+func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *lib.Summary) ([]byte, error) ***REMOVED***
+	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
+	return json.Marshal(summaryDataForJS["metrics"])
+***REMOVED***
+
 // HandleSummary calls the specified summary callback, if supplied.
 func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[string]io.Reader, error) ***REMOVED***
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)

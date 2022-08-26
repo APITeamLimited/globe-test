@@ -64,22 +64,22 @@ func (mi *APITeam) Context() *lib.WorkerInfo ***REMOVED***
 ***REMOVED***
 
 type tagMessage struct ***REMOVED***
-	Filename string      `json:"filename"`
-	Message  interface***REMOVED******REMOVED*** `json:"message"`
+	Tag     string      `json:"tag"`
+	Message interface***REMOVED******REMOVED*** `json:"message"`
 ***REMOVED***
 
 // Returns a tagged value to the orchestrator
-func (mi *APITeam) Tag(filename string, value interface***REMOVED******REMOVED***) error ***REMOVED***
+func (mi *APITeam) Tag(tag string, value interface***REMOVED******REMOVED***) error ***REMOVED***
 	workerInfo := mi.vu.InitEnv().WorkerInfo
 
-	// Ensure no ':' in the filename
-	if strings.Contains(filename, ":") ***REMOVED***
+	// Ensure no ':' in the tag
+	if strings.Contains(tag, ":") ***REMOVED***
 		return fmt.Errorf("filename cannot contain ':'")
 	***REMOVED***
 
 	tagMessage := tagMessage***REMOVED***
-		Filename: filename,
-		Message:  value,
+		Tag:     tag,
+		Message: value,
 	***REMOVED***
 
 	marshalled, err := json.Marshal(tagMessage)

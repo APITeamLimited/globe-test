@@ -82,6 +82,8 @@ type Runner interface ***REMOVED***
 	IsExecutable(string) bool
 
 	HandleSummary(context.Context, *Summary) (map[string]io.Reader, error)
+
+	RetrieveMetricsJSON(context.Context, *Summary) ([]byte, error)
 ***REMOVED***
 
 // UIState describes the state of the UI, which might influence what

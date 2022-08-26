@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -20,6 +21,7 @@ import (
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
+	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
 	"go.k6.io/k6/metrics"
 	"gopkg.in/guregu/null.v3"
@@ -200,11 +202,10 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		return nil, fmt.Errorf("could not parse options: %w", err)
 	***REMOVED***
 
-	consolidatedConfig := Config***REMOVED***
-		Options: parsedOptions,
-	***REMOVED***
+	consolidatedConfig := getConsolidatedConfig(parsedOptions)
 
-	gs.logger.Debug("Parsing thresholds and validating config...")
+	// TODO: get other config sources eg
+
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
 	// invalid configuration error.
@@ -232,6 +233,16 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		consolidatedConfig: consolidatedConfig,
 		derivedConfig:      derivedConfig,
 	***REMOVED***, nil
+***REMOVED***
+
+func getConsolidatedConfig(parsedOptions lib.Options) Config ***REMOVED***
+	consolidatedConfig := Config***REMOVED***
+		Options: parsedOptions,
+	***REMOVED***
+
+	consolidatedConfig = applyDefault(consolidatedConfig)
+
+	return consolidatedConfig
 ***REMOVED***
 
 func deriveAndValidateConfig(
@@ -293,4 +304,30 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 		Runner:           lct.initRunner,
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
 	***REMOVED***, nil
+***REMOVED***
+
+func applyDefault(conf Config) Config ***REMOVED***
+	if conf.SystemTags == nil ***REMOVED***
+		conf.SystemTags = &metrics.DefaultSystemTagSet
+	***REMOVED***
+	if conf.SummaryTrendStats == nil ***REMOVED***
+		conf.SummaryTrendStats = lib.DefaultSummaryTrendStats
+	***REMOVED***
+	defDNS := types.DefaultDNSConfig()
+	if !conf.DNS.TTL.Valid ***REMOVED***
+		conf.DNS.TTL = defDNS.TTL
+	***REMOVED***
+	if !conf.DNS.Select.Valid ***REMOVED***
+		conf.DNS.Select = defDNS.Select
+	***REMOVED***
+	if !conf.DNS.Policy.Valid ***REMOVED***
+		conf.DNS.Policy = defDNS.Policy
+	***REMOVED***
+	if !conf.SetupTimeout.Valid ***REMOVED***
+		conf.SetupTimeout.Duration = types.Duration(60 * time.Second)
+	***REMOVED***
+	if !conf.TeardownTimeout.Valid ***REMOVED***
+		conf.TeardownTimeout.Duration = types.Duration(60 * time.Second)
+	***REMOVED***
+	return conf
 ***REMOVED***
