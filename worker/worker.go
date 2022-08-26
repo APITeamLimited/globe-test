@@ -6,10 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/redis/v9"
 	"github.com/fatih/color"
-	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
 	"go.k6.io/k6/environment"
+	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/consts"
 )
 
@@ -88,7 +89,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	job, err := client.HGetAll(ctx, jobId).Result()
 
 	if err != nil {
-		fmt.Println("Error getting worker")
+		fmt.Println("Error getting job from redis")
 		return
 	}
 
@@ -96,6 +97,14 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 
 	// Check worker['assignedWorker'] is nil
 	if job["assignedWorker"] != "" {
+		return
+	}
+
+	if job["id"] == "" {
+		_, err = client.Del(ctx, jobId).Result()
+		if err != nil {
+			fmt.Println("Error deleting job from redis")
+		}
 		return
 	}
 
@@ -119,7 +128,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 
 	// We got the job
 	executionList.addJob(job)
-	go updateStatus(ctx, client, jobId, workerId, "ASSIGNED")
+	go lib.UpdateStatus(ctx, client, jobId, workerId, "ASSIGNED")
 	handleExecution(ctx, client, job, workerId)
 	executionList.removeJob(jobId)
 	// Capacity was freed, so check for queued jobs

@@ -3,7 +3,7 @@ package worker
 import (
 	"context"
 
-	"github.com/go-redis/redis/v9"
+	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,7 +29,8 @@ func NewRedisHook(client *redis.Client, ctx context.Context, jobId string, worke
 // Fire is called when a log event is fired.
 func (hook *RedisHook) Fire(entry *logrus.Entry) error {
 	// This doesn't work for some reason but redundant
-	//go DispatchMessage(hook.ctx, hook.client, hook.jobId, hook.workerId, entry.Message, "MESSAGE")
+	//go lib.DispatchMessage(hook.ctx, hook.client, hook.jobId, hook.workerId, entry.Message, "MESSAGE")
+
 	return nil
 }
 

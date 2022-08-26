@@ -31,3 +31,7 @@
 /packaging/*.gpg
 
 /venv/
+
+*private*
+
+main
