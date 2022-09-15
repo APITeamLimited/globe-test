@@ -64,7 +64,7 @@ func Run() ***REMOVED***
 			fmt.Println("Error, got did not parse job id")
 			return
 		***REMOVED***
-		checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
+		go checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
 	***REMOVED***
 ***REMOVED***
 

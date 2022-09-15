@@ -82,7 +82,7 @@ func handleExecution(ctx context.Context,
 
 	// Create all outputs.
 	executionPlan := execScheduler.GetExecutionPlan()
-	outputs, err := createOutputs(globalState, test, executionPlan)
+	outputs, err := createOutputs(globalState, test, executionPlan, workerInfo)
 	if err != nil ***REMOVED***
 		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return
@@ -165,7 +165,7 @@ func handleExecution(ctx context.Context,
 		engine.MetricsEngine.MetricsLock.Unlock()
 
 		if err == nil ***REMOVED***
-			lib.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "METRICS")
+			lib.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
 		***REMOVED*** else ***REMOVED***
 			lib.HandleError(ctx, client, job["id"], workerId, err)
 		***REMOVED***

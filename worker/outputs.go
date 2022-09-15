@@ -5,12 +5,12 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/output/json"
+	"go.k6.io/k6/output/globetest"
 )
 
 func createOutputs(
 	gs *globalState, test *workerLoadedAndConfiguredTest, executionPlan []lib.ExecutionStep,
-) ([]output.Output, error) ***REMOVED***
+	workerInfo *lib.WorkerInfo) ([]output.Output, error) ***REMOVED***
 	baseParams := output.Params***REMOVED***
 		ScriptPath:     test.source.URL,
 		Logger:         gs.logger,
@@ -24,12 +24,13 @@ func createOutputs(
 	***REMOVED***
 	result := make([]output.Output, 0, 1)
 
-	jsonOutput, err := json.New(baseParams)
+	globetestOutput, err := globetest.New(baseParams, workerInfo)
+
 	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("could not create the 'json' output: %w", err)
+		return nil, fmt.Errorf("could not create the 'globetest' output: %w", err)
 	***REMOVED***
 
-	result = append(result, jsonOutput)
+	result = append(result, globetestOutput)
 
 	return result, nil
 ***REMOVED***

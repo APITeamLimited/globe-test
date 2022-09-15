@@ -16,6 +16,10 @@ type WorkerInfo struct ***REMOVED***
 	OrchestratorId string
 	WorkerId       string
 	Ctx            context.Context
+	environment    *map[string]string
+	body           string
+	headers        *map[string]string
+	parameters     *map[string]string
 ***REMOVED***
 
 func GetTestWorkerInfo() *WorkerInfo ***REMOVED***
@@ -81,12 +85,3 @@ func HandleError(ctx context.Context, client *redis.Client, jobId string, worker
 	DispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
 	UpdateStatus(ctx, client, jobId, workerId, "FAILED")
 ***REMOVED***
-
-// Splits an outputted console.log message into a message type and message
-//func splitLogMessage(message string) (string[] string[]) ***REMOVED***
-//	var level = ""
-//
-//	if (string.Contains("level=info") ***REMOVED***
-//		level = "INFO"
-//	***REMOVED*** e
-//***REMOVED***
