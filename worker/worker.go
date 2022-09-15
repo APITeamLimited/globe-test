@@ -64,7 +64,7 @@ func Run() {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
+		go checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
 	}
 }
 
