@@ -1,9 +1,7 @@
 package main
 
-import (
-	"go.k6.io/k6/cmd"
-)
+import "go.k6.io/k6/worker"
 
 func main() ***REMOVED***
-	cmd.Execute()
+	worker.Run()
 ***REMOVED***

@@ -55,6 +55,8 @@ func handleExecution(ctx context.Context,
 		return
 	***REMOVED***
 
+	// Don't know if these can be removed easily without unexpected side effects
+
 	// We prepare a bunch of contexts:
 	//  - The runCtx is cancelled as soon as the Engine's run() lambda finishes,
 	//    and can trigger things like the usage report and end of test summary.
@@ -176,7 +178,7 @@ func handleExecution(ctx context.Context,
 	globalCancel() // signal the Engine that it should wind down
 	logger.Debug("Waiting for engine processes to finish...")
 	engineWait()
-	logger.Debug("Everything has finished, exiting k6!")
+	logger.Debug("Everything has finished, exiting worker")
 	if test.keyLogger != nil ***REMOVED***
 		if err := test.keyLogger.Close(); err != nil ***REMOVED***
 			logger.WithError(err).Warn("Error while closing the SSLKEYLOGFILE")

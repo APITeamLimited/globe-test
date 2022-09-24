@@ -111,6 +111,11 @@ func loadTest(gs *globalState, job map[string]string, workerInfo *lib.WorkerInfo
 		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
 	***REMOVED***
 	gs.logger.Debug("Runner successfully initialized!")
+
+	marshalled, _ := json.Marshal(test.initRunner.GetOptions())
+
+	fmt.Println(string(marshalled))
+
 	return test, nil
 ***REMOVED***
 
@@ -152,7 +157,6 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 
 	switch testType ***REMOVED***
 	case testTypeJS:
-		logger.Debug("Trying to load as a JS test...")
 		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
 		// TODO: should we use common.UnwrapGojaInterruptedError() here?
 		if err != nil ***REMOVED***
@@ -160,28 +164,6 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 		***REMOVED***
 		lt.initRunner = runner
 		return nil
-
-	case testTypeArchive:
-		logger.Debug("Trying to load test as an archive bundle...")
-
-		var arc *lib.Archive
-		arc, err := lib.ReadArchive(bytes.NewReader(lt.source.Data))
-		if err != nil ***REMOVED***
-			return fmt.Errorf("could not load test archive bundle '%s': %w", testPath, err)
-		***REMOVED***
-		logger.Debugf("Loaded test as an archive bundle with type '%s'!", arc.Type)
-
-		switch arc.Type ***REMOVED***
-		case testTypeJS:
-			logger.Debug("Evaluating JS from archive bundle...")
-			lt.initRunner, err = js.NewFromArchive(lt.preInitState, arc, workerInfo)
-			if err != nil ***REMOVED***
-				return fmt.Errorf("could not load JS from test archive bundle '%s': %w", testPath, err)
-			***REMOVED***
-			return nil
-		default:
-			return fmt.Errorf("archive '%s' has an unsupported test type '%s'", testPath, arc.Type)
-		***REMOVED***
 	default:
 		return fmt.Errorf("unknown or unspecified test type '%s' for '%s'", testType, testPath)
 	***REMOVED***
