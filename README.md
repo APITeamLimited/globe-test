@@ -83,11 +83,11 @@ r.sadd('k6:executionHistory', id)
 print(f"Job ***REMOVED***id***REMOVED*** added to redis")
 
 # Listen for updates on the job
-print(f"Listening for updates on at:", f"k6:executionUpdates:***REMOVED***id***REMOVED***")
+print(f"Listening for updates on at:", f"worker:executionUpdates:***REMOVED***id***REMOVED***")
 
 while True:
     sub = r.pubsub()
-    sub.subscribe(f"k6:executionUpdates:***REMOVED***id***REMOVED***")
+    sub.subscribe(f"worker:executionUpdates:***REMOVED***id***REMOVED***")
     for message in sub.listen():
         try:
             print(json.loads(message['data']))

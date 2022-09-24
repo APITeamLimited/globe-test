@@ -68,7 +68,7 @@ func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 	client.HSet(ctx, updatesKey, stampedTag, messageJson)
 
 	// Dispatch to channel
-	client.Publish(ctx, fmt.Sprintf("k6:executionUpdates:%s", jobId), messageJson)
+	client.Publish(ctx, fmt.Sprintf("worker:executionUpdates:%s", jobId), messageJson)
 ***REMOVED***
 
 func UpdateStatus(ctx context.Context, client *redis.Client, jobId string, workerId string, status string) ***REMOVED***

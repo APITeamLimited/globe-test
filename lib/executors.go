@@ -105,6 +105,9 @@ type InitVUFunc func(context.Context, *logrus.Entry, *WorkerInfo) (InitializedVU
 // Executor is the interface all executors should implement
 type Executor interface ***REMOVED***
 	GetConfig() ExecutorConfig
+
+	// TODO: maybe make this appear on APITEAM dashboard?
+
 	GetProgress() *pb.ProgressBar
 	GetLogger() *logrus.Entry
 

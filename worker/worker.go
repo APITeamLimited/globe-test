@@ -7,11 +7,8 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/redis/v9"
-	"github.com/fatih/color"
 	"github.com/google/uuid"
-	"go.k6.io/k6/environment"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/consts"
 )
 
 type ExecutionList struct ***REMOVED***
@@ -28,8 +25,8 @@ func Run() ***REMOVED***
 	workerId := uuid.New()
 
 	client := redis.NewClient(&redis.Options***REMOVED***
-		Addr:     fmt.Sprintf("%s:%s", environment.GetEnvVariable("CLIENT_HOST", "localhost"), environment.GetEnvVariable("CLIENT_PORT", "6978")),
-		Password: environment.GetEnvVariable("CLIENT_PASSWORD", ""),
+		Addr:     fmt.Sprintf("%s:%s", lib.GetEnvVariable("CLIENT_HOST", "localhost"), lib.GetEnvVariable("CLIENT_PORT", "6978")),
+		Password: lib.GetEnvVariable("CLIENT_PASSWORD", ""),
 		DB:       0, // use default DB
 	***REMOVED***)
 
@@ -45,10 +42,8 @@ func Run() ***REMOVED***
 	//Set the worker id and current time
 	client.HSet(ctx, "k6:workers", workerId.String(), currentTime)
 
-	c := color.New(color.FgCyan)
-	fmt.Print("\n", c.Sprint(consts.Banner()), "\n\n")
-	fmt.Printf("\033[1;35mStarting worker %s \033[0m\n\n", workerId.String())
-
+	fmt.Print("\n\033[1;35mAPITEAM Worker\033[0m\n\n")
+	fmt.Printf("Starting worker %s\n", workerId.String())
 	fmt.Printf("Listening for new jobs on %s...\n", client.Options().Addr)
 
 	go checkForQueuedJobs(ctx, client, workerId.String(), executionList)
@@ -128,6 +123,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 
 	// We got the job
 	executionList.addJob(job)
+
 	go lib.UpdateStatus(ctx, client, jobId, workerId, "ASSIGNED")
 	handleExecution(ctx, client, job, workerId)
 	executionList.removeJob(jobId)

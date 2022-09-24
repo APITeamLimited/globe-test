@@ -3,8 +3,6 @@
 package worker
 
 import (
-	"archive/tar"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -112,18 +110,7 @@ func loadTest(gs *globalState, job map[string]string, workerInfo *lib.WorkerInfo
 	***REMOVED***
 	gs.logger.Debug("Runner successfully initialized!")
 
-	marshalled, _ := json.Marshal(test.initRunner.GetOptions())
-
-	fmt.Println(string(marshalled))
-
 	return test, nil
-***REMOVED***
-
-func detectTestType(data []byte) string ***REMOVED***
-	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
-		return testTypeArchive
-	***REMOVED***
-	return testTypeJS
 ***REMOVED***
 
 func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *lib.WorkerInfo) error ***REMOVED***
@@ -134,7 +121,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 
 	if testType == "" ***REMOVED***
 		logger.Debug("Detecting test type for...")
-		testType = detectTestType(lt.source.Data)
+		testType = testTypeJS
 	***REMOVED***
 
 	if lt.preInitState.RuntimeOptions.KeyWriter.Valid ***REMOVED***
@@ -155,18 +142,14 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 		lt.preInitState.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
 	***REMOVED***
 
-	switch testType ***REMOVED***
-	case testTypeJS:
-		runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
-		// TODO: should we use common.UnwrapGojaInterruptedError() here?
-		if err != nil ***REMOVED***
-			return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
-		***REMOVED***
-		lt.initRunner = runner
-		return nil
-	default:
-		return fmt.Errorf("unknown or unspecified test type '%s' for '%s'", testType, testPath)
+	runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
+	// TODO: should we use common.UnwrapGojaInterruptedError() here?
+	if err != nil ***REMOVED***
+		return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
 	***REMOVED***
+	lt.initRunner = runner
+	return nil
+
 ***REMOVED***
 
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
-	"strings"
 )
 
 // Version contains the current semantic version of k6.
@@ -26,19 +25,4 @@ func FullVersion() string ***REMOVED***
 	***REMOVED***
 
 	return fmt.Sprintf("%s (dev build, %s)", Version, goVersionArch)
-***REMOVED***
-
-// Banner returns the ASCII-art banner with the k6 logo and stylized website URL
-func Banner() string ***REMOVED***
-	banner := strings.Join([]string***REMOVED***
-		`          /\      |‾‾| /‾‾/   /‾‾/   `,
-		`     /\  /  \     |  |/  /   /  /    `,
-		`    /  \/    \    |     (   /   ‾‾\  `,
-		`   /          \   |  |\  \ |  (‾)  | `,
-		`  / __________ \  |__| \__\ \_____/ .io`,
-		``,
-		`  On the APITeam Cloud Network`,
-	***REMOVED***, "\n")
-
-	return banner
 ***REMOVED***
