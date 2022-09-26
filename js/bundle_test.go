@@ -19,13 +19,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/consts"
-	"go.k6.io/k6/lib/fsext"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/k6-worker/lib/fsext"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/lib/types"
+	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 const isWindows = runtime.GOOS == "windows"

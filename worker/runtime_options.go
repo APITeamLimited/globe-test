@@ -29,7 +29,7 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
 
-	"go.k6.io/k6/lib"
+	"github.com/APITeamLimited/k6-worker/lib"
 )
 
 // TODO: move this whole file out of the cmd package? maybe when fixing

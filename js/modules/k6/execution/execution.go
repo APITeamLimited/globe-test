@@ -9,10 +9,10 @@ import (
 
 	"github.com/dop251/goja"
 
-	"go.k6.io/k6/errext"
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/modules"
-	"go.k6.io/k6/lib"
+	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/k6-worker/lib"
 )
 
 type (

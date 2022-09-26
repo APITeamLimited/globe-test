@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/modules"
 	"github.com/dop251/goja"
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/modules"
 )
 
 type (

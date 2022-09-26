@@ -12,13 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/compiler"
-	"go.k6.io/k6/js/eventloop"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/consts"
-	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/compiler"
+	"github.com/APITeamLimited/k6-worker/js/eventloop"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 // A Bundle is a self-contained bundle of scripts and resources.

@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
 	"github.com/go-sourcemap/sourcemap"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/lib"
 )
 
 //go:embed lib/babel.min.js

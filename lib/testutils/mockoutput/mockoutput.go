@@ -1,9 +1,9 @@
 package mockoutput
 
 import (
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/output"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/k6-worker/output"
 )
 
 // New exists so that the usage from tests avoids repetition, i.e. is

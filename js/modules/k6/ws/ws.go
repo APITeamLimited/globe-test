@@ -16,10 +16,10 @@ import (
 	"github.com/dop251/goja"
 	"github.com/gorilla/websocket"
 
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/modules"
-	httpModule "go.k6.io/k6/js/modules/k6/http"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/modules"
+	httpModule "github.com/APITeamLimited/k6-worker/js/modules/k6/http"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 type (

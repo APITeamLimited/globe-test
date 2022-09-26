@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/lib/testutils/mockresolver"
-	"go.k6.io/k6/lib/types"
+	"github.com/APITeamLimited/k6-worker/lib/testutils/mockresolver"
+	"github.com/APITeamLimited/k6-worker/lib/types"
 )
 
 func TestResolver(t *testing.T) ***REMOVED***

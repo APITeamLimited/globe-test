@@ -22,16 +22,16 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 
-	"go.k6.io/k6/errext"
-	"go.k6.io/k6/errext/exitcodes"
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/eventloop"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/consts"
-	"go.k6.io/k6/lib/netext"
-	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/eventloop"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/k6-worker/lib/netext"
+	"github.com/APITeamLimited/k6-worker/lib/types"
+	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 // Ensure Runner implements the lib.Runner interface

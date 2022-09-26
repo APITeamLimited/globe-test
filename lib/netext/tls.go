@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/crypto/ocsp"
 
-	"go.k6.io/k6/lib"
+	"github.com/APITeamLimited/k6-worker/lib"
 )
 
 //nolint:golint

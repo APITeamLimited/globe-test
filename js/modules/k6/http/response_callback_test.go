@@ -5,11 +5,11 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
 )
 
 func TestExpectedStatuses(t *testing.T) ***REMOVED***

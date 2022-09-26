@@ -1,8 +1,8 @@
 package data
 
 import (
+	"github.com/APITeamLimited/k6-worker/js/common"
 	"github.com/dop251/goja"
-	"go.k6.io/k6/js/common"
 )
 
 // TODO fix it not working really well with setupData or just make it more broken

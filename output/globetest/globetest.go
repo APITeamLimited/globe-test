@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/k6-worker/output"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/output"
 )
 
 const flushPeriod = 200 * time.Millisecond

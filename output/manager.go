@@ -1,9 +1,9 @@
 package output
 
 import (
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
 )
 
 // Manager can be used to manage multiple outputs at the same time.

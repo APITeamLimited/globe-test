@@ -3,8 +3,8 @@ package environment
 import (
 	"sync"
 
-	"go.k6.io/k6/js/modules"
-	"go.k6.io/k6/lib"
+	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/k6-worker/lib"
 )
 
 // RootModule is the global module object type. It is instantiated once per test

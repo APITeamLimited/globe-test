@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 // SampleBuffer is a simple thread-safe buffer for metric samples. It should be

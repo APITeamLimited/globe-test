@@ -3,8 +3,8 @@ package engine
 import (
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/output"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/output"
 )
 
 const collectRate = 50 * time.Millisecond

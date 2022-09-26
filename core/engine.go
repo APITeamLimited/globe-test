@@ -8,11 +8,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.k6.io/k6/errext"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
-	"go.k6.io/k6/metrics/engine"
-	"go.k6.io/k6/output"
+	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/k6-worker/metrics/engine"
+	"github.com/APITeamLimited/k6-worker/output"
 )
 
 const (

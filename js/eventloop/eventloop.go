@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/APITeamLimited/k6-worker/js/modules"
 	"github.com/dop251/goja"
-	"go.k6.io/k6/js/modules"
 )
 
 // EventLoop implements an event with

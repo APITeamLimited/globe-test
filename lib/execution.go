@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 // An ExecutionScheduler is in charge of initializing executors and using them
