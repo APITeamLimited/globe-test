@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"go.k6.io/k6/lib/types"
+	"github.com/APITeamLimited/k6-worker/lib/types"
 )
 
 // MultiResolver returns all IP addresses for the given host.

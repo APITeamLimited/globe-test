@@ -1,6 +1,6 @@
 package main
 
-import "go.k6.io/k6/worker"
+import "github.com/APITeamLimited/k6-worker/worker"
 
 func main() {
 	worker.Run()

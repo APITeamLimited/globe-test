@@ -3,9 +3,9 @@ package worker
 import (
 	"fmt"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/output"
-	"go.k6.io/k6/output/globetest"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/k6-worker/output/globetest"
 )
 
 func createOutputs(

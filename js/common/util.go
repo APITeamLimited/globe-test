@@ -7,9 +7,9 @@ import (
 	"io"
 	"runtime/debug"
 
+	"github.com/APITeamLimited/k6-worker/errext"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/errext"
 )
 
 // Throw a JS error; avoids re-wrapping GoErrors.

@@ -1,4 +1,4 @@
-module go.k6.io/k6/samples/grpc_server
+module github.com/APITeamLimited/k6-worker/samples/grpc_server
 
 go 1.17
 

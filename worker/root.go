@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"go.k6.io/k6/lib"
 )
 
 const (

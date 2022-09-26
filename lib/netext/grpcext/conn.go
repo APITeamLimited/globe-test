@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/js/modules"
-	"go.k6.io/k6/metrics"
 
 	protov1 "github.com/golang/protobuf/proto" //nolint:staticcheck,nolintlint // this is the old v1 version
 	"google.golang.org/grpc"

@@ -8,10 +8,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/lib/testutils/minirunner"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/lib/testutils/minirunner"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 func simpleRunner(vuFn func(context.Context, *lib.State) error) lib.Runner {

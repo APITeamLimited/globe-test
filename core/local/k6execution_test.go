@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/js"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.k6.io/k6/js"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
 )
 
 func TestExecutionInfoVUSharing(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 // Ensure mock implementations conform to the interfaces.

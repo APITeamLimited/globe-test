@@ -18,12 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/consts"
-	"go.k6.io/k6/lib/netext"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/k6-worker/lib/netext"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/lib/types"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 func TestInitContextRequire(t *testing.T) {
@@ -110,7 +110,7 @@ func TestInitContextRequire(t *testing.T) {
 			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0o755))
 			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, lib.GetTestWorkerInfo(), fs)
 			assert.EqualError(t, err,
-				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat go.k6.io/k6/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n\tat native\n")
+				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat github.com/APITeamLimited/k6-worker/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n\tat native\n")
 		})
 
 		imports := map[string]struct {

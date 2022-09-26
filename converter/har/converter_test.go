@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.k6.io/k6/js"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/loader"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/js"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 func TestBuildK6Headers(t *testing.T) {

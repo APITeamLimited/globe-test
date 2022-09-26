@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
 )
 
 func BenchmarkMeasureAndEmitMetrics(b *testing.B) {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/tidwall/pretty"
 
-	"go.k6.io/k6/lib"
+	"github.com/APITeamLimited/k6-worker/lib"
 )
 
 // fprint panics when where's an error writing to the supplied io.Writer

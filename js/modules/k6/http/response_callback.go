@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/APITeamLimited/k6-worker/js/common"
 	"github.com/dop251/goja"
-	"go.k6.io/k6/js/common"
 )
 
 //nolint:gochecknoglobals

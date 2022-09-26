@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/js/eventloop"
+	"github.com/APITeamLimited/k6-worker/js/modulestest"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/require"
-	"go.k6.io/k6/js/eventloop"
-	"go.k6.io/k6/js/modulestest"
 )
 
 func TestBasicEventLoop(t *testing.T) {

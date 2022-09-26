@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"go.k6.io/k6/lib/consts"
-	"go.k6.io/k6/lib/fsext"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/k6-worker/lib/fsext"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 func TestNormalizeAndAnonymizePath(t *testing.T) {

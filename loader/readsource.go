@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"go.k6.io/k6/lib/fsext"
+	"github.com/APITeamLimited/k6-worker/lib/fsext"
 )
 
 // ReadSource Reads a source file from any supported destination.

@@ -4,10 +4,10 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/metrics"
 )
 
 // InitEnvironment contains properties that can be accessed by Go code executed

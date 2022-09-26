@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
 )
 
 func TestCDNJS(t *testing.T) {

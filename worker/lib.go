@@ -6,10 +6,10 @@ import (
 	"io"
 	"sync"
 
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/loader"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/spf13/afero"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/loader"
 	"gopkg.in/guregu/null.v3"
 )
 

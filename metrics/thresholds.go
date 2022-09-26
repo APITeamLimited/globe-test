@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"go.k6.io/k6/errext"
-	"go.k6.io/k6/errext/exitcodes"
-	"go.k6.io/k6/lib/types"
+	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/k6-worker/lib/types"
 )
 
 // Threshold is a representation of a single threshold for a single metric

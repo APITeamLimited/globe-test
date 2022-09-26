@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/modulestest"
-	"go.k6.io/k6/lib/netext/httpext"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/modulestest"
+	"github.com/APITeamLimited/k6-worker/lib/netext/httpext"
+	"github.com/APITeamLimited/k6-worker/metrics"
 )
 
 //nolint:golint, revive

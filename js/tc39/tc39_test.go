@@ -17,12 +17,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/js/compiler"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
 	"github.com/stretchr/testify/assert"
-	"go.k6.io/k6/js/compiler"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
 	"gopkg.in/yaml.v3"
 )
 

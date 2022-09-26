@@ -5,12 +5,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/js/eventloop"
+	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"github.com/dop251/goja"
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/eventloop"
-	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/metrics"
 )
 
 // Runtime is a helper struct that contains what is needed to run a (simple) module test

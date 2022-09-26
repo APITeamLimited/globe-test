@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
-	"go.k6.io/k6/lib"
 )
 
 type ExecutionList struct {

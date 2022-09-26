@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/APITeamLimited/k6-worker/core"
+	"github.com/APITeamLimited/k6-worker/core/local"
+	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
-	"go.k6.io/k6/core"
-	"go.k6.io/k6/core/local"
-	"go.k6.io/k6/errext"
-	"go.k6.io/k6/errext/exitcodes"
-	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
 )
 
 /*

@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/metrics"
+	"github.com/APITeamLimited/k6-worker/lib/types"
+	"github.com/APITeamLimited/k6-worker/metrics"
 	"gopkg.in/guregu/null.v3"
 )
 

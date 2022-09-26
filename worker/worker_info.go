@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
-	"go.k6.io/k6/lib"
 )
 
 func loadWorkerInfo(ctx context.Context,
