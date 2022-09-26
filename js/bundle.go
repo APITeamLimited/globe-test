@@ -7,12 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"runtime"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/compiler"
@@ -79,7 +77,7 @@ func NewBundle(
 		Filename:          src.URL,
 		Source:            code,
 		Program:           pgm,
-		BaseInitContext:   NewInitContext(piState.Logger, rt, c, compatMode, filesystems, loader.Dir(src.URL)),
+		BaseInitContext:   NewInitContext(piState.Logger, rt, c, compatMode, filesystems, loader.Dir(src.URL), workerInfo),
 		RuntimeOptions:    piState.RuntimeOptions,
 		CompatibilityMode: compatMode,
 		exports:           make(map[string]goja.Callable),
@@ -95,93 +93,6 @@ func NewBundle(
 	}
 
 	return &bundle, nil
-}
-
-// NewBundleFromArchive creates a new bundle from an lib.Archive.
-func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, workerInfo *lib.WorkerInfo) (*Bundle, error) {
-	if arc.Type != "js" {
-		return nil, fmt.Errorf("expected bundle type 'js', got '%s'", arc.Type)
-	}
-
-	rtOpts := piState.RuntimeOptions // copy the struct from the TestPreInitState
-	if !rtOpts.CompatibilityMode.Valid {
-		// `k6 run --compatibility-mode=whatever archive.tar` should override
-		// whatever value is in the archive
-		rtOpts.CompatibilityMode = null.StringFrom(arc.CompatibilityMode)
-	}
-	compatMode, err := lib.ValidateCompatibilityMode(rtOpts.CompatibilityMode.String)
-	if err != nil {
-		return nil, err
-	}
-
-	c := compiler.New(piState.Logger)
-	c.Options = compiler.Options{
-		Strict:            true,
-		CompatibilityMode: compatMode,
-		SourceMapLoader:   generateSourceMapLoader(piState.Logger, arc.Filesystems),
-	}
-	pgm, _, err := c.Compile(string(arc.Data), arc.FilenameURL.String(), false)
-	if err != nil {
-		return nil, err
-	}
-	rt := goja.New()
-	initctx := NewInitContext(piState.Logger, rt, c, compatMode, arc.Filesystems, arc.PwdURL)
-
-	env := arc.Env
-	if env == nil {
-		// Older archives (<=0.20.0) don't have an "env" property
-		env = make(map[string]string)
-	}
-	for k, v := range rtOpts.Env {
-		env[k] = v
-	}
-	rtOpts.Env = env
-
-	bundle := &Bundle{
-		Filename:          arc.FilenameURL,
-		Source:            string(arc.Data),
-		Program:           pgm,
-		Options:           arc.Options,
-		BaseInitContext:   initctx,
-		RuntimeOptions:    rtOpts,
-		CompatibilityMode: compatMode,
-		exports:           make(map[string]goja.Callable),
-		registry:          piState.Registry,
-	}
-
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo); err != nil {
-		return nil, err
-	}
-
-	// Grab exported objects, but avoid overwriting options, which would
-	// be initialized from the metadata.json at this point.
-	err = bundle.getExports(piState.Logger, rt, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return bundle, nil
-}
-
-func (b *Bundle) makeArchive() *lib.Archive {
-	arc := &lib.Archive{
-		Type:              "js",
-		Filesystems:       b.BaseInitContext.filesystems,
-		Options:           b.Options,
-		FilenameURL:       b.Filename,
-		Data:              []byte(b.Source),
-		PwdURL:            b.BaseInitContext.pwd,
-		Env:               make(map[string]string, len(b.RuntimeOptions.Env)),
-		CompatibilityMode: b.CompatibilityMode.String(),
-		K6Version:         consts.Version,
-		Goos:              runtime.GOOS,
-	}
-	// Copy env so changes in the archive are not reflected in the source Bundle
-	for k, v := range b.RuntimeOptions.Env {
-		arc.Env[k] = v
-	}
-
-	return arc
 }
 
 // getExports validates and extracts exported objects
@@ -303,7 +214,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	for key, value := range b.RuntimeOptions.Env {
 		env[key] = value
 	}
-	rt.Set("__ENV", env)
+	//rt.Set("__ENV", env)
 	rt.Set("__VU", vuID)
 	_ = rt.Set("console", newConsole(logger))
 

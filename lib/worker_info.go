@@ -9,18 +9,27 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-type WorkerInfo struct {
-	Client         *redis.Client
-	JobId          string
-	ScopeId        string
-	OrchestratorId string
-	WorkerId       string
-	Ctx            context.Context
-	environment    *map[string]string
-	body           string
-	headers        *map[string]string
-	parameters     *map[string]string
-}
+type (
+	Collection struct {
+		Variables *map[string]KeyValueItem
+	}
+
+	KeyValueItem struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+
+	WorkerInfo struct {
+		Client         *redis.Client
+		JobId          string
+		ScopeId        string
+		OrchestratorId string
+		WorkerId       string
+		Ctx            context.Context
+		Environment    *map[string]KeyValueItem
+		Collection     *Collection
+	}
+)
 
 func GetTestWorkerInfo() *WorkerInfo {
 	return &WorkerInfo{
@@ -47,7 +56,6 @@ type Message struct {
 
 func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, workerId string, message string, messageType string) {
 	timestamp := time.Now().UnixMilli()
-	stampedTag := fmt.Sprintf("%d:%s", timestamp, workerId)
 
 	var messageStruct = Message{
 		JobId:       jobId,
@@ -65,7 +73,7 @@ func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 
 	// Update main job
 	updatesKey := fmt.Sprintf("%s:updates", jobId)
-	client.HSet(ctx, updatesKey, stampedTag, messageJson)
+	client.SAdd(ctx, updatesKey, messageJson)
 
 	// Dispatch to channel
 	client.Publish(ctx, fmt.Sprintf("worker:executionUpdates:%s", jobId), messageJson)

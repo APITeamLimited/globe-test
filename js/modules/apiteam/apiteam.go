@@ -24,7 +24,7 @@ type (
 	// instances for each VU.
 	RootModule struct{}
 
-	// K6 represents an instance of the k6 module.
+	// APITeam represents an instance of the k6 module.
 	APITeam struct {
 		vu modules.VU
 	}

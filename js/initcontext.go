@@ -18,17 +18,17 @@ import (
 	"go.k6.io/k6/js/eventloop"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/js/modules/apiteam"
+	"go.k6.io/k6/js/modules/apiteam/collection"
+	"go.k6.io/k6/js/modules/apiteam/environment"
 	"go.k6.io/k6/js/modules/k6"
 	"go.k6.io/k6/js/modules/k6/crypto"
 	"go.k6.io/k6/js/modules/k6/crypto/x509"
 	"go.k6.io/k6/js/modules/k6/data"
 	"go.k6.io/k6/js/modules/k6/encoding"
 	"go.k6.io/k6/js/modules/k6/execution"
-	"go.k6.io/k6/js/modules/k6/grpc"
 	"go.k6.io/k6/js/modules/k6/html"
 	"go.k6.io/k6/js/modules/k6/http"
 	"go.k6.io/k6/js/modules/k6/metrics"
-	"go.k6.io/k6/js/modules/k6/ws"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/fsext"
 	"go.k6.io/k6/loader"
@@ -70,8 +70,7 @@ type InitContext struct {
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
 	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode lib.CompatibilityMode,
-	filesystems map[string]afero.Fs, pwd *url.URL,
-) *InitContext {
+	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *lib.WorkerInfo) *InitContext {
 	return &InitContext{
 		compiler:          c,
 		filesystems:       filesystems,
@@ -79,7 +78,7 @@ func NewInitContext(
 		programs:          make(map[string]programWithSource),
 		compatibilityMode: compatMode,
 		logger:            logger,
-		modules:           getJSModules(),
+		modules:           getJSModules(workerInfo),
 		moduleVUImpl: &moduleVUImpl{
 			ctx:     context.Background(),
 			runtime: rt,
@@ -356,7 +355,7 @@ func (i *InitContext) allowOnlyOpenedFiles() {
 	alreadyOpenedFS.AllowOnlyCached()
 }
 
-func getInternalJSModules() map[string]interface{} {
+func getInternalJSModules(workerInfo *lib.WorkerInfo) map[string]interface{} {
 	return map[string]interface{}{
 		"k6":             k6.New(),
 		"k6/crypto":      crypto.New(),
@@ -364,17 +363,19 @@ func getInternalJSModules() map[string]interface{} {
 		"k6/data":        data.New(),
 		"k6/encoding":    encoding.New(),
 		"k6/execution":   execution.New(),
-		"k6/net/grpc":    grpc.New(),
-		"k6/html":        html.New(),
-		"k6/http":        http.New(),
-		"k6/metrics":     metrics.New(),
-		"k6/ws":          ws.New(),
-		"apiteam":        apiteam.New(),
+		//"k6/net/grpc":         grpc.New(),
+		"k6/html":    html.New(),
+		"k6/http":    http.New(),
+		"k6/metrics": metrics.New(),
+		//"k6/ws":               ws.New(),
+		"apiteam":             apiteam.New(),
+		"apiteam/environment": environment.New(workerInfo),
+		"apiteam/collection":  collection.New(workerInfo),
 	}
 }
 
-func getJSModules() map[string]interface{} {
-	result := getInternalJSModules()
+func getJSModules(workerInfo *lib.WorkerInfo) map[string]interface{} {
+	result := getInternalJSModules(workerInfo)
 	external := modules.GetJSModules()
 
 	// external is always prefixed with `k6/x`

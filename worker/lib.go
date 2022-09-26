@@ -63,6 +63,5 @@ func (cw *syncWriter) Write(b []byte) (int, error) {
 }
 
 const (
-	testTypeJS      = "js"
-	testTypeArchive = "archive"
+	testTypeJS = "js"
 )

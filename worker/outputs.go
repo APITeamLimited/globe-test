@@ -24,6 +24,7 @@ func createOutputs(
 	}
 	result := make([]output.Output, 0, 1)
 
+	// Using globetest output only
 	globetestOutput, err := globetest.New(baseParams, workerInfo)
 
 	if err != nil {

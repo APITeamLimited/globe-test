@@ -68,16 +68,6 @@ func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[
 	return NewFromBundle(piState, bundle)
 }
 
-// NewFromArchive returns a new Runner from the source in the provided archive
-func NewFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, workerInfo *lib.WorkerInfo) (*Runner, error) {
-	bundle, err := NewBundleFromArchive(piState, arc, workerInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewFromBundle(piState, bundle)
-}
-
 // NewFromBundle returns a new Runner from the provided Bundle
 func NewFromBundle(piState *lib.TestPreInitState, b *Bundle) (*Runner, error) {
 	defaultGroup, err := lib.NewGroup("", nil)
@@ -104,10 +94,6 @@ func NewFromBundle(piState *lib.TestPreInitState, b *Bundle) (*Runner, error) {
 	err = r.SetOptions(r.Bundle.Options)
 
 	return r, err
-}
-
-func (r *Runner) MakeArchive() *lib.Archive {
-	return r.Bundle.makeArchive()
 }
 
 // NewVU returns a new initialized VU.
