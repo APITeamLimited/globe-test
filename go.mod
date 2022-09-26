@@ -1,4 +1,4 @@
-module go.k6.io/k6
+module github.com/APITeamLimited/k6-worker
 
 go 1.17
 
