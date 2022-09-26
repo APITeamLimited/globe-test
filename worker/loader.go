@@ -30,15 +30,6 @@ func loadAndConfigureTest(
 	job map[string]string,
 	workerInfo *lib.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
-	test, err := loadTest(gs, job, workerInfo)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	return test.consolidateDeriveAndValidateConfig(gs, job)
-***REMOVED***
-
-func loadTest(gs *globalState, job map[string]string, workerInfo *lib.WorkerInfo) (*workerLoadedTest, error) ***REMOVED***
 	sourceName := job["sourceName"]
 
 	if sourceName == "" ***REMOVED***
@@ -110,21 +101,15 @@ func loadTest(gs *globalState, job map[string]string, workerInfo *lib.WorkerInfo
 	***REMOVED***
 	gs.logger.Debug("Runner successfully initialized!")
 
-	return test, nil
+	return test.consolidateDeriveAndValidateConfig(gs, job)
 ***REMOVED***
 
 func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *lib.WorkerInfo) error ***REMOVED***
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
-	testType := lt.preInitState.RuntimeOptions.TestType.String
-
-	if testType == "" ***REMOVED***
-		logger.Debug("Detecting test type for...")
-		testType = testTypeJS
-	***REMOVED***
-
 	if lt.preInitState.RuntimeOptions.KeyWriter.Valid ***REMOVED***
+
 		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
 			lt.preInitState.RuntimeOptions.KeyWriter.String)
 		keylogFilename := lt.preInitState.RuntimeOptions.KeyWriter.String
@@ -156,12 +141,10 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job map[string]string,
 ) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
 
-	// TODO: implement consolidateDeriveAndValidateConfig behavior
+	// Options have already been determined by the orchestrator
 
 	var parsedOptions lib.Options
 	err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
-
-	// Get from source data
 
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("could not parse options: %w", err)
@@ -176,7 +159,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	// invalid configuration error.
 	if !lt.preInitState.RuntimeOptions.NoThresholds.Bool ***REMOVED***
 		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds ***REMOVED***
-			err = thresholdsDefinition.Parse()
+			err := thresholdsDefinition.Parse()
 			if err != nil ***REMOVED***
 				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 			***REMOVED***

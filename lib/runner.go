@@ -47,10 +47,6 @@ type VUActivationParams struct ***REMOVED***
 // TODO: Rename this to something more obvious? This name made sense a very long
 // time ago.
 type Runner interface ***REMOVED***
-	// Creates an Archive of the runner. There should be a corresponding NewFromArchive() function
-	// that will restore the runner from the archive.
-	MakeArchive() *Archive
-
 	// Spawns a new VU. It's fine to make this function rather heavy, if it means a performance
 	// improvement at runtime. Remember, this is called once per VU and normally only at the start
 	// of a test - RunOnce() may be called hundreds of thousands of times, and must be fast.

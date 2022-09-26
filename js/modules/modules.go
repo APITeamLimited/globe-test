@@ -11,7 +11,7 @@ import (
 	"go.k6.io/k6/lib"
 )
 
-const extPrefix string = "k6/x/"
+const k6Prefix string = "k6/x/"
 const apiteamPrefix string = "apiteam/"
 
 //nolint:gochecknoglobals
@@ -22,10 +22,10 @@ var (
 
 // Register the given mod as an external JavaScript module that can be imported
 // by name. The name must be unique across all registered modules and must be
-// prefixed with "k6/x/", otherwise this function will panic.
+// prefixed with "k6/x/" or "apiteam/x/", otherwise this function will panic.
 func Register(name string, mod interface***REMOVED******REMOVED***) ***REMOVED***
-	if !strings.HasPrefix(name, extPrefix) ***REMOVED***
-		panic(fmt.Errorf("external module names must be prefixed with '%s', tried to register: %s", extPrefix, name))
+	if !strings.HasPrefix(name, k6Prefix) || !strings.HasPrefix(name, apiteamPrefix) ***REMOVED***
+		panic(fmt.Errorf("external module names must be prefixed with '%s' or '%s', tried to register: %s", k6Prefix, apiteamPrefix, name))
 	***REMOVED***
 
 	mx.Lock()

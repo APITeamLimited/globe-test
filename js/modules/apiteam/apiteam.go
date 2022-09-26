@@ -24,7 +24,7 @@ type (
 	// instances for each VU.
 	RootModule struct***REMOVED******REMOVED***
 
-	// K6 represents an instance of the k6 module.
+	// APITeam represents an instance of the k6 module.
 	APITeam struct ***REMOVED***
 		vu modules.VU
 	***REMOVED***

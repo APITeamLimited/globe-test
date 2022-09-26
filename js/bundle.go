@@ -7,12 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"runtime"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/compiler"
@@ -79,7 +77,7 @@ func NewBundle(
 		Filename:          src.URL,
 		Source:            code,
 		Program:           pgm,
-		BaseInitContext:   NewInitContext(piState.Logger, rt, c, compatMode, filesystems, loader.Dir(src.URL)),
+		BaseInitContext:   NewInitContext(piState.Logger, rt, c, compatMode, filesystems, loader.Dir(src.URL), workerInfo),
 		RuntimeOptions:    piState.RuntimeOptions,
 		CompatibilityMode: compatMode,
 		exports:           make(map[string]goja.Callable),
@@ -95,93 +93,6 @@ func NewBundle(
 	***REMOVED***
 
 	return &bundle, nil
-***REMOVED***
-
-// NewBundleFromArchive creates a new bundle from an lib.Archive.
-func NewBundleFromArchive(piState *lib.TestPreInitState, arc *lib.Archive, workerInfo *lib.WorkerInfo) (*Bundle, error) ***REMOVED***
-	if arc.Type != "js" ***REMOVED***
-		return nil, fmt.Errorf("expected bundle type 'js', got '%s'", arc.Type)
-	***REMOVED***
-
-	rtOpts := piState.RuntimeOptions // copy the struct from the TestPreInitState
-	if !rtOpts.CompatibilityMode.Valid ***REMOVED***
-		// `k6 run --compatibility-mode=whatever archive.tar` should override
-		// whatever value is in the archive
-		rtOpts.CompatibilityMode = null.StringFrom(arc.CompatibilityMode)
-	***REMOVED***
-	compatMode, err := lib.ValidateCompatibilityMode(rtOpts.CompatibilityMode.String)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	c := compiler.New(piState.Logger)
-	c.Options = compiler.Options***REMOVED***
-		Strict:            true,
-		CompatibilityMode: compatMode,
-		SourceMapLoader:   generateSourceMapLoader(piState.Logger, arc.Filesystems),
-	***REMOVED***
-	pgm, _, err := c.Compile(string(arc.Data), arc.FilenameURL.String(), false)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	rt := goja.New()
-	initctx := NewInitContext(piState.Logger, rt, c, compatMode, arc.Filesystems, arc.PwdURL)
-
-	env := arc.Env
-	if env == nil ***REMOVED***
-		// Older archives (<=0.20.0) don't have an "env" property
-		env = make(map[string]string)
-	***REMOVED***
-	for k, v := range rtOpts.Env ***REMOVED***
-		env[k] = v
-	***REMOVED***
-	rtOpts.Env = env
-
-	bundle := &Bundle***REMOVED***
-		Filename:          arc.FilenameURL,
-		Source:            string(arc.Data),
-		Program:           pgm,
-		Options:           arc.Options,
-		BaseInitContext:   initctx,
-		RuntimeOptions:    rtOpts,
-		CompatibilityMode: compatMode,
-		exports:           make(map[string]goja.Callable),
-		registry:          piState.Registry,
-	***REMOVED***
-
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	// Grab exported objects, but avoid overwriting options, which would
-	// be initialized from the metadata.json at this point.
-	err = bundle.getExports(piState.Logger, rt, false)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	return bundle, nil
-***REMOVED***
-
-func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
-	arc := &lib.Archive***REMOVED***
-		Type:              "js",
-		Filesystems:       b.BaseInitContext.filesystems,
-		Options:           b.Options,
-		FilenameURL:       b.Filename,
-		Data:              []byte(b.Source),
-		PwdURL:            b.BaseInitContext.pwd,
-		Env:               make(map[string]string, len(b.RuntimeOptions.Env)),
-		CompatibilityMode: b.CompatibilityMode.String(),
-		K6Version:         consts.Version,
-		Goos:              runtime.GOOS,
-	***REMOVED***
-	// Copy env so changes in the archive are not reflected in the source Bundle
-	for k, v := range b.RuntimeOptions.Env ***REMOVED***
-		arc.Env[k] = v
-	***REMOVED***
-
-	return arc
 ***REMOVED***
 
 // getExports validates and extracts exported objects
@@ -303,7 +214,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	for key, value := range b.RuntimeOptions.Env ***REMOVED***
 		env[key] = value
 	***REMOVED***
-	rt.Set("__ENV", env)
+	//rt.Set("__ENV", env)
 	rt.Set("__VU", vuID)
 	_ = rt.Set("console", newConsole(logger))
 

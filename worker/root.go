@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/APITeamLimited/redis/v9"
@@ -69,14 +68,17 @@ type globalState struct ***REMOVED***
 // global variables and functions from the os package. Anywhere else, things
 // like os.Stdout, os.Stderr, os.Stdin, os.Getenv(), etc. should be removed and
 // the respective properties of globalState used instead.
-func newGlobalState(ctx context.Context, client *redis.Client, jobId string, workerId string) *globalState ***REMOVED***
-	stdOut := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
-	stdErr := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
 
-	envVars := buildEnvMap(os.Environ())
+// Care is needed to prevent leaking system info to malicious actors.
+
+func newGlobalState(ctx context.Context, client *redis.Client, jobId string, workerId string) *globalState ***REMOVED***
+	redisStdOut := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
+	redisStdErr := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
+
+	envVars := make(map[string]string)
 
 	logger := &logrus.Logger***REMOVED***
-		Out:       stdOut,
+		Out:       redisStdOut,
 		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
@@ -96,12 +98,12 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 		ctx:            ctx,
 		fs:             afero.NewMemMapFs(),
 		getwd:          os.Getwd,
-		args:           append(make([]string, 0, len(os.Args)), os.Args...), // copy
+		args:           []string***REMOVED******REMOVED***,
 		envVars:        envVars,
 		defaultFlags:   defaultFlags,
 		flags:          getFlags(defaultFlags, envVars),
-		stdOut:         stdOut,
-		stdErr:         stdErr,
+		stdOut:         redisStdOut,
+		stdErr:         redisStdErr,
 		stdIn:          os.Stdin,
 		osExit:         os.Exit,
 		signalNotify:   signal.Notify,
@@ -168,27 +170,3 @@ func getFlags(defaultFlags globalFlags, env map[string]string) globalFlags ***RE
 	***REMOVED***
 	return result
 ***REMOVED***
-
-func parseEnvKeyValue(kv string) (string, string) ***REMOVED***
-	if idx := strings.IndexRune(kv, '='); idx != -1 ***REMOVED***
-		return kv[:idx], kv[idx+1:]
-	***REMOVED***
-	return kv, ""
-***REMOVED***
-
-func buildEnvMap(environ []string) map[string]string ***REMOVED***
-	env := make(map[string]string, len(environ))
-	for _, kv := range environ ***REMOVED***
-		k, v := parseEnvKeyValue(kv)
-		env[k] = v
-	***REMOVED***
-	return env
-***REMOVED***
-
-// RawFormatter it does nothing with the message just prints it
-//type RawFormatter struct***REMOVED******REMOVED***
-//
-//// Format renders a single log entry
-//func (f RawFormatter) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
-//	return append([]byte(entry.Message), '\n'), nil
-//***REMOVED***

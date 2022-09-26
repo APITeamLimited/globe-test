@@ -21,35 +21,27 @@ It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context,
 	client *redis.Client, job map[string]string, workerId string) ***REMOVED***
-	// Check if redis message is a uuid
-
 	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
-
 	go lib.UpdateStatus(ctx, client, job["id"], workerId, "LOADING")
 
 	globalState := newGlobalState(ctx, client, job["id"], workerId)
 
-	workerInfo := &lib.WorkerInfo***REMOVED***
-		Client:         client,
-		JobId:          job["id"],
-		ScopeId:        job["scopeId"],
-		OrchestratorId: job["orchestratorId"],
-		WorkerId:       workerId,
-		Ctx:            ctx,
+	workerInfo, err := loadWorkerInfo(ctx, client, job, workerId)
+	if err != nil ***REMOVED***
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
+		return
 	***REMOVED***
 
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)
-
 	if err != nil ***REMOVED***
-		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to loadAndConfigureTest: %s", err.Error()))
+		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
 		return
 	***REMOVED***
 
 	go lib.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full consolidated *and derived* options back to the Runner.
-	conf := test.derivedConfig
-	testRunState, err := test.buildTestRunState(conf.Options)
+	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil ***REMOVED***
 		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return
@@ -67,15 +59,13 @@ func handleExecution(ctx context.Context,
 	//  - The globalCtx is cancelled only after we're completely done with the
 	//    test execution and any --linger has been cleared, so that the Engine
 	//    can start winding down its metrics processing.
-	globalCtx, globalCancel := context.WithCancel(globalState.ctx)
+	globalCtx, globalCancel := context.WithCancel(ctx)
 	defer globalCancel()
 	lingerCtx, lingerCancel := context.WithCancel(globalCtx)
 	defer lingerCancel()
 	runCtx, runCancel := context.WithCancel(lingerCtx)
 	defer runCancel()
 
-	logger := testRunState.Logger
-	logger.Debug("Initializing the execution scheduler...")
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
 		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
@@ -112,11 +102,11 @@ func handleExecution(ctx context.Context,
 
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	gracefulStop := func(sig os.Signal) ***REMOVED***
-		logger.WithField("sig", sig).Debug("Stopping k6 in response to signal...")
+		go lib.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
 		lingerCancel() // stop the test run, metric processing is cancelled below
 	***REMOVED***
 	onHardStop := func(sig os.Signal) ***REMOVED***
-		logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
+		go lib.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
 		globalCancel() // not that it matters, given the following command...
 	***REMOVED***
 	stopSignalHandling := handleTestAbortSignals(globalState, gracefulStop, onHardStop)
@@ -143,7 +133,7 @@ func handleExecution(ctx context.Context,
 			// show the end-of-test summary and exit cleanly.
 			interrupt = err
 		***REMOVED***
-		if !conf.Linger.Bool && interrupt == nil ***REMOVED***
+		if !test.derivedConfig.Linger.Bool && interrupt == nil ***REMOVED***
 			fmt.Println(errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		***REMOVED***
 	***REMOVED***
@@ -167,28 +157,23 @@ func handleExecution(ctx context.Context,
 		engine.MetricsEngine.MetricsLock.Unlock()
 
 		if err == nil ***REMOVED***
-			lib.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
+			go lib.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
 		***REMOVED*** else ***REMOVED***
-			lib.HandleError(ctx, client, job["id"], workerId, err)
+			go lib.HandleError(ctx, client, job["id"], workerId, err)
 		***REMOVED***
 	***REMOVED***
 
 	lib.UpdateStatus(ctx, client, job["id"], workerId, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
-	logger.Debug("Waiting for engine processes to finish...")
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, "Waiting for the Engine to finish...", "DEBUG")
 	engineWait()
-	logger.Debug("Everything has finished, exiting worker")
-	if test.keyLogger != nil ***REMOVED***
-		if err := test.keyLogger.Close(); err != nil ***REMOVED***
-			logger.WithError(err).Warn("Error while closing the SSLKEYLOGFILE")
-		***REMOVED***
-	***REMOVED***
+	go lib.DispatchMessage(ctx, client, job["id"], workerId, "Everything has finished, exiting worker", "DEBUG")
 	if interrupt != nil ***REMOVED***
 		return
 	***REMOVED***
 	if engine.IsTainted() ***REMOVED***
-		fmt.Println(errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
+		go lib.HandleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return
 	***REMOVED***
 ***REMOVED***

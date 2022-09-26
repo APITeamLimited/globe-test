@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
@@ -142,4 +143,11 @@ func getRuntimeOptions(flags *pflag.FlagSet, environment map[string]string) (lib
 	***REMOVED***
 
 	return opts, nil
+***REMOVED***
+
+func parseEnvKeyValue(kv string) (string, string) ***REMOVED***
+	if idx := strings.IndexRune(kv, '='); idx != -1 ***REMOVED***
+		return kv[:idx], kv[idx+1:]
+	***REMOVED***
+	return kv, ""
 ***REMOVED***
