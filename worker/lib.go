@@ -39,7 +39,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 		return
 	}
 
-	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "STDOUT")
+	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
 
 	return origLen, err
 }

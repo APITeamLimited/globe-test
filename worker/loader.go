@@ -3,6 +3,7 @@
 package worker
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -147,14 +148,18 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 
 	// Options have already been determined by the orchestrator
 
-	var parsedOptions lib.Options
-	//err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
-	//
-	//if err != nil {
-	//	return nil, fmt.Errorf("could not parse options: %w", err)
-	//}
+	var redisOptions = lib.Options{}
 
-	consolidatedConfig := getConsolidatedConfig(parsedOptions)
+	if job["options"] == "" {
+		return nil, fmt.Errorf("options not found on job, this is probably a bug")
+	}
+
+	err := json.Unmarshal([]byte(job["options"]), &redisOptions)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse options: %w", err)
+	}
+
+	consolidatedConfig := getConsolidatedConfig(redisOptions)
 
 	// TODO: get other config sources eg
 
