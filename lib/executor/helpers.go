@@ -12,7 +12,7 @@ import (
 	"github.com/APITeamLimited/k6-worker/errext"
 	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/ui/pb"
+	"github.com/APITeamLimited/k6-worker/pb"
 )
 
 func sumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***

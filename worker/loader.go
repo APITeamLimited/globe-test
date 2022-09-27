@@ -145,8 +145,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job map[string]string,
 ) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
-
-	// Options have already been determined by the orchestrator
+	// Options have already been determined by the orchestrator, just load them
 
 	var redisOptions = lib.Options***REMOVED******REMOVED***
 

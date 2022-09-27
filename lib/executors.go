@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/ui/pb"
+	"github.com/APITeamLimited/k6-worker/pb"
 )
 
 // TODO: remove globals and use some type of explicit dependency injection?
