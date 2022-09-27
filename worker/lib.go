@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"sync"
 
 	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/k6-worker/loader"
@@ -19,6 +18,33 @@ type consoleWriter struct {
 	jobId    string
 	workerId string
 }
+
+func (w *consoleWriter) Write(p []byte) (n int, err error) {
+	origLen := len(p)
+
+	// Intercept the write message so can assess log errors parse json
+	parsed := make(map[string]interface{})
+	if err := json.Unmarshal(p, &parsed); err != nil {
+
+		return origLen, err
+	}
+
+	// Check message level, if error then log error
+	if parsed["level"] == "error" {
+		if parsed["error"] != nil {
+			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
+		} else {
+			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
+		}
+		return
+	}
+
+	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "STDOUT")
+
+	return origLen, err
+}
+
+var _ io.Writer = &consoleWriter{}
 
 type workerLoadedTest struct {
 	sourceRootPath string
@@ -36,7 +62,7 @@ type Config struct {
 	lib.Options
 
 	Out           []string  `json:"out" envconfig:"K6_OUT"`
-	Linger        null.Bool `json:"linger" envconfig:"K6_LINGER"`
+	Linger        null.Bool `json:"linger" envconfig:"K6_INGER"`
 	NoUsageReport null.Bool `json:"noUsageReport" envconfig:"K6_NO_USAGE_REPORT"`
 
 	// TODO: deprecate
@@ -51,17 +77,4 @@ type workerLoadedAndConfiguredTest struct {
 	derivedConfig      Config
 }
 
-type syncWriter struct {
-	w io.Writer
-	m sync.Mutex
-}
-
-func (cw *syncWriter) Write(b []byte) (int, error) {
-	cw.m.Lock()
-	defer cw.m.Unlock()
-	return cw.w.Write(b)
-}
-
-const (
-	testTypeJS = "js"
-)
+const testTypeJS = "js"

@@ -13,6 +13,7 @@ import (
 	"github.com/APITeamLimited/k6-worker/js/common"
 	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -32,6 +33,10 @@ func handleExecution(ctx context.Context,
 		return
 	}
 
+	globalState.logger.WithFields(logrus.Fields{
+		"workerId": workerId,
+		"jobId":    job["id"],
+	}).Info("Loaded worker info")
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)
 	if err != nil {
 		go lib.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
