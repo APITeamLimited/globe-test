@@ -15,7 +15,6 @@ type TestPreInitState struct ***REMOVED***
 	BuiltinMetrics *metrics.BuiltinMetrics
 	KeyLogger      io.Writer
 
-	// TODO: replace with logrus.FieldLogger when all of the tests can be fixed
 	Logger *logrus.Logger
 ***REMOVED***
 

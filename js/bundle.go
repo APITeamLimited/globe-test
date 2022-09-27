@@ -67,6 +67,7 @@ func NewBundle(
 		Strict:            true,
 		SourceMapLoader:   generateSourceMapLoader(piState.Logger, filesystems),
 	***REMOVED***
+
 	pgm, _, err := c.Compile(code, src.URL.String(), false)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -87,7 +88,7 @@ func NewBundle(
 		return nil, err
 	***REMOVED***
 
-	err = bundle.getExports(piState.Logger, rt, true)
+	err = bundle.GetExports(piState.Logger, rt, true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -95,8 +96,8 @@ func NewBundle(
 	return &bundle, nil
 ***REMOVED***
 
-// getExports validates and extracts exported objects
-func (b *Bundle) getExports(logger logrus.FieldLogger, rt *goja.Runtime, options bool) error ***REMOVED***
+// GetExports validates and extracts exported objects
+func (b *Bundle) GetExports(logger logrus.FieldLogger, rt *goja.Runtime, options bool) error ***REMOVED***
 	pgm := b.BaseInitContext.programs[b.Filename.String()] // this is the main script and it's always present
 	exportsV := pgm.module.Get("exports")
 	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) ***REMOVED***
@@ -153,6 +154,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 
 	rt := vuImpl.runtime
 	pgm := init.programs[b.Filename.String()] // this is the main script and it's always present
+
 	bi := &BundleInstance***REMOVED***
 		Runtime:      rt,
 		exports:      make(map[string]goja.Callable),
@@ -164,12 +166,24 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 	// Grab any exported functions that could be executed. These were
 	// already pre-validated in cmd.validateScenarioConfig(), just get them here.
 	exports := pgm.module.Get("exports").ToObject(rt)
+
 	for k := range b.exports ***REMOVED***
 		fn, _ := goja.AssertFunction(exports.Get(k))
 		bi.exports[k] = fn
 	***REMOVED***
 
-	jsOptions := exports.Get("options")
+	// Disable js options as found in the orchestrator
+
+	var jsOptionsObj *goja.Object
+
+	jsOptionsObj = rt.NewObject()
+	err := exports.Set("options", jsOptionsObj)
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("couldn't set exported options with merged values: %w", err)
+	***REMOVED***
+
+	/*jsOptions := exports.Get("options")
+
 	var jsOptionsObj *goja.Object
 	if jsOptions == nil || goja.IsNull(jsOptions) || goja.IsUndefined(jsOptions) ***REMOVED***
 		jsOptionsObj = rt.NewObject()
@@ -179,7 +193,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		jsOptionsObj = jsOptions.ToObject(rt)
-	***REMOVED***
+	***REMOVED****/
 
 	var instErr error
 	b.Options.ForEachSpecified("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***

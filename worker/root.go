@@ -2,15 +2,12 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -92,8 +89,6 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 
 	defaultFlags := getDefaultFlags(confDir)
 
-	logrus.SetOutput(ioutil.Discard)
-
 	return &globalState***REMOVED***
 		ctx:            ctx,
 		fs:             afero.NewMemMapFs(),
@@ -111,30 +106,6 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 		logger:         logger,
 		fallbackLogger: logger,
 	***REMOVED***
-***REMOVED***
-
-func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
-	origLen := len(p)
-
-	// Intercept the write message so can assess log errors parse json
-	parsed := make(map[string]interface***REMOVED******REMOVED***)
-	if err := json.Unmarshal(p, &parsed); err != nil ***REMOVED***
-		return origLen, err
-	***REMOVED***
-
-	// Check message level, if error then log error
-	if parsed["level"] == "error" ***REMOVED***
-		if parsed["error"] != nil ***REMOVED***
-			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
-		***REMOVED*** else ***REMOVED***
-			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
-		***REMOVED***
-		return
-	***REMOVED***
-
-	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
-
-	return origLen, err
 ***REMOVED***
 
 func getDefaultFlags(homeFolder string) globalFlags ***REMOVED***

@@ -3,7 +3,6 @@
 package worker
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -124,7 +123,12 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
 		***REMOVED***
 		lt.keyLogger = f
-		lt.preInitState.KeyLogger = &syncWriter***REMOVED***w: f***REMOVED***
+		lt.preInitState.KeyLogger = &consoleWriter***REMOVED***
+			ctx:      gs.ctx,
+			client:   workerInfo.Client,
+			jobId:    workerInfo.JobId,
+			workerId: workerInfo.WorkerId,
+		***REMOVED***
 	***REMOVED***
 
 	runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
@@ -144,11 +148,11 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	// Options have already been determined by the orchestrator
 
 	var parsedOptions lib.Options
-	err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
-
-	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("could not parse options: %w", err)
-	***REMOVED***
+	//err := json.Unmarshal([]byte(job["options"]), &parsedOptions)
+	//
+	//if err != nil ***REMOVED***
+	//	return nil, fmt.Errorf("could not parse options: %w", err)
+	//***REMOVED***
 
 	consolidatedConfig := getConsolidatedConfig(parsedOptions)
 
@@ -240,7 +244,7 @@ func validateScenarioConfig(conf lib.ExecutorConfig, isExecutable func(string) b
 func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 	configToReinject lib.Options,
 ) (*lib.TestRunState, error) ***REMOVED***
-	// This might be the full derived or just the consodlidated options
+	// This might be the full derived or just the consolidated options
 	if err := lct.initRunner.SetOptions(configToReinject); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
