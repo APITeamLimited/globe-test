@@ -13,7 +13,7 @@ import (
 	"github.com/APITeamLimited/k6-worker/lib"
 	"github.com/APITeamLimited/k6-worker/lib/executor"
 	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/ui/pb"
+	"github.com/APITeamLimited/k6-worker/pb"
 )
 
 // ExecutionScheduler is the local implementation of lib.ExecutionScheduler

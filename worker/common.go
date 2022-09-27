@@ -21,67 +21,16 @@
 package worker
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
-	"github.com/APITeamLimited/k6-worker/lib/types"
 )
 
 // Panic if the given error is not nil.
 func must(err error) {
 	if err != nil {
 		panic(err)
-	}
-}
-
-// TODO: refactor the CLI config so these functions aren't needed - they
-// can mask errors by failing only at runtime, not at compile time
-func getNullBool(flags *pflag.FlagSet, key string) null.Bool {
-	v, err := flags.GetBool(key)
-	if err != nil {
-		panic(err)
-	}
-	return null.NewBool(v, flags.Changed(key))
-}
-
-func getNullInt64(flags *pflag.FlagSet, key string) null.Int {
-	v, err := flags.GetInt64(key)
-	if err != nil {
-		panic(err)
-	}
-	return null.NewInt(v, flags.Changed(key))
-}
-
-func getNullDuration(flags *pflag.FlagSet, key string) types.NullDuration {
-	// TODO: use types.ParseExtendedDuration? not sure we should support
-	// unitless durations (i.e. milliseconds) here...
-	v, err := flags.GetDuration(key)
-	if err != nil {
-		panic(err)
-	}
-	return types.NullDuration{Duration: types.Duration(v), Valid: flags.Changed(key)}
-}
-
-func getNullString(flags *pflag.FlagSet, key string) null.String {
-	v, err := flags.GetString(key)
-	if err != nil {
-		panic(err)
-	}
-	return null.NewString(v, flags.Changed(key))
-}
-
-func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) != n {
-			return fmt.Errorf("accepts %d arg(s), received %d: %s", n, len(args), msg)
-		}
-		return nil
 	}
 }
 
