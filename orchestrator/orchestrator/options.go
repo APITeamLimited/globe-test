@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -65,17 +64,11 @@ func determineRuntimeOptions(job map[string]string, gs *libOrch.GlobalState) (*l
 	for _, ipNet := range localhostIPNets {
 		// Blacklist ips takes a struct
 		ipStruct := &libWorker.IPNet{
-			*ipNet,
+			IPNet: *ipNet,
 		}
 
 		options.BlacklistIPs = append(options.BlacklistIPs, ipStruct)
 	}
-
-	marshalledOptions, err := json.Marshal(options)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Options", string(marshalledOptions))
 
 	return options, nil
 }
