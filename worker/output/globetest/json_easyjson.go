@@ -7,7 +7,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	metrics "github.com/APITeamLimited/k6-worker/metrics"
+	metrics "github.com/APITeamLimited/globe-test/worker/metrics"
 	time "time"
 )
 

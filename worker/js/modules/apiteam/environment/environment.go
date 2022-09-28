@@ -3,8 +3,8 @@ package environment
 import (
 	"sync"
 
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 // RootModule is the global module object type. It is instantiated once per test
@@ -24,7 +24,7 @@ type (
 
 	sharedEnvironment struct ***REMOVED***
 		isEnabled bool
-		data      map[string]lib.KeyValueItem
+		data      map[string]libWorker.KeyValueItem
 		mu        sync.RWMutex
 	***REMOVED***
 )
@@ -35,13 +35,13 @@ var (
 )
 
 // New returns a pointer to a new RootModule instance.
-func New(workerInfo *lib.WorkerInfo) *RootModule ***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
 	// Check environment actually exists
 	if workerInfo.Environment != nil ***REMOVED***
 		return &RootModule***REMOVED***
 			env: sharedEnvironment***REMOVED***
 				isEnabled: true,
-				data:      make(map[string]lib.KeyValueItem),
+				data:      make(map[string]libWorker.KeyValueItem),
 			***REMOVED***,
 		***REMOVED***
 	***REMOVED***
@@ -95,7 +95,7 @@ func (mi *Environment) set(key string, value string) bool ***REMOVED***
 	defer mi.environment.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.environment.data[key] = lib.KeyValueItem***REMOVED***
+	mi.environment.data[key] = libWorker.KeyValueItem***REMOVED***
 		Key:   key,
 		Value: value,
 	***REMOVED***
@@ -147,16 +147,16 @@ func (mi *Environment) clear() bool ***REMOVED***
 	mi.environment.mu.Lock()
 	defer mi.environment.mu.Unlock()
 
-	mi.environment.data = make(map[string]lib.KeyValueItem)
+	mi.environment.data = make(map[string]libWorker.KeyValueItem)
 	return true
 ***REMOVED***
 
 // list returns a list of all key-value pairs in the environment.
-func (mi *Environment) list() []lib.KeyValueItem ***REMOVED***
+func (mi *Environment) list() []libWorker.KeyValueItem ***REMOVED***
 	mi.environment.mu.RLock()
 	defer mi.environment.mu.RUnlock()
 
-	list := make([]lib.KeyValueItem, 0, len(mi.environment.data))
+	list := make([]libWorker.KeyValueItem, 0, len(mi.environment.data))
 	for _, item := range mi.environment.data ***REMOVED***
 		list = append(list, item)
 	***REMOVED***

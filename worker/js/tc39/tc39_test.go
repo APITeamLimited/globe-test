@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js/compiler"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/globe-test/worker/js/compiler"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
 	"github.com/stretchr/testify/assert"
@@ -569,7 +569,7 @@ func (ctx *tc39TestCtx) compile(base, name string) (*goja.Program, error) ***REM
 		str := string(b)
 		comp := ctx.compilerPool.Get()
 		defer ctx.compilerPool.Put(comp)
-		comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: lib.CompatibilityModeExtended***REMOVED***
+		comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: libWorker.CompatibilityModeExtended***REMOVED***
 		prg, _, err = comp.Compile(str, name, true)
 		if err != nil ***REMOVED***
 			return nil, err
@@ -611,7 +611,7 @@ func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *g
 	var p *goja.Program
 	comp := ctx.compilerPool.Get()
 	defer ctx.compilerPool.Put(comp)
-	comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: lib.CompatibilityModeBase***REMOVED***
+	comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: libWorker.CompatibilityModeBase***REMOVED***
 	p, _, origErr = comp.Compile(src, name, true)
 	if origErr != nil ***REMOVED***
 		src, _, err = comp.Transform(src, name, nil)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
 )
 
 func TestTimeoutError(t *testing.T) ***REMOVED***

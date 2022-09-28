@@ -3,7 +3,7 @@ package engine
 import (
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/globe-test/worker/output"
 	"github.com/sirupsen/logrus"
 )
 

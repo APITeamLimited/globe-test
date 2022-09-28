@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
 )
 
 // FileData represents a binary file requiring multipart request encoding

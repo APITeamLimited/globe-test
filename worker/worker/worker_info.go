@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
 func loadWorkerInfo(ctx context.Context,
-	client *redis.Client, job map[string]string, workerId string) (*lib.WorkerInfo, error) ***REMOVED***
+	client *redis.Client, job map[string]string, workerId string) (*libWorker.WorkerInfo, error) ***REMOVED***
 
-	workerInfo := &lib.WorkerInfo***REMOVED***
+	workerInfo := &libWorker.WorkerInfo***REMOVED***
 		Client:         client,
 		JobId:          job["id"],
 		ScopeId:        job["scopeId"],
@@ -33,11 +33,11 @@ func loadWorkerInfo(ctx context.Context,
 	return workerInfo, nil
 ***REMOVED***
 
-func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) error ***REMOVED***
+func parseJobEnvironment(workerInfo *libWorker.WorkerInfo, job map[string]string) error ***REMOVED***
 	// Check environmentContext actually exists in the job
 	if job["environmentContext"] != "" ***REMOVED***
 		// Parse the environmentContext json
-		enviromentContext := []lib.KeyValueItem***REMOVED******REMOVED***
+		enviromentContext := []libWorker.KeyValueItem***REMOVED******REMOVED***
 		err := json.Unmarshal([]byte(job["environmentContext"]), &enviromentContext)
 
 		if err != nil ***REMOVED***
@@ -45,7 +45,7 @@ func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) erro
 		***REMOVED***
 
 		// Init map, need to assign it first to get an address
-		workerInfoEnvironment := make(map[string]lib.KeyValueItem, len(enviromentContext))
+		workerInfoEnvironment := make(map[string]libWorker.KeyValueItem, len(enviromentContext))
 		workerInfo.Environment = &workerInfoEnvironment
 	***REMOVED***
 
@@ -53,10 +53,10 @@ func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) erro
 ***REMOVED***
 
 type parseCollectionContext struct ***REMOVED***
-	Variables map[string]lib.KeyValueItem `json:"variables"`
+	Variables map[string]libWorker.KeyValueItem `json:"variables"`
 ***REMOVED***
 
-func parseJobCollection(workerInfo *lib.WorkerInfo, job map[string]string) error ***REMOVED***
+func parseJobCollection(workerInfo *libWorker.WorkerInfo, job map[string]string) error ***REMOVED***
 	// Check collectionContext actually exists in the job
 	if job["collectionContext"] != "" ***REMOVED***
 		// Parse the collectionContext json
@@ -68,9 +68,9 @@ func parseJobCollection(workerInfo *lib.WorkerInfo, job map[string]string) error
 		***REMOVED***
 
 		// Init map, need to assign it first to get an address
-		workerInfoVariables := make(map[string]lib.KeyValueItem, len(collectionContext.Variables))
+		workerInfoVariables := make(map[string]libWorker.KeyValueItem, len(collectionContext.Variables))
 
-		collection := lib.Collection***REMOVED***
+		collection := libWorker.Collection***REMOVED***
 			Variables: &workerInfoVariables,
 		***REMOVED***
 

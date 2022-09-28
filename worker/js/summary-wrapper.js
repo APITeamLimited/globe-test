@@ -63,7 +63,7 @@
         var getDefaultSummary = function () ***REMOVED***
             var enableColors = (!data.options.noColor && data.state.isStdOutTTY);
             return ***REMOVED***
-                'stdout': '\n' + jslib.textSummary(data, ***REMOVED*** indent: ' ', enableColors: enableColors ***REMOVED***) + '\n\n',
+                'stdout': '\n' + jslibWorker.textSummary(data, ***REMOVED*** indent: ' ', enableColors: enableColors ***REMOVED***) + '\n\n',
             ***REMOVED***;
         ***REMOVED***;
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func BenchmarkEmptyIteration(b *testing.B) ***REMOVED***
@@ -22,11 +22,11 @@ func BenchmarkEmptyIteration(b *testing.B) ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
-	initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+	initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 	require.NoError(b, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ ***REMOVED***
 		err = vu.RunOnce()

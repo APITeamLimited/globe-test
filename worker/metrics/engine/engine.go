@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/output"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 )
@@ -18,7 +18,7 @@ import (
 // aggregated metric sample values. They are used to generate the end-of-test
 // summary and to evaluate the test thresholds.
 type MetricsEngine struct ***REMOVED***
-	es     *lib.ExecutionState
+	es     *libWorker.ExecutionState
 	logger logrus.FieldLogger
 
 	// These can be both top-level metrics or sub-metrics
@@ -34,7 +34,7 @@ type MetricsEngine struct ***REMOVED***
 ***REMOVED***
 
 // NewMetricsEngine creates a new metrics Engine with the given parameters.
-func NewMetricsEngine(es *lib.ExecutionState) (*MetricsEngine, error) ***REMOVED***
+func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) ***REMOVED***
 	me := &MetricsEngine***REMOVED***
 		es:     es,
 		logger: es.Test.Logger.WithField("component", "metrics-engine"),

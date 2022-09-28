@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const (
@@ -58,7 +58,7 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 					exports.options = ***REMOVED***summaryTrendStats: %s***REMOVED***;
 					exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
 				`, string(trendStats)),
-				lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+				libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
 			)
 			require.NoError(t, err)
 
@@ -102,9 +102,9 @@ func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 		subMetricPost.Name:    subMetricPost.Metric,
 	***REMOVED***
 
-	summary := &lib.Summary***REMOVED***
+	summary := &libWorker.Summary***REMOVED***
 		Metrics:         metrics,
-		RootGroup:       &lib.Group***REMOVED******REMOVED***,
+		RootGroup:       &libWorker.Group***REMOVED******REMOVED***,
 		TestRunDuration: time.Second,
 	***REMOVED***
 
@@ -112,7 +112,7 @@ func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 		t,
 		"/script.js",
 		"exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;",
-		lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+		libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
 	)
 	require.NoError(t, err)
 
@@ -133,7 +133,7 @@ func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 	assert.Equal(t, "\n"+expected+"\n", string(summaryOut))
 ***REMOVED***
 
-func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) ***REMOVED***
+func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *libWorker.Group) ***REMOVED***
 	registry := metrics.NewRegistry()
 	testMetrics := make(map[string]*metrics.Metric)
 
@@ -177,7 +177,7 @@ func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) **
 		***REMOVED***,
 	***REMOVED***
 
-	rootG, err := lib.NewGroup("", nil)
+	rootG, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 	childG, err := rootG.Group("child")
 	require.NoError(t, err)
@@ -205,9 +205,9 @@ func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) **
 	return testMetrics, rootG
 ***REMOVED***
 
-func createTestSummary(t *testing.T) *lib.Summary ***REMOVED***
+func createTestSummary(t *testing.T) *libWorker.Summary ***REMOVED***
 	metrics, rootG := createTestMetrics(t)
-	return &lib.Summary***REMOVED***
+	return &libWorker.Summary***REMOVED***
 		Metrics:         metrics,
 		RootGroup:       rootG,
 		TestRunDuration: time.Second,
@@ -298,7 +298,7 @@ func TestOldJSONExport(t *testing.T) ***REMOVED***
 		exports.options = ***REMOVED***summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)", "count"]***REMOVED***;
 		exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
 		`,
-		lib.RuntimeOptions***REMOVED***
+		libWorker.RuntimeOptions***REMOVED***
 			CompatibilityMode: null.NewString("base", true),
 			SummaryExport:     null.StringFrom("result.json"),
 		***REMOVED***,
@@ -567,7 +567,7 @@ func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
 			return ***REMOVED***'rawdata.json': JSON.stringify(data)***REMOVED***;
 		***REMOVED***;
 		`,
-		lib.RuntimeOptions***REMOVED***
+		libWorker.RuntimeOptions***REMOVED***
 			CompatibilityMode: null.NewString("base", true),
 			// we still want to check this
 			SummaryExport: null.StringFrom("old-export.json"),
@@ -632,7 +632,7 @@ func TestWrongSummaryHandlerExportTypes(t *testing.T) ***REMOVED***
 					exports.default = function() ***REMOVED*** /* we don't run this, metrics are mocked */ ***REMOVED***;
 					exports.handleSummary = %s;
 				`, tc),
-				lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+				libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
 			)
 			require.NoError(t, err)
 
@@ -656,7 +656,7 @@ func TestExceptionInHandleSummaryFallsBackToTextSummary(t *testing.T) ***REMOVED
 			exports.handleSummary = function(data) ***REMOVED***
 				throw new Error('intentional error');
 			***REMOVED***;
-		`, logger, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+		`, logger, libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
 	)
 
 	require.NoError(t, err)

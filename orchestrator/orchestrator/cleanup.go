@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,10 +22,10 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 
 	marshalledJobInfo, err := json.Marshal(job)
 	if err != nil ***REMOVED***
-		HandleStringError(ctx, orchestratorClient, job["jobId"], orchestratorId, "Error marshalling job info")
+		libOrch.HandleStringError(ctx, orchestratorClient, job["jobId"], orchestratorId, "Error marshalling job info")
 	***REMOVED***
 
-	DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledJobInfo), "JOB_INFO")
+	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledJobInfo), "JOB_INFO")
 
 	go func() ***REMOVED***
 		for _, value := range workerClients ***REMOVED***
@@ -45,7 +46,7 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 	bucketName := fmt.Sprintf("%s:%s", scope["variant"], scope["variantTargetId"])
 	jobBucket, err := gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))
 	if err != nil ***REMOVED***
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error creating job output bucket: %s", err.Error()))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error creating job output bucket: %s", err.Error()))
 		return
 	***REMOVED***
 
@@ -53,17 +54,17 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 
 	unparsedMessages, err := orchestratorClient.SMembers(ctx, updatesKey).Result()
 	if err != nil ***REMOVED***
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting unparsed messages: %s", err.Error()))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting unparsed messages: %s", err.Error()))
 		return
 	***REMOVED***
 
-	var logs []OrchestratorOrWorkerMessage
+	var logs []libOrch.OrchestratorOrWorkerMessage
 
 	for _, value := range unparsedMessages ***REMOVED***
-		var message OrchestratorOrWorkerMessage
+		var message libOrch.OrchestratorOrWorkerMessage
 		err := json.Unmarshal([]byte(value), &message)
 		if err != nil ***REMOVED***
-			HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
+			libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
 			return
 		***REMOVED***
 
@@ -74,7 +75,7 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 
 				err := json.Unmarshal([]byte(message.Message), &parsedStoreMessage)
 				if err != nil ***REMOVED***
-					HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
+					libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
 					return
 				***REMOVED***
 
@@ -93,11 +94,11 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 	// Convert logs to JSON and set in bucket
 	logsJSON, err := json.Marshal(logs)
 	if err != nil ***REMOVED***
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling logs: %s", err.Error()))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling logs: %s", err.Error()))
 		return
 	***REMOVED***
 
-	err = setInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:messages.json", job["id"]), logsJSON, "application/json", globeTestLogsId)
+	err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:messages.json", job["id"]), logsJSON, "application/json", globeTestLogsId)
 	if err != nil ***REMOVED***
 		// Can't alert client here, as the client has already been cleaned up
 		fmt.Printf("Error setting logs in bucket: %s\n", err.Error())

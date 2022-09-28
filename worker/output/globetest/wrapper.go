@@ -3,7 +3,7 @@ package globetest
 import (
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 //go:generate easyjson -pkg -no_std_marshalers -gen_build_flags -mod=mod .

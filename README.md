@@ -1,5 +1,5 @@
 <h2>
-Globetest
+Globe Test
 </h2>
 
 Run distributed load tests using the K6 runtime engine

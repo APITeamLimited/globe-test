@@ -18,12 +18,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	httpModule "github.com/APITeamLimited/k6-worker/js/modules/k6/http"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	httpModule "github.com/APITeamLimited/globe-test/worker/js/modules/k6/http"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const statusProtocolSwitch = 101
@@ -85,13 +85,13 @@ func newTestState(t testing.TB) testState ***REMOVED***
 	testRuntime := modulestest.NewRuntime(t)
 	samples := make(chan metrics.SampleContainer, 1000)
 
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 
-	state := &lib.State***REMOVED***
+	state := &libWorker.State***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
-		Options: lib.Options***REMOVED***
+		Options: libWorker.Options***REMOVED***
 			SystemTags: metrics.NewSystemTagSet(
 				metrics.TagURL,
 				metrics.TagProto,
@@ -104,7 +104,7 @@ func newTestState(t testing.TB) testState ***REMOVED***
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
-		Tags:           lib.NewTagMap(nil),
+		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
 
 	m := New().NewModuleInstance(testRuntime.VU)

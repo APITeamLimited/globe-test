@@ -28,14 +28,14 @@ import (
 	"google.golang.org/grpc/test/grpc_testing"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/fsext"
-	"github.com/APITeamLimited/k6-worker/lib/netext/grpcext"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	grpcanytesting "github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin/grpc_any_testing"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/grpcext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	grpcanytesting "github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin/grpc_any_testing"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -114,7 +114,7 @@ func TestClient(t *testing.T) ***REMOVED***
 			name: "BadTLS",
 			setup: func(tb *httpmultibin.HTTPMultiBin) ***REMOVED***
 				// changing the pointer's value
-				// for affecting the lib.State
+				// for affecting the libWorker.State
 				// that uses the same pointer
 				*tb.TLSClientConfig = tls.Config***REMOVED***
 					MinVersion: tls.VersionTLS13,
@@ -701,14 +701,14 @@ func TestClient(t *testing.T) ***REMOVED***
 			val, err := replace(tt.initString.code)
 			assertResponse(t, tt.initString, err, val, ts)
 
-			root, err := lib.NewGroup("", nil)
+			root, err := libWorker.NewGroup("", nil)
 			require.NoError(t, err)
-			state := &lib.State***REMOVED***
+			state := &libWorker.State***REMOVED***
 				Group:     root,
 				Dialer:    ts.httpBin.Dialer,
 				TLSConfig: ts.httpBin.TLSClientConfig,
 				Samples:   ts.samples,
-				Options: lib.Options***REMOVED***
+				Options: libWorker.Options***REMOVED***
 					SystemTags: metrics.NewSystemTagSet(
 						metrics.TagName,
 						metrics.TagURL,
@@ -718,7 +718,7 @@ func TestClient(t *testing.T) ***REMOVED***
 				BuiltinMetrics: metrics.RegisterBuiltinMetrics(
 					metrics.NewRegistry(),
 				),
-				Tags: lib.NewTagMap(nil),
+				Tags: libWorker.NewTagMap(nil),
 			***REMOVED***
 			ts.MoveToVUContext(state)
 			val, err = replace(tt.vuString.code)
@@ -812,7 +812,7 @@ func TestClientInvokeHeadersDeprecated(t *testing.T) ***REMOVED***
 
 	c := Client***REMOVED***
 		vu: &modulestest.VU***REMOVED***
-			StateField: &lib.State***REMOVED***
+			StateField: &libWorker.State***REMOVED***
 				Logger: testLog,
 			***REMOVED***,
 		***REMOVED***,

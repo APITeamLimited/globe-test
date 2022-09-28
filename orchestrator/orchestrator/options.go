@@ -7,17 +7,17 @@ import (
 	"net"
 	"net/url"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	libWorker "github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/spf13/afero"
-	"gitlab.com/apiteamcloud/orchestrator/lib"
 	"gopkg.in/guregu/null.v3"
 )
 
 // Import script to determine options on the orchestrator
-func determineRuntimeOptions(job map[string]string, gs *lib.GlobalState) (*libWorker.Options, error) ***REMOVED***
+func determineRuntimeOptions(job map[string]string, gs *libOrch.GlobalState) (*libWorker.Options, error) ***REMOVED***
 	source, sourceName, err := validateSource(job, gs)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -54,7 +54,8 @@ func determineRuntimeOptions(job map[string]string, gs *lib.GlobalState) (*libWo
 
 	for _, ip := range options.Hosts ***REMOVED***
 		for _, localhostIPNet := range localhostIPNets ***REMOVED***
-			if localhostIPNet.Contains(ip) ***REMOVED***
+			netIp := net.ParseIP(string(ip.IP))
+			if netIp != nil && localhostIPNet.Contains(netIp) ***REMOVED***
 				return nil, fmt.Errorf("invalid host %s", ip)
 			***REMOVED***
 		***REMOVED***
@@ -79,7 +80,7 @@ func determineRuntimeOptions(job map[string]string, gs *lib.GlobalState) (*libWo
 	return options, nil
 ***REMOVED***
 
-func validateSource(job map[string]string, gs *lib.GlobalState) (string, string, error) ***REMOVED***
+func validateSource(job map[string]string, gs *libOrch.GlobalState) (string, string, error) ***REMOVED***
 	// Check sourceName is set
 	if _, ok := job["sourceName"]; !ok ***REMOVED***
 		return "", "", errors.New("sourceName not set")
@@ -108,7 +109,7 @@ func validateSource(job map[string]string, gs *lib.GlobalState) (string, string,
 	return source, sourceName, nil
 ***REMOVED***
 
-func compileAndGetOptions(source string, sourceName string, gs *lib.GlobalState) (*libWorker.Options, error) ***REMOVED***
+func compileAndGetOptions(source string, sourceName string, gs *libOrch.GlobalState) (*libWorker.Options, error) ***REMOVED***
 	runtimeOptions := libWorker.RuntimeOptions***REMOVED***
 		TestType:             null.StringFrom("js"),
 		IncludeSystemEnvVars: null.BoolFrom(false),

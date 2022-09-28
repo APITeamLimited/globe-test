@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -511,7 +511,7 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func deleteSystemTag(state *lib.State, tag string) ***REMOVED***
+func deleteSystemTag(state *libWorker.State, tag string) ***REMOVED***
 	enabledTags := state.Options.SystemTags.Map()
 	delete(enabledTags, tag)
 	tagsList := make([]string, 0, len(enabledTags))

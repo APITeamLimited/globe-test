@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
 	"github.com/go-sourcemap/sourcemap"
@@ -150,7 +150,7 @@ func (c *Compiler) Transform(src, filename string, inputSrcMap []byte) (code str
 
 // Options are options to the compiler
 type Options struct ***REMOVED***
-	CompatibilityMode lib.CompatibilityMode
+	CompatibilityMode libWorker.CompatibilityMode
 	SourceMapLoader   func(string) ([]byte, error)
 	Strict            bool
 ***REMOVED***
@@ -201,7 +201,7 @@ func (c *compilationState) sourceMapLoader(path string) ([]byte, error) ***REMOV
 ***REMOVED***
 
 func (c *Compiler) compileImpl(
-	src, filename string, wrap bool, compatibilityMode lib.CompatibilityMode, srcMap []byte,
+	src, filename string, wrap bool, compatibilityMode libWorker.CompatibilityMode, srcMap []byte,
 ) (*goja.Program, string, error) ***REMOVED***
 	code := src
 	state := compilationState***REMOVED***srcMap: srcMap, compiler: c, wrapped: wrap***REMOVED***
@@ -222,13 +222,13 @@ func (c *Compiler) compileImpl(
 		ast, err = parser.ParseFile(nil, filename, code, 0, parser.WithDisableSourceMaps)
 	***REMOVED***
 	if err != nil ***REMOVED***
-		if compatibilityMode == lib.CompatibilityModeExtended ***REMOVED***
+		if compatibilityMode == libWorker.CompatibilityModeExtended ***REMOVED***
 			code, state.srcMap, err = c.Transform(src, filename, state.srcMap)
 			if err != nil ***REMOVED***
 				return nil, code, err
 			***REMOVED***
 			// the compatibility mode "decreases" here as we shouldn't transform twice
-			return c.compileImpl(code, filename, wrap, lib.CompatibilityModeBase, state.srcMap)
+			return c.compileImpl(code, filename, wrap, libWorker.CompatibilityModeBase, state.srcMap)
 		***REMOVED***
 		return nil, code, err
 	***REMOVED***

@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib/netext"
-	"github.com/APITeamLimited/k6-worker/lib/netext/httpext"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
 	"github.com/dop251/goja"
 )
 
@@ -47,7 +47,7 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVE
 	mi.defineConstants()
 
 	mi.defaultClient = &Client***REMOVED***
-		// TODO: configure this from lib.Options and get rid of some of the
+		// TODO: configure this from libWorker.Options and get rid of some of the
 		// things in the VU State struct that should be here. See
 		// https://github.com/grafana/k6/issues/2293
 		moduleInstance:   mi,

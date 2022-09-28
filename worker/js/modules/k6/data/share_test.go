@@ -10,8 +10,8 @@ import (
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 )
 
 const makeArrayScript = `

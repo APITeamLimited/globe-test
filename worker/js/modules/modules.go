@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/dop251/goja"
 )
 
@@ -70,8 +70,8 @@ type VU interface ***REMOVED***
 	// InitEnv returns common.InitEnvironment instance if present
 	InitEnv() *common.InitEnvironment
 
-	// State returns lib.State if any is present
-	State() *lib.State
+	// State returns libWorker.State if any is present
+	State() *libWorker.State
 
 	// Runtime returns the goja.Runtime for the current VU
 	Runtime() *goja.Runtime

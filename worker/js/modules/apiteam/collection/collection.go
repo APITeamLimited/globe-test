@@ -3,8 +3,8 @@ package collection
 import (
 	"sync"
 
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 // RootModule is the global module object type. It is instantiated once per test
@@ -27,7 +27,7 @@ type (
 
 	sharedCollection struct ***REMOVED***
 		isEnabled bool
-		variables map[string]lib.KeyValueItem
+		variables map[string]libWorker.KeyValueItem
 		mu        sync.RWMutex
 	***REMOVED***
 )
@@ -38,7 +38,7 @@ var (
 )
 
 // New returns a pointer to a new RootModule instance.
-func New(workerInfo *lib.WorkerInfo) *RootModule ***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
 	// Check collection actually exists
 	if workerInfo.Collection != nil ***REMOVED***
 		return &RootModule***REMOVED***

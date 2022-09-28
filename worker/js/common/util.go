@@ -7,7 +7,7 @@ import (
 	"io"
 	"runtime/debug"
 
-	"github.com/APITeamLimited/k6-worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 )

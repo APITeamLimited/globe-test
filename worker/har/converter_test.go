@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestBuildK6Headers(t *testing.T) ***REMOVED***
@@ -42,14 +42,14 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	_, err = js.New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 		***REMOVED***, &loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
-		***REMOVED***, nil, lib.GetTestWorkerInfo())
+		***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 	assert.NoError(t, err)
 ***REMOVED***
 

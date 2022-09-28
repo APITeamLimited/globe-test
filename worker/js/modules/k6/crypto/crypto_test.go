@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 type MockReader struct***REMOVED******REMOVED***
@@ -175,8 +175,8 @@ func TestStreamingApi(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
-	root, _ := lib.NewGroup("", nil)
-	state := &lib.State***REMOVED***Group: root***REMOVED***
+	root, _ := libWorker.NewGroup("", nil)
+	state := &libWorker.State***REMOVED***Group: root***REMOVED***
 
 	ctx := context.Background()
 

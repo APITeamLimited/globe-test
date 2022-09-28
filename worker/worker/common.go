@@ -24,7 +24,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 )
 
 // Panic if the given error is not nil.

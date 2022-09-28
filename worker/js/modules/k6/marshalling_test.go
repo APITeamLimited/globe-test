@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
@@ -99,19 +99,19 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 		***REMOVED***,
 
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 
 	require.NoError(t, err)
 
-	err = runner.SetOptions(lib.Options***REMOVED***
+	err = runner.SetOptions(libWorker.Options***REMOVED***
 		SetupTimeout: types.NullDurationFrom(5 * time.Second),
 		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
@@ -125,9 +125,9 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, runner.Setup(ctx, samples)) ***REMOVED***
 		return
 	***REMOVED***
-	initVU, err := runner.NewVU(1, 1, samples, lib.GetTestWorkerInfo())
+	initVU, err := runner.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 	if assert.NoError(t, err) ***REMOVED***
-		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+		vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 		err := vu.RunOnce()
 		assert.NoError(t, err)
 	***REMOVED***

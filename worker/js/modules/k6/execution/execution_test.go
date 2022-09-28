@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+		tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 		tag, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "42", tag.String())
@@ -56,11 +56,11 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&lib.State***REMOVED***
-			Options: lib.Options***REMOVED***
+		tenv.MoveToVUContext(&libWorker.State***REMOVED***
+			Options: libWorker.Options***REMOVED***
 				SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 			***REMOVED***,
-			Tags: lib.NewTagMap(map[string]string***REMOVED***
+			Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 				"vu": "42",
 			***REMOVED***),
 		***REMOVED***)
@@ -91,7 +91,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 
 			for _, tc := range tests ***REMOVED***
 				_, err := tenv.VU.Runtime().RunString(fmt.Sprintf(`exec.vu.tags["mytag"] = %v`, tc.v))
@@ -108,7 +108,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 
 			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"] = "vu101"`)
 			require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State***REMOVED***Tags: lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
 
 			state := tenv.VU.State()
 			state.Options.Throw = null.BoolFrom(true)
@@ -148,11 +148,11 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			testLog.SetOutput(ioutil.Discard)
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State***REMOVED***
-				Options: lib.Options***REMOVED***
+			tenv.MoveToVUContext(&libWorker.State***REMOVED***
+				Options: libWorker.Options***REMOVED***
 					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 				***REMOVED***,
-				Tags: lib.NewTagMap(map[string]string***REMOVED***
+				Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 					"vu": "42",
 				***REMOVED***),
 				Logger: testLog,
@@ -175,11 +175,11 @@ func TestVUTags(t *testing.T) ***REMOVED***
 
 			cases := []string***REMOVED***"null", "undefined"***REMOVED***
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State***REMOVED***
-				Options: lib.Options***REMOVED***
+			tenv.MoveToVUContext(&libWorker.State***REMOVED***
+				Options: libWorker.Options***REMOVED***
 					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 				***REMOVED***,
-				Tags:   lib.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***),
+				Tags:   libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***),
 				Logger: testLog,
 			***REMOVED***)
 			for _, val := range cases ***REMOVED***
@@ -199,7 +199,7 @@ func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
 
 	var (
 		rt    = goja.New()
-		state = &lib.State***REMOVED******REMOVED***
+		state = &libWorker.State***REMOVED******REMOVED***
 		ctx   = context.Background()
 	)
 
@@ -239,10 +239,10 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 
 	var (
 		rt    = goja.New()
-		state = &lib.State***REMOVED***
-			Options: lib.Options***REMOVED***
+		state = &libWorker.State***REMOVED***
+			Options: libWorker.Options***REMOVED***
 				Paused: null.BoolFrom(true),
-				Scenarios: map[string]lib.ExecutorConfig***REMOVED***
+				Scenarios: map[string]libWorker.ExecutorConfig***REMOVED***
 					"const-vus": executor.ConstantVUsConfig***REMOVED***
 						BaseConfig: executor.BaseConfig***REMOVED***
 							Name:         "const-vus",
@@ -261,13 +261,13 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 						Duration: types.NullDurationFrom(10 * time.Minute),
 					***REMOVED***,
 				***REMOVED***,
-				ExecutionSegment: func() *lib.ExecutionSegment ***REMOVED***
-					seg, err := lib.NewExecutionSegmentFromString("0:1/4")
+				ExecutionSegment: func() *libWorker.ExecutionSegment ***REMOVED***
+					seg, err := libWorker.NewExecutionSegmentFromString("0:1/4")
 					require.NoError(t, err)
 					return seg
 				***REMOVED***(),
-				ExecutionSegmentSequence: func() *lib.ExecutionSegmentSequence ***REMOVED***
-					seq, err := lib.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
+				ExecutionSegmentSequence: func() *libWorker.ExecutionSegmentSequence ***REMOVED***
+					seq, err := libWorker.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
 					require.NoError(t, err)
 					return &seq
 				***REMOVED***(),
@@ -294,13 +294,13 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
 					Valid:  true,
 				***REMOVED***,
-				TLSVersion: &lib.TLSVersions***REMOVED***
+				TLSVersion: &libWorker.TLSVersions***REMOVED***
 					Min: tls.VersionTLS12,
 					Max: tls.VersionTLS13,
 				***REMOVED***,
-				TLSAuth: []*lib.TLSAuth***REMOVED***
+				TLSAuth: []*libWorker.TLSAuth***REMOVED***
 					***REMOVED***
-						TLSAuthFields: lib.TLSAuthFields***REMOVED***
+						TLSAuthFields: libWorker.TLSAuthFields***REMOVED***
 							Cert:     "mycert.pem",
 							Key:      "mycert-key.pem",
 							Password: null.StringFrom("mypwd"),
@@ -308,10 +308,10 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 						***REMOVED***,
 					***REMOVED***,
 				***REMOVED***,
-				TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***
+				TLSCipherSuites: &libWorker.TLSCipherSuites***REMOVED***
 					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				***REMOVED***,
-				BlacklistIPs: []*lib.IPNet***REMOVED***
+				BlacklistIPs: []*libWorker.IPNet***REMOVED***
 					***REMOVED***
 						IPNet: func() net.IPNet ***REMOVED***
 							_, ipv4net, err := net.ParseCIDR("192.0.2.1/24")
@@ -337,7 +337,7 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 					require.NoError(t, err)
 					return bh
 				***REMOVED***(),
-				Hosts: map[string]*lib.HostAddress***REMOVED***
+				Hosts: map[string]*libWorker.HostAddress***REMOVED***
 					"test.k6.io": ***REMOVED***
 						IP:   []byte***REMOVED***0x01, 0x02, 0x03, 0x04***REMOVED***,
 						Port: 8443,
@@ -367,7 +367,7 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 				VUs:        null.IntFrom(50),
 				Iterations: null.IntFrom(100),
 				Duration:   types.NullDurationFrom(10 * time.Second),
-				Stages: []lib.Stage***REMOVED***
+				Stages: []libWorker.Stage***REMOVED***
 					***REMOVED***
 						Duration: types.NullDurationFrom(2 * time.Second),
 						Target:   null.IntFrom(2),
@@ -402,8 +402,8 @@ func TestOptionsTestSetPropertyDenied(t *testing.T) ***REMOVED***
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &lib.State***REMOVED***
-				Options: lib.Options***REMOVED***
+			StateField: &libWorker.State***REMOVED***
+				Options: libWorker.Options***REMOVED***
 					Paused: null.BoolFrom(true),
 				***REMOVED***,
 			***REMOVED***,
@@ -427,8 +427,8 @@ func TestScenarioNoAvailableInInitContext(t *testing.T) ***REMOVED***
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &lib.State***REMOVED***
-				Options: lib.Options***REMOVED***
+			StateField: &libWorker.State***REMOVED***
+				Options: libWorker.Options***REMOVED***
 					Paused: null.BoolFrom(true),
 				***REMOVED***,
 			***REMOVED***,

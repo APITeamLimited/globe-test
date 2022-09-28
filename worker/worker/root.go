@@ -30,7 +30,7 @@ type globalFlags struct ***REMOVED***
 // globalState contains the globalFlags and accessors for most of the global
 // process-external state like CLI arguments, env vars, standard input, output
 // and error, etc. In practice, most of it is normally accessed through the `os`
-// package from the Go stdlib.
+// package from the Go stdlibWorker.
 //
 // We group them here so we can prevent direct access to them from the rest of
 // the k6 codebase. This gives us the ability to mock them and have robust and

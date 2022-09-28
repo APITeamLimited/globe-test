@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
 )
@@ -25,8 +25,8 @@ func Run() ***REMOVED***
 	workerId := uuid.New()
 
 	client := redis.NewClient(&redis.Options***REMOVED***
-		Addr:     fmt.Sprintf("%s:%s", lib.GetEnvVariable("CLIENT_HOST", "localhost"), lib.GetEnvVariable("CLIENT_PORT", "6978")),
-		Password: lib.GetEnvVariable("CLIENT_PASSWORD", ""),
+		Addr:     fmt.Sprintf("%s:%s", libWorker.GetEnvVariable("CLIENT_HOST", "localhost"), libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
+		Password: libWorker.GetEnvVariable("CLIENT_PASSWORD", ""),
 		DB:       0, // use default DB
 	***REMOVED***)
 
@@ -124,7 +124,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	// We got the job
 	executionList.addJob(job)
 
-	go lib.UpdateStatus(ctx, client, jobId, workerId, "ASSIGNED")
+	go libWorker.UpdateStatus(ctx, client, jobId, workerId, "ASSIGNED")
 	handleExecution(ctx, client, job, workerId)
 	executionList.removeJob(jobId)
 	// Capacity was freed, so check for queued jobs

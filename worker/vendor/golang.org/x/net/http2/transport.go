@@ -1259,7 +1259,7 @@ func (cs *clientStream) writeRequest(req *http.Request) (err error) ***REMOVED**
 		!cs.isHead ***REMOVED***
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
-		// See: https://zlib.net/zlib_faq.html#faq39
+		// See: https://zlibWorker.net/zlib_faq.html#faq39
 		//
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:

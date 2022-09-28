@@ -19,36 +19,36 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/lib/netext"
-	"github.com/APITeamLimited/k6-worker/lib/netext/httpext"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/minirunner"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/mockresolver"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/mockresolver"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
-func getTestPreInitState(tb testing.TB) *lib.TestPreInitState ***REMOVED***
+func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState ***REMOVED***
 	reg := metrics.NewRegistry()
-	return &lib.TestPreInitState***REMOVED***
+	return &libWorker.TestPreInitState***REMOVED***
 		Logger:         testutils.NewLogger(tb),
-		RuntimeOptions: lib.RuntimeOptions***REMOVED******REMOVED***,
+		RuntimeOptions: libWorker.RuntimeOptions***REMOVED******REMOVED***,
 		Registry:       reg,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
 	***REMOVED***
 ***REMOVED***
 
 func getTestRunState(
-	tb testing.TB, piState *lib.TestPreInitState, options lib.Options, runner lib.Runner,
-) *lib.TestRunState ***REMOVED***
+	tb testing.TB, piState *libWorker.TestPreInitState, options libWorker.Options, runner libWorker.Runner,
+) *libWorker.TestRunState ***REMOVED***
 	require.Empty(tb, options.Validate())
 	require.NoError(tb, runner.SetOptions(options))
-	return &lib.TestRunState***REMOVED***
+	return &libWorker.TestRunState***REMOVED***
 		TestPreInitState: piState,
 		Options:          options,
 		Runner:           runner,
@@ -56,13 +56,13 @@ func getTestRunState(
 ***REMOVED***
 
 func newTestExecutionScheduler(
-	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options,
+	t *testing.T, runner libWorker.Runner, logger *logrus.Logger, opts libWorker.Options,
 ) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan metrics.SampleContainer) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
+	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), nil)
 	require.NoError(t, err)
@@ -86,19 +86,19 @@ func newTestExecutionScheduler(
 		***REMOVED***
 	***REMOVED***()
 
-	require.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
+	require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 
 	return ctx, cancel, execScheduler, samples
 ***REMOVED***
 
 func TestExecutionSchedulerRun(t *testing.T) ***REMOVED***
 	t.Parallel()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, nil, nil, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, nil, nil, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
 	err := make(chan error, 1)
 	go func() ***REMOVED***
-		err <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo())
+		err <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
 	***REMOVED***()
 	assert.NoError(t, <-err)
 ***REMOVED***
@@ -132,7 +132,7 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 			runner, err := js.New(
 				piState, &loader.SourceData***REMOVED***
 					URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script),
-				***REMOVED***, nil, lib.GetTestWorkerInfo())
+				***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
@@ -146,12 +146,12 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 			done := make(chan struct***REMOVED******REMOVED***)
 			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
-				err := execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo())
+				err := execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo())
 				if tc.expErr != "" ***REMOVED***
 					assert.EqualError(t, err, tc.expErr)
 				***REMOVED*** else ***REMOVED***
 					assert.NoError(t, err)
-					assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+					assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 				***REMOVED***
 				close(done)
 			***REMOVED***()
@@ -244,12 +244,12 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			piState := getTestPreInitState(t)
-			piState.RuntimeOptions = lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***
+			piState.RuntimeOptions = libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***
 			runner, err := js.New(
 				piState, &loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
-				***REMOVED***, nil, lib.GetTestWorkerInfo(),
+				***REMOVED***, nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -263,8 +263,8 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			done := make(chan struct***REMOVED******REMOVED***)
 			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
-				assert.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
-				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+				assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
+				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 				close(done)
 			***REMOVED***()
 			for ***REMOVED***
@@ -315,10 +315,10 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		piState, &loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: []byte(script),
-		***REMOVED***, nil, lib.GetTestWorkerInfo())
+		***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
+	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(libWorker.Options***REMOVED***
 		SystemTags: &metrics.DefaultSystemTagSet,
 	***REMOVED***)))
 
@@ -333,8 +333,8 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	done := make(chan struct***REMOVED******REMOVED***)
 	go func() ***REMOVED***
 		defer close(done)
-		require.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
-		require.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+		require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
+		require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	***REMOVED***()
 
 	expCommonTrailTags := metrics.IntoSampleTags(&map[string]string***REMOVED***
@@ -458,7 +458,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 				piState, &loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
-				***REMOVED***, nil, lib.GetTestWorkerInfo(),
+				***REMOVED***, nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -473,8 +473,8 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			samples := make(chan metrics.SampleContainer)
 			go func() ***REMOVED***
 				defer close(done)
-				require.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
-				require.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+				require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
+				require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 			***REMOVED***()
 			var gotTrailTag, gotNetTrailTag bool
 			for ***REMOVED***
@@ -622,7 +622,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: []byte(script),
 		***REMOVED***,
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -635,8 +635,8 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 
 	samples := make(chan metrics.SampleContainer)
 	go func() ***REMOVED***
-		assert.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+		assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 		close(samples)
 	***REMOVED***()
 
@@ -712,11 +712,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 				return nil
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
 
 		err := make(chan error, 1)
 		go func() ***REMOVED***
-			err <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo())
+			err <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
 		***REMOVED***()
 		defer cancel()
 		<-setupC
@@ -730,9 +730,9 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()), "setup error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "setup error")
 	***REMOVED***)
 	t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -744,13 +744,13 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
 			NoSetup:    null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "teardown error")
 	***REMOVED***)
 
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
@@ -763,13 +763,13 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
 
-		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "teardown error")
 	***REMOVED***)
 	t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -781,13 +781,13 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
 			NoTeardown: null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	***REMOVED***)
 ***REMOVED***
 
@@ -795,22 +795,22 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
 		Duration time.Duration
-		Stages   []lib.Stage
+		Stages   []libWorker.Stage
 	***REMOVED******REMOVED***
 		"one": ***REMOVED***
 			1 * time.Second,
-			[]lib.Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)***REMOVED******REMOVED***,
+			[]libWorker.Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)***REMOVED******REMOVED***,
 		***REMOVED***,
 		"two": ***REMOVED***
 			2 * time.Second,
-			[]lib.Stage***REMOVED***
+			[]libWorker.Stage***REMOVED***
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)***REMOVED***,
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(2)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
 		"four": ***REMOVED***
 			4 * time.Second,
-			[]lib.Stage***REMOVED***
+			[]libWorker.Stage***REMOVED***
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
 				***REMOVED***Duration: types.NullDurationFrom(3 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
@@ -822,17 +822,17 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			runner := &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+				Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 					time.Sleep(100 * time.Millisecond)
 					return nil
 				***REMOVED***,
 			***REMOVED***
-			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
+			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
 				VUs:    null.IntFrom(1),
 				Stages: data.Stages,
 			***REMOVED***)
 			defer cancel()
-			assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+			assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 			assert.True(t, execScheduler.GetState().GetCurrentTestRunDuration() >= data.Duration)
 		***REMOVED***)
 	***REMOVED***
@@ -841,23 +841,23 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		***REMOVED***,
 	***REMOVED***
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
 		VUs:      null.IntFrom(10),
 		Duration: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
+	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 31*time.Second, endTime) // because of the default 30s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -866,25 +866,25 @@ func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			time.Sleep(10 * time.Millisecond)
 			return errors.New("hi")
 		***REMOVED***,
-		Options: lib.Options***REMOVED***
+		Options: libWorker.Options***REMOVED***
 			VUs:      null.IntFrom(10),
 			Duration: types.NullDurationFrom(1 * time.Second),
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
+	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 31*time.Second, endTime) // because of the default 30s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -904,24 +904,24 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return errors.New("hi")
 		***REMOVED***,
-		Options: lib.Options***REMOVED***
-			Scenarios: lib.ScenarioConfigs***REMOVED***exec.GetName(): exec***REMOVED***,
+		Options: libWorker.Options***REMOVED***
+			Scenarios: libWorker.ScenarioConfigs***REMOVED***exec.GetName(): exec***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
+	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 1*time.Second, endTime) // because of the 0s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+	assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -933,7 +933,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := &metrics.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
-	options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
 	***REMOVED***, nil)
@@ -942,7 +942,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 
 	var i int64
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			select ***REMOVED***
 			case <-ctx.Done():
 			default:
@@ -962,8 +962,8 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	samples := make(chan metrics.SampleContainer, 300)
-	require.NoError(t, execScheduler.Init(ctx, samples, lib.GetTestWorkerInfo()))
-	require.NoError(t, execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()))
+	require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
+	require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 
 	assert.Equal(t, uint64(100), execScheduler.GetState().GetFullIterationCount())
 	assert.Equal(t, uint64(0), execScheduler.GetState().GetPartialIterationCount())
@@ -979,17 +979,17 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return nil
 		***REMOVED***,
 	***REMOVED***
-	ctx, cancel, execScheduler, _ := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, _ := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
 	state := execScheduler.GetState()
 
 	err := make(chan error)
 	go func() ***REMOVED***
-		err <- execScheduler.Run(ctx, ctx, nil, lib.GetTestWorkerInfo())
+		err <- execScheduler.Run(ctx, ctx, nil, libWorker.GetTestWorkerInfo())
 	***REMOVED***()
 	for !state.HasStarted() ***REMOVED***
 		time.Sleep(10 * time.Microsecond)
@@ -1024,28 +1024,28 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 	t.Run("cache", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		testCases := map[string]struct ***REMOVED***
-			opts          lib.Options
+			opts          libWorker.Options
 			expLogEntries int
 		***REMOVED******REMOVED***
 			"default": ***REMOVED*** // IPs are cached for 5m
-				lib.Options***REMOVED***DNS: types.DefaultDNSConfig()***REMOVED***, 0,
+				libWorker.Options***REMOVED***DNS: types.DefaultDNSConfig()***REMOVED***, 0,
 			***REMOVED***,
 			"0": ***REMOVED*** // cache is disabled, every request does a DNS lookup
-				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("0"),
 					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
 					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 				***REMOVED******REMOVED***, 5,
 			***REMOVED***,
 			"1000": ***REMOVED*** // cache IPs for 1s, check that unitless values are interpreted as ms
-				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("1000"),
 					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
 					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 				***REMOVED******REMOVED***, 4,
 			***REMOVED***,
 			"3s": ***REMOVED***
-				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("3s"),
 					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
 					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
@@ -1069,14 +1069,14 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 				registry := metrics.NewRegistry()
 				builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 				runner, err := js.New(
-					&lib.TestPreInitState***REMOVED***
+					&libWorker.TestPreInitState***REMOVED***
 						Logger:         logger,
 						BuiltinMetrics: builtinMetrics,
 						Registry:       registry,
 					***REMOVED***,
 					&loader.SourceData***REMOVED***
 						URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(script),
-					***REMOVED***, nil, lib.GetTestWorkerInfo())
+					***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 
 				mr := mockresolver.New(nil, net.LookupIP)
@@ -1093,7 +1093,7 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 
 				errCh := make(chan error, 1)
 				go func() ***REMOVED***
-					errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo())
+					errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
 				***REMOVED***()
 
 				select ***REMOVED***
@@ -1153,10 +1153,10 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***`)
 
 	piState := getTestPreInitState(t)
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.GetTestWorkerInfo())
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(libWorker.Options***REMOVED***
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
 		SystemTags:      &metrics.DefaultSystemTagSet,
@@ -1175,8 +1175,8 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	done := make(chan struct***REMOVED******REMOVED***)
 	sampleContainers := make(chan metrics.SampleContainer)
 	go func() ***REMOVED***
-		require.NoError(t, execScheduler.Init(ctx, sampleContainers, lib.GetTestWorkerInfo()))
-		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, lib.GetTestWorkerInfo()))
+		require.NoError(t, execScheduler.Init(ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
 		close(done)
 	***REMOVED***()
 
@@ -1282,9 +1282,9 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Just a lib.PausableExecutor implementation that can return an error
+// Just a libWorker.PausableExecutor implementation that can return an error
 type pausableExecutor struct ***REMOVED***
-	lib.Executor
+	libWorker.Executor
 	err error
 ***REMOVED***
 
@@ -1296,10 +1296,10 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("second pause is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), lib.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 
 		require.NoError(t, sched.SetPaused(true))
 		err = sched.SetPaused(true)
@@ -1309,10 +1309,10 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("unpause at the start is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), lib.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		err = sched.SetPaused(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "execution wasn't paused")
@@ -1320,10 +1320,10 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("second unpause is an error", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), lib.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
 		require.NoError(t, sched.SetPaused(true))
 		require.NoError(t, sched.SetPaused(false))
 		err = sched.SetPaused(false)
@@ -1333,11 +1333,11 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("an error on pausing is propagated", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), lib.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
 		expectedErr := errors.New("testing pausable executor error")
-		sched.executors = []lib.Executor***REMOVED***pausableExecutor***REMOVED***err: expectedErr***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: expectedErr***REMOVED******REMOVED***
 		err = sched.SetPaused(true)
 		require.Error(t, err)
 		require.Equal(t, err, expectedErr)
@@ -1346,7 +1346,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 	t.Run("can't pause unpausable executor", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
-		options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
+		options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
 			Iterations: null.IntFrom(2),
 			VUs:        null.IntFrom(1),
 		***REMOVED***.Apply(runner.GetOptions()), nil)
@@ -1399,12 +1399,12 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	registry := metrics.NewRegistry()
-	piState := &lib.TestPreInitState***REMOVED***
+	piState := &libWorker.TestPreInitState***REMOVED***
 		Logger:         logger,
 		Registry:       registry,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	***REMOVED***
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.GetTestWorkerInfo())
+	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)

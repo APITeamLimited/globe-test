@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
@@ -17,7 +17,7 @@ type InitEnvironment struct ***REMOVED***
 	FileSystems map[string]afero.Fs
 	CWD         *url.URL
 	Registry    *metrics.Registry
-	WorkerInfo  *lib.WorkerInfo
+	WorkerInfo  *libWorker.WorkerInfo
 	// TODO: add RuntimeOptions and other properties, goja sources, etc.
 	// ideally, we should leave this as the only data structure necessary for
 	// executing the init context for all JS modules

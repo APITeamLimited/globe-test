@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

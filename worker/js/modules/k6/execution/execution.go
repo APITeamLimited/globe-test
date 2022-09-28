@@ -9,10 +9,10 @@ import (
 
 	"github.com/dop251/goja"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 type (
@@ -80,8 +80,8 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
 	if vuState == nil ***REMOVED***
 		return nil, errRunInInitContext
 	***REMOVED***
-	getScenarioState := func() *lib.ScenarioState ***REMOVED***
-		ss := lib.GetScenarioState(mi.vu.Context())
+	getScenarioState := func() *libWorker.ScenarioState ***REMOVED***
+		ss := libWorker.GetScenarioState(mi.vu.Context())
 		if ss == nil ***REMOVED***
 			common.Throw(rt, errRunInInitContext)
 		***REMOVED***
@@ -129,7 +129,7 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
 // newInstanceInfo returns a goja.Object with property accessors to retrieve
 // information about the local instance stats.
 func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
-	es := lib.GetExecutionState(mi.vu.Context())
+	es := libWorker.GetExecutionState(mi.vu.Context())
 	if es == nil ***REMOVED***
 		return nil, errors.New("getting instance information in the init context is not supported")
 	***REMOVED***
@@ -160,7 +160,7 @@ func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
 // information and control execution of the overall test run.
 func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) ***REMOVED***
 	// the cache of goja.Object in the optimal parsed form
-	// for the consolidated and derived lib.Options
+	// for the consolidated and derived libWorker.Options
 	var optionsObject *goja.Object
 	rt := mi.vu.Runtime()
 	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
@@ -232,15 +232,15 @@ func newInfoObj(rt *goja.Runtime, props map[string]func() interface***REMOVED***
 	return o, nil
 ***REMOVED***
 
-// optionsAsObject maps the lib.Options struct that contains the consolidated
+// optionsAsObject maps the libWorker.Options struct that contains the consolidated
 // and derived options configuration in a goja.Object.
 //
 // When values are not set then the default value returned from JSON is used.
-// Most of the lib.Options are Nullable types so they will be null on default.
-func optionsAsObject(rt *goja.Runtime, options lib.Options) (*goja.Object, error) ***REMOVED***
+// Most of the libWorker.Options are Nullable types so they will be null on default.
+func optionsAsObject(rt *goja.Runtime, options libWorker.Options) (*goja.Object, error) ***REMOVED***
 	b, err := json.Marshal(options)
 	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("failed to encode the lib.Options as json: %w", err)
+		return nil, fmt.Errorf("failed to encode the libWorker.Options as json: %w", err)
 	***REMOVED***
 
 	// Using the native JS parser function guarantees getting
@@ -297,7 +297,7 @@ func optionsAsObject(rt *goja.Runtime, options lib.Options) (*goja.Object, error
 
 type tagsDynamicObject struct ***REMOVED***
 	Runtime *goja.Runtime
-	State   *lib.State
+	State   *libWorker.State
 ***REMOVED***
 
 // Get a property value for the key. May return nil if the property does not exist.

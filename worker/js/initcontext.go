@@ -13,25 +13,25 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/compiler"
-	"github.com/APITeamLimited/k6-worker/js/eventloop"
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/js/modules/apiteam"
-	"github.com/APITeamLimited/k6-worker/js/modules/apiteam/collection"
-	"github.com/APITeamLimited/k6-worker/js/modules/apiteam/environment"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/crypto"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/crypto/x509"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/data"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/encoding"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/execution"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/html"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/http"
-	"github.com/APITeamLimited/k6-worker/js/modules/k6/metrics"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/fsext"
-	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/compiler"
+	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/collection"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/environment"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/crypto"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/crypto/x509"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/data"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/encoding"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/execution"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/html"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/http"
+	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
+	"github.com/APITeamLimited/globe-test/worker/loader"
 )
 
 type programWithSource struct ***REMOVED***
@@ -60,7 +60,7 @@ type InitContext struct ***REMOVED***
 	// Cache of loaded programs and files.
 	programs map[string]programWithSource
 
-	compatibilityMode lib.CompatibilityMode
+	compatibilityMode libWorker.CompatibilityMode
 
 	logger logrus.FieldLogger
 
@@ -69,8 +69,8 @@ type InitContext struct ***REMOVED***
 
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
-	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode lib.CompatibilityMode,
-	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *lib.WorkerInfo) *InitContext ***REMOVED***
+	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode libWorker.CompatibilityMode,
+	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *libWorker.WorkerInfo) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
 		compiler:          c,
 		filesystems:       filesystems,
@@ -142,7 +142,7 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 type moduleVUImpl struct ***REMOVED***
 	ctx       context.Context
 	initEnv   *common.InitEnvironment
-	state     *lib.State
+	state     *libWorker.State
 	runtime   *goja.Runtime
 	eventLoop *eventloop.EventLoop
 ***REMOVED***
@@ -155,7 +155,7 @@ func (m *moduleVUImpl) InitEnv() *common.InitEnvironment ***REMOVED***
 	return m.initEnv
 ***REMOVED***
 
-func (m *moduleVUImpl) State() *lib.State ***REMOVED***
+func (m *moduleVUImpl) State() *libWorker.State ***REMOVED***
 	return m.state
 ***REMOVED***
 
@@ -355,7 +355,7 @@ func (i *InitContext) allowOnlyOpenedFiles() ***REMOVED***
 	alreadyOpenedFS.AllowOnlyCached()
 ***REMOVED***
 
-func getInternalJSModules(workerInfo *lib.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
 		"k6":             k6.New(),
 		"k6/crypto":      crypto.New(),
@@ -374,7 +374,7 @@ func getInternalJSModules(workerInfo *lib.WorkerInfo) map[string]interface***REM
 	***REMOVED***
 ***REMOVED***
 
-func getJSModules(workerInfo *lib.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+func getJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	result := getInternalJSModules(workerInfo)
 	external := modules.GetJSModules()
 

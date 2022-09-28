@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestFail(t *testing.T) ***REMOVED***
@@ -133,16 +133,16 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 func TestGroup(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	setupGroupTest := func() (*goja.Runtime, *lib.State, *lib.Group) ***REMOVED***
-		root, err := lib.NewGroup("", nil)
+	setupGroupTest := func() (*goja.Runtime, *libWorker.State, *libWorker.Group) ***REMOVED***
+		root, err := libWorker.NewGroup("", nil)
 		assert.NoError(t, err)
 
 		rt := goja.New()
-		state := &lib.State***REMOVED***
+		state := &libWorker.State***REMOVED***
 			Group:   root,
 			Samples: make(chan metrics.SampleContainer, 1000),
-			Tags:    lib.NewTagMap(nil),
-			Options: lib.Options***REMOVED***
+			Tags:    libWorker.NewTagMap(nil),
+			Options: libWorker.Options***REMOVED***
 				SystemTags: metrics.NewSystemTagSet(metrics.TagGroup),
 			***REMOVED***,
 		***REMOVED***
@@ -195,16 +195,16 @@ func checkTestRuntime(t testing.TB) (*goja.Runtime, chan metrics.SampleContainer
 	require.True(t, ok)
 	require.NoError(t, rt.Set("k6", m.Exports().Named))
 
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	assert.NoError(t, err)
 	samples := make(chan metrics.SampleContainer, 1000)
-	state := &lib.State***REMOVED***
+	state := &libWorker.State***REMOVED***
 		Group: root,
-		Options: lib.Options***REMOVED***
+		Options: libWorker.Options***REMOVED***
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples: samples,
-		Tags: lib.NewTagMap(map[string]string***REMOVED***
+		Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 			"group": root.Path,
 		***REMOVED***),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
@@ -402,17 +402,17 @@ func TestCheckContextExpiry(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	ctx, cancel := context.WithCancel(context.Background())
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 
 	samples := make(chan metrics.SampleContainer, 1000)
-	state := &lib.State***REMOVED***
+	state := &libWorker.State***REMOVED***
 		Group: root,
-		Options: lib.Options***REMOVED***
+		Options: libWorker.Options***REMOVED***
 			SystemTags: &metrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples: samples,
-		Tags: lib.NewTagMap(map[string]string***REMOVED***
+		Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 			"group": root.Path,
 		***REMOVED***),
 	***REMOVED***

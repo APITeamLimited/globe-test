@@ -1682,9 +1682,9 @@ func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOV
 		a = spewConfig.Sdump(actual)
 	***REMOVED***
 
-	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff***REMOVED***
-		A:        difflib.SplitLines(e),
-		B:        difflib.SplitLines(a),
+	diff, _ := difflibWorker.GetUnifiedDiffString(difflibWorker.UnifiedDiff***REMOVED***
+		A:        difflibWorker.SplitLines(e),
+		B:        difflibWorker.SplitLines(a),
 		FromFile: "Expected",
 		FromDate: "",
 		ToFile:   "Actual",

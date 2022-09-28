@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +68,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -77,11 +77,11 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
 	type vuStat struct ***REMOVED***
@@ -98,7 +98,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) ***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
@@ -181,7 +181,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -190,15 +190,15 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) ***REMOVED***()
 
 	scStats := map[string]uint64***REMOVED******REMOVED***
 
@@ -263,7 +263,7 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -272,15 +272,15 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
 		***REMOVED***,
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) ***REMOVED***()
 
 	expIters := [50]int64***REMOVED******REMOVED***
 	for i := 0; i < 50; i++ ***REMOVED***
@@ -398,7 +398,7 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				&lib.TestPreInitState***REMOVED***
+				&libWorker.TestPreInitState***REMOVED***
 					Logger:         logger,
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
@@ -406,14 +406,14 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 				&loader.SourceData***REMOVED***
 					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					Data: []byte(tc.script),
-				***REMOVED***, nil, lib.GetTestWorkerInfo())
+				***REMOVED***, nil, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) ***REMOVED***()
+			go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) ***REMOVED***()
 
 			select ***REMOVED***
 			case err := <-errCh:

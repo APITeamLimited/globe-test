@@ -1,7 +1,7 @@
 package collection
 
 import (
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 type (
@@ -11,7 +11,7 @@ type (
 		has   func(string) bool
 		unset func(string) bool
 		clear func() bool
-		list  func() []lib.KeyValueItem
+		list  func() []libWorker.KeyValueItem
 	***REMOVED***
 )
 
@@ -32,7 +32,7 @@ func (mi *Collection) set(key string, value string) bool ***REMOVED***
 	defer mi.collection.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.collection.variables[key] = lib.KeyValueItem***REMOVED***
+	mi.collection.variables[key] = libWorker.KeyValueItem***REMOVED***
 		Key:   key,
 		Value: value,
 	***REMOVED***
@@ -79,16 +79,16 @@ func (mi *Collection) clear() bool ***REMOVED***
 	mi.collection.mu.Lock()
 	defer mi.collection.mu.Unlock()
 
-	mi.collection.variables = make(map[string]lib.KeyValueItem)
+	mi.collection.variables = make(map[string]libWorker.KeyValueItem)
 	return true
 ***REMOVED***
 
 // list returns a list of all key-value pairs in the collection.
-func (mi *Collection) list() []lib.KeyValueItem ***REMOVED***
+func (mi *Collection) list() []libWorker.KeyValueItem ***REMOVED***
 	mi.collection.mu.RLock()
 	defer mi.collection.mu.RUnlock()
 
-	list := make([]lib.KeyValueItem, 0, len(mi.collection.variables))
+	list := make([]libWorker.KeyValueItem, 0, len(mi.collection.variables))
 	for _, item := range mi.collection.variables ***REMOVED***
 		list = append(list, item)
 	***REMOVED***
