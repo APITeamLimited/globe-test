@@ -3,8 +3,8 @@ package encoding
 import (
 	"encoding/base64"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
 )
 
 type (

@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestVUTags(t *testing.T) {
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&lib.State{Tags: lib.NewTagMap(map[string]string{"vu": "42"})})
+		tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 		tag, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "42", tag.String())
@@ -56,11 +56,11 @@ func TestVUTags(t *testing.T) {
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&lib.State{
-			Options: lib.Options{
+		tenv.MoveToVUContext(&libWorker.State{
+			Options: libWorker.Options{
 				SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 			},
-			Tags: lib.NewTagMap(map[string]string{
+			Tags: libWorker.NewTagMap(map[string]string{
 				"vu": "42",
 			}),
 		})
@@ -91,7 +91,7 @@ func TestVUTags(t *testing.T) {
 			}
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State{Tags: lib.NewTagMap(map[string]string{"vu": "42"})})
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
 			for _, tc := range tests {
 				_, err := tenv.VU.Runtime().RunString(fmt.Sprintf(`exec.vu.tags["mytag"] = %v`, tc.v))
@@ -108,7 +108,7 @@ func TestVUTags(t *testing.T) {
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State{Tags: lib.NewTagMap(map[string]string{"vu": "42"})})
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
 			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"] = "vu101"`)
 			require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestVUTags(t *testing.T) {
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State{Tags: lib.NewTagMap(map[string]string{"vu": "42"})})
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
 			state := tenv.VU.State()
 			state.Options.Throw = null.BoolFrom(true)
@@ -148,11 +148,11 @@ func TestVUTags(t *testing.T) {
 			testLog.SetOutput(ioutil.Discard)
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State{
-				Options: lib.Options{
+			tenv.MoveToVUContext(&libWorker.State{
+				Options: libWorker.Options{
 					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 				},
-				Tags: lib.NewTagMap(map[string]string{
+				Tags: libWorker.NewTagMap(map[string]string{
 					"vu": "42",
 				}),
 				Logger: testLog,
@@ -175,11 +175,11 @@ func TestVUTags(t *testing.T) {
 
 			cases := []string{"null", "undefined"}
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&lib.State{
-				Options: lib.Options{
+			tenv.MoveToVUContext(&libWorker.State{
+				Options: libWorker.Options{
 					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 				},
-				Tags:   lib.NewTagMap(map[string]string{"vu": "42"}),
+				Tags:   libWorker.NewTagMap(map[string]string{"vu": "42"}),
 				Logger: testLog,
 			})
 			for _, val := range cases {
@@ -199,7 +199,7 @@ func TestAbortTest(t *testing.T) { //nolint:tparallel
 
 	var (
 		rt    = goja.New()
-		state = &lib.State{}
+		state = &libWorker.State{}
 		ctx   = context.Background()
 	)
 
@@ -239,10 +239,10 @@ func TestOptionsTestFull(t *testing.T) {
 
 	var (
 		rt    = goja.New()
-		state = &lib.State{
-			Options: lib.Options{
+		state = &libWorker.State{
+			Options: libWorker.Options{
 				Paused: null.BoolFrom(true),
-				Scenarios: map[string]lib.ExecutorConfig{
+				Scenarios: map[string]libWorker.ExecutorConfig{
 					"const-vus": executor.ConstantVUsConfig{
 						BaseConfig: executor.BaseConfig{
 							Name:         "const-vus",
@@ -261,13 +261,13 @@ func TestOptionsTestFull(t *testing.T) {
 						Duration: types.NullDurationFrom(10 * time.Minute),
 					},
 				},
-				ExecutionSegment: func() *lib.ExecutionSegment {
-					seg, err := lib.NewExecutionSegmentFromString("0:1/4")
+				ExecutionSegment: func() *libWorker.ExecutionSegment {
+					seg, err := libWorker.NewExecutionSegmentFromString("0:1/4")
 					require.NoError(t, err)
 					return seg
 				}(),
-				ExecutionSegmentSequence: func() *lib.ExecutionSegmentSequence {
-					seq, err := lib.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
+				ExecutionSegmentSequence: func() *libWorker.ExecutionSegmentSequence {
+					seq, err := libWorker.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
 					require.NoError(t, err)
 					return &seq
 				}(),
@@ -294,13 +294,13 @@ func TestOptionsTestFull(t *testing.T) {
 					Policy: types.NullDNSPolicy{DNSPolicy: types.DNSany, Valid: true},
 					Valid:  true,
 				},
-				TLSVersion: &lib.TLSVersions{
+				TLSVersion: &libWorker.TLSVersions{
 					Min: tls.VersionTLS12,
 					Max: tls.VersionTLS13,
 				},
-				TLSAuth: []*lib.TLSAuth{
+				TLSAuth: []*libWorker.TLSAuth{
 					{
-						TLSAuthFields: lib.TLSAuthFields{
+						TLSAuthFields: libWorker.TLSAuthFields{
 							Cert:     "mycert.pem",
 							Key:      "mycert-key.pem",
 							Password: null.StringFrom("mypwd"),
@@ -308,10 +308,10 @@ func TestOptionsTestFull(t *testing.T) {
 						},
 					},
 				},
-				TLSCipherSuites: &lib.TLSCipherSuites{
+				TLSCipherSuites: &libWorker.TLSCipherSuites{
 					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				},
-				BlacklistIPs: []*lib.IPNet{
+				BlacklistIPs: []*libWorker.IPNet{
 					{
 						IPNet: func() net.IPNet {
 							_, ipv4net, err := net.ParseCIDR("192.0.2.1/24")
@@ -337,7 +337,7 @@ func TestOptionsTestFull(t *testing.T) {
 					require.NoError(t, err)
 					return bh
 				}(),
-				Hosts: map[string]*lib.HostAddress{
+				Hosts: map[string]*libWorker.HostAddress{
 					"test.k6.io": {
 						IP:   []byte{0x01, 0x02, 0x03, 0x04},
 						Port: 8443,
@@ -367,7 +367,7 @@ func TestOptionsTestFull(t *testing.T) {
 				VUs:        null.IntFrom(50),
 				Iterations: null.IntFrom(100),
 				Duration:   types.NullDurationFrom(10 * time.Second),
-				Stages: []lib.Stage{
+				Stages: []libWorker.Stage{
 					{
 						Duration: types.NullDurationFrom(2 * time.Second),
 						Target:   null.IntFrom(2),
@@ -402,8 +402,8 @@ func TestOptionsTestSetPropertyDenied(t *testing.T) {
 		&modulestest.VU{
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &lib.State{
-				Options: lib.Options{
+			StateField: &libWorker.State{
+				Options: libWorker.Options{
 					Paused: null.BoolFrom(true),
 				},
 			},
@@ -427,8 +427,8 @@ func TestScenarioNoAvailableInInitContext(t *testing.T) {
 		&modulestest.VU{
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &lib.State{
-				Options: lib.Options{
+			StateField: &libWorker.State{
+				Options: libWorker.Options{
 					Paused: null.BoolFrom(true),
 				},
 			},

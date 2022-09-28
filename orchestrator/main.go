@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.com/apiteamcloud/orchestrator/orchestrator"
+	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator"
 )
 
 func main() {

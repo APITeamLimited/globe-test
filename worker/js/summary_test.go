@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const (
@@ -58,7 +58,7 @@ func TestTextSummary(t *testing.T) {
 					exports.options = {summaryTrendStats: %s};
 					exports.default = function() {/* we don't run this, metrics are mocked */};
 				`, string(trendStats)),
-				lib.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
+				libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
 			)
 			require.NoError(t, err)
 
@@ -102,9 +102,9 @@ func TestTextSummaryWithSubMetrics(t *testing.T) {
 		subMetricPost.Name:    subMetricPost.Metric,
 	}
 
-	summary := &lib.Summary{
+	summary := &libWorker.Summary{
 		Metrics:         metrics,
-		RootGroup:       &lib.Group{},
+		RootGroup:       &libWorker.Group{},
 		TestRunDuration: time.Second,
 	}
 
@@ -112,7 +112,7 @@ func TestTextSummaryWithSubMetrics(t *testing.T) {
 		t,
 		"/script.js",
 		"exports.default = function() {/* we don't run this, metrics are mocked */};",
-		lib.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
+		libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
 	)
 	require.NoError(t, err)
 
@@ -133,7 +133,7 @@ func TestTextSummaryWithSubMetrics(t *testing.T) {
 	assert.Equal(t, "\n"+expected+"\n", string(summaryOut))
 }
 
-func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) {
+func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *libWorker.Group) {
 	registry := metrics.NewRegistry()
 	testMetrics := make(map[string]*metrics.Metric)
 
@@ -177,7 +177,7 @@ func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) {
 		},
 	}
 
-	rootG, err := lib.NewGroup("", nil)
+	rootG, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 	childG, err := rootG.Group("child")
 	require.NoError(t, err)
@@ -205,9 +205,9 @@ func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *lib.Group) {
 	return testMetrics, rootG
 }
 
-func createTestSummary(t *testing.T) *lib.Summary {
+func createTestSummary(t *testing.T) *libWorker.Summary {
 	metrics, rootG := createTestMetrics(t)
-	return &lib.Summary{
+	return &libWorker.Summary{
 		Metrics:         metrics,
 		RootGroup:       rootG,
 		TestRunDuration: time.Second,
@@ -298,7 +298,7 @@ func TestOldJSONExport(t *testing.T) {
 		exports.options = {summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)", "count"]};
 		exports.default = function() {/* we don't run this, metrics are mocked */};
 		`,
-		lib.RuntimeOptions{
+		libWorker.RuntimeOptions{
 			CompatibilityMode: null.NewString("base", true),
 			SummaryExport:     null.StringFrom("result.json"),
 		},
@@ -567,7 +567,7 @@ func TestRawHandleSummaryData(t *testing.T) {
 			return {'rawdata.json': JSON.stringify(data)};
 		};
 		`,
-		lib.RuntimeOptions{
+		libWorker.RuntimeOptions{
 			CompatibilityMode: null.NewString("base", true),
 			// we still want to check this
 			SummaryExport: null.StringFrom("old-export.json"),
@@ -632,7 +632,7 @@ func TestWrongSummaryHandlerExportTypes(t *testing.T) {
 					exports.default = function() { /* we don't run this, metrics are mocked */ };
 					exports.handleSummary = %s;
 				`, tc),
-				lib.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
+				libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
 			)
 			require.NoError(t, err)
 
@@ -656,7 +656,7 @@ func TestExceptionInHandleSummaryFallsBackToTextSummary(t *testing.T) {
 			exports.handleSummary = function(data) {
 				throw new Error('intentional error');
 			};
-		`, logger, lib.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
+		`, logger, libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
 	)
 
 	require.NoError(t, err)

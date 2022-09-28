@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 var (
@@ -57,7 +57,7 @@ func (mi *APITeam) Exports() modules.Exports {
 }
 
 // Info returns current info about the APITeam Execution Context.
-func (mi *APITeam) Context() *lib.WorkerInfo {
+func (mi *APITeam) Context() *libWorker.WorkerInfo {
 	workerInfo := mi.vu.InitEnv().WorkerInfo
 
 	return workerInfo
@@ -87,7 +87,7 @@ func (mi *APITeam) Mark(mark string, value interface{}) error {
 		return err
 	}
 
-	lib.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalled), "MARK")
+	libWorker.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalled), "MARK")
 
 	return nil
 }

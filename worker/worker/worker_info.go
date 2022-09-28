@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
 func loadWorkerInfo(ctx context.Context,
-	client *redis.Client, job map[string]string, workerId string) (*lib.WorkerInfo, error) {
+	client *redis.Client, job map[string]string, workerId string) (*libWorker.WorkerInfo, error) {
 
-	workerInfo := &lib.WorkerInfo{
+	workerInfo := &libWorker.WorkerInfo{
 		Client:         client,
 		JobId:          job["id"],
 		ScopeId:        job["scopeId"],
@@ -33,11 +33,11 @@ func loadWorkerInfo(ctx context.Context,
 	return workerInfo, nil
 }
 
-func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) error {
+func parseJobEnvironment(workerInfo *libWorker.WorkerInfo, job map[string]string) error {
 	// Check environmentContext actually exists in the job
 	if job["environmentContext"] != "" {
 		// Parse the environmentContext json
-		enviromentContext := []lib.KeyValueItem{}
+		enviromentContext := []libWorker.KeyValueItem{}
 		err := json.Unmarshal([]byte(job["environmentContext"]), &enviromentContext)
 
 		if err != nil {
@@ -45,7 +45,7 @@ func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) erro
 		}
 
 		// Init map, need to assign it first to get an address
-		workerInfoEnvironment := make(map[string]lib.KeyValueItem, len(enviromentContext))
+		workerInfoEnvironment := make(map[string]libWorker.KeyValueItem, len(enviromentContext))
 		workerInfo.Environment = &workerInfoEnvironment
 	}
 
@@ -53,10 +53,10 @@ func parseJobEnvironment(workerInfo *lib.WorkerInfo, job map[string]string) erro
 }
 
 type parseCollectionContext struct {
-	Variables map[string]lib.KeyValueItem `json:"variables"`
+	Variables map[string]libWorker.KeyValueItem `json:"variables"`
 }
 
-func parseJobCollection(workerInfo *lib.WorkerInfo, job map[string]string) error {
+func parseJobCollection(workerInfo *libWorker.WorkerInfo, job map[string]string) error {
 	// Check collectionContext actually exists in the job
 	if job["collectionContext"] != "" {
 		// Parse the collectionContext json
@@ -68,9 +68,9 @@ func parseJobCollection(workerInfo *lib.WorkerInfo, job map[string]string) error
 		}
 
 		// Init map, need to assign it first to get an address
-		workerInfoVariables := make(map[string]lib.KeyValueItem, len(collectionContext.Variables))
+		workerInfoVariables := make(map[string]libWorker.KeyValueItem, len(collectionContext.Variables))
 
-		collection := lib.Collection{
+		collection := libWorker.Collection{
 			Variables: &workerInfoVariables,
 		}
 

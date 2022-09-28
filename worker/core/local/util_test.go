@@ -10,12 +10,12 @@ func TestProcessStages(t *testing.T) {
 	}
 	testdata := map[string]struct {
 		Start       int64
-		Stages      []lib.Stage
+		Stages      []libWorker.Stage
 		Checkpoints []checkpoint
 	}{
 		"none": {
 			0,
-			[]lib.Stage{},
+			[]libWorker.Stage{},
 			[]checkpoint{
 				{0 * time.Second, false, null.NewInt(0, false)},
 				{10 * time.Second, false, null.NewInt(0, false)},
@@ -24,7 +24,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"one": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(10 * time.Second)},
 			},
 			[]checkpoint{
@@ -36,7 +36,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"one/start": {
 			5,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(10 * time.Second)},
 			},
 			[]checkpoint{
@@ -48,7 +48,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"one/targeted": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)},
 			},
 			[]checkpoint{
@@ -68,7 +68,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"one/targeted/start": {
 			50,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)},
 			},
 			[]checkpoint{
@@ -88,7 +88,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"two": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 			},
@@ -100,7 +100,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"two/start": {
 			5,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 			},
@@ -112,7 +112,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"two/targeted": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)},
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)},
 			},
@@ -133,7 +133,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"three": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 				{Duration: types.NullDurationFrom(10 * time.Second)},
 				{Duration: types.NullDurationFrom(15 * time.Second)},
@@ -148,7 +148,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"three/targeted": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)},
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)},
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)},
@@ -175,7 +175,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"mix": {
 			0,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)},
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)},
 				{Duration: types.NullDurationFrom(2 * time.Second)},
@@ -219,7 +219,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"mix/start": {
 			5,
-			[]lib.Stage{
+			[]libWorker.Stage{
 				{Duration: types.NullDurationFrom(5 * time.Second)},
 				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)},
 			},
@@ -241,7 +241,7 @@ func TestProcessStages(t *testing.T) {
 		},
 		"infinite": {
 			0,
-			[]lib.Stage{{}},
+			[]libWorker.Stage{{}},
 			[]checkpoint{
 				{0 * time.Second, true, null.NewInt(0, false)},
 				{1 * time.Minute, true, null.NewInt(0, false)},

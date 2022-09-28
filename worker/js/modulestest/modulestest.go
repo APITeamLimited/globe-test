@@ -3,9 +3,9 @@ package modulestest
 import (
 	"context"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modules"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/dop251/goja"
 )
 
@@ -15,7 +15,7 @@ var _ modules.VU = &VU{}
 type VU struct {
 	CtxField              context.Context
 	InitEnvField          *common.InitEnvironment
-	StateField            *lib.State
+	StateField            *libWorker.State
 	RuntimeField          *goja.Runtime
 	RegisterCallbackField func() func(f func() error)
 }
@@ -32,7 +32,7 @@ func (m *VU) InitEnv() *common.InitEnvironment {
 }
 
 // State returns internally set field to conform to modules.VU interface
-func (m *VU) State() *lib.State {
+func (m *VU) State() *libWorker.State {
 	m.checkIntegrity()
 	return m.StateField
 }

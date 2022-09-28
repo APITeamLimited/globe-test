@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 type MockReader struct{}
@@ -175,8 +175,8 @@ func TestStreamingApi(t *testing.T) {
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
-	root, _ := lib.NewGroup("", nil)
-	state := &lib.State{Group: root}
+	root, _ := libWorker.NewGroup("", nil)
+	state := &libWorker.State{Group: root}
 
 	ctx := context.Background()
 

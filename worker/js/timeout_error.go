@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
-	"github.com/APITeamLimited/k6-worker/lib/consts"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
 )
 
 // timeoutError is used when some operation times out.

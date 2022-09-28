@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestNewSharedArrayIntegration(t *testing.T) {
@@ -65,11 +65,11 @@ exports.default = function() {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, r1.MakeArchive(), lib.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	entries = hook.Drain()
 	require.Len(t, entries, 1)
@@ -82,12 +82,12 @@ exports.default = function() {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan metrics.SampleContainer, 100)
-			initVU, err := r.NewVU(1, 1, samples, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 			entries := hook.Drain()

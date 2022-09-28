@@ -22,20 +22,20 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/eventloop"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/consts"
-	"github.com/APITeamLimited/k6-worker/lib/netext"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
-// Ensure Runner implements the lib.Runner interface
-var _ lib.Runner = &Runner{}
+// Ensure Runner implements the libWorker.Runner interface
+var _ libWorker.Runner = &Runner{}
 
 // TODO: https://github.com/grafana/k6/issues/2186
 // An advanced TLS support should cover the rid of the warning
@@ -45,8 +45,8 @@ var nameToCertWarning sync.Once
 
 type Runner struct {
 	Bundle       *Bundle
-	preInitState *lib.TestPreInitState
-	defaultGroup *lib.Group
+	preInitState *libWorker.TestPreInitState
+	defaultGroup *libWorker.Group
 
 	BaseDialer net.Dialer
 	Resolver   netext.Resolver
@@ -59,7 +59,7 @@ type Runner struct {
 }
 
 // New returns a new Runner for the provided source
-func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *lib.WorkerInfo) (*Runner, error) {
+func New(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo) (*Runner, error) {
 	bundle, err := NewBundle(piState, src, filesystems, workerInfo)
 	if err != nil {
 		return nil, err
@@ -69,8 +69,8 @@ func New(piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[
 }
 
 // NewFromBundle returns a new Runner from the provided Bundle
-func NewFromBundle(piState *lib.TestPreInitState, b *Bundle) (*Runner, error) {
-	defaultGroup, err := lib.NewGroup("", nil)
+func NewFromBundle(piState *libWorker.TestPreInitState, b *Bundle) (*Runner, error) {
+	defaultGroup, err := libWorker.NewGroup("", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -97,16 +97,16 @@ func NewFromBundle(piState *lib.TestPreInitState, b *Bundle) (*Runner, error) {
 }
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) {
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 	vu, err := r.newVU(idLocal, idGlobal, samplesOut, workerInfo)
 	if err != nil {
 		return nil, err
 	}
-	return lib.InitializedVU(vu), nil
+	return libWorker.InitializedVU(vu), nil
 }
 
 //nolint:funlen
-func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) (*VU, error) {
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) {
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, workerInfo)
 	if err != nil {
@@ -118,7 +118,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		cipherSuites = *r.Bundle.Options.TLSCipherSuites
 	}
 
-	var tlsVersions lib.TLSVersions
+	var tlsVersions libWorker.TLSVersions
 	if r.Bundle.Options.TLSVersion != nil {
 		tlsVersions = *r.Bundle.Options.TLSVersion
 	}
@@ -211,7 +211,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		scenarioIter:   make(map[string]uint64),
 	}
 
-	vu.state = &lib.State{
+	vu.state = &libWorker.State{
 		Logger:         vu.Runner.preInitState.Logger,
 		Options:        vu.Runner.Bundle.Options,
 		Transport:      vu.Transport,
@@ -223,7 +223,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		VUID:           vu.ID,
 		VUIDGlobal:     vu.IDGlobal,
 		Samples:        vu.Samples,
-		Tags:           lib.NewTagMap(copyStringMap(vu.Runner.Bundle.Options.RunTags)),
+		Tags:           libWorker.NewTagMap(copyStringMap(vu.Runner.Bundle.Options.RunTags)),
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.preInitState.BuiltinMetrics,
 	}
@@ -307,11 +307,11 @@ func (r *Runner) Teardown(ctx context.Context, out chan<- metrics.SampleContaine
 	return err
 }
 
-func (r *Runner) GetDefaultGroup() *lib.Group {
+func (r *Runner) GetDefaultGroup() *libWorker.Group {
 	return r.defaultGroup
 }
 
-func (r *Runner) GetOptions() lib.Options {
+func (r *Runner) GetOptions() libWorker.Options {
 	return r.Bundle.Options
 }
 
@@ -322,13 +322,13 @@ func (r *Runner) IsExecutable(name string) bool {
 	return exists
 }
 
-func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *lib.Summary) ([]byte, error) {
+func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Summary) ([]byte, error) {
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
 	return json.Marshal(summaryDataForJS["metrics"])
 }
 
 // HandleSummary calls the specified summary callback, if supplied.
-func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[string]io.Reader, error) {
+func (r *Runner) HandleSummary(ctx context.Context, summary *libWorker.Summary) (map[string]io.Reader, error) {
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
 
 	out := make(chan metrics.SampleContainer, 100)
@@ -339,7 +339,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		}
 	}()
 
-	vu, err := r.newVU(0, 0, out, lib.GetTestWorkerInfo())
+	vu, err := r.newVU(0, 0, out, libWorker.GetTestWorkerInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 	return getSummaryResult(rawResult)
 }
 
-func (r *Runner) SetOptions(opts lib.Options) error {
+func (r *Runner) SetOptions(opts libWorker.Options) error {
 	r.Bundle.Options = opts
 	r.RPSLimit = nil
 	if rps := opts.RPS; rps.Valid && rps.Int64 > 0 {
@@ -479,7 +479,7 @@ func (r *Runner) runPart(
 	name string,
 	arg interface{},
 ) (goja.Value, error) {
-	vu, err := r.newVU(0, 0, out, lib.GetTestWorkerInfo())
+	vu, err := r.newVU(0, 0, out, libWorker.GetTestWorkerInfo())
 	if err != nil {
 		return goja.Undefined(), err
 	}
@@ -554,21 +554,21 @@ type VU struct {
 
 	setupData goja.Value
 
-	state *lib.State
+	state *libWorker.State
 	// count of iterations executed by this VU in each scenario
 	scenarioIter map[string]uint64
 }
 
 // Verify that interfaces are implemented
 var (
-	_ lib.ActiveVU      = &ActiveVU{}
-	_ lib.InitializedVU = &VU{}
+	_ libWorker.ActiveVU      = &ActiveVU{}
+	_ libWorker.InitializedVU = &VU{}
 )
 
 // ActiveVU holds a VU and its activation parameters
 type ActiveVU struct {
 	*VU
-	*lib.VUActivationParams
+	*libWorker.VUActivationParams
 	busy chan struct{}
 
 	scenarioName              string
@@ -582,7 +582,7 @@ func (u *VU) GetID() uint64 {
 }
 
 // Activate the VU so it will be able to run code.
-func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU {
+func (u *VU) Activate(params *libWorker.VUActivationParams) libWorker.ActiveVU {
 	u.Runtime.ClearInterrupt()
 
 	if params.Exec == "" {
@@ -601,7 +601,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU {
 
 	opts := u.Runner.Bundle.Options
 	// TODO: maybe we can cache the original tags only clone them and add (if any) new tags on top ?
-	u.state.Tags = lib.NewTagMap(copyStringMap(opts.RunTags))
+	u.state.Tags = libWorker.NewTagMap(copyStringMap(opts.RunTags))
 	for k, v := range params.Tags {
 		u.state.Tags.Set(k, v)
 	}

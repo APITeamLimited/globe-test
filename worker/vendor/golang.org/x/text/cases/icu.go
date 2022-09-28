@@ -15,7 +15,7 @@ package cases
 
 /*
 #cgo LDFLAGS: -licui18n.57 -licuuc.57
-#include <stdlib.h>
+#include <stdlibWorker.h>
 #include <unicode/ustring.h>
 #include <unicode/utypes.h>
 #include <unicode/localpointer.h>

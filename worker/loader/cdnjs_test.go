@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 )
 
 func TestCDNJS(t *testing.T) {

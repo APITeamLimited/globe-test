@@ -63,7 +63,7 @@
         var getDefaultSummary = function () {
             var enableColors = (!data.options.noColor && data.state.isStdOutTTY);
             return {
-                'stdout': '\n' + jslib.textSummary(data, { indent: ' ', enableColors: enableColors }) + '\n\n',
+                'stdout': '\n' + jslibWorker.textSummary(data, { indent: ' ', enableColors: enableColors }) + '\n\n',
             };
         };
 

@@ -1,8 +1,8 @@
 package output
 
 import (
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,7 +58,7 @@ func (om *Manager) stopOutputs(upToID int) {
 
 // SetRunStatus checks which outputs implement the WithRunStatusUpdates
 // interface and sets the provided RunStatus to them.
-func (om *Manager) SetRunStatus(status lib.RunStatus) {
+func (om *Manager) SetRunStatus(status libWorker.RunStatus) {
 	for _, out := range om.outputs {
 		if statUpdOut, ok := out.(WithRunStatusUpdates); ok {
 			statUpdOut.SetRunStatus(status)

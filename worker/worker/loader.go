@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
@@ -28,7 +28,7 @@ import (
 func loadAndConfigureTest(
 	gs *globalState,
 	job map[string]string,
-	workerInfo *lib.WorkerInfo,
+	workerInfo *libWorker.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) {
 	sourceName := job["sourceName"]
 
@@ -66,7 +66,7 @@ func loadAndConfigureTest(
 
 	// For now runtime options are constant for all tests
 	// TODO: make this configurable
-	runtimeOptions := lib.RuntimeOptions{
+	runtimeOptions := libWorker.RuntimeOptions{
 		TestType:             null.StringFrom(testTypeJS),
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
@@ -78,7 +78,7 @@ func loadAndConfigureTest(
 
 	registry := metrics.NewRegistry()
 
-	preInitState := &lib.TestPreInitState{
+	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.logger,
 		RuntimeOptions: runtimeOptions,
@@ -104,7 +104,7 @@ func loadAndConfigureTest(
 	return test.consolidateDeriveAndValidateConfig(gs, job)
 }
 
-func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *lib.WorkerInfo) error {
+func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo) error {
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
@@ -147,7 +147,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 ) (*workerLoadedAndConfiguredTest, error) {
 	// Options have already been determined by the orchestrator, just load them
 
-	var redisOptions = lib.Options{}
+	var redisOptions = libWorker.Options{}
 
 	if job["options"] == "" {
 		return nil, fmt.Errorf("options not found on job, this is probably a bug")
@@ -191,7 +191,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	}, nil
 }
 
-func getConsolidatedConfig(parsedOptions lib.Options) Config {
+func getConsolidatedConfig(parsedOptions libWorker.Options) Config {
 	consolidatedConfig := Config{
 		Options: parsedOptions,
 	}
@@ -237,7 +237,7 @@ func consolidateErrorMessage(errList []error, title string) error {
 	return errors.New(strings.Join(errMsgParts, "\n"))
 }
 
-func validateScenarioConfig(conf lib.ExecutorConfig, isExecutable func(string) bool) error {
+func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
 	execFn := conf.GetExec()
 	if !isExecutable(execFn) {
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
@@ -246,8 +246,8 @@ func validateScenarioConfig(conf lib.ExecutorConfig, isExecutable func(string) b
 }
 
 func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
-	configToReinject lib.Options,
-) (*lib.TestRunState, error) {
+	configToReinject libWorker.Options,
+) (*libWorker.TestRunState, error) {
 	// This might be the full derived or just the consolidated options
 	if err := lct.initRunner.SetOptions(configToReinject); err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 
 	// TODO: init atlas root worker, etc.
 
-	return &lib.TestRunState{
+	return &libWorker.TestRunState{
 		TestPreInitState: lct.preInitState,
 		Runner:           lct.initRunner,
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
@@ -267,7 +267,7 @@ func applyDefault(conf Config) Config {
 		conf.SystemTags = &metrics.DefaultSystemTagSet
 	}
 	if conf.SummaryTrendStats == nil {
-		conf.SummaryTrendStats = lib.DefaultSummaryTrendStats
+		conf.SummaryTrendStats = libWorker.DefaultSummaryTrendStats
 	}
 	defDNS := types.DefaultDNSConfig()
 	if !conf.DNS.TTL.Valid {

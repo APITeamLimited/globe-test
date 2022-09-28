@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
-	"gitlab.com/apiteamcloud/orchestrator/lib"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -28,15 +28,15 @@ func Run() {
 	// Orchestrator orchestratorClient deals with macro jos and connection to the rest of
 	// APITEAM services
 	orchestratorClient := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", lib.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost"), lib.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
+		Addr:     fmt.Sprintf("%s:%s", libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost"), libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
 		Username: "default",
-		Password: lib.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
+		Password: libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
 	})
 
 	scopesClient := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", lib.GetEnvVariable("CORE_CACHE_REDIS_HOST", "localhost"), lib.GetEnvVariable("CORE_CACHE_REDIS_PORT", "10001")),
+		Addr:     fmt.Sprintf("%s:%s", libOrch.GetEnvVariable("CORE_CACHE_REDIS_HOST", "localhost"), libOrch.GetEnvVariable("CORE_CACHE_REDIS_PORT", "10001")),
 		Username: "default",
-		Password: lib.GetEnvVariable("CORE_CACHE_REDIS_PASSWORD", ""),
+		Password: libOrch.GetEnvVariable("CORE_CACHE_REDIS_PASSWORD", ""),
 	})
 
 	storeMongoDB := getStoreMongoDB(ctx)
@@ -132,26 +132,26 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *re
 func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
 	fmt.Println("Assigned job", job["id"])
 
-	gs := lib.NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
+	gs := libOrch.NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
 
-	UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, "ASSIGNED")
+	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, "ASSIGNED")
 	run(gs, orchestratorId, orchestratorClient, scopesClient, workerClients, job, storeMongoDB)
 
 	// Create a new objectId for globeTestLogs
 	globeTestLogsId := primitive.NewObjectID()
 
-	globeTestLogsIdMessage := &markMessage{
+	globeTestLogsIdMessage := &libOrch.MarkMessage{
 		Mark:    "GlobeTestLogsStoreReceipt",
 		Message: globeTestLogsId.Hex(),
 	}
 
 	marshalledLogs, err := json.Marshal(globeTestLogsIdMessage)
 	if err != nil {
-		HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
+		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
 		return
 	}
 
-	DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledLogs), "MARK")
+	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledLogs), "MARK")
 
 	// Temporary object storing map[string][]map[string]string, the job in production
 	// should be separate to allow for parallel child jobs
@@ -161,13 +161,13 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 	scope, err := scopesClient.Get(ctx, fmt.Sprintf("scope__id:%s", job["scopeId"])).Result()
 	if err != nil {
 		fmt.Println("Error getting scope", err)
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting scope %s", job["scopeId"]))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting scope %s", job["scopeId"]))
 		return
 	}
 
 	// Check scope not empty
 	if len(scope) == 0 {
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Scope %s is empty", job["scopeId"]))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Scope %s is empty", job["scopeId"]))
 		return
 	}
 
@@ -176,7 +176,7 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 	err = json.Unmarshal([]byte(scope), &scopeMap)
 	if err != nil {
 		fmt.Println("Error unmarshalling scope", err)
-		HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling scope %s", job["scopeId"]))
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling scope %s", job["scopeId"]))
 		return
 	}
 

@@ -19,26 +19,26 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/consts"
-	"github.com/APITeamLimited/k6-worker/lib/fsext"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const isWindows = runtime.GOOS == "windows"
 
-func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.RuntimeOptions) *lib.TestPreInitState {
+func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *libWorker.RuntimeOptions) *libWorker.TestPreInitState {
 	if logger == nil {
 		logger = testutils.NewLogger(tb)
 	}
 	if rtOpts == nil {
-		rtOpts = &lib.RuntimeOptions{}
+		rtOpts = &libWorker.RuntimeOptions{}
 	}
 	reg := metrics.NewRegistry()
-	return &lib.TestPreInitState{
+	return &libWorker.TestPreInitState{
 		Logger:         logger,
 		RuntimeOptions: *rtOpts,
 		Registry:       reg,
@@ -46,15 +46,15 @@ func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *lib.Runti
 	}
 }
 
-func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *lib.WorkerInfo, opts ...interface{}) (*Bundle, error) {
+func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *libWorker.WorkerInfo, opts ...interface{}) (*Bundle, error) {
 	fs := afero.NewMemMapFs()
-	var rtOpts *lib.RuntimeOptions
+	var rtOpts *libWorker.RuntimeOptions
 	var logger *logrus.Logger
 	for _, o := range opts {
 		switch opt := o.(type) {
 		case afero.Fs:
 			fs = opt
-		case lib.RuntimeOptions:
+		case libWorker.RuntimeOptions:
 			rtOpts = &opt
 		case *logrus.Logger:
 			logger = opt
@@ -78,50 +78,50 @@ func TestNewBundle(t *testing.T) {
 	t.Parallel()
 	t.Run("Blank", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", "", lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", "", libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", "\x00", lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", "\x00", libWorker.GetTestWorkerInfo())
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 	})
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`, libWorker.GetTestWorkerInfo())
 		exception := new(scriptException)
 		require.ErrorAs(t, err, &exception)
 		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:2:7(3)\n\tat native\n")
 	})
 	t.Run("InvalidExports", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "exports must be an object")
 	})
 	t.Run("DefaultUndefined", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	})
 	t.Run("DefaultNull", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default null;`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `export default null;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	})
 	t.Run("DefaultWrongType", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
 	})
 	t.Run("Minimal", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default function() {};`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `export default function() {};`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 	})
 	t.Run("stdin", func(t *testing.T) {
 		t.Parallel()
-		b, err := getSimpleBundle(t, "-", `export default function() {};`, lib.GetTestWorkerInfo())
+		b, err := getSimpleBundle(t, "-", `export default function() {};`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		assert.Equal(t, "file://-", b.Filename.String())
 		assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
@@ -130,24 +130,24 @@ func TestNewBundle(t *testing.T) {
 		t.Parallel()
 		t.Run("Extended/ok/global", func(t *testing.T) {
 			t.Parallel()
-			rtOpts := lib.RuntimeOptions{
-				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
+			rtOpts := libWorker.RuntimeOptions{
+				CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeExtended.String()),
 			}
 			_, err := getSimpleBundle(t, "/script.js",
 				`module.exports.default = function() {}
 				if (global.Math != Math) {
 					throw new Error("global is not defined");
-				}`, lib.GetTestWorkerInfo(), rtOpts)
+				}`, libWorker.GetTestWorkerInfo(), rtOpts)
 
 			require.NoError(t, err)
 		})
 		t.Run("Base/ok/Minimal", func(t *testing.T) {
 			t.Parallel()
-			rtOpts := lib.RuntimeOptions{
-				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
+			rtOpts := libWorker.RuntimeOptions{
+				CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeBase.String()),
 			}
 			_, err := getSimpleBundle(t, "/script.js",
-				`module.exports.default = function() {};`, lib.GetTestWorkerInfo(), rtOpts)
+				`module.exports.default = function() {};`, libWorker.GetTestWorkerInfo(), rtOpts)
 			require.NoError(t, err)
 		})
 		t.Run("Base/err", func(t *testing.T) {
@@ -179,8 +179,8 @@ func TestNewBundle(t *testing.T) {
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) {
 					t.Parallel()
-					rtOpts := lib.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.compatMode)}
-					_, err := getSimpleBundle(t, "/script.js", tc.code, lib.GetTestWorkerInfo(), rtOpts)
+					rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.compatMode)}
+					_, err := getSimpleBundle(t, "/script.js", tc.code, libWorker.GetTestWorkerInfo(), rtOpts)
 					require.EqualError(t, err, tc.expErr)
 				})
 			}
@@ -193,7 +193,7 @@ func TestNewBundle(t *testing.T) {
 			_, err := getSimpleBundle(t, "/script.js", `
 				export let options = {};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 		})
 		t.Run("Invalid", func(t *testing.T) {
@@ -201,7 +201,7 @@ func TestNewBundle(t *testing.T) {
 			invalidOptions := map[string]struct {
 				Expr, Error string
 			}{
-				"Array":    {`[]`, "json: cannot unmarshal array into Go value of type lib.Options"},
+				"Array":    {`[]`, "json: cannot unmarshal array into Go value of type libWorker.Options"},
 				"Function": {`function(){}`, "json: unsupported type: func(goja.FunctionCall) goja.Value"},
 			}
 			for name, data := range invalidOptions {
@@ -209,7 +209,7 @@ func TestNewBundle(t *testing.T) {
 					_, err := getSimpleBundle(t, "/script.js", fmt.Sprintf(`
 						export let options = %s;
 						export default function() {};
-					`, data.Expr), lib.GetTestWorkerInfo())
+					`, data.Expr), libWorker.GetTestWorkerInfo())
 					require.EqualError(t, err, data.Error)
 				})
 			}
@@ -222,7 +222,7 @@ func TestNewBundle(t *testing.T) {
 					paused: true,
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.Paused)
 		})
@@ -233,7 +233,7 @@ func TestNewBundle(t *testing.T) {
 					vus: 100,
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.VUs)
 		})
@@ -244,7 +244,7 @@ func TestNewBundle(t *testing.T) {
 					duration: "10s",
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
 		})
@@ -255,7 +255,7 @@ func TestNewBundle(t *testing.T) {
 					iterations: 100,
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.Iterations)
 		})
@@ -266,7 +266,7 @@ func TestNewBundle(t *testing.T) {
 					stages: [],
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Stages, 0)
 
@@ -279,10 +279,10 @@ func TestNewBundle(t *testing.T) {
 						],
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, lib.Stage{}, b.Options.Stages[0])
+				require.Equal(t, libWorker.Stage{}, b.Options.Stages[0])
 			})
 			t.Run("Target", func(t *testing.T) {
 				t.Parallel()
@@ -293,10 +293,10 @@ func TestNewBundle(t *testing.T) {
 						],
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, lib.Stage{Target: null.IntFrom(10)}, b.Options.Stages[0])
+				require.Equal(t, libWorker.Stage{Target: null.IntFrom(10)}, b.Options.Stages[0])
 			})
 			t.Run("Duration", func(t *testing.T) {
 				t.Parallel()
@@ -307,10 +307,10 @@ func TestNewBundle(t *testing.T) {
 						],
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, lib.Stage{Duration: types.NullDurationFrom(10 * time.Second)}, b.Options.Stages[0])
+				require.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second)}, b.Options.Stages[0])
 			})
 			t.Run("DurationAndTarget", func(t *testing.T) {
 				t.Parallel()
@@ -321,10 +321,10 @@ func TestNewBundle(t *testing.T) {
 						],
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, lib.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
+				require.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
 			})
 			t.Run("RampUpAndPlateau", func(t *testing.T) {
 				t.Parallel()
@@ -336,11 +336,11 @@ func TestNewBundle(t *testing.T) {
 						],
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 2)
-				assert.Equal(t, lib.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
-				assert.Equal(t, lib.Stage{Duration: types.NullDurationFrom(5 * time.Second)}, b.Options.Stages[1])
+				assert.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
+				assert.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(5 * time.Second)}, b.Options.Stages[1])
 			})
 		})
 		t.Run("MaxRedirects", func(t *testing.T) {
@@ -350,7 +350,7 @@ func TestNewBundle(t *testing.T) {
 					maxRedirects: 10,
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(10), b.Options.MaxRedirects)
 		})
@@ -361,13 +361,13 @@ func TestNewBundle(t *testing.T) {
 					insecureSkipTLSVerify: true,
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
 		})
 		t.Run("TLSCipherSuites", func(t *testing.T) {
 			t.Parallel()
-			for suiteName, suiteID := range lib.SupportedTLSCipherSuites {
+			for suiteName, suiteID := range libWorker.SupportedTLSCipherSuites {
 				t.Run(suiteName, func(t *testing.T) {
 					t.Parallel()
 					script := `
@@ -378,7 +378,7 @@ func TestNewBundle(t *testing.T) {
 					`
 					script = fmt.Sprintf(script, suiteName)
 
-					b, err := getSimpleBundle(t, "/script.js", script, lib.GetTestWorkerInfo())
+					b, err := getSimpleBundle(t, "/script.js", script, libWorker.GetTestWorkerInfo())
 					require.NoError(t, err)
 					require.Len(t, *b.Options.TLSCipherSuites, 1)
 					require.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
@@ -397,10 +397,10 @@ func TestNewBundle(t *testing.T) {
 						}
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
-				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
-				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
+				assert.Equal(t, b.Options.TLSVersion.Min, libWorker.TLSVersion(tls.VersionTLS10))
+				assert.Equal(t, b.Options.TLSVersion.Max, libWorker.TLSVersion(tls.VersionTLS12))
 			})
 			t.Run("String", func(t *testing.T) {
 				t.Parallel()
@@ -409,10 +409,10 @@ func TestNewBundle(t *testing.T) {
 						tlsVersion: "tls1.0"
 					};
 					export default function() {};
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
-				assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
-				assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS10))
+				assert.Equal(t, b.Options.TLSVersion.Min, libWorker.TLSVersion(tls.VersionTLS10))
+				assert.Equal(t, b.Options.TLSVersion.Max, libWorker.TLSVersion(tls.VersionTLS10))
 			})
 		})
 		t.Run("Thresholds", func(t *testing.T) {
@@ -424,7 +424,7 @@ func TestNewBundle(t *testing.T) {
 					},
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Thresholds["http_req_duration"].Thresholds, 1)
 			require.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
@@ -447,7 +447,7 @@ func TestNewBundle(t *testing.T) {
 					},
 				};
 				export default function() {};
-			`, lib.GetTestWorkerInfo(), logger)
+			`, libWorker.GetTestWorkerInfo(), logger)
 			require.NoError(t, err)
 			entries := hook.Drain()
 			require.Len(t, entries, 1)
@@ -463,21 +463,21 @@ func TestNewBundleFromArchive(t *testing.T) {
 
 	es5Code := `module.exports.options = { vus: 12345 }; module.exports.default = function() { return "hi!" };`
 	es6Code := `export let options = { vus: 12345 }; export default function() { return "hi!"; };`
-	baseCompatModeRtOpts := lib.RuntimeOptions{CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String())}
-	extCompatModeRtOpts := lib.RuntimeOptions{CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String())}
+	baseCompatModeRtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeBase.String())}
+	extCompatModeRtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeExtended.String())}
 
 	logger := testutils.NewLogger(t)
 	checkBundle := func(t *testing.T, b *Bundle) {
-		require.Equal(t, lib.Options{VUs: null.IntFrom(12345)}, b.Options)
-		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+		require.Equal(t, libWorker.Options{VUs: null.IntFrom(12345)}, b.Options)
+		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
 		require.Equal(t, "hi!", val.Export())
 	}
 
-	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) {
-		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc, lib.GetTestWorkerInfo())
+	checkArchive := func(t *testing.T, arc *libWorker.Archive, rtOpts libWorker.RuntimeOptions, expError string) {
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc, libWorker.GetTestWorkerInfo())
 		if expError != "" {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), expError)
@@ -489,11 +489,11 @@ func TestNewBundleFromArchive(t *testing.T) {
 
 	t.Run("es6_script_default", func(t *testing.T) {
 		t.Parallel()
-		arc, err := getArchive(t, es6Code, lib.RuntimeOptions{}) // default options
+		arc, err := getArchive(t, es6Code, libWorker.RuntimeOptions{}) // default options
 		require.NoError(t, err)
-		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, lib.RuntimeOptions{}, "") // default options
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "") // default options
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
 	})
@@ -502,20 +502,20 @@ func TestNewBundleFromArchive(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
 		require.NoError(t, err)
-		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, lib.RuntimeOptions{}, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
 	})
 
 	t.Run("es5_script_with_extended", func(t *testing.T) {
 		t.Parallel()
-		arc, err := getArchive(t, es5Code, lib.RuntimeOptions{})
+		arc, err := getArchive(t, es5Code, libWorker.RuntimeOptions{})
 		require.NoError(t, err)
-		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, lib.RuntimeOptions{}, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "")
 	})
@@ -524,9 +524,9 @@ func TestNewBundleFromArchive(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es5Code, baseCompatModeRtOpts)
 		require.NoError(t, err)
-		require.Equal(t, lib.CompatibilityModeBase.String(), arc.CompatibilityMode)
+		require.Equal(t, libWorker.CompatibilityModeBase.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, lib.RuntimeOptions{}, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "")
 	})
@@ -542,27 +542,27 @@ func TestNewBundleFromArchive(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
 		require.NoError(t, err)
-		arc.CompatibilityMode = "blah"                                           // intentionally break the archive
-		checkArchive(t, arc, lib.RuntimeOptions{}, "invalid compatibility mode") // fails when it uses the archive one
-		checkArchive(t, arc, extCompatModeRtOpts, "")                            // works when I force the compat mode
-		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")   // failes because of ES6
+		arc.CompatibilityMode = "blah"                                                 // intentionally break the archive
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "invalid compatibility mode") // fails when it uses the archive one
+		checkArchive(t, arc, extCompatModeRtOpts, "")                                  // works when I force the compat mode
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")         // failes because of ES6
 	})
 
 	t.Run("script_options_dont_overwrite_metadata", func(t *testing.T) {
 		t.Parallel()
 		code := `export let options = { vus: 12345 }; export default function() { return options.vus; };`
-		arc := &lib.Archive{
+		arc := &libWorker.Archive{
 			Type:        "js",
 			FilenameURL: &url.URL{Scheme: "file", Path: "/script"},
 			K6Version:   consts.Version,
 			Data:        []byte(code),
-			Options:     lib.Options{VUs: null.IntFrom(999)},
+			Options:     libWorker.Options{VUs: null.IntFrom(999)},
 			PwdURL:      &url.URL{Scheme: "file", Path: "/"},
 			Filesystems: nil,
 		}
-		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc, lib.GetTestWorkerInfo())
+		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
-		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -692,21 +692,21 @@ func TestOpen(t *testing.T) {
 						export let file = open("` + openPath + `");
 						export default function() { return file };`
 
-					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, lib.GetTestWorkerInfo(), fs)
+					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, libWorker.GetTestWorkerInfo(), fs)
 					if tCase.isError {
 						require.Error(t, err)
 						return
 					}
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive(), lib.GetTestWorkerInfo())
+					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive(), libWorker.GetTestWorkerInfo())
 
 					require.NoError(t, err)
 
 					for source, b := range map[string]*Bundle{"source": sourceBundle, "archive": arcBundle} {
 						b := b
 						t.Run(source, func(t *testing.T) {
-							bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+							bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
@@ -738,11 +738,11 @@ func TestBundleInstantiate(t *testing.T) {
 		};
 		let val = true;
 		export default function() { return val; }
-	`, lib.GetTestWorkerInfo())
+	`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -758,11 +758,11 @@ func TestBundleInstantiate(t *testing.T) {
 			};
 			let val = true;
 			export default function() { return val; }
-		`, lib.GetTestWorkerInfo())
+		`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
 
-		bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		// Ensure `options` properties are correctly marshalled
 		jsOptions := bi.pgm.exports.Get("options").ToObject(bi.Runtime)
@@ -774,7 +774,7 @@ func TestBundleInstantiate(t *testing.T) {
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
-		bi2, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+		bi2, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		jsOptions = bi2.pgm.exports.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
@@ -785,7 +785,7 @@ func TestBundleInstantiate(t *testing.T) {
 
 func TestBundleEnv(t *testing.T) {
 	t.Parallel()
-	rtOpts := lib.RuntimeOptions{Env: map[string]string{
+	rtOpts := libWorker.RuntimeOptions{Env: map[string]string{
 		"TEST_A": "1",
 		"TEST_B": "",
 	}}
@@ -795,11 +795,11 @@ func TestBundleEnv(t *testing.T) {
 			if (__ENV.TEST_B !== "") { throw new Error("Invalid TEST_B: " + __ENV.TEST_B); }
 		}
 	`
-	b1, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), rtOpts)
+	b1, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), rtOpts)
 	require.NoError(t, err)
 
 	logger := testutils.NewLogger(t)
-	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), lib.GetTestWorkerInfo())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle{"Source": b1, "Archive": b2}
@@ -810,7 +810,7 @@ func TestBundleEnv(t *testing.T) {
 			require.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
 			require.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
 
-			bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+			bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			require.NoError(t, err)
@@ -832,11 +832,11 @@ func TestBundleNotSharable(t *testing.T) {
 			}
 		}
 	`
-	b1, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo())
+	b1, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), lib.GetTestWorkerInfo())
+	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle{"Source": b1, "Archive": b2}
@@ -846,7 +846,7 @@ func TestBundleNotSharable(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			for i := 0; i < vus; i++ {
-				bi, err := b.Instantiate(logger, uint64(i), lib.GetTestWorkerInfo())
+				bi, err := b.Instantiate(logger, uint64(i), libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ {
 					bi.Runtime.Set("__ITER", j)
@@ -861,12 +861,12 @@ func TestBundleNotSharable(t *testing.T) {
 func TestBundleMakeArchive(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		cm      lib.CompatibilityMode
+		cm      libWorker.CompatibilityMode
 		script  string
 		exclaim string
 	}{
 		{
-			lib.CompatibilityModeExtended, `
+			libWorker.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
 				export let options = { vus: 12345 };
 				export let file = open("./file.txt");
@@ -874,7 +874,7 @@ func TestBundleMakeArchive(t *testing.T) {
 			`export default function(s) { return s + "!" };`,
 		},
 		{
-			lib.CompatibilityModeBase, `
+			libWorker.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
 				module.exports.options = { vus: 12345 };
 				module.exports.file = open("./file.txt");
@@ -892,14 +892,14 @@ func TestBundleMakeArchive(t *testing.T) {
 			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644)
 			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0o644)
 
-			rtOpts := lib.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.cm.String())}
-			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, lib.GetTestWorkerInfo(), fs, rtOpts)
+			rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.cm.String())}
+			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, libWorker.GetTestWorkerInfo(), fs, rtOpts)
 			require.NoError(t, err)
 
 			arc := b.makeArchive()
 
 			assert.Equal(t, "js", arc.Type)
-			assert.Equal(t, lib.Options{VUs: null.IntFrom(12345)}, arc.Options)
+			assert.Equal(t, libWorker.Options{VUs: null.IntFrom(12345)}, arc.Options)
 			assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
 			assert.Equal(t, tc.script, string(arc.Data))
 			assert.Equal(t, "file:///path/to/", arc.PwdURL.String())

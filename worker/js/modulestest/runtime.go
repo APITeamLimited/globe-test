@@ -5,11 +5,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/eventloop"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 )
 
@@ -49,7 +49,7 @@ func NewRuntime(t testing.TB) *Runtime {
 }
 
 // MoveToVUContext will set the state and nil the InitEnv just as a real VU
-func (r *Runtime) MoveToVUContext(state *lib.State) {
+func (r *Runtime) MoveToVUContext(state *libWorker.State) {
 	r.VU.InitEnvField = nil
 	r.VU.StateField = state
 }

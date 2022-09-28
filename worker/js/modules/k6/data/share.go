@@ -1,7 +1,7 @@
 package data
 
 import (
-	"github.com/APITeamLimited/k6-worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/dop251/goja"
 )
 

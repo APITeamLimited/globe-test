@@ -7,13 +7,13 @@ import (
 	"io"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 )
 
-// Copied from https://github.com/k6io/jslib.k6.io/tree/master/lib/k6-summary
+// Copied from https://github.com/k6io/jslibWorker.k6.io/tree/master/lib/k6-summary
 //go:embed summary.js
 var jslibSummaryCode string //nolint:gochecknoglobals
 
@@ -60,7 +60,7 @@ func metricValueGetter(summaryTrendStats []string) func(metrics.Sink, time.Durat
 
 // summarizeMetricsToObject transforms the summary objects in a way that's
 // suitable to pass to the JS runtime or export to JSON.
-func summarizeMetricsToObject(data *lib.Summary, options lib.Options, setupData []byte) map[string]interface{} {
+func summarizeMetricsToObject(data *libWorker.Summary, options libWorker.Options, setupData []byte) map[string]interface{} {
 	m := make(map[string]interface{})
 	m["root_group"] = exportGroup(data.RootGroup)
 	m["options"] = map[string]interface{}{
@@ -113,7 +113,7 @@ func summarizeMetricsToObject(data *lib.Summary, options lib.Options, setupData 
 	return m
 }
 
-func exportGroup(group *lib.Group) map[string]interface{} {
+func exportGroup(group *libWorker.Group) map[string]interface{} {
 	subGroups := make([]map[string]interface{}, len(group.OrderedGroups))
 	for i, subGroup := range group.OrderedGroups {
 		subGroups[i] = exportGroup(subGroup)

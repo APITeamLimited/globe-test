@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/output"
 	jwriter "github.com/mailru/easyjson/jwriter"
 )
 
@@ -19,12 +19,12 @@ type Output struct {
 	periodicFlusher *output.PeriodicFlusher
 
 	params      output.Params
-	workerInfo  *lib.WorkerInfo
+	workerInfo  *libWorker.WorkerInfo
 	seenMetrics map[string]struct{}
 	thresholds  map[string]metrics.Thresholds
 }
 
-func New(params output.Params, workerInfo *lib.WorkerInfo) (output.Output, error) {
+func New(params output.Params, workerInfo *libWorker.WorkerInfo) (output.Output, error) {
 	return &Output{
 		params:      params,
 		workerInfo:  workerInfo,
@@ -82,7 +82,7 @@ func (o *Output) flushMetrics() {
 	formatted := strings.ReplaceAll(fmt.Sprintf("[%s]", strings.ReplaceAll(string(buffer), "\n", ",")), ",]", "]")
 
 	if count > 0 {
-		lib.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, formatted, "METRICS")
+		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, formatted, "METRICS")
 	}
 }
 

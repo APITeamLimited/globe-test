@@ -3,7 +3,7 @@ package errext
 import (
 	"errors"
 
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 )
 
 // ExitCode is the code with which the application should exit if this error

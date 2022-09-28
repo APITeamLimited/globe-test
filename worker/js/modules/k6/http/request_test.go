@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"compress/gzip"
-	"compress/zlib"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -38,12 +37,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/netext"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // TODO replace this with the Single version
@@ -120,18 +119,18 @@ func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer metrics.Sam
 }
 
 func newRuntime(t testing.TB) (
-	*httpmultibin.HTTPMultiBin, *lib.State, chan metrics.SampleContainer, *goja.Runtime, *ModuleInstance,
+	*httpmultibin.HTTPMultiBin, *libWorker.State, chan metrics.SampleContainer, *goja.Runtime, *ModuleInstance,
 ) {
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 	registry := metrics.NewRegistry()
 
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 
-	options := lib.Options{
+	options := libWorker.Options{
 		MaxRedirects: null.IntFrom(10),
 		UserAgent:    null.StringFrom("TestUserAgent"),
 		Throw:        null.BoolFrom(true),
@@ -142,7 +141,7 @@ func newRuntime(t testing.TB) (
 	}
 	samples := make(chan metrics.SampleContainer, 1000)
 
-	state := &lib.State{
+	state := &libWorker.State{
 		Options:   options,
 		Logger:    logger,
 		Group:     root,
@@ -150,7 +149,7 @@ func newRuntime(t testing.TB) (
 		Transport: tb.HTTPTransport,
 		BPool:     bpool.NewBufferPool(1),
 		Samples:   samples,
-		Tags: lib.NewTagMap(map[string]string{
+		Tags: libWorker.NewTagMap(map[string]string{
 			"group": root.Path,
 		}),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
@@ -1104,7 +1103,7 @@ func TestRequestAndBatch(t *testing.T) {
 			t.Run("tags-precedence", func(t *testing.T) {
 				oldTags := state.Tags
 				defer func() { state.Tags = oldTags }()
-				state.Tags = lib.NewTagMap(map[string]string{
+				state.Tags = libWorker.NewTagMap(map[string]string{
 					"runtag1": "val1",
 					"runtag2": "val2",
 				})
@@ -1706,7 +1705,7 @@ func TestRequestCompression(t *testing.T) {
 			}
 			return w
 		case "deflate":
-			w, err := zlib.NewReader(input)
+			w, err := zlibWorker.NewReader(input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2364,11 +2363,11 @@ func TestRequestAndBatchTLS(t *testing.T) {
 		host, port, err := net.SplitHostPort(s.Listener.Addr().String())
 		require.NoError(t, err)
 		ip := net.ParseIP(host)
-		mybadsslHostname, err := lib.NewHostAddress(ip, port)
+		mybadsslHostname, err := libWorker.NewHostAddress(ip, port)
 		require.NoError(t, err)
 		state.Transport = client.Transport
 		state.TLSConfig = s.TLS
-		state.Dialer = &netext.Dialer{Hosts: map[string]*lib.HostAddress{"expired.localhost": mybadsslHostname}}
+		state.Dialer = &netext.Dialer{Hosts: map[string]*libWorker.HostAddress{"expired.localhost": mybadsslHostname}}
 		client.Transport.(*http.Transport).DialContext = state.Dialer.DialContext //nolint:forcetypeassert
 		_, err = rt.RunString(`throw JSON.stringify(http.get("https://expired.localhost/"));`)
 		require.Error(t, err)
@@ -2408,9 +2407,9 @@ func TestRequestAndBatchTLS(t *testing.T) {
 			host, port, err := net.SplitHostPort(s.Listener.Addr().String())
 			require.NoError(t, err)
 			ip := net.ParseIP(host)
-			mybadsslHostname, err := lib.NewHostAddress(ip, port)
+			mybadsslHostname, err := libWorker.NewHostAddress(ip, port)
 			require.NoError(t, err)
-			state.Dialer = &netext.Dialer{Hosts: map[string]*lib.HostAddress{
+			state.Dialer = &netext.Dialer{Hosts: map[string]*libWorker.HostAddress{
 				versionTest.URL: mybadsslHostname,
 			}}
 			state.Transport = client.Transport
@@ -2448,9 +2447,9 @@ func TestRequestAndBatchTLS(t *testing.T) {
 			host, port, err := net.SplitHostPort(s.Listener.Addr().String())
 			require.NoError(t, err)
 			ip := net.ParseIP(host)
-			mybadsslHostname, err := lib.NewHostAddress(ip, port)
+			mybadsslHostname, err := libWorker.NewHostAddress(ip, port)
 			require.NoError(t, err)
-			state.Dialer = &netext.Dialer{Hosts: map[string]*lib.HostAddress{
+			state.Dialer = &netext.Dialer{Hosts: map[string]*libWorker.HostAddress{
 				cipherSuiteTest.URL: mybadsslHostname,
 			}}
 			state.Transport = client.Transport

@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestBuildK6Headers(t *testing.T) {
@@ -42,14 +42,14 @@ func TestBuildK6RequestObject(t *testing.T) {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	_, err = js.New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 		}, &loader.SourceData{
 			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(fmt.Sprintf("export default function() { res = http.batch([%v]); }", v)),
-		}, nil, lib.GetTestWorkerInfo())
+		}, nil, libWorker.GetTestWorkerInfo())
 	assert.NoError(t, err)
 }
 

@@ -3,7 +3,7 @@ package errext
 import (
 	"errors"
 
-	"github.com/APITeamLimited/k6-worker/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 )
 
 // InterruptError is an error that halts engine execution

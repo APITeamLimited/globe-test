@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/dop251/goja"
 	"google.golang.org/grpc/codes"
 )

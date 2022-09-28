@@ -109,7 +109,7 @@ func (h *HTTPBin) Deflate(w http.ResponseWriter, r *http.Request) {
 	body, _ := json.Marshal(resp)
 
 	buf := &bytes.Buffer{}
-	w2 := zlib.NewWriter(buf)
+	w2 := zlibWorker.NewWriter(buf)
 	w2.Write(body)
 	w2.Close()
 

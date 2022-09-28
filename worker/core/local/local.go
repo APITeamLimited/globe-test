@@ -9,50 +9,50 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/pb"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
-// ExecutionScheduler is the local implementation of lib.ExecutionScheduler
+// ExecutionScheduler is the local implementation of libWorker.ExecutionScheduler
 type ExecutionScheduler struct {
 	initProgress    *pb.ProgressBar
-	executorConfigs []lib.ExecutorConfig // sorted by (startTime, ID)
-	executors       []lib.Executor       // sorted by (startTime, ID), excludes executors with no work
-	executionPlan   []lib.ExecutionStep
+	executorConfigs []libWorker.ExecutorConfig // sorted by (startTime, ID)
+	executors       []libWorker.Executor       // sorted by (startTime, ID), excludes executors with no work
+	executionPlan   []libWorker.ExecutionStep
 	maxDuration     time.Duration // cached value derived from the execution plan
 	maxPossibleVUs  uint64        // cached value derived from the execution plan
-	state           *lib.ExecutionState
+	state           *libWorker.ExecutionState
 
 	// TODO: remove these when we don't have separate Init() and Run() methods
 	// and can use a context + a WaitGroup (or something like that)
 	stopVUsEmission, vusEmissionStopped chan struct{}
 }
 
-// Check to see if we implement the lib.ExecutionScheduler interface
-var _ lib.ExecutionScheduler = &ExecutionScheduler{}
+// Check to see if we implement the libWorker.ExecutionScheduler interface
+var _ libWorker.ExecutionScheduler = &ExecutionScheduler{}
 
-// NewExecutionScheduler creates and returns a new local lib.ExecutionScheduler
+// NewExecutionScheduler creates and returns a new local libWorker.ExecutionScheduler
 // instance, without initializing it beyond the bare minimum. Specifically, it
 // creates the needed executor instances and a lot of state placeholders, but it
 // doesn't initialize the executors and it doesn't initialize or run VUs.
-func NewExecutionScheduler(trs *lib.TestRunState) (*ExecutionScheduler, error) {
+func NewExecutionScheduler(trs *libWorker.TestRunState) (*ExecutionScheduler, error) {
 	options := trs.Options
-	et, err := lib.NewExecutionTuple(options.ExecutionSegment, options.ExecutionSegmentSequence)
+	et, err := libWorker.NewExecutionTuple(options.ExecutionSegment, options.ExecutionSegmentSequence)
 	if err != nil {
 		return nil, err
 	}
 	executionPlan := options.Scenarios.GetFullExecutionRequirements(et)
-	maxPlannedVUs := lib.GetMaxPlannedVUs(executionPlan)
-	maxPossibleVUs := lib.GetMaxPossibleVUs(executionPlan)
+	maxPlannedVUs := libWorker.GetMaxPlannedVUs(executionPlan)
+	maxPossibleVUs := libWorker.GetMaxPossibleVUs(executionPlan)
 
-	executionState := lib.NewExecutionState(trs, et, maxPlannedVUs, maxPossibleVUs)
-	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
+	executionState := libWorker.NewExecutionState(trs, et, maxPlannedVUs, maxPossibleVUs)
+	maxDuration, _ := libWorker.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
 	executorConfigs := options.Scenarios.GetSortedConfigs()
-	executors := make([]lib.Executor, 0, len(executorConfigs))
+	executors := make([]libWorker.Executor, 0, len(executorConfigs))
 	// Only take executors which have work.
 	for _, sc := range executorConfigs {
 		if !sc.HasWork(et) {
@@ -92,8 +92,8 @@ func NewExecutionScheduler(trs *lib.TestRunState) (*ExecutionScheduler, error) {
 	}, nil
 }
 
-// GetRunner returns the wrapped lib.Runner instance.
-func (e *ExecutionScheduler) GetRunner() lib.Runner { // TODO: remove
+// GetRunner returns the wrapped libWorker.Runner instance.
+func (e *ExecutionScheduler) GetRunner() libWorker.Runner { // TODO: remove
 	return e.state.Test.Runner
 }
 
@@ -102,19 +102,19 @@ func (e *ExecutionScheduler) GetRunner() lib.Runner { // TODO: remove
 // see the documentation in lib/execution.go for caveats about its usage. The
 // most important one is that none of the methods beyond the pause-related ones
 // should be used for synchronization.
-func (e *ExecutionScheduler) GetState() *lib.ExecutionState {
+func (e *ExecutionScheduler) GetState() *libWorker.ExecutionState {
 	return e.state
 }
 
 // GetExecutors returns the slice of configured executor instances which
 // have work, sorted by their (startTime, name) in an ascending order.
-func (e *ExecutionScheduler) GetExecutors() []lib.Executor {
+func (e *ExecutionScheduler) GetExecutors() []libWorker.Executor {
 	return e.executors
 }
 
 // GetExecutorConfigs returns the slice of all executor configs, sorted by
 // their (startTime, name) in an ascending order.
-func (e *ExecutionScheduler) GetExecutorConfigs() []lib.ExecutorConfig {
+func (e *ExecutionScheduler) GetExecutorConfigs() []libWorker.ExecutorConfig {
 	return e.executorConfigs
 }
 
@@ -127,7 +127,7 @@ func (e *ExecutionScheduler) GetInitProgressBar() *pb.ProgressBar {
 
 // GetExecutionPlan is a helper method so users of the local execution scheduler
 // don't have to calculate the execution plan again.
-func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep {
+func (e *ExecutionScheduler) GetExecutionPlan() []libWorker.ExecutionStep {
 	return e.executionPlan
 }
 
@@ -135,8 +135,8 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep {
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 func (e *ExecutionScheduler) initVU(
-	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger, workerInfo *lib.WorkerInfo,
-) (lib.InitializedVU, error) {
+	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger, workerInfo *libWorker.WorkerInfo,
+) (libWorker.InitializedVU, error) {
 	// Get the VU IDs here, so that the VUs are (mostly) ordered by their
 	// number in the channel buffer
 	vuIDLocal, vuIDGlobal := e.state.GetUniqueVUIdentifiers()
@@ -172,7 +172,7 @@ func (e *ExecutionScheduler) getRunStats() string {
 func (e *ExecutionScheduler) initVUsConcurrently(
 	ctx context.Context, samplesOut chan<- metrics.SampleContainer, count uint64,
 	concurrency int, logger logrus.FieldLogger,
-	workerInfo *lib.WorkerInfo,
+	workerInfo *libWorker.WorkerInfo,
 ) chan error {
 	doneInits := make(chan error, count) // poor man's early-return waitgroup
 	limiter := make(chan struct{})
@@ -252,11 +252,11 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 
 // Init concurrently initializes all of the planned VUs and then sequentially
 // initializes all of the configured executors.
-func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) error {
+func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	e.emitVUsAndVUsMax(ctx, samplesOut)
 
 	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-init")
-	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
+	vusToInitialize := libWorker.GetMaxPlannedVUs(e.executionPlan)
 	logger.WithFields(logrus.Fields{
 		"neededVUs":      vusToInitialize,
 		"executorsCount": len(e.executors),
@@ -265,7 +265,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 	subctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	e.state.SetExecutionStatus(lib.ExecutionStatusInitVUs)
+	e.state.SetExecutionStatus(libWorker.ExecutionStatusInitVUs)
 	doneInits := e.initVUsConcurrently(subctx, samplesOut, vusToInitialize, runtime.GOMAXPROCS(0), logger, workerInfo)
 
 	initializedVUs := new(uint64)
@@ -293,11 +293,11 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 		}
 	}
 
-	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry, workerInfo *lib.WorkerInfo) (lib.InitializedVU, error) {
+	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		return e.initVU(samplesOut, logger, workerInfo)
 	})
 
-	e.state.SetExecutionStatus(lib.ExecutionStatusInitExecutors)
+	e.state.SetExecutionStatus(libWorker.ExecutionStatusInitExecutors)
 	logger.Debugf("Finished initializing needed VUs, start initializing executors...")
 	for _, exec := range e.executors {
 		executorConfig := exec.GetConfig()
@@ -308,7 +308,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 		logger.Debugf("Initialized executor %s", executorConfig.GetName())
 	}
 
-	e.state.SetExecutionStatus(lib.ExecutionStatusInitDone)
+	e.state.SetExecutionStatus(libWorker.ExecutionStatusInitDone)
 	logger.Debugf("Initialization completed")
 	return nil
 }
@@ -318,7 +318,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 // configured startTime for the specific executor and then running its Run()
 // method.
 func (e *ExecutionScheduler) runExecutor(
-	runCtx context.Context, runResults chan<- error, engineOut chan<- metrics.SampleContainer, executor lib.Executor, workerInfo *lib.WorkerInfo,
+	runCtx context.Context, runResults chan<- error, engineOut chan<- metrics.SampleContainer, executor libWorker.Executor, workerInfo *libWorker.WorkerInfo,
 ) {
 	executorConfig := executor.GetConfig()
 	executorStartTime := executorConfig.GetStartTime()
@@ -368,7 +368,7 @@ func (e *ExecutionScheduler) runExecutor(
 // out channel.
 //
 //nolint:funlen
-func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *lib.WorkerInfo) error {
+func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	defer func() {
 		close(e.stopVUsEmission)
 		<-e.vusEmissionStopped
@@ -381,13 +381,13 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	defer func() {
 		e.state.MarkEnded()
 		if interrupted {
-			e.state.SetExecutionStatus(lib.ExecutionStatusInterrupted)
+			e.state.SetExecutionStatus(libWorker.ExecutionStatusInterrupted)
 		}
 	}()
 
 	if e.state.IsPaused() {
 		logger.Debug("Execution is paused, waiting for resume or interrupt...")
-		e.state.SetExecutionStatus(lib.ExecutionStatusPausedBeforeRun)
+		e.state.SetExecutionStatus(libWorker.ExecutionStatusPausedBeforeRun)
 		e.initProgress.Modify(pb.WithConstProgress(1, "paused"))
 		select {
 		case <-e.state.ResumeNotify():
@@ -404,14 +404,14 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 
 	runResults := make(chan error, executorsCount) // nil values are successful runs
 
-	runCtx = lib.WithExecutionState(runCtx, e.state)
+	runCtx = libWorker.WithExecutionState(runCtx, e.state)
 	runSubCtx, cancel := context.WithCancel(runCtx)
 	defer cancel() // just in case, and to shut up go vet...
 
 	// Run setup() before any executors, if it's not disabled
 	if !e.state.Test.Options.NoSetup.Bool {
 		logger.Debug("Running setup()")
-		e.state.SetExecutionStatus(lib.ExecutionStatusSetup)
+		e.state.SetExecutionStatus(libWorker.ExecutionStatusSetup)
 		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
 		if err := e.state.Test.Runner.Setup(runSubCtx, engineOut); err != nil {
 			logger.WithField("error", err).Debug("setup() aborted by error")
@@ -422,9 +422,9 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
-	e.state.SetExecutionStatus(lib.ExecutionStatusRunning)
+	e.state.SetExecutionStatus(libWorker.ExecutionStatusRunning)
 
-	// We are using this context to allow lib.Executor implementations to cancel
+	// We are using this context to allow libWorker.Executor implementations to cancel
 	// this context effectively stopping all executions.
 	//
 	// This is for addressing test.abort().
@@ -447,7 +447,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	// Run teardown() after all executors are done, if it's not disabled
 	if !e.state.Test.Options.NoTeardown.Bool {
 		logger.Debug("Running teardown()")
-		e.state.SetExecutionStatus(lib.ExecutionStatusTeardown)
+		e.state.SetExecutionStatus(libWorker.ExecutionStatusTeardown)
 		e.initProgress.Modify(pb.WithConstProgress(1, "teardown()"))
 
 		// We run teardown() with the global context, so it isn't interrupted by
@@ -465,7 +465,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 }
 
 // SetPaused pauses a test, if called with true. And if called with false, tries
-// to start/resume it. See the lib.ExecutionScheduler interface documentation of
+// to start/resume it. See the libWorker.ExecutionScheduler interface documentation of
 // the methods for the various caveats about its usage.
 func (e *ExecutionScheduler) SetPaused(pause bool) error {
 	if !e.state.HasStarted() && e.state.IsPaused() {
@@ -477,7 +477,7 @@ func (e *ExecutionScheduler) SetPaused(pause bool) error {
 	}
 
 	for _, exec := range e.executors {
-		pausableExecutor, ok := exec.(lib.PausableExecutor)
+		pausableExecutor, ok := exec.(libWorker.PausableExecutor)
 		if !ok {
 			return fmt.Errorf(
 				"%s executor '%s' doesn't support pause and resume operations after its start",

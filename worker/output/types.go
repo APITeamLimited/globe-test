@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // Params contains all possible constructor parameters an output may need.
@@ -27,9 +27,9 @@ type Params struct {
 	StdErr         io.Writer
 	FS             afero.Fs
 	ScriptPath     *url.URL
-	ScriptOptions  lib.Options
-	RuntimeOptions lib.RuntimeOptions
-	ExecutionPlan  []lib.ExecutionStep
+	ScriptOptions  libWorker.Options
+	RuntimeOptions libWorker.RuntimeOptions
+	ExecutionPlan  []libWorker.ExecutionStep
 }
 
 // TODO: make v2 with buffered channels?
@@ -78,7 +78,7 @@ type WithTestRunStop interface {
 // WithRunStatusUpdates means the output can receive test run status updates.
 type WithRunStatusUpdates interface {
 	Output
-	SetRunStatus(latestStatus lib.RunStatus)
+	SetRunStatus(latestStatus libWorker.RunStatus)
 }
 
 // WithBuiltinMetrics means the output can receive the builtin metrics.

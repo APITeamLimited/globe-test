@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js/eventloop"
-	"github.com/APITeamLimited/k6-worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
+	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/require"
 )

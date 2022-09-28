@@ -12,13 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"github.com/APITeamLimited/k6-worker/js/common"
-	"github.com/APITeamLimited/k6-worker/js/compiler"
-	"github.com/APITeamLimited/k6-worker/js/eventloop"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/consts"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/js/compiler"
+	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // A Bundle is a self-contained bundle of scripts and resources.
@@ -27,12 +27,12 @@ type Bundle struct {
 	Filename *url.URL
 	Source   string
 	Program  *goja.Program
-	Options  lib.Options
+	Options  libWorker.Options
 
 	BaseInitContext *InitContext
 
-	RuntimeOptions    lib.RuntimeOptions
-	CompatibilityMode lib.CompatibilityMode // parsed value
+	RuntimeOptions    libWorker.RuntimeOptions
+	CompatibilityMode libWorker.CompatibilityMode // parsed value
 	registry          *metrics.Registry
 
 	exports map[string]goja.Callable
@@ -52,9 +52,9 @@ type BundleInstance struct {
 
 // NewBundle creates a new bundle from a source file and a filesystem.
 func NewBundle(
-	piState *lib.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *lib.WorkerInfo,
+	piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo,
 ) (*Bundle, error) {
-	compatMode, err := lib.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
+	compatMode, err := libWorker.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (b *Bundle) GetExports(logger logrus.FieldLogger, rt *goja.Runtime, options
 }
 
 // Instantiate creates a new runtime from this bundle.
-func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo *lib.WorkerInfo) (*BundleInstance, error) {
+func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo *libWorker.WorkerInfo) (*BundleInstance, error) {
 	// Instantiate the bundle into a new VM using a bound init context. This uses a context with a
 	// runtime, but no state, to allow module-provided types to function within the init context.
 	vuImpl := &moduleVUImpl{runtime: goja.New()}
@@ -220,7 +220,7 @@ func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) pr
 	return pgm
 }
 
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *lib.WorkerInfo) (err error) {
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *libWorker.WorkerInfo) (err error) {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	rt.SetRandSource(common.NewRandSource())
 
@@ -232,7 +232,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	rt.Set("__VU", vuID)
 	_ = rt.Set("console", newConsole(logger))
 
-	if init.compatibilityMode == lib.CompatibilityModeExtended {
+	if init.compatibilityMode == libWorker.CompatibilityModeExtended {
 		rt.Set("global", rt.GlobalObject())
 	}
 

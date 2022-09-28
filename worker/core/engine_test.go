@@ -14,19 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/core/local"
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/executor"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/minirunner"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/mockoutput"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/globe-test/worker/core/local"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/mockoutput"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/output"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -38,25 +38,25 @@ type testStruct struct {
 	run       func() error
 	runCancel func()
 	wait      func()
-	piState   *lib.TestPreInitState
+	piState   *libWorker.TestPreInitState
 }
 
-func getTestPreInitState(tb testing.TB) *lib.TestPreInitState {
+func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState {
 	reg := metrics.NewRegistry()
-	return &lib.TestPreInitState{
+	return &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
-		RuntimeOptions: lib.RuntimeOptions{},
+		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
 	}
 }
 
 func getTestRunState(
-	tb testing.TB, piState *lib.TestPreInitState, options lib.Options, runner lib.Runner,
-) *lib.TestRunState {
+	tb testing.TB, piState *libWorker.TestPreInitState, options libWorker.Options, runner libWorker.Runner,
+) *libWorker.TestRunState {
 	require.Empty(tb, options.Validate())
 	require.NoError(tb, runner.SetOptions(options))
-	return &lib.TestRunState{
+	return &libWorker.TestRunState{
 		TestPreInitState: piState,
 		Options:          options,
 		Runner:           runner,
@@ -65,14 +65,14 @@ func getTestRunState(
 
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngineWithTestPreInitState( //nolint:golint
-	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output,
-	opts lib.Options, piState *lib.TestPreInitState,
+	t *testing.T, runTimeout *time.Duration, runner libWorker.Runner, outputs []output.Output,
+	opts libWorker.Options, piState *libWorker.TestPreInitState,
 ) *testStruct {
 	if runner == nil {
 		runner = &minirunner.MiniRunner{}
 	}
 
-	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options{
+	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	}.Apply(runner.GetOptions()).Apply(opts), piState.Logger)
 	require.NoError(t, err)
@@ -94,7 +94,7 @@ func newTestEngineWithTestPreInitState( //nolint:golint
 	} else {
 		runCtx, runCancel = context.WithCancel(globalCtx)
 	}
-	run, waitFn, err := engine.Init(globalCtx, runCtx, lib.GetTestWorkerInfo())
+	run, waitFn, err := engine.Init(globalCtx, runCtx, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	var test *testStruct
@@ -114,7 +114,7 @@ func newTestEngineWithTestPreInitState( //nolint:golint
 }
 
 func newTestEngine(
-	t *testing.T, runTimeout *time.Duration, runner lib.Runner, outputs []output.Output, opts lib.Options,
+	t *testing.T, runTimeout *time.Duration, runner libWorker.Runner, outputs []output.Output, opts libWorker.Options,
 ) *testStruct {
 	return newTestEngineWithTestPreInitState(t, runTimeout, runner, outputs, opts, getTestPreInitState(t))
 }
@@ -126,7 +126,7 @@ func TestEngineRun(t *testing.T) {
 		t.Parallel()
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *lib.State, _ chan<- metrics.SampleContainer) error {
+			Fn: func(ctx context.Context, _ *libWorker.State, _ chan<- metrics.SampleContainer) error {
 				<-ctx.Done()
 				close(done)
 				return nil
@@ -134,7 +134,7 @@ func TestEngineRun(t *testing.T) {
 		}
 
 		duration := 100 * time.Millisecond
-		test := newTestEngine(t, &duration, runner, nil, lib.Options{})
+		test := newTestEngine(t, &duration, runner, nil, libWorker.Options{})
 		defer test.wait()
 
 		startTime := time.Now()
@@ -144,7 +144,7 @@ func TestEngineRun(t *testing.T) {
 	})
 	t.Run("exits with executor", func(t *testing.T) {
 		t.Parallel()
-		test := newTestEngine(t, nil, nil, nil, lib.Options{
+		test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 			VUs:        null.IntFrom(10),
 			Iterations: null.IntFrom(100),
 		})
@@ -163,7 +163,7 @@ func TestEngineRun(t *testing.T) {
 		signalChan := make(chan interface{})
 
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 				metrics.PushIfNotDone(ctx, out, metrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
 				close(signalChan)
 				<-ctx.Done()
@@ -173,7 +173,7 @@ func TestEngineRun(t *testing.T) {
 		}
 
 		mockOutput := mockoutput.New()
-		test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, lib.Options{
+		test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		}, piState)
@@ -199,7 +199,7 @@ func TestEngineRun(t *testing.T) {
 
 func TestEngineAtTime(t *testing.T) {
 	t.Parallel()
-	test := newTestEngine(t, nil, nil, nil, lib.Options{
+	test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 		VUs:      null.IntFrom(2),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	})
@@ -210,7 +210,7 @@ func TestEngineAtTime(t *testing.T) {
 
 func TestEngineStopped(t *testing.T) {
 	t.Parallel()
-	test := newTestEngine(t, nil, nil, nil, lib.Options{
+	test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 		VUs:      null.IntFrom(1),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	})
@@ -231,14 +231,14 @@ func TestEngineOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner{
-		Fn: func(_ context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(_ context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 			out <- metrics.Sample{Metric: testMetric}
 			return nil
 		},
 	}
 
 	mockOutput := mockoutput.New()
-	test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, lib.Options{
+	test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(1),
 	}, piState)
@@ -275,13 +275,13 @@ func TestEngine_processSamples(t *testing.T) {
 
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 				out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
 				close(done)
 				return nil
 			},
 		}
-		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options{}, piState)
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{}, piState)
 
 		go func() {
 			assert.NoError(t, test.run())
@@ -311,13 +311,13 @@ func TestEngine_processSamples(t *testing.T) {
 
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 				out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1", "b": "2"})}
 				close(done)
 				return nil
 			},
 		}
-		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options{
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{
 			Thresholds: map[string]metrics.Thresholds{
 				"my_metric{a:1}": ths,
 			},
@@ -363,13 +363,13 @@ func TestEngineThresholdsWillAbort(t *testing.T) {
 
 	done := make(chan struct{})
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 			out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			close(done)
 			return nil
 		},
 	}
-	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options{Thresholds: thresholds}, piState)
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState)
 
 	go func() {
 		assert.NoError(t, test.run())
@@ -405,7 +405,7 @@ func TestEngineAbortedByThresholds(t *testing.T) {
 
 	done := make(chan struct{})
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *lib.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
 			out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			<-ctx.Done()
 			close(done)
@@ -413,7 +413,7 @@ func TestEngineAbortedByThresholds(t *testing.T) {
 		},
 	}
 
-	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, lib.Options{Thresholds: thresholds}, piState)
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState)
 	defer test.wait()
 
 	go func() {
@@ -481,7 +481,7 @@ func TestEngine_processThresholds(t *testing.T) {
 
 			runner := &minirunner.MiniRunner{}
 			test := newTestEngineWithTestPreInitState(
-				t, nil, runner, nil, lib.Options{Thresholds: thresholds}, piState,
+				t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState,
 			)
 
 			test.engine.OutputManager.AddMetricSamples(
@@ -594,12 +594,12 @@ func TestSentReceivedMetrics(t *testing.T) {
 		r, err := js.New(
 			getTestPreInitState(t),
 			&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: []byte(ts.Code)},
-			nil, lib.GetTestWorkerInfo(),
+			nil, libWorker.GetTestWorkerInfo(),
 		)
 		require.NoError(t, err)
 
 		mockOutput := mockoutput.New()
-		test := newTestEngine(t, nil, r, []output.Output{mockOutput}, lib.Options{
+		test := newTestEngine(t, nil, r, []output.Output{mockOutput}, libWorker.Options{
 			Iterations:            null.IntFrom(tc.Iterations),
 			VUs:                   null.IntFrom(tc.VUs),
 			Hosts:                 tb.Dialer.Hosts,
@@ -734,12 +734,12 @@ func TestRunTags(t *testing.T) {
 		getTestPreInitState(t),
 		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
 		nil,
-		lib.GetTestWorkerInfo(),
+		libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	test := newTestEngine(t, nil, r, []output.Output{mockOutput}, lib.Options{
+	test := newTestEngine(t, nil, r, []output.Output{mockOutput}, libWorker.Options{
 		Iterations:            null.IntFrom(3),
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
@@ -811,11 +811,11 @@ func TestSetupException(t *testing.T) {
 	runner, err := js.New(
 		getTestPreInitState(t),
 		&loader.SourceData{URL: &url.URL{Scheme: "file", Path: "/script.js"}, Data: script},
-		map[string]afero.Fs{"file": memfs}, lib.GetTestWorkerInfo(),
+		map[string]afero.Fs{"file": memfs}, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	test := newTestEngine(t, nil, runner, nil, lib.Options{
+	test := newTestEngine(t, nil, runner, nil, libWorker.Options{
 		SystemTags:      &metrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
@@ -859,7 +859,7 @@ func TestVuInitException(t *testing.T) {
 	runner, err := js.New(
 		piState,
 		&loader.SourceData{URL: &url.URL{Scheme: "file", Path: "/script.js"}, Data: script},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
@@ -875,7 +875,7 @@ func TestVuInitException(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, _, err = engine.Init(ctx, ctx, lib.GetTestWorkerInfo()) // no need for 2 different contexts
+	_, _, err = engine.Init(ctx, ctx, libWorker.GetTestWorkerInfo()) // no need for 2 different contexts
 
 	require.Error(t, err)
 
@@ -926,12 +926,12 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) {
 	runner, err := js.New(
 		getTestPreInitState(t),
 		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	test := newTestEngine(t, nil, runner, []output.Output{mockOutput}, lib.Options{})
+	test := newTestEngine(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{})
 
 	errC := make(chan error)
 	go func() { errC <- test.run() }()
@@ -1030,7 +1030,7 @@ func TestMetricsEmission(t *testing.T) {
 					%s
 				}
 				`, tc.minIterDuration, tc.defaultBody))},
-				nil, lib.GetTestWorkerInfo(),
+				nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -1115,7 +1115,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) {
 			runner, err := js.New(
 				getTestPreInitState(t),
 				&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: []byte(tc.script)},
-				nil, lib.GetTestWorkerInfo(),
+				nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -1144,7 +1144,7 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) {
 
 	var test *testStruct
 	runner := &minirunner.MiniRunner{
-		Fn: func(_ context.Context, _ *lib.State, _ chan<- metrics.SampleContainer) error {
+		Fn: func(_ context.Context, _ *libWorker.State, _ chan<- metrics.SampleContainer) error {
 			test.runCancel() // we cancel the run immediately after the test starts
 			return nil
 		},
@@ -1155,7 +1155,7 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) {
 	}
 
 	mockOutput := mockoutput.New()
-	test = newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, lib.Options{
+	test = newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
 	}, piState)
 
@@ -1221,23 +1221,23 @@ func TestActiveVUsCount(t *testing.T) {
 	logHook := testutils.SimpleLogrusHook{HookedLevels: logrus.AllLevels}
 	logger.AddHook(&logHook)
 
-	rtOpts := lib.RuntimeOptions{CompatibilityMode: null.StringFrom("base")}
+	rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("base")}
 
 	registry := metrics.NewRegistry()
-	piState := &lib.TestPreInitState{
+	piState := &libWorker.TestPreInitState{
 		Logger:         logger,
 		Registry:       registry,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 		RuntimeOptions: rtOpts,
 	}
-	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, lib.GetTestWorkerInfo())
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	opts, err := executor.DeriveScenariosFromShortcuts(lib.Options{
+	opts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	}.Apply(runner.GetOptions()), nil)
 	require.NoError(t, err)
@@ -1248,7 +1248,7 @@ func TestActiveVUsCount(t *testing.T) {
 	engine, err := NewEngine(testState, execScheduler, []output.Output{mockOutput})
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
-	run, waitFn, err := engine.Init(ctx, ctx, lib.GetTestWorkerInfo()) // no need for 2 different contexts
+	run, waitFn, err := engine.Init(ctx, ctx, libWorker.GetTestWorkerInfo()) // no need for 2 different contexts
 	require.NoError(t, err)
 
 	errC := make(chan error)

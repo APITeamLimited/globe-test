@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 func TestTLS13Support(t *testing.T) {
@@ -17,12 +17,12 @@ func TestTLS13Support(t *testing.T) {
 
 	tb.Mux.HandleFunc("/tls-version", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		ver := req.TLS.Version
-		fmt.Fprint(resp, lib.SupportedTLSVersionsToString[lib.TLSVersion(ver)])
+		fmt.Fprint(resp, libWorker.SupportedTLSVersionsToString[libWorker.TLSVersion(ver)])
 	}))
 
 	// We don't expect any failed requests
 	state.Options.Throw = null.BoolFrom(true)
-	state.Options.Apply(lib.Options{TLSVersion: &lib.TLSVersions{Max: tls.VersionTLS13}})
+	state.Options.Apply(libWorker.Options{TLSVersion: &libWorker.TLSVersions{Max: tls.VersionTLS13}})
 
 	_, err := rt.RunString(tb.Replacer.Replace(`
 		var resp = http.get("HTTPSBIN_URL/tls-version");

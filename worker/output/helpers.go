@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // SampleBuffer is a simple thread-safe buffer for metric samples. It should be

@@ -3,14 +3,14 @@ package worker
 import (
 	"fmt"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/output"
-	"github.com/APITeamLimited/k6-worker/output/globetest"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/output/globetest"
 )
 
 func createOutputs(
-	gs *globalState, test *workerLoadedAndConfiguredTest, executionPlan []lib.ExecutionStep,
-	workerInfo *lib.WorkerInfo) ([]output.Output, error) {
+	gs *globalState, test *workerLoadedAndConfiguredTest, executionPlan []libWorker.ExecutionStep,
+	workerInfo *libWorker.WorkerInfo) ([]output.Output, error) {
 	baseParams := output.Params{
 		ScriptPath:     test.source.URL,
 		Logger:         gs.logger,

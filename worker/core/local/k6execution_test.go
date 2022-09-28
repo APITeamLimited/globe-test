@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +68,7 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -77,11 +77,11 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options{})
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 	defer cancel()
 
 	type vuStat struct {
@@ -98,7 +98,7 @@ func TestExecutionInfoVUSharing(t *testing.T) {
 	}
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) }()
 
 	select {
 	case err := <-errCh:
@@ -181,7 +181,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -190,15 +190,15 @@ func TestExecutionInfoScenarioIter(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options{})
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) }()
 
 	scStats := map[string]uint64{}
 
@@ -263,7 +263,7 @@ func TestSharedIterationsStable(t *testing.T) {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
@@ -272,15 +272,15 @@ func TestSharedIterationsStable(t *testing.T) {
 			URL:  &url.URL{Path: "/script.js"},
 			Data: script,
 		},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options{})
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
+	go func() { errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) }()
 
 	expIters := [50]int64{}
 	for i := 0; i < 50; i++ {
@@ -398,7 +398,7 @@ func TestExecutionInfoAll(t *testing.T) {
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
-				&lib.TestPreInitState{
+				&libWorker.TestPreInitState{
 					Logger:         logger,
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
@@ -406,14 +406,14 @@ func TestExecutionInfoAll(t *testing.T) {
 				&loader.SourceData{
 					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				}, nil, lib.GetTestWorkerInfo())
+				}, nil, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options{})
+			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() { errCh <- execScheduler.Run(ctx, ctx, samples, lib.GetTestWorkerInfo()) }()
+			go func() { errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()) }()
 
 			select {
 			case err := <-errCh:

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
@@ -32,14 +32,14 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
 		if parsed["error"] != nil {
-			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
+			go libWorker.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
 		} else {
-			go lib.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
+			go libWorker.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
 		}
 		return
 	}
 
-	go lib.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
+	go libWorker.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
 
 	return origLen, err
 }
@@ -52,14 +52,14 @@ type workerLoadedTest struct {
 	fs             afero.Fs
 	pwd            string
 	fileSystems    map[string]afero.Fs
-	preInitState   *lib.TestPreInitState
-	initRunner     lib.Runner // TODO: rename to something more appropriate
+	preInitState   *libWorker.TestPreInitState
+	initRunner     libWorker.Runner // TODO: rename to something more appropriate
 	keyLogger      io.Closer
 }
 
 // Config ...
 type Config struct {
-	lib.Options
+	libWorker.Options
 
 	Out           []string  `json:"out" envconfig:"K6_OUT"`
 	Linger        null.Bool `json:"linger" envconfig:"K6_INGER"`

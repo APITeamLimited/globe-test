@@ -3,7 +3,7 @@ package worker
 /*
 Checks if any stored data is required for execution
 */
-/*func loadStoredData(gs *globalState, job map[string]string, fs afero.Fs, workerInfo *lib.WorkerInfo) error {
+/*func loadStoredData(gs *globalState, job map[string]string, fs afero.Fs, workerInfo *libWorker.WorkerInfo) error {
 	// Check if we have any stored data
 	storedData := job["storedData"]
 	if storedData == "" {

@@ -18,12 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/consts"
-	"github.com/APITeamLimited/k6-worker/lib/netext"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestInitContextRequire(t *testing.T) {
@@ -31,7 +31,7 @@ func TestInitContextRequire(t *testing.T) {
 	t.Run("Modules", func(t *testing.T) {
 		t.Run("Nonexistent", func(t *testing.T) {
 			t.Parallel()
-			_, err := getSimpleBundle(t, "/script.js", `import "k6/NONEXISTENT";`, lib.GetTestWorkerInfo())
+			_, err := getSimpleBundle(t, "/script.js", `import "k6/NONEXISTENT";`, libWorker.GetTestWorkerInfo())
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "unknown module: k6/NONEXISTENT")
 		})
@@ -44,10 +44,10 @@ func TestInitContextRequire(t *testing.T) {
 					export let _k6 = k6;
 					export let dummy = "abc123";
 					export default function() {}
-			`, lib.GetTestWorkerInfo())
+			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err, "bundle error")
 
-			bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+			bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 			assert.NoError(t, err, "instance error")
 
 			exports := bi.pgm.exports
@@ -70,10 +70,10 @@ func TestInitContextRequire(t *testing.T) {
 						export let _group = group;
 						export let dummy = "abc123";
 						export default function() {}
-				`, lib.GetTestWorkerInfo())
+				`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+			bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			exports := bi.pgm.exports
@@ -92,7 +92,7 @@ func TestInitContextRequire(t *testing.T) {
 		t.Run("Nonexistent", func(t *testing.T) {
 			t.Parallel()
 			path := filepath.FromSlash("/nonexistent.js")
-			_, err := getSimpleBundle(t, "/script.js", `import "/nonexistent.js"; export default function() {}`, lib.GetTestWorkerInfo())
+			_, err := getSimpleBundle(t, "/script.js", `import "/nonexistent.js"; export default function() {}`, libWorker.GetTestWorkerInfo())
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), fmt.Sprintf(`"%s" couldn't be found on local disk`, filepath.ToSlash(path)))
 		})
@@ -100,7 +100,7 @@ func TestInitContextRequire(t *testing.T) {
 			t.Parallel()
 			fs := afero.NewMemMapFs()
 			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte{0x00}, 0o755))
-			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, lib.GetTestWorkerInfo(), fs)
+			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "SyntaxError: file:///file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 		})
@@ -108,34 +108,34 @@ func TestInitContextRequire(t *testing.T) {
 			t.Parallel()
 			fs := afero.NewMemMapFs()
 			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0o755))
-			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, lib.GetTestWorkerInfo(), fs)
+			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 			assert.EqualError(t, err,
-				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat github.com/APITeamLimited/k6-worker/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n\tat native\n")
+				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat github.com/APITeamLimited/globe-test/worker/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n\tat native\n")
 		})
 
 		imports := map[string]struct {
 			LibPath    string
 			ConstPaths map[string]string
 		}{
-			"./lib.js": {"/path/to/lib.js", map[string]string{
+			"./libWorker.js": {"/path/to/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/const.js",
 				"../const.js":    "/path/const.js",
 				"./sub/const.js": "/path/to/sub/const.js",
 			}},
-			"../lib.js": {"/path/lib.js", map[string]string{
+			"../libWorker.js": {"/path/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/const.js",
 				"../const.js":    "/const.js",
 				"./sub/const.js": "/path/sub/const.js",
 			}},
-			"./dir/lib.js": {"/path/to/dir/lib.js", map[string]string{
+			"./dir/libWorker.js": {"/path/to/dir/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/dir/const.js",
 				"../const.js":    "/path/to/const.js",
 				"./sub/const.js": "/path/to/dir/sub/const.js",
 			}},
-			"/path/to/lib.js": {"/path/to/lib.js", map[string]string{
+			"/path/to/libWorker.js": {"/path/to/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/const.js",
 				"../const.js":    "/path/const.js",
@@ -177,13 +177,13 @@ func TestInitContextRequire(t *testing.T) {
 								let v = fn();
 								export default function() {};`,
 							libName)
-						b, err := getSimpleBundle(t, "/path/to/script.js", data, lib.GetTestWorkerInfo(), fs)
+						b, err := getSimpleBundle(t, "/path/to/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 						require.NoError(t, err)
 						if constPath != "" {
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						}
 
-						_, err = b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+						_, err = b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 						require.NoError(t, err)
 					})
 				}
@@ -204,10 +204,10 @@ func TestInitContextRequire(t *testing.T) {
 						throw new Error("myvar is set in global scope");
 					}
 				};`
-			b, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), fs)
+			b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+			bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			assert.NoError(t, err)
@@ -231,12 +231,12 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		}
 		export default function() {}
 	`, binary, file, expectedLength)
-	b, err := getSimpleBundle(t, "/path/to/script.js", data, lib.GetTestWorkerInfo(), fs)
+	b, err := getSimpleBundle(t, "/path/to/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	if err != nil {
 		return nil, err
 	}
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, libWorker.GetTestWorkerInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func TestInitContextOpen(t *testing.T) {
 	t.Run("Nonexistent", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.FromSlash("/nonexistent.txt")
-		_, err := getSimpleBundle(t, "/script.js", `open("/nonexistent.txt"); export default function() {}`, lib.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `open("/nonexistent.txt"); export default function() {}`, libWorker.GetTestWorkerInfo())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("open %s: file does not exist", path))
 	})
@@ -301,7 +301,7 @@ func TestInitContextOpen(t *testing.T) {
 		path := filepath.FromSlash("/some/dir")
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll(path, 0o755))
-		_, err := getSimpleBundle(t, "/script.js", `open("/some/dir"); export default function() {}`, lib.GetTestWorkerInfo(), fs)
+		_, err := getSimpleBundle(t, "/script.js", `open("/some/dir"); export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("open() can't be used with directories, path: %q", path))
 	})
@@ -349,13 +349,13 @@ func TestRequestWithBinaryFile(t *testing.T) {
 				var res = http.post("%s", data);
 				return true;
 			}
-			`, srv.URL), lib.GetTestWorkerInfo(), fs)
+			`, srv.URL), libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 
 	logger := logrus.New()
@@ -364,8 +364,8 @@ func TestRequestWithBinaryFile(t *testing.T) {
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	bi.moduleVUImpl.state = &lib.State{
-		Options: lib.Options{},
+	bi.moduleVUImpl.state = &libWorker.State{
+		Options: libWorker.Options{},
 		Logger:  logger,
 		Group:   root,
 		Transport: &http.Transport{
@@ -381,7 +381,7 @@ func TestRequestWithBinaryFile(t *testing.T) {
 		BPool:          bpool.NewBufferPool(1),
 		Samples:        make(chan metrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
-		Tags:           lib.NewTagMap(nil),
+		Tags:           libWorker.NewTagMap(nil),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -451,7 +451,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) {
 	}
 
 	// A more robust version of this polyfill is available here:
-	// https://jslib.k6.io/formdata/0.0.1/index.js
+	// https://jslibWorker.k6.io/formdata/0.0.1/index.js
 	function FormData() {
 		this.boundary = '----boundary';
 		this.files = [];
@@ -496,13 +496,13 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) {
 		}
 		return true;
 	}
-			`, srv.URL), lib.GetTestWorkerInfo(), fs)
+			`, srv.URL), libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	root, err := lib.NewGroup("", nil)
+	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 
 	logger := logrus.New()
@@ -511,8 +511,8 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) {
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	bi.moduleVUImpl.state = &lib.State{
-		Options: lib.Options{},
+	bi.moduleVUImpl.state = &libWorker.State{
+		Options: libWorker.Options{},
 		Logger:  logger,
 		Group:   root,
 		Transport: &http.Transport{
@@ -528,7 +528,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) {
 		BPool:          bpool.NewBufferPool(1),
 		Samples:        make(chan metrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
-		Tags:           lib.NewTagMap(nil),
+		Tags:           libWorker.NewTagMap(nil),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -548,9 +548,9 @@ func TestInitContextVU(t *testing.T) {
 	b, err := getSimpleBundle(t, "/script.js", `
 		let vu = __VU;
 		export default function() { return vu; }
-	`, lib.GetTestWorkerInfo())
+	`, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
-	bi, err := b.Instantiate(testutils.NewLogger(t), 5, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(testutils.NewLogger(t), 5, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
@@ -580,10 +580,10 @@ export default function(){
     console.log("in default")
 }
 `[1:]
-	b, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), fs)
+	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -611,10 +611,10 @@ export default function () {
 		l()
 };
 `[1:]
-	b, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), fs)
+	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -643,10 +643,10 @@ export default function () {
 		l()
 };
 `[1:]
-	b, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), fs)
+	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -674,10 +674,10 @@ export default function () {
 		l()
 };
 `[1:]
-	b, err := getSimpleBundle(t, "/script.js", data, lib.GetTestWorkerInfo(), fs)
+	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0, lib.GetTestWorkerInfo())
+	bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)

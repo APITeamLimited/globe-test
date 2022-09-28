@@ -13,7 +13,7 @@ import (
 
 	"github.com/tidwall/pretty"
 
-	"github.com/APITeamLimited/k6-worker/lib"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
 // fprint panics when where's an error writing to the supplied io.Writer
@@ -39,7 +39,7 @@ func fprintf(w io.Writer, format string, a ...interface{}) int {
 }
 
 // TODO: refactor this to have fewer parameters... or just refactor in general...
-func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (result string, convertErr error) {
+func Convert(h HAR, options libWorker.Options, minSleep, maxSleep uint, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (result string, convertErr error) {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 

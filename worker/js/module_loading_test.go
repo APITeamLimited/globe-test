@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func newDevNullSampleChannel() chan metrics.SampleContainer {
@@ -83,17 +83,17 @@ func TestLoadOnceGlobalVars(t *testing.T) {
 					throw new Error("A() != B()    (" + A() + ") != (" + B() + ")");
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 			require.NoError(t, err)
 
 			arc := r1.MakeArchive()
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-			r2, err := NewFromArchive(&lib.TestPreInitState{
+			r2, err := NewFromArchive(&libWorker.TestPreInitState{
 				Logger:         testutils.NewLogger(t),
 				BuiltinMetrics: builtinMetrics,
 				Registry:       registry,
-			}, arc, lib.GetTestWorkerInfo())
+			}, arc, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -103,11 +103,11 @@ func TestLoadOnceGlobalVars(t *testing.T) {
 					t.Parallel()
 					ch := newDevNullSampleChannel()
 					defer close(ch)
-					initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+					initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 					require.NoError(t, err)
 					err = vu.RunOnce()
 					require.NoError(t, err)
@@ -140,18 +140,18 @@ func TestLoadExportsIsUsableInModule(t *testing.T) {
 					throw new Error("wrong value of B() " + B());
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -161,10 +161,10 @@ func TestLoadExportsIsUsableInModule(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, err)
 			err = vu.RunOnce()
 			require.NoError(t, err)
@@ -194,19 +194,19 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) {
 					throw new Error("wrong status "+ resp.status);
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
-	require.NoError(t, r1.SetOptions(lib.Options{Hosts: tb.Dialer.Hosts}))
+	require.NoError(t, r1.SetOptions(libWorker.Options{Hosts: tb.Dialer.Hosts}))
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -216,11 +216,11 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -248,18 +248,18 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) {
 					throw new Error("wrong value of a " + a);
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -269,20 +269,20 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 
 			// run a second VU
-			initVU, err = r.NewVU(2, 2, ch, lib.GetTestWorkerInfo())
+			initVU, err = r.NewVU(2, 2, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel = context.WithCancel(context.Background())
 			defer cancel()
-			vu = initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu = initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -320,18 +320,18 @@ func TestLoadCycle(t *testing.T) {
 	`), os.ModePerm))
 	data, err := afero.ReadFile(fs, "/main.js")
 	require.NoError(t, err)
-	r1, err := getSimpleRunner(t, "/main.js", string(data), fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+	r1, err := getSimpleRunner(t, "/main.js", string(data), fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -341,11 +341,11 @@ func TestLoadCycle(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -390,18 +390,18 @@ func TestLoadCycleBinding(t *testing.T) {
 					throw new Error("Wrong value of bar() "+ barMessage);
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -411,11 +411,11 @@ func TestLoadCycleBinding(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -462,18 +462,18 @@ func TestBrowserified(t *testing.T) {
 					throw new Error("bravo.B() != 'b'    (" + bravo.B() + ") != 'b'");
 				}
 			}
-		`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+		`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -483,11 +483,11 @@ func TestBrowserified(t *testing.T) {
 			t.Parallel()
 			ch := make(chan metrics.SampleContainer, 100)
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -515,16 +515,16 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) {
 	arc := r1.MakeArchive()
 	buf := &bytes.Buffer{}
 	require.NoError(t, arc.Write(buf))
-	arc, err = lib.ReadArchive(buf)
+	arc, err = libWorker.ReadArchive(buf)
 	require.NoError(t, err)
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -534,11 +534,11 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -557,16 +557,16 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) {
 	arc := r1.MakeArchive()
 	buf := &bytes.Buffer{}
 	require.NoError(t, arc.Write(buf))
-	arc, err = lib.ReadArchive(buf)
+	arc, err = libWorker.ReadArchive(buf)
 	require.NoError(t, err)
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		}, arc, lib.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -576,11 +576,11 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 		})
@@ -616,17 +616,17 @@ func TestOptionsAreGloballyReadable(t *testing.T) {
             if (!caught) {
                 throw "expected exception"
             }
-        } `, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+        } `, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	r2, err := NewFromArchive(&lib.TestPreInitState{
+	r2, err := NewFromArchive(&libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,
 		Registry:       registry,
-	}, arc, lib.GetTestWorkerInfo())
+	}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	runners := map[string]*Runner{"Source": r1, "Archive": r2}
@@ -636,11 +636,11 @@ func TestOptionsAreGloballyReadable(t *testing.T) {
 			t.Parallel()
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			initVU, err := r.NewVU(1, 1, ch, lib.GetTestWorkerInfo())
+			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, err)
 			err = vu.RunOnce()
 			require.NoError(t, err)
@@ -673,7 +673,7 @@ func TestOptionsAreNotGloballyWritable(t *testing.T) {
 
     if (!caught) {
         throw "expected exception"
-    }`, fs, lib.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
+    }`, fs, libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")})
 	require.NoError(t, err)
 
 	// here it exists
@@ -681,11 +681,11 @@ func TestOptionsAreNotGloballyWritable(t *testing.T) {
 	arc := r1.MakeArchive()
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	r2, err := NewFromArchive(&lib.TestPreInitState{
+	r2, err := NewFromArchive(&libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,
 		Registry:       registry,
-	}, arc, lib.GetTestWorkerInfo())
+	}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	require.EqualValues(t, time.Minute*5, r2.GetOptions().MinIterationDuration.Duration)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/APITeamLimited/k6-worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/dop251/goja"
 )
 

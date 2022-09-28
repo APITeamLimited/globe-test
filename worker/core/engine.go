@@ -8,11 +8,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/APITeamLimited/k6-worker/errext"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/metrics"
-	"github.com/APITeamLimited/k6-worker/metrics/engine"
-	"github.com/APITeamLimited/k6-worker/output"
+	"github.com/APITeamLimited/globe-test/worker/errext"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics/engine"
+	"github.com/APITeamLimited/globe-test/worker/output"
 )
 
 const (
@@ -32,11 +32,11 @@ type Engine struct {
 
 	// TODO: completely remove the engine and use all of these separately, in a
 	// much more composable and testable manner
-	ExecutionScheduler lib.ExecutionScheduler
+	ExecutionScheduler libWorker.ExecutionScheduler
 	MetricsEngine      *engine.MetricsEngine
 	OutputManager      *output.Manager
 
-	runtimeOptions lib.RuntimeOptions
+	runtimeOptions libWorker.RuntimeOptions
 
 	ingester output.Output
 
@@ -52,7 +52,7 @@ type Engine struct {
 }
 
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
-func NewEngine(testState *lib.TestRunState, ex lib.ExecutionScheduler, outputs []output.Output) (*Engine, error) {
+func NewEngine(testState *libWorker.TestRunState, ex libWorker.ExecutionScheduler, outputs []output.Output) (*Engine, error) {
 	if ex == nil {
 		return nil, errors.New("missing ExecutionScheduler instance")
 	}
@@ -101,7 +101,7 @@ func NewEngine(testState *lib.TestRunState, ex lib.ExecutionScheduler, outputs [
 //   - Stopping the metrics collection can be done at any time after Run() has
 //     returned by cancelling the globalCtx
 //   - The second returned lambda can be used to wait for that process to finish.
-func (e *Engine) Init(globalCtx, runCtx context.Context, workerInfo *lib.WorkerInfo) (run func() error, wait func(), err error) {
+func (e *Engine) Init(globalCtx, runCtx context.Context, workerInfo *libWorker.WorkerInfo) (run func() error, wait func(), err error) {
 	e.logger.Debug("Initialization starting...")
 	// TODO: if we ever need metrics processing in the init context, we can move
 	// this below the other components... or even start them concurrently?
@@ -174,27 +174,27 @@ func (e *Engine) startBackgroundProcesses(
 				var serr errext.Exception
 				switch {
 				case errors.As(err, &serr):
-					e.OutputManager.SetRunStatus(lib.RunStatusAbortedScriptError)
+					e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedScriptError)
 				case errext.IsInterruptError(err):
-					e.OutputManager.SetRunStatus(lib.RunStatusAbortedUser)
+					e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedUser)
 				default:
-					e.OutputManager.SetRunStatus(lib.RunStatusAbortedSystem)
+					e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedSystem)
 				}
 			} else {
 				e.logger.Debug("run: execution scheduler terminated")
-				e.OutputManager.SetRunStatus(lib.RunStatusFinished)
+				e.OutputManager.SetRunStatus(libWorker.RunStatusFinished)
 			}
 		case <-runCtx.Done():
 			e.logger.Debug("run: context expired; exiting...")
-			e.OutputManager.SetRunStatus(lib.RunStatusAbortedUser)
+			e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedUser)
 		case <-e.stopChan:
 			runSubCancel()
 			e.logger.Debug("run: stopped by user; exiting...")
-			e.OutputManager.SetRunStatus(lib.RunStatusAbortedUser)
+			e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedUser)
 		case <-thresholdAbortChan:
 			e.logger.Debug("run: stopped by thresholds; exiting...")
 			runSubCancel()
-			e.OutputManager.SetRunStatus(lib.RunStatusAbortedThreshold)
+			e.OutputManager.SetRunStatus(libWorker.RunStatusAbortedThreshold)
 		}
 	}()
 

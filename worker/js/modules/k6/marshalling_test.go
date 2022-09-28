@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/js"
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
-	"github.com/APITeamLimited/k6-worker/lib/testutils/httpmultibin"
-	"github.com/APITeamLimited/k6-worker/lib/types"
-	"github.com/APITeamLimited/k6-worker/loader"
-	"github.com/APITeamLimited/k6-worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/js"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestSetupDataMarshalling(t *testing.T) {
@@ -99,19 +99,19 @@ func TestSetupDataMarshalling(t *testing.T) {
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 		},
 
 		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
-		nil, lib.GetTestWorkerInfo(),
+		nil, libWorker.GetTestWorkerInfo(),
 	)
 
 	require.NoError(t, err)
 
-	err = runner.SetOptions(lib.Options{
+	err = runner.SetOptions(libWorker.Options{
 		SetupTimeout: types.NullDurationFrom(5 * time.Second),
 		Hosts:        tb.Dialer.Hosts,
 	})
@@ -125,9 +125,9 @@ func TestSetupDataMarshalling(t *testing.T) {
 	if !assert.NoError(t, runner.Setup(ctx, samples)) {
 		return
 	}
-	initVU, err := runner.NewVU(1, 1, samples, lib.GetTestWorkerInfo())
+	initVU, err := runner.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 	if assert.NoError(t, err) {
-		vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+		vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 		err := vu.RunOnce()
 		assert.NoError(t, err)
 	}

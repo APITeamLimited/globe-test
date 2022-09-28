@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/APITeamLimited/k6-worker/lib"
-	"github.com/APITeamLimited/k6-worker/lib/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 )
 
 func TestTransform(t *testing.T) {
@@ -104,7 +104,7 @@ func TestCompile(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		src := `1+(function() { return 2; )()`
-		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
+		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		_, _, err := c.Compile(src, "script.js", false)
 		assert.IsType(t, &goja.Exception{}, err)
 		assert.Contains(t, err.Error(), `SyntaxError: script.js: Unexpected token (1:26)
@@ -113,7 +113,7 @@ func TestCompile(t *testing.T) {
 	t.Run("ES6", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
+		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		pgm, code, err := c.Compile(`import "something"`, "script.js", true)
 		require.NoError(t, err)
 		assert.Equal(t, `"use strict";require("something");`,
@@ -132,7 +132,7 @@ func TestCompile(t *testing.T) {
 	t.Run("Wrap", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
+		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		pgm, code, err := c.Compile(`import "something";`, "script.js", false)
 		require.NoError(t, err)
 		assert.Equal(t, `(function(module, exports){
@@ -157,7 +157,7 @@ func TestCompile(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		c.Options.CompatibilityMode = lib.CompatibilityModeExtended
+		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		_, _, err := c.Compile(`1+(=>2)()`, "script.js", true)
 		assert.IsType(t, &goja.Exception{}, err)
 		assert.Contains(t, err.Error(), `SyntaxError: script.js: Unexpected token (1:3)
@@ -210,7 +210,7 @@ func TestCorruptSourceMapOnlyForBabel(t *testing.T) {
 
 	compiler := New(logger)
 	compiler.Options = Options{
-		CompatibilityMode: lib.CompatibilityModeExtended,
+		CompatibilityMode: libWorker.CompatibilityModeExtended,
 		Strict:            true,
 		SourceMapLoader: func(string) ([]byte, error) {
 			return corruptSourceMap, nil
@@ -242,7 +242,7 @@ func TestMinimalSourceMap(t *testing.T) {
 
 	compiler := New(logger)
 	compiler.Options = Options{
-		CompatibilityMode: lib.CompatibilityModeExtended,
+		CompatibilityMode: libWorker.CompatibilityModeExtended,
 		Strict:            true,
 		SourceMapLoader: func(string) ([]byte, error) {
 			return corruptSourceMap, nil
