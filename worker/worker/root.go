@@ -21,10 +21,8 @@ const (
 // globalFlags contains global config values that apply for all k6 sub-commands.
 type globalFlags struct {
 	configFilePath string
-	noColor        bool
 	address        string
 	logOutput      string
-	logFormat      string
 }
 
 // globalState contains the globalFlags and accessors for most of the global
@@ -96,7 +94,7 @@ func newGlobalState(ctx context.Context, client *redis.Client, jobId string, wor
 		args:           []string{},
 		envVars:        envVars,
 		defaultFlags:   defaultFlags,
-		flags:          getFlags(defaultFlags, envVars),
+		flags:          defaultFlags,
 		stdOut:         redisStdOut,
 		stdErr:         redisStdErr,
 		stdIn:          os.Stdin,
@@ -114,30 +112,4 @@ func getDefaultFlags(homeFolder string) globalFlags {
 		configFilePath: filepath.Join(homeFolder, "loadimpact", "k6", defaultConfigFileName),
 		logOutput:      "stderr",
 	}
-}
-
-func getFlags(defaultFlags globalFlags, env map[string]string) globalFlags {
-	result := defaultFlags
-
-	// TODO: add env vars for the rest of the values (after adjusting
-	// rootCmdPersistentFlagSet(), of course)
-
-	if val, ok := env["K6_CONFIG"]; ok {
-		result.configFilePath = val
-	}
-	if val, ok := env["K6_LOG_OUTPUT"]; ok {
-		result.logOutput = val
-	}
-	if val, ok := env["K6_LOG_FORMAT"]; ok {
-		result.logFormat = val
-	}
-	if env["K6_NO_COLOR"] != "" {
-		result.noColor = true
-	}
-	// Support https://no-color.org/, even an empty value should disable the
-	// color output from k6.
-	if _, ok := env["NO_COLOR"]; ok {
-		result.noColor = true
-	}
-	return result
 }

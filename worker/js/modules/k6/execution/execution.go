@@ -259,33 +259,11 @@ func optionsAsObject(rt *goja.Runtime, options libWorker.Options) (*goja.Object,
 			common.Throw(rt, delErr)
 		}
 	}
-	mustSetReadOnlyProperty := func(k string, v interface{}) {
-		defErr := obj.DefineDataProperty(k, rt.ToValue(v), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
-		if err != nil {
-			common.Throw(rt, defErr)
-		}
-	}
 
 	mustDelete("vus")
 	mustDelete("iterations")
 	mustDelete("duration")
 	mustDelete("stages")
-
-	consoleOutput := goja.Null()
-	if options.ConsoleOutput.Valid {
-		consoleOutput = rt.ToValue(options.ConsoleOutput.String)
-	}
-	mustSetReadOnlyProperty("consoleOutput", consoleOutput)
-
-	localIPs := goja.Null()
-	if options.LocalIPs.Valid {
-		raw, marshalErr := options.LocalIPs.MarshalText()
-		if err != nil {
-			common.Throw(rt, marshalErr)
-		}
-		localIPs = rt.ToValue(string(raw))
-	}
-	mustSetReadOnlyProperty("localIPs", localIPs)
 
 	err = common.FreezeObject(rt, obj)
 	if err != nil {

@@ -57,14 +57,14 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
 		if parsed["error"] != nil {
-			go HandleStringError(w.ctx, w.client, w.jobId, w.orchestratorId, parsed["error"].(string))
+			HandleStringError(w.ctx, w.client, w.jobId, w.orchestratorId, parsed["error"].(string))
 		} else {
-			go HandleStringError(w.ctx, w.client, w.jobId, w.orchestratorId, parsed["msg"].(string))
+			HandleStringError(w.ctx, w.client, w.jobId, w.orchestratorId, parsed["msg"].(string))
 		}
 		return
 	}
 
-	go DispatchMessage(w.ctx, w.client, w.jobId, w.orchestratorId, string(p), "STDOUT")
+	DispatchMessage(w.ctx, w.client, w.jobId, w.orchestratorId, string(p), "STDOUT")
 
 	return origLen, err
 }

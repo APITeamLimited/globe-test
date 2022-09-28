@@ -67,7 +67,6 @@ func summarizeMetricsToObject(data *libWorker.Summary, options libWorker.Options
 		// TODO: improve when we can easily export all option values, including defaults?
 		"summaryTrendStats": options.SummaryTrendStats,
 		"summaryTimeUnit":   options.SummaryTimeUnit.String,
-		"noColor":           data.NoColor, // TODO: move to the (runtime) options
 	}
 	m["state"] = map[string]interface{}{
 		"isStdOutTTY":       data.UIState.IsStdOutTTY,

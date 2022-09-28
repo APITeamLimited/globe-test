@@ -1,0 +1,103 @@
+package options
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/orchestrator/options/validators"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+)
+
+// Import script to determine options on the orchestrator
+func DetermineRuntimeOptions(job map[string]string, gs *libOrch.GlobalState) (*libWorker.Options, error) {
+	options, err := getCompiledOptions(job, gs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prevent the user from accessing internal ip ranges
+	localhostIPNets := generateBannedIPNets()
+
+	// validate the options
+
+	validators.BlacklistIPs(options, localhostIPNets)
+
+	err = validators.Batch(options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validators.BatchPerHost(options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validators.Duration(options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validators.Hosts(options, localhostIPNets)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validators.MinIterationDuration(options)
+	if err != nil {
+		return nil, err
+	}
+
+	validators.InsecureSkipTLSVerify(options)
+
+	err = validators.TeardownTimeout(options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the generated and user supplied options are valid
+	checkedOptions, err := executor.DeriveScenariosFromShortcuts(applyDefault(options), gs.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	marshalledOptions, err := json.Marshal(checkedOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(string(marshalledOptions))
+
+	return &checkedOptions, nil
+}
+
+func applyDefault(options *libWorker.Options) libWorker.Options {
+	if options.SystemTags == nil {
+		options.SystemTags = &metrics.DefaultSystemTagSet
+	}
+	if options.SummaryTrendStats == nil {
+		options.SummaryTrendStats = libWorker.DefaultSummaryTrendStats
+	}
+	defDNS := types.DefaultDNSConfig()
+	if !options.DNS.TTL.Valid {
+		options.DNS.TTL = defDNS.TTL
+	}
+	if !options.DNS.Select.Valid {
+		options.DNS.Select = defDNS.Select
+	}
+	if !options.DNS.Policy.Valid {
+		options.DNS.Policy = defDNS.Policy
+	}
+	if !options.SetupTimeout.Valid {
+		options.SetupTimeout.Duration = types.Duration(60 * time.Second)
+	}
+	if !options.TeardownTimeout.Valid {
+		options.TeardownTimeout.Duration = types.Duration(60 * time.Second)
+	}
+
+	return *options
+}

@@ -144,13 +144,6 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 		BlockedHostnames: r.Bundle.Options.BlockedHostnames.Trie,
 		Hosts:            r.Bundle.Options.Hosts,
 	}
-	if r.Bundle.Options.LocalIPs.Valid {
-		var ipIndex uint64
-		if idLocal > 0 {
-			ipIndex = idLocal - 1
-		}
-		dialer.Dialer.LocalAddr = &net.TCPAddr{IP: r.Bundle.Options.LocalIPs.Pool.GetIP(ipIndex)}
-	}
 
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool, //nolint:gosec
@@ -400,17 +393,6 @@ func (r *Runner) SetOptions(opts libWorker.Options) error {
 	r.RPSLimit = nil
 	if rps := opts.RPS; rps.Valid && rps.Int64 > 0 {
 		r.RPSLimit = rate.NewLimiter(rate.Limit(rps.Int64), 1)
-	}
-
-	// TODO: validate that all exec values are either nil or valid exported methods (or HTTP requests in the future)
-
-	if opts.ConsoleOutput.Valid {
-		c, err := newFileConsole(opts.ConsoleOutput.String, r.preInitState.Logger.Formatter)
-		if err != nil {
-			return err
-		}
-
-		r.console = c
 	}
 
 	// FIXME: Resolver probably shouldn't be reset here...

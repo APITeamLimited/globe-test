@@ -402,12 +402,6 @@ type Options struct {
 
 	// Discard Http Responses Body
 	DiscardResponseBodies null.Bool `json:"discardResponseBodies" envconfig:"K6_DISCARD_RESPONSE_BODIES"`
-
-	// Redirect console logging to a file
-	ConsoleOutput null.String `json:"-" envconfig:"K6_CONSOLE_OUTPUT"`
-
-	// Specify client IP ranges and/or CIDR from which VUs will make requests
-	LocalIPs types.NullIPPool `json:"-" envconfig:"K6_LOCAL_IPS"`
 }
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -555,12 +549,6 @@ func (o Options) Apply(opts Options) Options {
 	}
 	if opts.DiscardResponseBodies.Valid {
 		o.DiscardResponseBodies = opts.DiscardResponseBodies
-	}
-	if opts.ConsoleOutput.Valid {
-		o.ConsoleOutput = opts.ConsoleOutput
-	}
-	if opts.LocalIPs.Valid {
-		o.LocalIPs = opts.LocalIPs
 	}
 	if opts.DNS.TTL.Valid {
 		o.DNS.TTL = opts.DNS.TTL

@@ -10,17 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/metrics"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 )
@@ -71,7 +67,6 @@ func loadAndConfigureTest(
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
 		NoThresholds:         null.BoolFrom(false),
-		NoSummary:            null.BoolFrom(false),
 		SummaryExport:        null.StringFrom(""),
 		Env:                  make(map[string]string),
 	}
@@ -150,7 +145,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	var redisOptions = libWorker.Options{}
 
 	if job["options"] == "" {
-		return nil, fmt.Errorf("options not found on job, this is probably a bug")
+		return nil, fmt.Errorf("unexpected error, options not found on job")
 	}
 
 	err := json.Unmarshal([]byte(job["options"]), &redisOptions)
@@ -158,9 +153,9 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		return nil, fmt.Errorf("could not parse options: %w", err)
 	}
 
-	consolidatedConfig := getConsolidatedConfig(redisOptions)
-
-	// TODO: get other config sources eg
+	consolidatedConfig := Config{
+		Options: redisOptions,
+	}
 
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
@@ -179,36 +174,22 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		}
 	}
 
-	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable, gs.logger)
+	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable)
 	if err != nil {
 		return nil, err
 	}
 
 	return &workerLoadedAndConfiguredTest{
-		workerLoadedTest:   lt,
-		consolidatedConfig: consolidatedConfig,
-		derivedConfig:      derivedConfig,
+		workerLoadedTest: lt,
+		derivedConfig:    derivedConfig,
 	}, nil
 }
 
-func getConsolidatedConfig(parsedOptions libWorker.Options) Config {
-	consolidatedConfig := Config{
-		Options: parsedOptions,
-	}
-
-	consolidatedConfig = applyDefault(consolidatedConfig)
-
-	return consolidatedConfig
-}
-
 func deriveAndValidateConfig(
-	conf Config, isExecutable func(string) bool, logger logrus.FieldLogger,
+	conf Config, isExecutable func(string) bool,
 ) (result Config, err error) {
 	result = conf
-	result.Options, err = executor.DeriveScenariosFromShortcuts(conf.Options, logger)
-	if err == nil {
-		err = validateConfig(result, isExecutable)
-	}
+	err = validateConfig(result, isExecutable)
 	return result, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 }
 
@@ -243,47 +224,4 @@ func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(str
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
 	}
 	return nil
-}
-
-func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
-	configToReinject libWorker.Options,
-) (*libWorker.TestRunState, error) {
-	// This might be the full derived or just the consolidated options
-	if err := lct.initRunner.SetOptions(configToReinject); err != nil {
-		return nil, err
-	}
-
-	// TODO: init atlas root worker, etc.
-
-	return &libWorker.TestRunState{
-		TestPreInitState: lct.preInitState,
-		Runner:           lct.initRunner,
-		Options:          lct.derivedConfig.Options, // we will always run with the derived options
-	}, nil
-}
-
-func applyDefault(conf Config) Config {
-	if conf.SystemTags == nil {
-		conf.SystemTags = &metrics.DefaultSystemTagSet
-	}
-	if conf.SummaryTrendStats == nil {
-		conf.SummaryTrendStats = libWorker.DefaultSummaryTrendStats
-	}
-	defDNS := types.DefaultDNSConfig()
-	if !conf.DNS.TTL.Valid {
-		conf.DNS.TTL = defDNS.TTL
-	}
-	if !conf.DNS.Select.Valid {
-		conf.DNS.Select = defDNS.Select
-	}
-	if !conf.DNS.Policy.Valid {
-		conf.DNS.Policy = defDNS.Policy
-	}
-	if !conf.SetupTimeout.Valid {
-		conf.SetupTimeout.Duration = types.Duration(60 * time.Second)
-	}
-	if !conf.TeardownTimeout.Valid {
-		conf.TeardownTimeout.Duration = types.Duration(60 * time.Second)
-	}
-	return conf
 }

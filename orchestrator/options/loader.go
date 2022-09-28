@@ -1,9 +1,7 @@
-package orchestrator
+package options
 
 import (
 	"errors"
-	"fmt"
-	"net"
 	"net/url"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -15,62 +13,13 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-// Import script to determine options on the orchestrator
-func determineRuntimeOptions(job map[string]string, gs *libOrch.GlobalState) (*libWorker.Options, error) {
+func getCompiledOptions(job map[string]string, gs *libOrch.GlobalState) (*libWorker.Options, error) {
 	source, sourceName, err := validateSource(job, gs)
 	if err != nil {
 		return nil, err
 	}
 
-	options, err := compileAndGetOptions(source, sourceName, gs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Prevent the user from accessing loopback ranges
-
-	localhostIPNets := make([]*net.IPNet, 0, 4)
-
-	localhostIPNets = append(localhostIPNets, &net.IPNet{
-		IP:   net.IPv4(10, 0, 0, 0),
-		Mask: net.IPv4Mask(255, 0, 0, 0),
-	})
-
-	localhostIPNets = append(localhostIPNets, &net.IPNet{
-		IP:   net.IPv4(172, 16, 0, 0),
-		Mask: net.IPv4Mask(255, 240, 0, 0),
-	})
-
-	localhostIPNets = append(localhostIPNets, &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.IPv4Mask(255, 255, 0, 0),
-	})
-
-	localhostIPNets = append(localhostIPNets, &net.IPNet{
-		IP:   net.IPv6loopback,
-		Mask: net.CIDRMask(128, 128),
-	})
-
-	for _, ip := range options.Hosts {
-		for _, localhostIPNet := range localhostIPNets {
-			netIp := net.ParseIP(string(ip.IP))
-			if netIp != nil && localhostIPNet.Contains(netIp) {
-				return nil, fmt.Errorf("invalid host %s", ip)
-			}
-		}
-	}
-
-	// Add to blacklist
-	for _, ipNet := range localhostIPNets {
-		// Blacklist ips takes a struct
-		ipStruct := &libWorker.IPNet{
-			IPNet: *ipNet,
-		}
-
-		options.BlacklistIPs = append(options.BlacklistIPs, ipStruct)
-	}
-
-	return options, nil
+	return compileAndGetOptions(source, sourceName, gs)
 }
 
 func validateSource(job map[string]string, gs *libOrch.GlobalState) (string, string, error) {
@@ -108,7 +57,6 @@ func compileAndGetOptions(source string, sourceName string, gs *libOrch.GlobalSt
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
 		NoThresholds:         null.BoolFrom(false),
-		NoSummary:            null.BoolFrom(false),
 		SummaryExport:        null.StringFrom(""),
 		Env:                  make(map[string]string),
 	}

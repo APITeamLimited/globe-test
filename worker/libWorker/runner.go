@@ -94,6 +94,5 @@ type Summary struct {
 	Metrics         map[string]*metrics.Metric `json:"metrics"`
 	RootGroup       *Group                     `json:"rootGroup"`
 	TestRunDuration time.Duration              `json:"testRunDuration"`
-	NoColor         bool                       `json:"noColor"`
 	UIState         UIState                    `json:"uiState"`
 }

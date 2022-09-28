@@ -4,33 +4,9 @@
 package output
 
 import (
-	"encoding/json"
-	"io"
-	"net/url"
-
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
-
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
-
-// Params contains all possible constructor parameters an output may need.
-type Params struct {
-	OutputType     string // --out $OutputType=$ConfigArgument, K6_OUT="$OutputType=$ConfigArgument"
-	ConfigArgument string
-	JSONConfig     json.RawMessage
-
-	Logger         logrus.FieldLogger
-	Environment    map[string]string
-	StdOut         io.Writer
-	StdErr         io.Writer
-	FS             afero.Fs
-	ScriptPath     *url.URL
-	ScriptOptions  libWorker.Options
-	RuntimeOptions libWorker.RuntimeOptions
-	ExecutionPlan  []libWorker.ExecutionStep
-}
 
 // TODO: make v2 with buffered channels?
 

@@ -18,15 +18,13 @@ type Output struct {
 
 	periodicFlusher *output.PeriodicFlusher
 
-	params      output.Params
 	workerInfo  *libWorker.WorkerInfo
 	seenMetrics map[string]struct{}
 	thresholds  map[string]metrics.Thresholds
 }
 
-func New(params output.Params, workerInfo *libWorker.WorkerInfo) (output.Output, error) {
+func New(workerInfo *libWorker.WorkerInfo) (output.Output, error) {
 	return &Output{
-		params:      params,
 		workerInfo:  workerInfo,
 		seenMetrics: make(map[string]struct{}),
 	}, nil

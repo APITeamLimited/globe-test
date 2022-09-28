@@ -13,7 +13,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -33,10 +32,6 @@ func handleExecution(ctx context.Context,
 		return
 	}
 
-	globalState.logger.WithFields(logrus.Fields{
-		"workerId": workerId,
-		"jobId":    job["id"],
-	}).Info("Loaded worker info")
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)
 	if err != nil {
 		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
@@ -59,16 +54,12 @@ func handleExecution(ctx context.Context,
 	//    and can trigger things like the usage report and end of test summary.
 	//    Crucially, metrics processing by the Engine will still work after this
 	//    context is cancelled!
-	//  - The lingerCtx is cancelled by Ctrl+C, and is used to wait for that
-	//    event when k6 was ran with the --linger option.
 	//  - The globalCtx is cancelled only after we're completely done with the
-	//    test execution and any --linger has been cleared, so that the Engine
-	//    can start winding down its metrics processing.
+	//    test execution, so that the Engine  can start winding down its metrics
+	//    processing.
 	globalCtx, globalCancel := context.WithCancel(ctx)
 	defer globalCancel()
-	lingerCtx, lingerCancel := context.WithCancel(globalCtx)
-	defer lingerCancel()
-	runCtx, runCancel := context.WithCancel(lingerCtx)
+	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
@@ -78,17 +69,12 @@ func handleExecution(ctx context.Context,
 	}
 
 	// Create all outputs.
-	executionPlan := execScheduler.GetExecutionPlan()
-	outputs, err := createOutputs(globalState, test, executionPlan, workerInfo)
+	outputs, err := createOutputs(workerInfo)
 	if err != nil {
 		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return
 	}
 
-	// TODO: create a MetricsEngine here and add its ingester to the list of
-	// outputs (unless both NoThresholds and NoSummary were enabled)
-
-	// TODO: remove this completely
 	// Create the engine.
 	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
@@ -108,7 +94,6 @@ func handleExecution(ctx context.Context,
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	gracefulStop := func(sig os.Signal) {
 		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
-		lingerCancel() // stop the test run, metric processing is cancelled below
 	}
 	onHardStop := func(sig os.Signal) {
 		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
@@ -134,11 +119,9 @@ func handleExecution(ctx context.Context,
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		if errext.IsInterruptError(err) {
-			// Don't return here since we need to work with --linger,
-			// show the end-of-test summary and exit cleanly.
 			interrupt = err
 		}
-		if !test.derivedConfig.Linger.Bool && interrupt == nil {
+		if interrupt == nil {
 			fmt.Println(errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		}
 	}
@@ -151,21 +134,18 @@ func handleExecution(ctx context.Context,
 		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	}
 
-	// Handle the end-of-test summary.
-	if !testRunState.RuntimeOptions.NoSummary.Bool {
-		engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-		marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary{
-			Metrics:         engine.MetricsEngine.ObservedMetrics,
-			RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
-			TestRunDuration: executionState.GetCurrentTestRunDuration(),
-		})
-		engine.MetricsEngine.MetricsLock.Unlock()
+	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
+	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary{
+		Metrics:         engine.MetricsEngine.ObservedMetrics,
+		RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
+		TestRunDuration: executionState.GetCurrentTestRunDuration(),
+	})
+	engine.MetricsEngine.MetricsLock.Unlock()
 
-		if err == nil {
-			go libWorker.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
-		} else {
-			go libWorker.HandleError(ctx, client, job["id"], workerId, err)
-		}
+	if err == nil {
+		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
+	} else {
+		go libWorker.HandleError(ctx, client, job["id"], workerId, err)
 	}
 
 	libWorker.UpdateStatus(ctx, client, job["id"], workerId, "SUCCESS")
@@ -181,4 +161,21 @@ func handleExecution(ctx context.Context,
 		go libWorker.HandleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return
 	}
+}
+
+func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
+	configToReinject libWorker.Options,
+) (*libWorker.TestRunState, error) {
+	// This might be the full derived or just the consolidated options
+	if err := lct.initRunner.SetOptions(configToReinject); err != nil {
+		return nil, err
+	}
+
+	// TODO: init atlas root worker, etc.
+
+	return &libWorker.TestRunState{
+		TestPreInitState: lct.preInitState,
+		Runner:           lct.initRunner,
+		Options:          lct.derivedConfig.Options, // we will always run with the derived options
+	}, nil
 }
