@@ -371,8 +371,7 @@ const expectedHandleSummaryRawData = `
             "p(99)",
             "count"
         ],
-        "summaryTimeUnit": "",
-        "noColor": false
+        "summaryTimeUnit": ""
     ***REMOVED***,
     "state": ***REMOVED***
         "isStdErrTTY": false,
@@ -488,8 +487,7 @@ const expectedHandleSummaryDataWithSetup = `
             "p(99)",
             "count"
             ],
-            "summaryTimeUnit": "",
-            "noColor": false
+            "summaryTimeUnit": ""
         ***REMOVED***,
         "state": ***REMOVED***
             "isStdErrTTY": false,

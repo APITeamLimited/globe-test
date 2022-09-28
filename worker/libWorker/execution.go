@@ -371,7 +371,7 @@ func (es *ExecutionState) SetExecutionStatus(newStatus ExecutionStatus) (oldStat
 
 // GetCurrentExecutionStatus returns the current execution status. Don't use
 // this for synchronization unless you've made the k6 behavior somewhat
-// predictable with options like --paused or --linger.
+// predictable with options like --paused.
 func (es *ExecutionState) GetCurrentExecutionStatus() ExecutionStatus ***REMOVED***
 	return ExecutionStatus(atomic.LoadUint32(es.executionStatus))
 ***REMOVED***

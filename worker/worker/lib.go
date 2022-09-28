@@ -9,7 +9,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/spf13/afero"
-	"gopkg.in/guregu/null.v3"
 )
 
 type consoleWriter struct ***REMOVED***
@@ -61,9 +60,7 @@ type workerLoadedTest struct ***REMOVED***
 type Config struct ***REMOVED***
 	libWorker.Options
 
-	Out           []string  `json:"out" envconfig:"K6_OUT"`
-	Linger        null.Bool `json:"linger" envconfig:"K6_INGER"`
-	NoUsageReport null.Bool `json:"noUsageReport" envconfig:"K6_NO_USAGE_REPORT"`
+	Out []string `json:"out" envconfig:"K6_OUT"`
 
 	// TODO: deprecate
 	Collectors map[string]json.RawMessage `json:"collectors"`
@@ -73,8 +70,7 @@ type Config struct ***REMOVED***
 // consolidated test config and the full test run state.
 type workerLoadedAndConfiguredTest struct ***REMOVED***
 	*workerLoadedTest
-	consolidatedConfig Config
-	derivedConfig      Config
+	derivedConfig Config
 ***REMOVED***
 
 const testTypeJS = "js"

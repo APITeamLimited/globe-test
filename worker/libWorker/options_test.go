@@ -613,11 +613,6 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"true":  null.BoolFrom(true),
 			"false": null.BoolFrom(false),
 		***REMOVED***,
-		***REMOVED***"NoTeardown", "K6_NO_TEARDOWN"***REMOVED***: ***REMOVED***
-			"":      null.Bool***REMOVED******REMOVED***,
-			"true":  null.BoolFrom(true),
-			"false": null.BoolFrom(false),
-		***REMOVED***,
 		***REMOVED***"InsecureSkipTLSVerify", "K6_INSECURE_SKIP_TLS_VERIFY"***REMOVED***: ***REMOVED***
 			"":      null.Bool***REMOVED******REMOVED***,
 			"true":  null.BoolFrom(true),

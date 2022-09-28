@@ -73,6 +73,7 @@ func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 
 	// Update main job
 	updatesKey := fmt.Sprintf("%s:updates", jobId)
+
 	client.SAdd(ctx, updatesKey, messageJson)
 
 	// Dispatch to channel

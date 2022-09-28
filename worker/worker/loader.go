@@ -10,17 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/metrics"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 )
@@ -71,7 +67,6 @@ func loadAndConfigureTest(
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
 		NoThresholds:         null.BoolFrom(false),
-		NoSummary:            null.BoolFrom(false),
 		SummaryExport:        null.StringFrom(""),
 		Env:                  make(map[string]string),
 	***REMOVED***
@@ -150,7 +145,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	var redisOptions = libWorker.Options***REMOVED******REMOVED***
 
 	if job["options"] == "" ***REMOVED***
-		return nil, fmt.Errorf("options not found on job, this is probably a bug")
+		return nil, fmt.Errorf("unexpected error, options not found on job")
 	***REMOVED***
 
 	err := json.Unmarshal([]byte(job["options"]), &redisOptions)
@@ -158,9 +153,9 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		return nil, fmt.Errorf("could not parse options: %w", err)
 	***REMOVED***
 
-	consolidatedConfig := getConsolidatedConfig(redisOptions)
-
-	// TODO: get other config sources eg
+	consolidatedConfig := Config***REMOVED***
+		Options: redisOptions,
+	***REMOVED***
 
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
@@ -179,36 +174,22 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		***REMOVED***
 	***REMOVED***
 
-	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable, gs.logger)
+	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	return &workerLoadedAndConfiguredTest***REMOVED***
-		workerLoadedTest:   lt,
-		consolidatedConfig: consolidatedConfig,
-		derivedConfig:      derivedConfig,
+		workerLoadedTest: lt,
+		derivedConfig:    derivedConfig,
 	***REMOVED***, nil
 ***REMOVED***
 
-func getConsolidatedConfig(parsedOptions libWorker.Options) Config ***REMOVED***
-	consolidatedConfig := Config***REMOVED***
-		Options: parsedOptions,
-	***REMOVED***
-
-	consolidatedConfig = applyDefault(consolidatedConfig)
-
-	return consolidatedConfig
-***REMOVED***
-
 func deriveAndValidateConfig(
-	conf Config, isExecutable func(string) bool, logger logrus.FieldLogger,
+	conf Config, isExecutable func(string) bool,
 ) (result Config, err error) ***REMOVED***
 	result = conf
-	result.Options, err = executor.DeriveScenariosFromShortcuts(conf.Options, logger)
-	if err == nil ***REMOVED***
-		err = validateConfig(result, isExecutable)
-	***REMOVED***
+	err = validateConfig(result, isExecutable)
 	return result, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 ***REMOVED***
 
@@ -243,47 +224,4 @@ func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(str
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
 	***REMOVED***
 	return nil
-***REMOVED***
-
-func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
-	configToReinject libWorker.Options,
-) (*libWorker.TestRunState, error) ***REMOVED***
-	// This might be the full derived or just the consolidated options
-	if err := lct.initRunner.SetOptions(configToReinject); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	// TODO: init atlas root worker, etc.
-
-	return &libWorker.TestRunState***REMOVED***
-		TestPreInitState: lct.preInitState,
-		Runner:           lct.initRunner,
-		Options:          lct.derivedConfig.Options, // we will always run with the derived options
-	***REMOVED***, nil
-***REMOVED***
-
-func applyDefault(conf Config) Config ***REMOVED***
-	if conf.SystemTags == nil ***REMOVED***
-		conf.SystemTags = &metrics.DefaultSystemTagSet
-	***REMOVED***
-	if conf.SummaryTrendStats == nil ***REMOVED***
-		conf.SummaryTrendStats = libWorker.DefaultSummaryTrendStats
-	***REMOVED***
-	defDNS := types.DefaultDNSConfig()
-	if !conf.DNS.TTL.Valid ***REMOVED***
-		conf.DNS.TTL = defDNS.TTL
-	***REMOVED***
-	if !conf.DNS.Select.Valid ***REMOVED***
-		conf.DNS.Select = defDNS.Select
-	***REMOVED***
-	if !conf.DNS.Policy.Valid ***REMOVED***
-		conf.DNS.Policy = defDNS.Policy
-	***REMOVED***
-	if !conf.SetupTimeout.Valid ***REMOVED***
-		conf.SetupTimeout.Duration = types.Duration(60 * time.Second)
-	***REMOVED***
-	if !conf.TeardownTimeout.Valid ***REMOVED***
-		conf.TeardownTimeout.Duration = types.Duration(60 * time.Second)
-	***REMOVED***
-	return conf
 ***REMOVED***

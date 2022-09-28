@@ -72,7 +72,7 @@ func NewEngine(testState *libWorker.TestRunState, ex libWorker.ExecutionSchedule
 	***REMOVED***
 	e.MetricsEngine = me
 
-	if !(testState.RuntimeOptions.NoSummary.Bool && testState.RuntimeOptions.NoThresholds.Bool) ***REMOVED***
+	if !testState.RuntimeOptions.NoThresholds.Bool ***REMOVED***
 		e.ingester = me.GetIngester()
 		outputs = append(outputs, e.ingester)
 	***REMOVED***

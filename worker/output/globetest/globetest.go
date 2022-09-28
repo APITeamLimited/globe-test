@@ -18,15 +18,13 @@ type Output struct ***REMOVED***
 
 	periodicFlusher *output.PeriodicFlusher
 
-	params      output.Params
 	workerInfo  *libWorker.WorkerInfo
 	seenMetrics map[string]struct***REMOVED******REMOVED***
 	thresholds  map[string]metrics.Thresholds
 ***REMOVED***
 
-func New(params output.Params, workerInfo *libWorker.WorkerInfo) (output.Output, error) ***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) (output.Output, error) ***REMOVED***
 	return &Output***REMOVED***
-		params:      params,
 		workerInfo:  workerInfo,
 		seenMetrics: make(map[string]struct***REMOVED******REMOVED***),
 	***REMOVED***, nil

@@ -42,7 +42,7 @@ func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) ***R
 		ObservedMetrics: make(map[string]*metrics.Metric),
 	***REMOVED***
 
-	if !(me.es.Test.RuntimeOptions.NoSummary.Bool && me.es.Test.RuntimeOptions.NoThresholds.Bool) ***REMOVED***
+	if !me.es.Test.RuntimeOptions.NoThresholds.Bool ***REMOVED***
 		err := me.initSubMetricsAndThresholds()
 		if err != nil ***REMOVED***
 			return nil, err

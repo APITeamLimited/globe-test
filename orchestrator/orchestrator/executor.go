@@ -3,39 +3,36 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string, storeMongoDB *mongo.Database) ***REMOVED***
+func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string) (string, error) ***REMOVED***
 	// Get the scope
 	scope, err := orchestratorClient.HGetAll(gs.Ctx, job["scopeId"]).Result()
 	if err != nil ***REMOVED***
-		libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting scope: %s", err.Error()))
-		return
+		return "", err
 	***REMOVED***
 
 	// Check if has credits
 	hasCredits, err := checkIfHasCredits(gs.Ctx, scope, job)
 	if err != nil ***REMOVED***
-		libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error checking if has credits: %s", err.Error()))
-		return
+		return "", err
 	***REMOVED***
 	if !hasCredits ***REMOVED***
-		libOrch.DispatchMessage(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "Not enough credits to execute that job", "MESSAGE")
 		libOrch.UpdateStatus(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "NO_CREDITS")
-		return
+		return "", errors.New("Not enough credits to execute that job")
 	***REMOVED***
 
-	options, err := determineRuntimeOptions(job, gs)
+	options, err := options.DetermineRuntimeOptions(job, gs)
 	if err != nil ***REMOVED***
 		fmt.Println("Error determining runtime options", err)
-		libOrch.HandleError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, err)
-		return
+		return "", err
 	***REMOVED***
 
 	workerClient := workerClients["portsmouth"]
@@ -43,8 +40,7 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 
 	//marshalledOptions, err := json.Marshal(options)
 	if err != nil ***REMOVED***
-		libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling options: %s", err.Error()))
-		return
+		return "", err
 	***REMOVED***
 
 	// Update the status
@@ -52,25 +48,21 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 
 	err = dispatchJob(gs.Ctx, workerClient, job, "PENDING", orchestratorId, options)
 	if err != nil ***REMOVED***
-		libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error dispatching job: %s", err.Error()))
-		return
+		return "", err
 	***REMOVED***
 
 	for msg := range workerSubscription.Channel() ***REMOVED***
 		workerMessage := libOrch.WorkerMessage***REMOVED******REMOVED***
 		err := json.Unmarshal([]byte(msg.Payload), &workerMessage)
 		if err != nil ***REMOVED***
-			libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling worker message: %s", err.Error()))
-			return
+			return "", err
 		***REMOVED***
 
 		if workerMessage.MessageType == "STATUS" ***REMOVED***
 			if workerMessage.Message == "FAILED" ***REMOVED***
-				libOrch.UpdateStatus(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "FAILED")
-				return
+				return "FAILURE", nil
 			***REMOVED*** else if workerMessage.Message == "SUCCESS" ***REMOVED***
-				libOrch.UpdateStatus(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "SUCCESS")
-				return
+				return "SUCCESS", nil
 			***REMOVED*** else ***REMOVED***
 				libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "STATUS")
 			***REMOVED***
@@ -97,6 +89,9 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "DEBUG")
 		***REMOVED****/
 	***REMOVED***
+
+	// Shouldn't get here
+	return "", errors.New("An unexpected error occurred")
 ***REMOVED***
 
 func dispatchJob(ctx context.Context, workerClient *redis.Client, job map[string]string, status string, orchestratorId string, options *libWorker.Options) error ***REMOVED***

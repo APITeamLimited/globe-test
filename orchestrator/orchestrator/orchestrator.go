@@ -135,7 +135,17 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 	gs := libOrch.NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
 
 	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, "ASSIGNED")
-	run(gs, orchestratorId, orchestratorClient, scopesClient, workerClients, job, storeMongoDB)
+	result, err := run(gs, orchestratorId, orchestratorClient, scopesClient, workerClients, job)
+
+	if err != nil ***REMOVED***
+		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
+		return
+	***REMOVED***
+
+	if result == "FAILED" ***REMOVED***
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, "A child job failed")
+		// DOn't return, still store the result
+	***REMOVED***
 
 	// Create a new objectId for globeTestLogs
 	globeTestLogsId := primitive.NewObjectID()
@@ -182,6 +192,8 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 
 	// Clean up the job and store result in Mongo
 	cleanup(ctx, job, childJobs, orchestratorClient, workerClients, orchestratorId, storeMongoDB, scopeMap, globeTestLogsId)
+
+	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, result)
 
 	executionList.removeJob(job["id"])
 	// Capacity was freed, so check for queued jobs

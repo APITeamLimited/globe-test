@@ -2,7 +2,6 @@ package js
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -17,20 +16,6 @@ type console struct ***REMOVED***
 // Creates a console with the standard logrus logger.
 func newConsole(logger logrus.FieldLogger) *console ***REMOVED***
 	return &console***REMOVED***logger.WithField("source", "console")***REMOVED***
-***REMOVED***
-
-// Creates a console logger with its output set to the file at the provided `filepath`.
-func newFileConsole(filepath string, formatter logrus.Formatter) (*console, error) ***REMOVED***
-	f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644) //nolint:gosec
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	l := logrus.New()
-	l.SetOutput(f)
-	l.SetFormatter(formatter)
-
-	return &console***REMOVED***l***REMOVED***, nil
 ***REMOVED***
 
 func (c console) log(level logrus.Level, args ...goja.Value) ***REMOVED***
