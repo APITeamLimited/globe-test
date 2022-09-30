@@ -1,4 +1,4 @@
-package metrics
+package workerMetrics
 
 import (
 	"bytes"
@@ -171,10 +171,10 @@ func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***RE
 	// Initialize the sinks store
 	ts.sinked = make(map[string]float64)
 
-	// FIXME: Remove this comment as soon as the metrics.Sink does not expose Format anymore.
+	// FIXME: Remove this comment as soon as the workerMetrics.Sink does not expose Format anymore.
 	//
 	// As of December 2021, this block reproduces the behavior of the
-	// metrics.Sink.Format behavior. As we intend to try to get away from it,
+	// workerMetrics.Sink.Format behavior. As we intend to try to get away from it,
 	// we instead implement the behavior directly here.
 	//
 	// For more details, see https://github.com/grafana/k6/issues/2320

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,7 +119,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 			if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 		`))
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/html"), "", 200, "")
+		assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/html"), "", 200, "")
 
 		t.Run("html", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
@@ -161,7 +160,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/html"), "", 200, "::my group")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/html"), "", 200, "::my group")
 		***REMOVED***)
 
 		t.Run("NoResponseBody", func(t *testing.T) ***REMOVED***
@@ -179,7 +178,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 			if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
 		`))
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
+		assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/html").json();`))
@@ -240,7 +239,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				***REMOVED*** throw new Error("Expected 'Dale', but got: " + value); ***REMOVED***
 		`))
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/json"), "", 200, "")
+		assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/json"), "", 200, "")
 	***REMOVED***)
 
 	t.Run("SubmitForm", func(t *testing.T) ***REMOVED***
@@ -260,7 +259,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withFields", func(t *testing.T) ***REMOVED***
@@ -279,7 +278,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withRequestParams", func(t *testing.T) ***REMOVED***
@@ -292,7 +291,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (headers["My-Fancy-Header"][0] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect headers: " + JSON.stringify(headers)); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withFormSelector", func(t *testing.T) ***REMOVED***
@@ -311,7 +310,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "POST", sr("HTTPBIN_URL/post"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withNonExistentForm", func(t *testing.T) ***REMOVED***
@@ -339,7 +338,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 			`))
 			require.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/myforms/get"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/myforms/get"), "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 
@@ -352,7 +351,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/links/10/1"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/links/10/1"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withSelector", func(t *testing.T) ***REMOVED***
@@ -363,7 +362,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/links/10/4"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/links/10/4"), "", 200, "")
 		***REMOVED***)
 
 		t.Run("withNonExistentLink", func(t *testing.T) ***REMOVED***
@@ -386,7 +385,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (headers["My-Fancy-Header"][0] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect headers: " + JSON.stringify(headers)); ***REMOVED***
 			`))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, metrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get"), "", 200, "")
+			assertRequestMetricsEmitted(t, workerMetrics.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get"), "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***

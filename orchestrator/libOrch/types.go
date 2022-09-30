@@ -1,5 +1,7 @@
 package libOrch
 
+import "time"
+
 type Distribution struct ***REMOVED***
 	LoadZone string `json:"loadZone"`
 	Percent  int    `json:"percent"`
@@ -17,28 +19,28 @@ type Job struct ***REMOVED***
 ***REMOVED***
 
 type OrchestratorMessage struct ***REMOVED***
-	JobId          string `json:"jobId"`
-	Time           int64  `json:"time"`
-	OrchestratorId string `json:"orchestratorId"`
-	Message        string `json:"message"`
-	MessageType    string `json:"messageType"`
+	JobId          string    `json:"jobId"`
+	Time           time.Time `json:"time"`
+	OrchestratorId string    `json:"orchestratorId"`
+	Message        string    `json:"message"`
+	MessageType    string    `json:"messageType"`
 ***REMOVED***
 
 type WorkerMessage struct ***REMOVED***
-	JobId       string `json:"jobId"`
-	Time        int64  `json:"time"`
-	WorkerId    string `json:"workerId"`
-	Message     string `json:"message"`
-	MessageType string `json:"messageType"`
+	JobId       string    `json:"jobId"`
+	Time        time.Time `json:"time"`
+	WorkerId    string    `json:"workerId"`
+	Message     string    `json:"message"`
+	MessageType string    `json:"messageType"`
 ***REMOVED***
 
 type OrchestratorOrWorkerMessage struct ***REMOVED***
-	JobId          string `json:"jobId"`
-	Time           int64  `json:"time"`
-	OrchestratorId string `json:"orchestratorId"`
-	WorkerId       string `json:"workerId"`
-	Message        string `json:"message"`
-	MessageType    string `json:"messageType"`
+	JobId          string    `json:"jobId"`
+	Time           time.Time `json:"time"`
+	OrchestratorId string    `json:"orchestratorId"`
+	WorkerId       string    `json:"workerId"`
+	Message        string    `json:"message"`
+	MessageType    string    `json:"messageType"`
 ***REMOVED***
 
 type MarkMessage struct ***REMOVED***

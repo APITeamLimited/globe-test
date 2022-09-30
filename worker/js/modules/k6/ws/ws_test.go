@@ -23,12 +23,11 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const statusProtocolSwitch = 101
 
-func assertSessionMetricsEmitted(t *testing.T, sampleContainers []metrics.SampleContainer, subprotocol, url string, status int, group string) ***REMOVED*** //nolint:unparam
+func assertSessionMetricsEmitted(t *testing.T, sampleContainers []workerMetrics.SampleContainer, subprotocol, url string, status int, group string) ***REMOVED*** //nolint:unparam
 	seenSessions := false
 	seenSessionDuration := false
 	seenConnecting := false
@@ -38,11 +37,11 @@ func assertSessionMetricsEmitted(t *testing.T, sampleContainers []metrics.Sample
 			tags := sample.Tags.CloneTags()
 			if tags["url"] == url ***REMOVED***
 				switch sample.Metric.Name ***REMOVED***
-				case metrics.WSConnectingName:
+				case workerMetrics.WSConnectingName:
 					seenConnecting = true
-				case metrics.WSSessionDurationName:
+				case workerMetrics.WSSessionDurationName:
 					seenSessionDuration = true
-				case metrics.WSSessionsName:
+				case workerMetrics.WSSessionsName:
 					seenSessions = true
 				***REMOVED***
 
@@ -57,7 +56,7 @@ func assertSessionMetricsEmitted(t *testing.T, sampleContainers []metrics.Sample
 	assert.True(t, seenSessionDuration, "url %s didn't emit SessionDuration", url)
 ***REMOVED***
 
-func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers []metrics.SampleContainer, url string, count int) ***REMOVED***
+func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers []workerMetrics.SampleContainer, url string, count int) ***REMOVED***
 	t.Helper()
 	actualCount := 0
 
@@ -76,14 +75,14 @@ func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers 
 type testState struct ***REMOVED***
 	*modulestest.Runtime
 	tb      *httpmultibin.HTTPMultiBin
-	samples chan metrics.SampleContainer
+	samples chan workerMetrics.SampleContainer
 ***REMOVED***
 
 func newTestState(t testing.TB) testState ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	testRuntime := modulestest.NewRuntime(t)
-	samples := make(chan metrics.SampleContainer, 1000)
+	samples := make(chan workerMetrics.SampleContainer, 1000)
 
 	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
@@ -92,18 +91,18 @@ func newTestState(t testing.TB) testState ***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: libWorker.Options***REMOVED***
-			SystemTags: metrics.NewSystemTagSet(
-				metrics.TagURL,
-				metrics.TagProto,
-				metrics.TagStatus,
-				metrics.TagSubproto,
+			SystemTags: workerMetrics.NewSystemTagSet(
+				workerMetrics.TagURL,
+				workerMetrics.TagProto,
+				workerMetrics.TagStatus,
+				workerMetrics.TagSubproto,
 			),
 			UserAgent: null.StringFrom("TestUserAgent"),
 			Throw:     null.BoolFrom(true),
 		***REMOVED***,
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry()),
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
 
@@ -134,7 +133,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		if (res.status != 101) ***REMOVED*** throw new Error("connection failed with status: " + res.status); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("connect_wss", func(t *testing.T) ***REMOVED***
@@ -145,7 +144,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		if (res.status != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("open", func(t *testing.T) ***REMOVED***
@@ -160,7 +159,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		if (!opened) ***REMOVED*** throw new Error ("open event not fired"); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("send_receive", func(t *testing.T) ***REMOVED***
@@ -178,10 +177,10 @@ func TestSession(t *testing.T) ***REMOVED***
 		***REMOVED***);
 		`))
 		require.NoError(t, err)
-		samplesBuf := metrics.GetBufferedSamples(test.samples)
+		samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
-		assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
-		assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
+		assertMetricEmittedCount(t, workerMetrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
+		assertMetricEmittedCount(t, workerMetrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 	***REMOVED***)
 
 	t.Run("interval", func(t *testing.T) ***REMOVED***
@@ -196,7 +195,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		if (counter < 3) ***REMOVED***throw new Error ("setInterval should have been called at least 3 times, counter=" + counter);***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 	t.Run("bad interval", func(t *testing.T) ***REMOVED***
 		_, err := test.VU.Runtime().RunString(sr(`
@@ -242,7 +241,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		`))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "setTimeout requires a >0 timeout parameter, received 0.00 ")
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("ping", func(t *testing.T) ***REMOVED***
@@ -263,9 +262,9 @@ func TestSession(t *testing.T) ***REMOVED***
 		***REMOVED***
 		`))
 		require.NoError(t, err)
-		samplesBuf := metrics.GetBufferedSamples(test.samples)
+		samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
-		assertMetricEmittedCount(t, metrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
+		assertMetricEmittedCount(t, workerMetrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 	***REMOVED***)
 
 	t.Run("multiple_handlers", func(t *testing.T) ***REMOVED***
@@ -296,9 +295,9 @@ func TestSession(t *testing.T) ***REMOVED***
 		***REMOVED***
 		`))
 		require.NoError(t, err)
-		samplesBuf := metrics.GetBufferedSamples(test.samples)
+		samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 		assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
-		assertMetricEmittedCount(t, metrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
+		assertMetricEmittedCount(t, workerMetrics.WSPingName, samplesBuf, sr("WSBIN_URL/ws-echo"), 1)
 	***REMOVED***)
 
 	t.Run("client_close", func(t *testing.T) ***REMOVED***
@@ -315,7 +314,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		if (!closed) ***REMOVED*** throw new Error ("close event not fired"); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	serverCloseTests := []struct ***REMOVED***
@@ -405,10 +404,10 @@ func TestSession(t *testing.T) ***REMOVED***
 			***REMOVED***
 			`))
 			require.NoError(t, err)
-			samplesBuf := metrics.GetBufferedSamples(test.samples)
+			samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 			assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
-			assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
-			assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 3)
 		***REMOVED***)
 
 		t.Run("send_receive_multiple_wss", func(t *testing.T) ***REMOVED***
@@ -436,10 +435,10 @@ func TestSession(t *testing.T) ***REMOVED***
 			***REMOVED***
 			`))
 			require.NoError(t, err)
-			samplesBuf := metrics.GetBufferedSamples(test.samples)
+			samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 			assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
-			assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
-			assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesSentName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesReceivedName, samplesBuf, sr("WSSBIN_URL/ws-echo-multi"), 2)
 		***REMOVED***)
 
 		t.Run("send_receive_text_binary", func(t *testing.T) ***REMOVED***
@@ -470,10 +469,10 @@ func TestSession(t *testing.T) ***REMOVED***
 			***REMOVED***
 			`))
 			require.NoError(t, err)
-			samplesBuf := metrics.GetBufferedSamples(test.samples)
+			samplesBuf := workerMetrics.GetBufferedSamples(test.samples)
 			assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo-multi"), statusProtocolSwitch, "")
-			assertMetricEmittedCount(t, metrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
-			assertMetricEmittedCount(t, metrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesSentName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
+			assertMetricEmittedCount(t, workerMetrics.WSMessagesReceivedName, samplesBuf, sr("WSBIN_URL/ws-echo-multi"), 2)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -602,7 +601,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo-invalid"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo-invalid"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("error on close", func(t *testing.T) ***REMOVED***
@@ -631,7 +630,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		***REMOVED***);
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-close"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-close"), statusProtocolSwitch, "")
 	***REMOVED***)
 ***REMOVED***
 
@@ -648,7 +647,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	for _, expectedTag := range testedSystemTags ***REMOVED***
 		expectedTag := expectedTag
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
-			test.VU.StateField.Options.SystemTags = metrics.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
+			test.VU.StateField.Options.SystemTags = workerMetrics.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
 			_, err := test.VU.Runtime().RunString(sr(`
 			var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
@@ -663,7 +662,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			***REMOVED***);
 			`))
 			require.NoError(t, err)
-			containers := metrics.GetBufferedSamples(test.samples)
+			containers := workerMetrics.GetBufferedSamples(test.samples)
 			require.NotEmpty(t, containers)
 			for _, sampleContainer := range containers ***REMOVED***
 				require.NotEmpty(t, sampleContainer.GetSamples())
@@ -696,7 +695,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		if (res.status != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("custom certificates", func(t *testing.T) ***REMOVED***
@@ -711,7 +710,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 			***REMOVED***
 		`))
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSSBIN_URL/ws-close"), statusProtocolSwitch, "")
 	***REMOVED***)
 ***REMOVED***
 
@@ -811,7 +810,7 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 		`))
 	require.NoError(t, err)
 
-	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo-useragent"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(test.samples), "", sr("WSBIN_URL/ws-echo-useragent"), statusProtocolSwitch, "")
 ***REMOVED***
 
 func TestCompression(t *testing.T) ***REMOVED***
@@ -874,7 +873,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 		`))
 
 		require.NoError(t, err)
-		assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-compression"), statusProtocolSwitch, "")
+		assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-compression"), statusProtocolSwitch, "")
 	***REMOVED***)
 
 	t.Run("params", func(t *testing.T) ***REMOVED***
@@ -948,7 +947,7 @@ func TestCompression(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func clearSamples(tb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer) ***REMOVED***
+func clearSamples(tb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer) ***REMOVED***
 	ctxDone := tb.Context.Done()
 	for ***REMOVED***
 		select ***REMOVED***
@@ -1084,7 +1083,7 @@ func TestCookieJar(t *testing.T) ***REMOVED***
 		`))
 	require.NoError(t, err)
 
-	assertSessionMetricsEmitted(t, metrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
+	assertSessionMetricsEmitted(t, workerMetrics.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
 ***REMOVED***
 
 func TestWSConnectEnableThrowErrorOption(t *testing.T) ***REMOVED***

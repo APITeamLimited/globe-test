@@ -10,7 +10,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const testHTML = `
@@ -76,7 +75,7 @@ func getTestModuleInstance(t testing.TB) (*goja.Runtime, *ModuleInstance) ***REM
 	mockVU := &modulestest.VU***REMOVED***
 		RuntimeField: rt,
 		InitEnvField: &common.InitEnvironment***REMOVED***
-			Registry: metrics.NewRegistry(),
+			Registry: workerMetrics.NewRegistry(),
 		***REMOVED***,
 		CtxField:   ctx,
 		StateField: nil,

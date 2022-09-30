@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,17 +84,17 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 	sr := tb.Replacer.Replace
 
 	HTTPMetricsWithoutFailed := []string***REMOVED***
-		metrics.HTTPReqsName,
-		metrics.HTTPReqBlockedName,
-		metrics.HTTPReqConnectingName,
-		metrics.HTTPReqDurationName,
-		metrics.HTTPReqReceivingName,
-		metrics.HTTPReqWaitingName,
-		metrics.HTTPReqSendingName,
-		metrics.HTTPReqTLSHandshakingName,
+		workerMetrics.HTTPReqsName,
+		workerMetrics.HTTPReqBlockedName,
+		workerMetrics.HTTPReqConnectingName,
+		workerMetrics.HTTPReqDurationName,
+		workerMetrics.HTTPReqReceivingName,
+		workerMetrics.HTTPReqWaitingName,
+		workerMetrics.HTTPReqSendingName,
+		workerMetrics.HTTPReqTLSHandshakingName,
 	***REMOVED***
 
-	allHTTPMetrics := append(HTTPMetricsWithoutFailed, metrics.HTTPReqFailedName)
+	allHTTPMetrics := append(HTTPMetricsWithoutFailed, workerMetrics.HTTPReqFailedName)
 
 	testCases := map[string]struct ***REMOVED***
 		code            string
@@ -257,7 +256,7 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 
 			_, err := rt.RunString(sr(testCase.code))
 			assert.NoError(t, err)
-			bufSamples := metrics.GetBufferedSamples(samples)
+			bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
 			for _, container := range bufSamples ***REMOVED***
@@ -283,17 +282,17 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 	sr := tb.Replacer.Replace
 
 	HTTPMetricsWithoutFailed := []string***REMOVED***
-		metrics.HTTPReqsName,
-		metrics.HTTPReqBlockedName,
-		metrics.HTTPReqConnectingName,
-		metrics.HTTPReqDurationName,
-		metrics.HTTPReqReceivingName,
-		metrics.HTTPReqWaitingName,
-		metrics.HTTPReqSendingName,
-		metrics.HTTPReqTLSHandshakingName,
+		workerMetrics.HTTPReqsName,
+		workerMetrics.HTTPReqBlockedName,
+		workerMetrics.HTTPReqConnectingName,
+		workerMetrics.HTTPReqDurationName,
+		workerMetrics.HTTPReqReceivingName,
+		workerMetrics.HTTPReqWaitingName,
+		workerMetrics.HTTPReqSendingName,
+		workerMetrics.HTTPReqTLSHandshakingName,
 	***REMOVED***
 
-	allHTTPMetrics := append(HTTPMetricsWithoutFailed, metrics.HTTPReqFailedName)
+	allHTTPMetrics := append(HTTPMetricsWithoutFailed, workerMetrics.HTTPReqFailedName)
 	// IMPORTANT: the tests here depend on the fact that the url they hit can be ordered in the same
 	// order as the expectedSamples even if they are made concurrently
 	testCases := map[string]struct ***REMOVED***
@@ -366,7 +365,7 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 
 			_, err := rt.RunString(sr(testCase.code))
 			assert.NoError(t, err)
-			bufSamples := metrics.GetBufferedSamples(samples)
+			bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
 			for _, container := range bufSamples ***REMOVED***
@@ -396,21 +395,21 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 	tb, state, samples, rt, _ := newRuntime(t)
 	sr := tb.Replacer.Replace
 	allHTTPMetrics := []string***REMOVED***
-		metrics.HTTPReqsName,
-		metrics.HTTPReqFailedName,
-		metrics.HTTPReqBlockedName,
-		metrics.HTTPReqConnectingName,
-		metrics.HTTPReqDurationName,
-		metrics.HTTPReqReceivingName,
-		metrics.HTTPReqSendingName,
-		metrics.HTTPReqWaitingName,
-		metrics.HTTPReqTLSHandshakingName,
+		workerMetrics.HTTPReqsName,
+		workerMetrics.HTTPReqFailedName,
+		workerMetrics.HTTPReqBlockedName,
+		workerMetrics.HTTPReqConnectingName,
+		workerMetrics.HTTPReqDurationName,
+		workerMetrics.HTTPReqReceivingName,
+		workerMetrics.HTTPReqSendingName,
+		workerMetrics.HTTPReqWaitingName,
+		workerMetrics.HTTPReqTLSHandshakingName,
 	***REMOVED***
-	deleteSystemTag(state, metrics.TagExpectedResponse.String())
+	deleteSystemTag(state, workerMetrics.TagExpectedResponse.String())
 
 	_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/redirect/1", null, ***REMOVED***responseCallback: http.expectedStatuses(200)***REMOVED***);`))
 	assert.NoError(t, err)
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
 	for _, container := range bufSamples ***REMOVED***
@@ -431,16 +430,16 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 		"group":  "",
 		"proto":  "HTTP/1.1",
 	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
-		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 1)
 		***REMOVED***
 	***REMOVED***)
 	tags["url"] = sr("HTTPBIN_URL/get")
 	tags["name"] = tags["url"]
 	tags["status"] = "200"
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
-		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
 	***REMOVED***)
@@ -455,15 +454,15 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 	)
 
 	allHTTPMetrics := []string***REMOVED***
-		metrics.HTTPReqsName,
-		metrics.HTTPReqFailedName,
-		metrics.HTTPReqBlockedName,
-		metrics.HTTPReqConnectingName,
-		metrics.HTTPReqDurationName,
-		metrics.HTTPReqReceivingName,
-		metrics.HTTPReqSendingName,
-		metrics.HTTPReqWaitingName,
-		metrics.HTTPReqTLSHandshakingName,
+		workerMetrics.HTTPReqsName,
+		workerMetrics.HTTPReqFailedName,
+		workerMetrics.HTTPReqBlockedName,
+		workerMetrics.HTTPReqConnectingName,
+		workerMetrics.HTTPReqDurationName,
+		workerMetrics.HTTPReqReceivingName,
+		workerMetrics.HTTPReqSendingName,
+		workerMetrics.HTTPReqWaitingName,
+		workerMetrics.HTTPReqTLSHandshakingName,
 	***REMOVED***
 	_, err := rt.RunString(fmt.Sprintf(`
 		var res = http.get(%q,  ***REMOVED*** auth: "digest" ***REMOVED***);
@@ -471,7 +470,7 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		if (res.error_code !== 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
 	`, urlWithCreds))
 	require.NoError(t, err)
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
 	for _, container := range bufSamples ***REMOVED***
@@ -497,15 +496,15 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		"expected_response": "true",
 		"error_code":        "1401",
 	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
-		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
 	***REMOVED***)
 	tags["status"] = "200"
 	delete(tags, "error_code")
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample metrics.Sample) ***REMOVED***
-		if sample.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
 			require.EqualValues(t, sample.Value, 0)
 		***REMOVED***
 	***REMOVED***)
@@ -518,5 +517,5 @@ func deleteSystemTag(state *libWorker.State, tag string) ***REMOVED***
 	for k := range enabledTags ***REMOVED***
 		tagsList = append(tagsList, k)
 	***REMOVED***
-	state.Options.SystemTags = metrics.ToSystemTagSet(tagsList)
+	state.Options.SystemTags = workerMetrics.ToSystemTagSet(tagsList)
 ***REMOVED***

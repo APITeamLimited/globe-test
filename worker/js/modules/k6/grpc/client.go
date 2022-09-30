@@ -12,7 +12,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/grpcext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 
 	"github.com/dop251/goja"
 	"github.com/jhump/protoreflect/desc"
@@ -176,19 +175,19 @@ func (c *Client) Invoke(
 		tags[k] = v
 	***REMOVED***
 
-	if state.Options.SystemTags.Has(metrics.TagURL) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagURL) ***REMOVED***
 		tags["url"] = fmt.Sprintf("%s%s", c.addr, method)
 	***REMOVED***
 	parts := strings.Split(method[1:], "/")
-	if state.Options.SystemTags.Has(metrics.TagService) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagService) ***REMOVED***
 		tags["service"] = parts[0]
 	***REMOVED***
-	if state.Options.SystemTags.Has(metrics.TagMethod) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagMethod) ***REMOVED***
 		tags["method"] = parts[1]
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(metrics.TagName) ***REMOVED***
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(workerMetrics.TagName) ***REMOVED***
 		tags["name"] = method
 	***REMOVED***
 

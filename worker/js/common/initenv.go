@@ -4,8 +4,9 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
@@ -16,7 +17,7 @@ type InitEnvironment struct ***REMOVED***
 	Logger      logrus.FieldLogger
 	FileSystems map[string]afero.Fs
 	CWD         *url.URL
-	Registry    *metrics.Registry
+	Registry    *workerMetrics.Registry
 	WorkerInfo  *libWorker.WorkerInfo
 	// TODO: add RuntimeOptions and other properties, goja sources, etc.
 	// ideally, we should leave this as the only data structure necessary for

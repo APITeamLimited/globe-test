@@ -13,7 +13,6 @@ func createOutputs(workerInfo *libWorker.WorkerInfo) ([]output.Output, error) **
 
 	// Using globetest output only
 	globetestOutput, err := globetest.New(workerInfo)
-
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("could not create the 'globetest' output: %w", err)
 	***REMOVED***

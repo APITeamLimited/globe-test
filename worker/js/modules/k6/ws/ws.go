@@ -19,7 +19,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	httpModule "github.com/APITeamLimited/globe-test/worker/js/modules/k6/http"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 type (
@@ -75,9 +74,9 @@ type Socket struct ***REMOVED***
 	pingSendTimestamps map[string]time.Time
 	pingSendCounter    int
 
-	sampleTags     *metrics.SampleTags
-	samplesOutput  chan<- metrics.SampleContainer
-	builtinMetrics *metrics.BuiltinMetrics
+	sampleTags     *workerMetrics.SampleTags
+	samplesOutput  chan<- workerMetrics.SampleContainer
+	builtinMetrics *workerMetrics.BuiltinMetrics
 ***REMOVED***
 
 type WSHTTPResponse struct ***REMOVED***
@@ -195,7 +194,7 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 
 	***REMOVED***
 
-	if state.Options.SystemTags.Has(metrics.TagURL) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagURL) ***REMOVED***
 		tags["url"] = url
 	***REMOVED***
 
@@ -223,20 +222,20 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 	start := time.Now()
 	conn, httpResponse, connErr := wsd.DialContext(ctx, url, header)
 	connectionEnd := time.Now()
-	connectionDuration := metrics.D(connectionEnd.Sub(start))
+	connectionDuration := workerMetrics.D(connectionEnd.Sub(start))
 
-	if state.Options.SystemTags.Has(metrics.TagIP) && conn.RemoteAddr() != nil ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagIP) && conn.RemoteAddr() != nil ***REMOVED***
 		if ip, _, err := net.SplitHostPort(conn.RemoteAddr().String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***
 	***REMOVED***
 
 	if httpResponse != nil ***REMOVED***
-		if state.Options.SystemTags.Has(metrics.TagStatus) ***REMOVED***
+		if state.Options.SystemTags.Has(workerMetrics.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(httpResponse.StatusCode)
 		***REMOVED***
 
-		if state.Options.SystemTags.Has(metrics.TagSubproto) ***REMOVED***
+		if state.Options.SystemTags.Has(workerMetrics.TagSubproto) ***REMOVED***
 			tags["subproto"] = httpResponse.Header.Get("Sec-WebSocket-Protocol")
 		***REMOVED***
 	***REMOVED***
@@ -250,12 +249,12 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 		scheduled:          make(chan goja.Callable),
 		done:               make(chan struct***REMOVED******REMOVED***),
 		samplesOutput:      state.Samples,
-		sampleTags:         metrics.IntoSampleTags(&tags),
+		sampleTags:         workerMetrics.IntoSampleTags(&tags),
 		builtinMetrics:     state.BuiltinMetrics,
 	***REMOVED***
 
-	metrics.PushIfNotDone(ctx, state.Samples, metrics.ConnectedSamples***REMOVED***
-		Samples: []metrics.Sample***REMOVED***
+	workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.ConnectedSamples***REMOVED***
+		Samples: []workerMetrics.Sample***REMOVED***
 			***REMOVED***Metric: state.BuiltinMetrics.WSSessions, Time: start, Tags: socket.sampleTags, Value: 1***REMOVED***,
 			***REMOVED***Metric: state.BuiltinMetrics.WSConnecting, Time: start, Tags: socket.sampleTags, Value: connectionDuration***REMOVED***,
 		***REMOVED***,
@@ -315,10 +314,10 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 	defer func() ***REMOVED***
 		socket.Close() // just in case
 		end := time.Now()
-		sessionDuration := metrics.D(end.Sub(start))
+		sessionDuration := workerMetrics.D(end.Sub(start))
 
-		metrics.PushIfNotDone(ctx, state.Samples, metrics.Sample***REMOVED***
-			Metric: socket.builtinMetrics.WSSessionDuration,
+		workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.Sample***REMOVED***
+			Metric: socket.builtinMetrics..WSSessionDuration,
 			Tags:   socket.sampleTags,
 			Time:   start,
 			Value:  sessionDuration,
@@ -345,8 +344,8 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 			socket.handleEvent("pong")
 
 		case msg := <-readDataChan:
-			metrics.PushIfNotDone(ctx, socket.samplesOutput, metrics.Sample***REMOVED***
-				Metric: socket.builtinMetrics.WSMessagesReceived,
+			workerMetrics.PushIfNotDone(ctx, socket.samplesOutput, workerMetrics.Sample***REMOVED***
+				Metric: socket.builtinMetrics..WSMessagesReceived,
 				Time:   time.Now(),
 				Tags:   socket.sampleTags,
 				Value:  1,
@@ -405,8 +404,8 @@ func (s *Socket) Send(message string) ***REMOVED***
 		s.handleEvent("error", s.rt.ToValue(err))
 	***REMOVED***
 
-	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample***REMOVED***
-		Metric: s.builtinMetrics.WSMessagesSent,
+	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample***REMOVED***
+		Metric: s.builtinMetrics..WSMessagesSent,
 		Time:   time.Now(),
 		Tags:   s.sampleTags,
 		Value:  1,
@@ -435,8 +434,8 @@ func (s *Socket) SendBinary(message goja.Value) ***REMOVED***
 		common.Throw(s.rt, fmt.Errorf("expected ArrayBuffer as argument, received: %s", jsType))
 	***REMOVED***
 
-	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample***REMOVED***
-		Metric: s.builtinMetrics.WSMessagesSent,
+	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample***REMOVED***
+		Metric: s.builtinMetrics..WSMessagesSent,
 		Time:   time.Now(),
 		Tags:   s.sampleTags,
 		Value:  1,
@@ -468,11 +467,11 @@ func (s *Socket) trackPong(pingID string) ***REMOVED***
 	***REMOVED***
 	pingTimestamp := s.pingSendTimestamps[pingID]
 
-	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample***REMOVED***
-		Metric: s.builtinMetrics.WSPing,
+	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample***REMOVED***
+		Metric: s.builtinMetrics..WSPing,
 		Time:   pongTimestamp,
 		Tags:   s.sampleTags,
-		Value:  metrics.D(pongTimestamp.Sub(pingTimestamp)),
+		Value:  workerMetrics.D(pongTimestamp.Sub(pingTimestamp)),
 	***REMOVED***)
 ***REMOVED***
 

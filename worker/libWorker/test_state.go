@@ -3,7 +3,7 @@ package libWorker
 import (
 	"io"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -11,8 +11,8 @@ import (
 // before the test run is initialized.
 type TestPreInitState struct ***REMOVED***
 	RuntimeOptions RuntimeOptions
-	Registry       *metrics.Registry
-	BuiltinMetrics *metrics.BuiltinMetrics
+	Registry       *workerMetrics.Registry
+	BuiltinMetrics *workerMetrics.BuiltinMetrics
 	KeyLogger      io.Writer
 
 	Logger *logrus.Logger

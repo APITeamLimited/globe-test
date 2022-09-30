@@ -5,7 +5,7 @@ package output
 
 import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // TODO: make v2 with buffered channels?
@@ -29,7 +29,7 @@ type Output interface ***REMOVED***
 	// method is never called concurrently, so do not do anything blocking here
 	// that might take a long time. Preferably, just use the SampleBuffer or
 	// something like it to buffer metrics until they are flushed.
-	AddMetricSamples(samples []metrics.SampleContainer)
+	AddMetricSamples(samples []workerMetrics.SampleContainer)
 
 	// Flush all remaining metrics and finalize the test run.
 	Stop() error
@@ -39,7 +39,7 @@ type Output interface ***REMOVED***
 // thresholds before it can be started.
 type WithThresholds interface ***REMOVED***
 	Output
-	SetThresholds(map[string]metrics.Thresholds)
+	SetThresholds(map[string]workerMetrics.Thresholds)
 ***REMOVED***
 
 // WithTestRunStop is an output that can stop the Engine mid-test, interrupting
@@ -57,8 +57,8 @@ type WithRunStatusUpdates interface ***REMOVED***
 	SetRunStatus(latestStatus libWorker.RunStatus)
 ***REMOVED***
 
-// WithBuiltinMetrics means the output can receive the builtin metrics.
+// WithBuiltinMetrics means the output can receive the builtin workerMetrics.
 type WithBuiltinMetrics interface ***REMOVED***
 	Output
-	SetBuiltinMetrics(builtinMetrics *metrics.BuiltinMetrics)
+	SetBuiltinMetrics(builtinMetrics *workerMetrics.BuiltinMetrics)
 ***REMOVED***

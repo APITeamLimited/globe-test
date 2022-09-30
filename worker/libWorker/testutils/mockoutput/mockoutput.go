@@ -2,7 +2,6 @@ package mockoutput
 
 import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/output"
 )
 
@@ -14,8 +13,8 @@ func New() *MockOutput ***REMOVED***
 
 // MockOutput can be used in tests to mock an actual output.
 type MockOutput struct ***REMOVED***
-	SampleContainers []metrics.SampleContainer
-	Samples          []metrics.Sample
+	SampleContainers []workerMetrics.SampleContainer
+	Samples          []workerMetrics.Sample
 	RunStatus        libWorker.RunStatus
 
 	DescFn  func() string
@@ -26,7 +25,7 @@ type MockOutput struct ***REMOVED***
 var _ output.WithRunStatusUpdates = &MockOutput***REMOVED******REMOVED***
 
 // AddMetricSamples just saves the results in memory.
-func (mo *MockOutput) AddMetricSamples(scs []metrics.SampleContainer) ***REMOVED***
+func (mo *MockOutput) AddMetricSamples(scs []workerMetrics.SampleContainer) ***REMOVED***
 	mo.SampleContainers = append(mo.SampleContainers, scs...)
 	for _, sc := range scs ***REMOVED***
 		mo.Samples = append(mo.Samples, sc.GetSamples()...)

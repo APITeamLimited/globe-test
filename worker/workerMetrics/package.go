@@ -1,6 +1,6 @@
-// Package metrics contains various k6 components that deal with metrics and
+// package workerMetrics contains various k6 components that deal with metrics and
 // thresholds.
-package metrics
+package workerMetrics
 
 // TODO: move most things from the stats/ package here
 

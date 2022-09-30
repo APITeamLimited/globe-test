@@ -7,36 +7,23 @@ import (
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string) (string, error) ***REMOVED***
-	// Get the scope
-	scope, err := orchestratorClient.HGetAll(gs.Ctx, job["scopeId"]).Result()
-	if err != nil ***REMOVED***
-		return "", err
-	***REMOVED***
-
+func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope map[string]string, workerClients map[string]*redis.Client, job map[string]string) (string, error) ***REMOVED***
 	// Check if has credits
-	hasCredits, err := checkIfHasCredits(gs.Ctx, scope, job)
+	hasCredits, err := checkIfHasCredits(gs.Ctx(), scope, job)
 	if err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
 	if !hasCredits ***REMOVED***
-		libOrch.UpdateStatus(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "NO_CREDITS")
-		return "", errors.New("Not enough credits to execute that job")
-	***REMOVED***
-
-	options, err := options.DetermineRuntimeOptions(job, gs)
-	if err != nil ***REMOVED***
-		fmt.Println("Error determining runtime options", err)
-		return "", err
+		libOrch.UpdateStatus(gs.Ctx(), gs.Client(), gs.JobId(), gs.OrchestratorId(), "NO_CREDITS")
+		return "", errors.New("not enough credits to execute that job")
 	***REMOVED***
 
 	workerClient := workerClients["portsmouth"]
-	workerSubscription := workerClient.Subscribe(gs.Ctx, fmt.Sprintf("worker:executionUpdates:%s", job["id"]))
+	workerSubscription := workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job["id"]))
 
 	//marshalledOptions, err := json.Marshal(options)
 	if err != nil ***REMOVED***
@@ -44,9 +31,13 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 	***REMOVED***
 
 	// Update the status
-	libOrch.UpdateStatus(gs.Ctx, orchestratorClient, job["id"], orchestratorId, "RUNNING")
+	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), job["id"], gs.OrchestratorId(), "RUNNING")
 
-	err = dispatchJob(gs.Ctx, workerClient, job, "PENDING", orchestratorId, options)
+	err = dispatchJob(gs, workerClient, job, "PENDING", options)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+
 	if err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
@@ -64,10 +55,15 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 			***REMOVED*** else if workerMessage.Message == "SUCCESS" ***REMOVED***
 				return "SUCCESS", nil
 			***REMOVED*** else ***REMOVED***
-				libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "STATUS")
+				libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
 			***REMOVED***
+		***REMOVED*** else if workerMessage.MessageType == "METRICS" ***REMOVED***
+			(*gs.MetricsStore()).AddMessage(workerMessage, "portsmouth")
+		***REMOVED*** else if workerMessage.MessageType == "DEBUG" ***REMOVED***
+			// TODO: make this configurable
+			continue
 		***REMOVED*** else ***REMOVED***
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
+			libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
 		***REMOVED***
 
 		// Could handle these differently, but for now just dispatch them
@@ -83,7 +79,7 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 			workerSubscription.Close()
 		***REMOVED*** else if workerMessage.MessageType == "ERROR" ***REMOVED***
 			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "ERROR")
-			libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], orchestratorId, workerMessage.Message)
+			libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], gs.orchestratorId, workerMessage.Message)
 			return
 		***REMOVED*** else if workerMessage.MessageType == "DEBUG" ***REMOVED***
 			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "DEBUG")
@@ -91,26 +87,26 @@ func run(gs *libOrch.GlobalState, orchestratorId string, orchestratorClient, sco
 	***REMOVED***
 
 	// Shouldn't get here
-	return "", errors.New("An unexpected error occurred")
+	return "", errors.New("an unexpected error occurred")
 ***REMOVED***
 
-func dispatchJob(ctx context.Context, workerClient *redis.Client, job map[string]string, status string, orchestratorId string, options *libWorker.Options) error ***REMOVED***
+func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job map[string]string, status string, options *libWorker.Options) error ***REMOVED***
 	// Convert options to json
 	marshalledOptions, err := json.Marshal(options)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	workerClient.HSet(ctx, job["id"], "id", job["id"])
-	workerClient.HSet(ctx, job["id"], "source", job["source"])
-	workerClient.HSet(ctx, job["id"], "sourceName", job["sourceName"])
-	workerClient.HSet(ctx, job["id"], "status", status)
-	workerClient.HSet(ctx, job["id"], "scopeId", job["scopeId"])
-	workerClient.HSet(ctx, job["id"], "orchestratorId", orchestratorId)
-	workerClient.HSet(ctx, job["id"], "options", string(marshalledOptions))
+	workerClient.HSet(gs.Ctx(), job["id"], "id", job["id"])
+	workerClient.HSet(gs.Ctx(), job["id"], "source", job["source"])
+	workerClient.HSet(gs.Ctx(), job["id"], "sourceName", job["sourceName"])
+	workerClient.HSet(gs.Ctx(), job["id"], "status", status)
+	workerClient.HSet(gs.Ctx(), job["id"], "scopeId", job["scopeId"])
+	workerClient.HSet(gs.Ctx(), job["id"], "gs.orchestratorId", gs.OrchestratorId)
+	workerClient.HSet(gs.Ctx(), job["id"], "options", string(marshalledOptions))
 
-	workerClient.Publish(ctx, "k6:execution", job["id"])
-	workerClient.SAdd(ctx, "k6:executionHistory", job["id"])
+	workerClient.Publish(gs.Ctx(), "k6:execution", job["id"])
+	workerClient.SAdd(gs.Ctx(), "k6:executionHistory", job["id"])
 
 	return nil
 ***REMOVED***

@@ -1,9 +1,7 @@
 package executor
 
-import "github.com/APITeamLimited/globe-test/worker/metrics"
-
-func sumMetricValues(samples chan metrics.SampleContainer, metricName string) (sum float64) ***REMOVED*** //nolint:unparam
-	for _, sc := range metrics.GetBufferedSamples(samples) ***REMOVED***
+func sumMetricValues(samples chan workerMetrics.SampleContainer, metricName string) (sum float64) ***REMOVED*** //nolint:unparam
+	for _, sc := range workerMetrics.GetBufferedSamples(samples) ***REMOVED***
 		samples := sc.GetSamples()
 		for _, s := range samples ***REMOVED***
 			if s.Metric.Name == metricName ***REMOVED***

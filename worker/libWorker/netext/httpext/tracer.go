@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -35,43 +35,43 @@ type Trail struct ***REMOVED***
 
 	Failed null.Bool
 	// Populated by SaveSamples()
-	Tags    *metrics.SampleTags
-	Samples []metrics.Sample
+	Tags    *workerMetrics.SampleTags
+	Samples []workerMetrics.Sample
 ***REMOVED***
 
 // SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
-func (tr *Trail) SaveSamples(builtinMetrics *metrics.BuiltinMetrics, tags *metrics.SampleTags) ***REMOVED***
+func (tr *Trail) SaveSamples(builtinMetrics *workerMetrics.BuiltinMetrics, tags *workerMetrics.SampleTags) ***REMOVED***
 	tr.Tags = tags
-	tr.Samples = make([]metrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
-	tr.Samples = append(tr.Samples, []metrics.Sample***REMOVED***
+	tr.Samples = make([]workerMetrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
+	tr.Samples = append(tr.Samples, []workerMetrics.Sample***REMOVED***
 		***REMOVED***Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.TLSHandshaking)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.TLSHandshaking)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Receiving)***REMOVED***,
 	***REMOVED***...)
 ***REMOVED***
 
-// GetSamples implements the metrics.SampleContainer interface.
-func (tr *Trail) GetSamples() []metrics.Sample ***REMOVED***
+// GetSamples implements the workerMetrics.SampleContainer interface.
+func (tr *Trail) GetSamples() []workerMetrics.Sample ***REMOVED***
 	return tr.Samples
 ***REMOVED***
 
-// GetTags implements the metrics.ConnectedSampleContainer interface.
-func (tr *Trail) GetTags() *metrics.SampleTags ***REMOVED***
+// GetTags implements the workerMetrics.ConnectedSampleContainer interface.
+func (tr *Trail) GetTags() *workerMetrics.SampleTags ***REMOVED***
 	return tr.Tags
 ***REMOVED***
 
-// GetTime implements the metrics.ConnectedSampleContainer interface.
+// GetTime implements the workerMetrics.ConnectedSampleContainer interface.
 func (tr *Trail) GetTime() time.Time ***REMOVED***
 	return tr.EndTime
 ***REMOVED***
 
 // Ensure that interfaces are implemented correctly
-var _ metrics.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
+var _ workerMetrics.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
 
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to

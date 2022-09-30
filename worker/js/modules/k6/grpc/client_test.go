@@ -35,7 +35,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
 	grpcanytesting "github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin/grpc_any_testing"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -46,7 +45,7 @@ type codeBlock struct ***REMOVED***
 	val        interface***REMOVED******REMOVED***
 	err        string
 	windowsErr string
-	asserts    func(*testing.T, *httpmultibin.HTTPMultiBin, chan metrics.SampleContainer, error)
+	asserts    func(*testing.T, *httpmultibin.HTTPMultiBin, chan workerMetrics.SampleContainer, error)
 ***REMOVED***
 
 type testcase struct ***REMOVED***
@@ -62,13 +61,13 @@ func TestClient(t *testing.T) ***REMOVED***
 	type testState struct ***REMOVED***
 		*modulestest.Runtime
 		httpBin *httpmultibin.HTTPMultiBin
-		samples chan metrics.SampleContainer
+		samples chan workerMetrics.SampleContainer
 	***REMOVED***
 	setup := func(t *testing.T) testState ***REMOVED***
 		t.Helper()
 
 		tb := httpmultibin.NewHTTPMultiBin(t)
-		samples := make(chan metrics.SampleContainer, 1000)
+		samples := make(chan workerMetrics.SampleContainer, 1000)
 		testRuntime := modulestest.NewRuntime(t)
 
 		cwd, err := os.Getwd()
@@ -90,7 +89,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	assertMetricEmitted := func(
 		t *testing.T,
 		metricName string,
-		sampleContainers []metrics.SampleContainer,
+		sampleContainers []workerMetrics.SampleContainer,
 		url string,
 	) ***REMOVED***
 		seenMetric := false
@@ -337,9 +336,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (resp.status !== grpc.StatusOK) ***REMOVED***
 					throw new Error("unexpected error: " + JSON.stringify(resp.error) + "or status: " + resp.status)
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -385,9 +384,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (resp.message.data.v !== "3") ***REMOVED***
 					throw new Error("unexpected resp message data")
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.any.testing.AnyTestService/Sum"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.any.testing.AnyTestService/Sum"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -459,9 +458,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.message || resp.message.username !== "" || resp.message.oauthScope !== "水") ***REMOVED***
 					throw new Error("unexpected response message: " + JSON.stringify(resp.message))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/UnaryCall"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/UnaryCall"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -487,9 +486,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.error || resp.error.message !== "foobar" || resp.error.code !== 15) ***REMOVED***
 					throw new Error("unexpected error object: " + JSON.stringify(resp.error.code))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -517,9 +516,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.headers || !resp.headers["foo"] || resp.headers["foo"][0] !== "bar") ***REMOVED***
 					throw new Error("unexpected headers object: " + JSON.stringify(resp.trailers))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -547,9 +546,9 @@ func TestClient(t *testing.T) ***REMOVED***
 				if (!resp.trailers || !resp.trailers["foo"] || resp.trailers["foo"][0] !== "bar") ***REMOVED***
 					throw new Error("unexpected trailers object: " + JSON.stringify(resp.trailers))
 				***REMOVED***`,
-				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan metrics.SampleContainer, _ error) ***REMOVED***
-					samplesBuf := metrics.GetBufferedSamples(samples)
-					assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+				asserts: func(t *testing.T, rb *httpmultibin.HTTPMultiBin, samples chan workerMetrics.SampleContainer, _ error) ***REMOVED***
+					samplesBuf := workerMetrics.GetBufferedSamples(samples)
+					assertMetricEmitted(t, workerMetrics.GRPCReqDurationName, samplesBuf, rb.Replacer.Replace("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -709,14 +708,14 @@ func TestClient(t *testing.T) ***REMOVED***
 				TLSConfig: ts.httpBin.TLSClientConfig,
 				Samples:   ts.samples,
 				Options: libWorker.Options***REMOVED***
-					SystemTags: metrics.NewSystemTagSet(
-						metrics.TagName,
-						metrics.TagURL,
+					SystemTags: workerMetrics.NewSystemTagSet(
+						workerMetrics.TagName,
+						workerMetrics.TagURL,
 					),
 					UserAgent: null.StringFrom("k6-test"),
 				***REMOVED***,
-				BuiltinMetrics: metrics.RegisterBuiltinMetrics(
-					metrics.NewRegistry(),
+				BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(
+					workerMetrics.NewRegistry(),
 				),
 				Tags: libWorker.NewTagMap(nil),
 			***REMOVED***

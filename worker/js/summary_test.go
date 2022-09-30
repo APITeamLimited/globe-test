@@ -15,7 +15,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const (
@@ -78,24 +77,24 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	parentMetric, err := registry.NewMetric("my_parent", metrics.Counter)
+	registry := workerMetrics.NewRegistry()
+	parentMetric, err := registry.NewMetric("my_parent", workerMetrics.Counter)
 	require.NoError(t, err)
-	parentMetric.Sink.Add(metrics.Sample***REMOVED***Value: 11***REMOVED***)
+	parentMetric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 11***REMOVED***)
 
-	parentMetricPost, err := registry.NewMetric("my_parent_post", metrics.Counter)
+	parentMetricPost, err := registry.NewMetric("my_parent_post", workerMetrics.Counter)
 	require.NoError(t, err)
-	parentMetricPost.Sink.Add(metrics.Sample***REMOVED***Value: 22***REMOVED***)
+	parentMetricPost.Sink.Add(workerMetrics.Sample***REMOVED***Value: 22***REMOVED***)
 
 	subMetric, err := parentMetric.AddSubmetric("sub:1")
 	require.NoError(t, err)
-	subMetric.Metric.Sink.Add(metrics.Sample***REMOVED***Value: 1***REMOVED***)
+	subMetric.Metric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 1***REMOVED***)
 
 	subMetricPost, err := parentMetricPost.AddSubmetric("sub:2")
 	require.NoError(t, err)
-	subMetricPost.Metric.Sink.Add(metrics.Sample***REMOVED***Value: 2***REMOVED***)
+	subMetricPost.Metric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 2***REMOVED***)
 
-	metrics := map[string]*metrics.Metric***REMOVED***
+	metrics := map[string]*workerMetrics.Metric***REMOVED***
 		parentMetric.Name:     parentMetric,
 		parentMetricPost.Name: parentMetricPost,
 		subMetric.Name:        subMetric.Metric,
@@ -133,42 +132,42 @@ func TestTextSummaryWithSubMetrics(t *testing.T) ***REMOVED***
 	assert.Equal(t, "\n"+expected+"\n", string(summaryOut))
 ***REMOVED***
 
-func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *libWorker.Group) ***REMOVED***
-	registry := metrics.NewRegistry()
-	testMetrics := make(map[string]*metrics.Metric)
+func createTestMetrics(t *testing.T) (map[string]*workerMetrics.Metric, *libWorker.Group) ***REMOVED***
+	registry := workerMetrics.NewRegistry()
+	testMetrics := make(map[string]*workerMetrics.Metric)
 
-	gaugeMetric, err := registry.NewMetric("vus", metrics.Gauge)
+	gaugeMetric, err := registry.NewMetric("vus", workerMetrics.Gauge)
 	require.NoError(t, err)
-	gaugeMetric.Sink.Add(metrics.Sample***REMOVED***Value: 1***REMOVED***)
+	gaugeMetric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 1***REMOVED***)
 
-	countMetric, err := registry.NewMetric("http_reqs", metrics.Counter)
+	countMetric, err := registry.NewMetric("http_reqs", workerMetrics.Counter)
 	require.NoError(t, err)
 	countMetric.Tainted = null.BoolFrom(true)
-	countMetric.Thresholds = metrics.Thresholds***REMOVED***Thresholds: []*metrics.Threshold***REMOVED******REMOVED***Source: "rate<100", LastFailed: true***REMOVED******REMOVED******REMOVED***
+	countMetric.Thresholds = workerMetrics.Thresholds***REMOVED***Thresholds: []*workerMetrics.Threshold***REMOVED******REMOVED***Source: "rate<100", LastFailed: true***REMOVED******REMOVED******REMOVED***
 
-	checksMetric, err := registry.NewMetric("checks", metrics.Rate)
+	checksMetric, err := registry.NewMetric("checks", workerMetrics.Rate)
 	require.NoError(t, err)
 	checksMetric.Tainted = null.BoolFrom(false)
-	checksMetric.Thresholds = metrics.Thresholds***REMOVED***Thresholds: []*metrics.Threshold***REMOVED******REMOVED***Source: "rate>70", LastFailed: false***REMOVED******REMOVED******REMOVED***
-	sink := &metrics.TrendSink***REMOVED******REMOVED***
+	checksMetric.Thresholds = workerMetrics.Thresholds***REMOVED***Thresholds: []*workerMetrics.Threshold***REMOVED******REMOVED***Source: "rate>70", LastFailed: false***REMOVED******REMOVED******REMOVED***
+	sink := &workerMetrics.TrendSink***REMOVED******REMOVED***
 
 	samples := []float64***REMOVED***10.0, 15.0, 20.0***REMOVED***
 	for _, s := range samples ***REMOVED***
-		sink.Add(metrics.Sample***REMOVED***Value: s***REMOVED***)
-		countMetric.Sink.Add(metrics.Sample***REMOVED***Value: 1***REMOVED***)
+		sink.Add(workerMetrics.Sample***REMOVED***Value: s***REMOVED***)
+		countMetric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 1***REMOVED***)
 	***REMOVED***
 
 	testMetrics["vus"] = gaugeMetric
 	testMetrics["http_reqs"] = countMetric
 	testMetrics["checks"] = checksMetric
-	testMetrics["my_trend"] = &metrics.Metric***REMOVED***
+	testMetrics["my_trend"] = &workerMetrics.Metric***REMOVED***
 		Name:     "my_trend",
-		Type:     metrics.Trend,
-		Contains: metrics.Time,
+		Type:     workerMetrics.Trend,
+		Contains: workerMetrics.Time,
 		Sink:     sink,
 		Tainted:  null.BoolFrom(true),
-		Thresholds: metrics.Thresholds***REMOVED***
-			Thresholds: []*metrics.Threshold***REMOVED***
+		Thresholds: workerMetrics.Thresholds***REMOVED***
+			Thresholds: []*workerMetrics.Threshold***REMOVED***
 				***REMOVED***
 					Source:     "my_trend<1000",
 					LastFailed: true,
@@ -196,10 +195,10 @@ func createTestMetrics(t *testing.T) (map[string]*metrics.Metric, *libWorker.Gro
 	check2.Fails = 10
 
 	for i := 0; i < int(check1.Passes+check2.Passes+check3.Passes); i++ ***REMOVED***
-		checksMetric.Sink.Add(metrics.Sample***REMOVED***Value: 1***REMOVED***)
+		checksMetric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 1***REMOVED***)
 	***REMOVED***
 	for i := 0; i < int(check1.Fails+check2.Fails+check3.Fails); i++ ***REMOVED***
-		checksMetric.Sink.Add(metrics.Sample***REMOVED***Value: 0***REMOVED***)
+		checksMetric.Sink.Add(workerMetrics.Sample***REMOVED***Value: 0***REMOVED***)
 	***REMOVED***
 
 	return testMetrics, rootG

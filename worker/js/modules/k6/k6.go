@@ -7,11 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dop251/goja"
-
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/dop251/goja"
 )
 
 var (
@@ -103,7 +102,7 @@ func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) ***REMOVE
 	old := state.Group
 	state.Group = g
 
-	shouldUpdateTag := state.Options.SystemTags.Has(metrics.TagGroup)
+	shouldUpdateTag := state.Options.SystemTags.Has(workerMetrics.TagGroup)
 	if shouldUpdateTag ***REMOVED***
 		state.Tags.Set("group", g.Path)
 	***REMOVED***
@@ -121,11 +120,11 @@ func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) ***REMOVE
 	tags := state.CloneTags()
 
 	ctx := mi.vu.Context()
-	metrics.PushIfNotDone(ctx, state.Samples, metrics.Sample***REMOVED***
+	workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.Sample***REMOVED***
 		Time:   t,
 		Metric: state.BuiltinMetrics.GroupDuration,
-		Tags:   metrics.IntoSampleTags(&tags),
-		Value:  metrics.D(t.Sub(startTime)),
+		Tags:   workerMetrics.IntoSampleTags(&tags),
+		Value:  workerMetrics.D(t.Sub(startTime)),
 	***REMOVED***)
 
 	return ret, err
@@ -170,7 +169,7 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 		if err != nil ***REMOVED***
 			return false, err
 		***REMOVED***
-		if state.Options.SystemTags.Has(metrics.TagCheck) ***REMOVED***
+		if state.Options.SystemTags.Has(workerMetrics.TagCheck) ***REMOVED***
 			tags["check"] = check.Name
 		***REMOVED***
 
@@ -185,7 +184,7 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 			***REMOVED***
 		***REMOVED***
 
-		sampleTags := metrics.IntoSampleTags(&tags)
+		sampleTags := workerMetrics.IntoSampleTags(&tags)
 
 		// Emit! (But only if we have a valid context.)
 		select ***REMOVED***
@@ -193,12 +192,12 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 		default:
 			if val.ToBoolean() ***REMOVED***
 				atomic.AddInt64(&check.Passes, 1)
-				metrics.PushIfNotDone(ctx, state.Samples,
-					metrics.Sample***REMOVED***Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 1***REMOVED***)
+				workerMetrics.PushIfNotDone(ctx, state.Samples,
+					workerMetrics.Sample***REMOVED***Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 1***REMOVED***)
 			***REMOVED*** else ***REMOVED***
 				atomic.AddInt64(&check.Fails, 1)
-				metrics.PushIfNotDone(ctx, state.Samples,
-					metrics.Sample***REMOVED***Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 0***REMOVED***)
+				workerMetrics.PushIfNotDone(ctx, state.Samples,
+					workerMetrics.Sample***REMOVED***Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 0***REMOVED***)
 				// A single failure makes the return value false.
 				succ = false
 			***REMOVED***

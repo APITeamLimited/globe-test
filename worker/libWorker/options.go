@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -295,6 +295,8 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
+	ExecutionMode types.NullExecutionMode `json:"executionMode"`
+
 	// Should the test start in a paused state?
 	Paused null.Bool `json:"paused" envconfig:"K6_PAUSED"`
 
@@ -354,7 +356,7 @@ type Options struct ***REMOVED***
 	// Define thresholds; these take the form of 'metric=["snippet1", "snippet2"]'.
 	// To create a threshold on a derived metric based on tag queries ("submetrics"), create a
 	// metric on a nonexistent metric named 'real_metric***REMOVED***tagA:valueA,tagB:valueB***REMOVED***'.
-	Thresholds map[string]metrics.Thresholds `json:"thresholds" envconfig:"K6_THRESHOLDS"`
+	Thresholds map[string]workerMetrics.Thresholds `json:"thresholds" envconfig:"K6_THRESHOLDS"`
 
 	// Blacklist IP ranges that tests may not contact. Mainly useful in hosted setups.
 	BlacklistIPs []*IPNet `json:"blacklistIPs" envconfig:"K6_BLACKLIST_IPS"`
@@ -389,7 +391,7 @@ type Options struct ***REMOVED***
 
 	// Which system tags to include with metrics ("method", "vu" etc.)
 	// Use pointer for identifying whether user provide any tag or not.
-	SystemTags *metrics.SystemTagSet `json:"systemTags" envconfig:"K6_SYSTEM_TAGS"`
+	SystemTags *workerMetrics.SystemTagSet `json:"systemTags" envconfig:"K6_SYSTEM_TAGS"`
 
 	// Tags are key-value pairs to be applied to all samples for the run.
 	RunTags map[string]string `json:"tags" envconfig:"K6_TAGS"`

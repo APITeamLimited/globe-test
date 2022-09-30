@@ -12,7 +12,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,8 +65,8 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
@@ -178,8 +178,8 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
@@ -260,8 +260,8 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
@@ -395,8 +395,8 @@ func TestExecutionInfoAll(t *testing.T) ***REMOVED***
 			logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 			logger.AddHook(&logHook)
 
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+			registry := workerMetrics.NewRegistry()
+			builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
 				&libWorker.TestPreInitState***REMOVED***
 					Logger:         logger,

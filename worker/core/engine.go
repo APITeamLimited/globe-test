@@ -6,13 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
-	"github.com/APITeamLimited/globe-test/worker/metrics/engine"
 	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics/engine"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -44,7 +43,7 @@ type Engine struct ***REMOVED***
 	stopOnce sync.Once
 	stopChan chan struct***REMOVED******REMOVED***
 
-	Samples chan metrics.SampleContainer
+	Samples chan workerMetrics.SampleContainer
 
 	// Are thresholds tainted?
 	thresholdsTaintedLock sync.Mutex
@@ -61,7 +60,7 @@ func NewEngine(testState *libWorker.TestRunState, ex libWorker.ExecutionSchedule
 		ExecutionScheduler: ex,
 
 		runtimeOptions: testState.RuntimeOptions,
-		Samples:        make(chan metrics.SampleContainer, testState.Options.MetricSamplesBufferSize.Int64),
+		Samples:        make(chan workerMetrics.SampleContainer, testState.Options.MetricSamplesBufferSize.Int64),
 		stopChan:       make(chan struct***REMOVED******REMOVED***),
 		logger:         testState.Logger.WithField("component", "engine"),
 	***REMOVED***
@@ -236,11 +235,11 @@ func (e *Engine) startBackgroundProcesses(
 // that the test run is finished, no more metric samples will be produced, and that
 // the metrics samples remaining in the pipeline should be should be processed.
 func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRun chan struct***REMOVED******REMOVED***) ***REMOVED***
-	sampleContainers := []metrics.SampleContainer***REMOVED******REMOVED***
+	sampleContainers := []workerMetrics.SampleContainer***REMOVED******REMOVED***
 
 	defer func() ***REMOVED***
 		// Process any remaining metrics in the pipeline, by this point Run()
-		// has already finished and nothing else should be producing metrics.
+		// has already finished and nothing else should be producing workerMetrics.
 		e.logger.Debug("Metrics processing winding down...")
 
 		close(e.Samples)
@@ -268,7 +267,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			// Make the new container with the same size as the previous
 			// one, assuming that we produce roughly the same amount of
 			// metrics data between ticks...
-			sampleContainers = make([]metrics.SampleContainer, 0, cap(sampleContainers))
+			sampleContainers = make([]workerMetrics.SampleContainer, 0, cap(sampleContainers))
 		***REMOVED***
 	***REMOVED***
 	for ***REMOVED***

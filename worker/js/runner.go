@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/dop251/goja"
 	"github.com/oxtoacart/bpool"
 	"github.com/spf13/afero"
@@ -31,7 +32,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // Ensure Runner implements the libWorker.Runner interface
@@ -97,7 +97,7 @@ func NewFromBundle(piState *libWorker.TestPreInitState, b *Bundle) (*Runner, err
 ***REMOVED***
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
 	vu, err := r.newVU(idLocal, idGlobal, samplesOut, workerInfo)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -106,7 +106,7 @@ func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.Sampl
 ***REMOVED***
 
 //nolint:funlen
-func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, workerInfo)
 	if err != nil ***REMOVED***
@@ -251,7 +251,7 @@ func forceHTTP1() bool ***REMOVED***
 ***REMOVED***
 
 // Setup runs the setup function if there is one and sets the setupData to the returned value
-func (r *Runner) Setup(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
+func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
 	setupCtx, setupCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.SetupFn))
 	defer setupCancel()
 
@@ -284,7 +284,7 @@ func (r *Runner) SetSetupData(data []byte) ***REMOVED***
 ***REMOVED***
 
 // Teardown runs the teardown function if there is one.
-func (r *Runner) Teardown(ctx context.Context, out chan<- metrics.SampleContainer) error ***REMOVED***
+func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
 	teardownCtx, teardownCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.TeardownFn))
 	defer teardownCancel()
 
@@ -324,7 +324,7 @@ func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Sum
 func (r *Runner) HandleSummary(ctx context.Context, summary *libWorker.Summary) (map[string]io.Reader, error) ***REMOVED***
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
 
-	out := make(chan metrics.SampleContainer, 100)
+	out := make(chan workerMetrics.SampleContainer, 100)
 	defer close(out)
 
 	go func() ***REMOVED*** // discard all metrics
@@ -457,7 +457,7 @@ func parseTTL(ttlS string) (time.Duration, error) ***REMOVED***
 // interrupted if the context expires. No error is returned if the part does not exist.
 func (r *Runner) runPart(
 	ctx context.Context,
-	out chan<- metrics.SampleContainer,
+	out chan<- workerMetrics.SampleContainer,
 	name string,
 	arg interface***REMOVED******REMOVED***,
 ) (goja.Value, error) ***REMOVED***
@@ -483,7 +483,7 @@ func (r *Runner) runPart(
 		return goja.Undefined(), err
 	***REMOVED***
 
-	if r.Bundle.Options.SystemTags.Has(metrics.TagGroup) ***REMOVED***
+	if r.Bundle.Options.SystemTags.Has(workerMetrics.TagGroup) ***REMOVED***
 		vu.state.Tags.Set("group", group.Path)
 	***REMOVED***
 	vu.state.Group = group
@@ -532,7 +532,7 @@ type VU struct ***REMOVED***
 	Console *console
 	BPool   *bpool.BufferPool
 
-	Samples chan<- metrics.SampleContainer
+	Samples chan<- workerMetrics.SampleContainer
 
 	setupData goja.Value
 
@@ -587,16 +587,16 @@ func (u *VU) Activate(params *libWorker.VUActivationParams) libWorker.ActiveVU *
 	for k, v := range params.Tags ***REMOVED***
 		u.state.Tags.Set(k, v)
 	***REMOVED***
-	if opts.SystemTags.Has(metrics.TagVU) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagVU) ***REMOVED***
 		u.state.Tags.Set("vu", strconv.FormatUint(u.ID, 10))
 	***REMOVED***
-	if opts.SystemTags.Has(metrics.TagIter) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagIter) ***REMOVED***
 		u.state.Tags.Set("iter", strconv.FormatInt(u.iteration, 10))
 	***REMOVED***
-	if opts.SystemTags.Has(metrics.TagGroup) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagGroup) ***REMOVED***
 		u.state.Tags.Set("group", u.state.Group.Path)
 	***REMOVED***
-	if opts.SystemTags.Has(metrics.TagScenario) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagScenario) ***REMOVED***
 		u.state.Tags.Set("scenario", params.Scenario)
 	***REMOVED***
 
@@ -725,7 +725,7 @@ func (u *VU) runFn(
 	***REMOVED***
 
 	opts := &u.Runner.Bundle.Options
-	if opts.SystemTags.Has(metrics.TagIter) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagIter) ***REMOVED***
 		u.state.Tags.Set("iter", strconv.FormatInt(u.state.Iteration, 10))
 	***REMOVED***
 
@@ -762,7 +762,7 @@ func (u *VU) runFn(
 		u.Transport.CloseIdleConnections()
 	***REMOVED***
 
-	sampleTags := metrics.NewSampleTags(u.state.CloneTags())
+	sampleTags := workerMetrics.NewSampleTags(u.state.CloneTags())
 	u.state.Samples <- u.Dialer.GetTrail(
 		startTime, endTime, isFullIteration, isDefault, sampleTags, u.Runner.preInitState.BuiltinMetrics)
 

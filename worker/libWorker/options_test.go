@@ -14,7 +14,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestOptions(t *testing.T) ***REMOVED***
@@ -476,9 +475,9 @@ func TestOptions(t *testing.T) ***REMOVED***
 
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]metrics.Thresholds***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]workerMetrics.Thresholds***REMOVED***
 			"metric": ***REMOVED***
-				Thresholds: []*metrics.Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
+				Thresholds: []*workerMetrics.Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
 			***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
@@ -501,10 +500,10 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("SystemTags", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SystemTags: metrics.NewSystemTagSet(metrics.TagProto)***REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagProto)***REMOVED***)
 		assert.NotNil(t, opts.SystemTags)
 		assert.NotEmpty(t, opts.SystemTags)
-		assert.True(t, opts.SystemTags.Has(metrics.TagProto))
+		assert.True(t, opts.SystemTags.Has(workerMetrics.TagProto))
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
 			t.Parallel()
@@ -513,14 +512,14 @@ func TestOptions(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"systemTags":["url"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
-				assert.Equal(t, *metrics.NewSystemTagSet(metrics.TagURL), *opts.SystemTags)
+				assert.Equal(t, *workerMetrics.NewSystemTagSet(workerMetrics.TagURL), *opts.SystemTags)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					data, err := json.Marshal(opts.SystemTags)
 					assert.NoError(t, err)
 					assert.Equal(t, `["url"]`, string(data))
-					var vers2 metrics.SystemTagSet
+					var vers2 workerMetrics.SystemTagSet
 					assert.NoError(t, json.Unmarshal(data, &vers2))
 					assert.Equal(t, vers2, *opts.SystemTags)
 				***REMOVED***)
@@ -530,7 +529,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"systemTags":[]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
-				assert.Equal(t, metrics.SystemTagSet(0), *opts.SystemTags)
+				assert.Equal(t, workerMetrics.SystemTagSet(0), *opts.SystemTags)
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // SampleBuffer is a simple thread-safe buffer for metric samples. It should be
@@ -14,12 +14,12 @@ import (
 // and we don't want to block the Engine in the meantime.
 type SampleBuffer struct ***REMOVED***
 	sync.Mutex
-	buffer []metrics.SampleContainer
+	buffer []workerMetrics.SampleContainer
 	maxLen int
 ***REMOVED***
 
 // AddMetricSamples adds the given metric samples to the internal buffer.
-func (sc *SampleBuffer) AddMetricSamples(samples []metrics.SampleContainer) ***REMOVED***
+func (sc *SampleBuffer) AddMetricSamples(samples []workerMetrics.SampleContainer) ***REMOVED***
 	if len(samples) == 0 ***REMOVED***
 		return
 	***REMOVED***
@@ -31,7 +31,7 @@ func (sc *SampleBuffer) AddMetricSamples(samples []metrics.SampleContainer) ***R
 // GetBufferedSamples returns the currently buffered metric samples and makes a
 // new internal buffer with some hopefully realistic size. If the internal
 // buffer is empty, it will return nil.
-func (sc *SampleBuffer) GetBufferedSamples() []metrics.SampleContainer ***REMOVED***
+func (sc *SampleBuffer) GetBufferedSamples() []workerMetrics.SampleContainer ***REMOVED***
 	sc.Lock()
 	defer sc.Unlock()
 
@@ -44,7 +44,7 @@ func (sc *SampleBuffer) GetBufferedSamples() []metrics.SampleContainer ***REMOVE
 	***REMOVED***
 	// Make the new buffer halfway between the previously allocated size and the
 	// maximum buffer size we've seen so far, to hopefully reduce copying a bit.
-	sc.buffer = make([]metrics.SampleContainer, 0, (bufferedLen+sc.maxLen)/2)
+	sc.buffer = make([]workerMetrics.SampleContainer, 0, (bufferedLen+sc.maxLen)/2)
 
 	return buffered
 ***REMOVED***

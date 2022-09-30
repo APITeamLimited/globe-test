@@ -47,19 +47,17 @@ func GetTestWorkerInfo() *WorkerInfo ***REMOVED***
 ***REMOVED***
 
 type Message struct ***REMOVED***
-	JobId       string `json:"jobId"`
-	Time        int64  `json:"time"`
-	WorkerId    string `json:"workerId"`
-	Message     string `json:"message"`
-	MessageType string `json:"messageType"`
+	JobId       string    `json:"jobId"`
+	Time        time.Time `json:"time"`
+	WorkerId    string    `json:"workerId"`
+	Message     string    `json:"message"`
+	MessageType string    `json:"messageType"`
 ***REMOVED***
 
 func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, workerId string, message string, messageType string) ***REMOVED***
-	timestamp := time.Now().UnixMilli()
-
 	var messageStruct = Message***REMOVED***
 		JobId:       jobId,
-		Time:        timestamp,
+		Time:        time.Now(),
 		WorkerId:    workerId,
 		Message:     message,
 		MessageType: messageType,
@@ -71,10 +69,13 @@ func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 		return
 	***REMOVED***
 
-	// Update main job
-	updatesKey := fmt.Sprintf("%s:updates", jobId)
+	// Worker doesn't need to set the message, it's just for the orchestrator and will be
+	// instantly received by the orchestrator
 
-	client.SAdd(ctx, updatesKey, messageJson)
+	// Update main job
+	//updatesKey := fmt.Sprintf("%s:updates", jobId)
+
+	//client.SAdd(ctx, updatesKey, messageJson)
 
 	// Dispatch to channel
 	client.Publish(ctx, fmt.Sprintf("worker:executionUpdates:%s", jobId), messageJson)

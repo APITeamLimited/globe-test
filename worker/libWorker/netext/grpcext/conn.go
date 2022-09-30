@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 
 	protov1 "github.com/golang/protobuf/proto" //nolint:staticcheck,nolintlint // this is the old v1 version
@@ -208,24 +207,24 @@ func (h statsHandler) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) **
 
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
-		if state.Options.SystemTags.Has(metrics.TagIP) && s.RemoteAddr != nil ***REMOVED***
+		if state.Options.SystemTags.Has(workerMetrics.TagIP) && s.RemoteAddr != nil ***REMOVED***
 			if ip, _, err := net.SplitHostPort(s.RemoteAddr.String()); err == nil ***REMOVED***
 				tags["ip"] = ip
 			***REMOVED***
 		***REMOVED***
 	case *grpcstats.End:
-		if state.Options.SystemTags.Has(metrics.TagStatus) ***REMOVED***
+		if state.Options.SystemTags.Has(workerMetrics.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(int(status.Code(s.Error)))
 		***REMOVED***
 
 		mTags := map[string]string(tags)
-		sampleTags := metrics.IntoSampleTags(&mTags)
-		metrics.PushIfNotDone(ctx, state.Samples, metrics.ConnectedSamples***REMOVED***
-			Samples: []metrics.Sample***REMOVED***
+		sampleTags := workerMetrics.IntoSampleTags(&mTags)
+		workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.ConnectedSamples***REMOVED***
+			Samples: []workerMetrics.Sample***REMOVED***
 				***REMOVED***
 					Metric: state.BuiltinMetrics.GRPCReqDuration,
 					Tags:   sampleTags,
-					Value:  metrics.D(s.EndTime.Sub(s.BeginTime)),
+					Value:  workerMetrics.D(s.EndTime.Sub(s.BeginTime)),
 					Time:   s.EndTime,
 				***REMOVED***,
 			***REMOVED***,

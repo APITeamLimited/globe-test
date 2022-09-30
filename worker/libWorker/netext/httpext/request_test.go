@@ -22,7 +22,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 type reader func([]byte) (int, error)
@@ -167,13 +166,13 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 				defer server.Close()
 				logger := logrus.New()
 				logger.Level = logrus.DebugLevel
-				samples := make(chan<- metrics.SampleContainer, 1)
-				registry := metrics.NewRegistry()
+				samples := make(chan<- workerMetrics.SampleContainer, 1)
+				registry := workerMetrics.NewRegistry()
 				state := &libWorker.State***REMOVED***
 					Transport:      server.Client().Transport,
 					Logger:         logger,
 					Samples:        samples,
-					BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+					BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 					Tags:           libWorker.NewTagMap(nil),
 				***REMOVED***
 				req, err := http.NewRequest("GET", server.URL, nil)
@@ -242,19 +241,19 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	samples := make(chan metrics.SampleContainer, 10)
+	samples := make(chan workerMetrics.SampleContainer, 10)
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	state := &libWorker.State***REMOVED***
 		Options: libWorker.Options***REMOVED***
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport:      srv.Client().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
 	req, _ := http.NewRequest("GET", srv.URL, nil)
@@ -318,19 +317,19 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			samples := make(chan metrics.SampleContainer, 10)
+			samples := make(chan workerMetrics.SampleContainer, 10)
 			logger := logrus.New()
 			logger.Level = logrus.DebugLevel
-			registry := metrics.NewRegistry()
+			registry := workerMetrics.NewRegistry()
 			state := &libWorker.State***REMOVED***
 				Options: libWorker.Options***REMOVED***
-					SystemTags: &metrics.DefaultSystemTagSet,
+					SystemTags: &workerMetrics.DefaultSystemTagSet,
 				***REMOVED***,
 				Transport:      srv.Client().Transport,
 				Samples:        samples,
 				Logger:         logger,
 				BPool:          bpool.NewBufferPool(2),
-				BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+				BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 				Tags:           libWorker.NewTagMap(nil),
 			***REMOVED***
 			req, _ := http.NewRequest("GET", srv.URL, nil)
@@ -352,7 +351,7 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 
 			var httpReqFailedSampleValue null.Bool
 			for _, s := range sample.GetSamples() ***REMOVED***
-				if s.Metric.Name == metrics.HTTPReqFailedName ***REMOVED***
+				if s.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
 					httpReqFailedSampleValue.Valid = true
 					if s.Value == 1.0 ***REMOVED***
 						httpReqFailedSampleValue.Bool = true
@@ -379,13 +378,13 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 	***REMOVED***()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	samples := make(chan metrics.SampleContainer, 10)
+	samples := make(chan workerMetrics.SampleContainer, 10)
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	state := &libWorker.State***REMOVED***
 		Options: libWorker.Options***REMOVED***
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport: &http.Transport***REMOVED***
 			DialContext: (&net.Dialer***REMOVED***
@@ -395,7 +394,7 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
 
@@ -437,19 +436,19 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	samples := make(chan metrics.SampleContainer, 10)
+	samples := make(chan workerMetrics.SampleContainer, 10)
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	state := &libWorker.State***REMOVED***
 		Options: libWorker.Options***REMOVED***
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		***REMOVED***,
 		Transport:      srv.Client().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
 	req, _ := http.NewRequest("GET", srv.URL, nil)

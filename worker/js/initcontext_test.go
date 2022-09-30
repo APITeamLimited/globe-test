@@ -23,7 +23,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestInitContextRequire(t *testing.T) ***REMOVED***
@@ -362,8 +361,8 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	logger.Level = logrus.DebugLevel
 	logger.Out = ioutil.Discard
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	bi.moduleVUImpl.state = &libWorker.State***REMOVED***
 		Options: libWorker.Options***REMOVED******REMOVED***,
 		Logger:  logger,
@@ -379,7 +378,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			)).DialContext,
 		***REMOVED***,
 		BPool:          bpool.NewBufferPool(1),
-		Samples:        make(chan metrics.SampleContainer, 500),
+		Samples:        make(chan workerMetrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***
@@ -509,8 +508,8 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 	logger.Level = logrus.DebugLevel
 	logger.Out = ioutil.Discard
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	bi.moduleVUImpl.state = &libWorker.State***REMOVED***
 		Options: libWorker.Options***REMOVED******REMOVED***,
 		Logger:  logger,
@@ -526,7 +525,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 			)).DialContext,
 		***REMOVED***,
 		BPool:          bpool.NewBufferPool(1),
-		Samples:        make(chan metrics.SampleContainer, 500),
+		Samples:        make(chan workerMetrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
 		Tags:           libWorker.NewTagMap(nil),
 	***REMOVED***

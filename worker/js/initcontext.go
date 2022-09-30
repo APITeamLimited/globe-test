@@ -9,10 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/dop251/goja"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
-
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/compiler"
 	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
@@ -32,6 +28,9 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
 	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 )
 
 type programWithSource struct ***REMOVED***

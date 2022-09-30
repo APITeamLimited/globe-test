@@ -1,6 +1,8 @@
 package options
 
-import "net"
+import (
+	"net"
+)
 
 // Returns internal ip nets that are banned
 func generateBannedIPNets() *[]*net.IPNet ***REMOVED***

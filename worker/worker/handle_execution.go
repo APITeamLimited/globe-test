@@ -40,7 +40,7 @@ func handleExecution(ctx context.Context,
 
 	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
-	// Write the full consolidated *and derived* options back to the Runner.
+	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))

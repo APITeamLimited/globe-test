@@ -11,7 +11,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // transport is an implementation of http.RoundTripper that will measure and emit
@@ -86,9 +86,9 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	***REMOVED***
 
 	enabledTags := t.state.Options.SystemTags
-	urlEnabled := enabledTags.Has(metrics.TagURL)
+	urlEnabled := enabledTags.Has(workerMetrics.TagURL)
 	var setName bool
-	if _, ok := tags["name"]; !ok && enabledTags.Has(metrics.TagName) ***REMOVED***
+	if _, ok := tags["name"]; !ok && enabledTags.Has(workerMetrics.TagName) ***REMOVED***
 		setName = true
 	***REMOVED***
 	if urlEnabled || setName ***REMOVED***
@@ -101,49 +101,49 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 		***REMOVED***
 	***REMOVED***
 
-	if enabledTags.Has(metrics.TagMethod) ***REMOVED***
+	if enabledTags.Has(workerMetrics.TagMethod) ***REMOVED***
 		tags["method"] = unfReq.request.Method
 	***REMOVED***
 
 	if unfReq.err != nil ***REMOVED***
 		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
-		if enabledTags.Has(metrics.TagError) ***REMOVED***
+		if enabledTags.Has(workerMetrics.TagError) ***REMOVED***
 			tags["error"] = result.errorMsg
 		***REMOVED***
 
-		if enabledTags.Has(metrics.TagErrorCode) ***REMOVED***
+		if enabledTags.Has(workerMetrics.TagErrorCode) ***REMOVED***
 			tags["error_code"] = strconv.Itoa(int(result.errorCode))
 		***REMOVED***
 
-		if enabledTags.Has(metrics.TagStatus) ***REMOVED***
+		if enabledTags.Has(workerMetrics.TagStatus) ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if enabledTags.Has(metrics.TagStatus) ***REMOVED***
+		if enabledTags.Has(workerMetrics.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		***REMOVED***
 		if unfReq.response.StatusCode >= 400 ***REMOVED***
-			if enabledTags.Has(metrics.TagErrorCode) ***REMOVED***
+			if enabledTags.Has(workerMetrics.TagErrorCode) ***REMOVED***
 				result.errorCode = errCode(1000 + unfReq.response.StatusCode)
 				tags["error_code"] = strconv.Itoa(int(result.errorCode))
 			***REMOVED***
 		***REMOVED***
-		if enabledTags.Has(metrics.TagProto) ***REMOVED***
+		if enabledTags.Has(workerMetrics.TagProto) ***REMOVED***
 			tags["proto"] = unfReq.response.Proto
 		***REMOVED***
 
 		if unfReq.response.TLS != nil ***REMOVED***
 			tlsInfo, oscp := netext.ParseTLSConnState(unfReq.response.TLS)
-			if enabledTags.Has(metrics.TagTLSVersion) ***REMOVED***
+			if enabledTags.Has(workerMetrics.TagTLSVersion) ***REMOVED***
 				tags["tls_version"] = tlsInfo.Version
 			***REMOVED***
-			if enabledTags.Has(metrics.TagOCSPStatus) ***REMOVED***
+			if enabledTags.Has(workerMetrics.TagOCSPStatus) ***REMOVED***
 				tags["ocsp_status"] = oscp.Status
 			***REMOVED***
 			result.tlsInfo = tlsInfo
 		***REMOVED***
 	***REMOVED***
-	if enabledTags.Has(metrics.TagIP) && trail.ConnRemoteAddr != nil ***REMOVED***
+	if enabledTags.Has(workerMetrics.TagIP) && trail.ConnRemoteAddr != nil ***REMOVED***
 		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***
@@ -159,12 +159,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			failed = 1
 		***REMOVED***
 
-		if enabledTags.Has(metrics.TagExpectedResponse) ***REMOVED***
-			tags[metrics.TagExpectedResponse.String()] = strconv.FormatBool(expected)
+		if enabledTags.Has(workerMetrics.TagExpectedResponse) ***REMOVED***
+			tags[workerMetrics.TagExpectedResponse.String()] = strconv.FormatBool(expected)
 		***REMOVED***
 	***REMOVED***
 
-	finalTags := metrics.IntoSampleTags(&tags)
+	finalTags := workerMetrics.IntoSampleTags(&tags)
 	builtinMetrics := t.state.BuiltinMetrics
 	trail.SaveSamples(builtinMetrics, finalTags)
 	if t.responseCallback != nil ***REMOVED***
@@ -173,12 +173,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			trail.Failed.Bool = true
 		***REMOVED***
 		trail.Samples = append(trail.Samples,
-			metrics.Sample***REMOVED***
+			workerMetrics.Sample***REMOVED***
 				Metric: builtinMetrics.HTTPReqFailed, Time: trail.EndTime, Tags: finalTags, Value: failed,
 			***REMOVED***,
 		)
 	***REMOVED***
-	metrics.PushIfNotDone(t.ctx, t.state.Samples, trail)
+	workerMetrics.PushIfNotDone(t.ctx, t.state.Samples, trail)
 
 	return result
 ***REMOVED***
@@ -205,7 +205,7 @@ func (t *transport) processLastSavedRequest(lastErr error) *finishedRequest ***R
 	if unprocessedRequest != nil ***REMOVED***
 		// We don't want to overwrite any previous errors, but if there were
 		// none and we (i.e. the MakeRequest() function) have one, save it
-		// before we emit the metrics.
+		// before we emit the workerMetrics.
 		if unprocessedRequest.err == nil && lastErr != nil ***REMOVED***
 			unprocessedRequest.err = lastErr
 		***REMOVED***

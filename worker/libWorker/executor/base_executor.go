@@ -5,11 +5,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/sirupsen/logrus"
 )
 
 // BaseExecutor is a helper struct that contains common properties and methods
@@ -72,16 +71,16 @@ func (bs *BaseExecutor) GetProgress() *pb.ProgressBar ***REMOVED***
 
 // getMetricTags returns a tag set that can be used to emit metrics by the
 // executor. The VU ID is optional.
-func (bs *BaseExecutor) getMetricTags(vuID *uint64) *metrics.SampleTags ***REMOVED***
+func (bs *BaseExecutor) getMetricTags(vuID *uint64) *workerMetrics.SampleTags ***REMOVED***
 	tags := make(map[string]string, len(bs.executionState.Test.Options.RunTags))
 	for k, v := range bs.executionState.Test.Options.RunTags ***REMOVED***
 		tags[k] = v
 	***REMOVED***
-	if bs.executionState.Test.Options.SystemTags.Has(metrics.TagScenario) ***REMOVED***
+	if bs.executionState.Test.Options.SystemTags.Has(workerMetrics.TagScenario) ***REMOVED***
 		tags["scenario"] = bs.config.GetName()
 	***REMOVED***
-	if vuID != nil && bs.executionState.Test.Options.SystemTags.Has(metrics.TagVU) ***REMOVED***
+	if vuID != nil && bs.executionState.Test.Options.SystemTags.Has(workerMetrics.TagVU) ***REMOVED***
 		tags["vu"] = strconv.FormatUint(*vuID, 10)
 	***REMOVED***
-	return metrics.IntoSampleTags(&tags)
+	return workerMetrics.IntoSampleTags(&tags)
 ***REMOVED***

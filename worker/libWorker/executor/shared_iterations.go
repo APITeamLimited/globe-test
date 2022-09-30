@@ -7,13 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/guregu/null.v3"
 )
 
 const sharedIterationsType = "shared-iterations"
@@ -164,7 +163,7 @@ func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 // the configured VUs.
 //
 //nolint:funlen
-func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) ***REMOVED***
+func (si SharedIterations) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) ***REMOVED***
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
 	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
 	duration := si.config.MaxDuration.TimeDuration()
@@ -217,7 +216,7 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 	defer func() ***REMOVED***
 		activeVUs.Wait()
 		if attemptedIters < totalIters ***REMOVED***
-			metrics.PushIfNotDone(parentCtx, out, metrics.Sample***REMOVED***
+			workerMetrics.PushIfNotDone(parentCtx, out, workerMetrics.Sample***REMOVED***
 				Value:  float64(totalIters - attemptedIters),
 				Metric: si.executionState.Test.BuiltinMetrics.DroppedIterations,
 				Tags:   si.getMetricTags(nil), Time: time.Now(),

@@ -17,7 +17,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -58,7 +57,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		tenv := setupTagsExecEnv(t)
 		tenv.MoveToVUContext(&libWorker.State***REMOVED***
 			Options: libWorker.Options***REMOVED***
-				SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+				SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 			***REMOVED***,
 			Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 				"vu": "42",
@@ -150,7 +149,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			tenv := setupTagsExecEnv(t)
 			tenv.MoveToVUContext(&libWorker.State***REMOVED***
 				Options: libWorker.Options***REMOVED***
-					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 				***REMOVED***,
 				Tags: libWorker.NewTagMap(map[string]string***REMOVED***
 					"vu": "42",
@@ -177,7 +176,7 @@ func TestVUTags(t *testing.T) ***REMOVED***
 			tenv := setupTagsExecEnv(t)
 			tenv.MoveToVUContext(&libWorker.State***REMOVED***
 				Options: libWorker.Options***REMOVED***
-					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 				***REMOVED***,
 				Tags:   libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***),
 				Logger: testLog,
@@ -320,9 +319,9 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 						***REMOVED***(),
 					***REMOVED***,
 				***REMOVED***,
-				Thresholds: map[string]metrics.Thresholds***REMOVED***
+				Thresholds: map[string]workerMetrics.Thresholds***REMOVED***
 					"http_req_duration": ***REMOVED***
-						Thresholds: []*metrics.Threshold***REMOVED***
+						Thresholds: []*workerMetrics.Threshold***REMOVED***
 							***REMOVED***
 								Source:           "rate>0.01",
 								LastFailed:       true,
@@ -348,8 +347,8 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 				***REMOVED***,
 				SummaryTrendStats: []string***REMOVED***"avg", "min", "max"***REMOVED***,
 				SummaryTimeUnit:   null.StringFrom("ms"),
-				SystemTags: func() *metrics.SystemTagSet ***REMOVED***
-					sysm := metrics.TagIter | metrics.TagVU
+				SystemTags: func() *workerMetrics.SystemTagSet ***REMOVED***
+					sysm := workerMetrics.TagIter | workerMetrics.TagVU
 					return &sysm
 				***REMOVED***(),
 				RunTags:                 map[string]string***REMOVED***"runtag-key": "runtag-value"***REMOVED***,

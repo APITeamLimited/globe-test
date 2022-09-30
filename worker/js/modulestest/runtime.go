@@ -9,7 +9,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 )
 
@@ -18,7 +17,7 @@ type Runtime struct ***REMOVED***
 	VU             *VU
 	EventLoop      *eventloop.EventLoop
 	CancelContext  func()
-	BuiltinMetrics *metrics.BuiltinMetrics
+	BuiltinMetrics *workerMetrics.BuiltinMetrics
 ***REMOVED***
 
 // NewRuntime will create a new test runtime and will cancel the context on test/benchmark end
@@ -32,7 +31,7 @@ func NewRuntime(t testing.TB) *Runtime ***REMOVED***
 	vu.RuntimeField.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	vu.InitEnvField = &common.InitEnvironment***REMOVED***
 		Logger:   testutils.NewLogger(t),
-		Registry: metrics.NewRegistry(),
+		Registry: workerMetrics.NewRegistry(),
 	***REMOVED***
 
 	eventloop := eventloop.New(vu)
@@ -41,7 +40,7 @@ func NewRuntime(t testing.TB) *Runtime ***REMOVED***
 		VU:             vu,
 		EventLoop:      eventloop,
 		CancelContext:  cancel,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(vu.InitEnvField.Registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(vu.InitEnvField.Registry),
 	***REMOVED***
 	// let's cancel again in case it has changed
 	t.Cleanup(func() ***REMOVED*** result.CancelContext() ***REMOVED***)

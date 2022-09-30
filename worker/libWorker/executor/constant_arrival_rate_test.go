@@ -15,7 +15,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func newExecutionSegmentFromString(str string) *libWorker.ExecutionSegment ***REMOVED***
@@ -56,7 +55,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, getTestConstantArrivalRateConfig())
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
@@ -93,7 +92,7 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 			require.InDelta(t, 50, currentCount, 1)
 		***REMOVED***
 	***REMOVED***()
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
@@ -210,7 +209,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***()
 			startTime = time.Now()
-			engineOut := make(chan metrics.SampleContainer, 1000)
+			engineOut := make(chan workerMetrics.SampleContainer, 1000)
 			err = execTest.executor.Run(execTest.ctx, engineOut, libWorker.GetTestWorkerInfo())
 			wg.Wait()
 			require.NoError(t, err)
@@ -250,7 +249,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 			go func() ***REMOVED***
 				defer wg.Done()
 
-				engineOut := make(chan metrics.SampleContainer, 1000)
+				engineOut := make(chan workerMetrics.SampleContainer, 1000)
 				errCh <- test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo())
 				close(weAreDoneCh)
 			***REMOVED***()
@@ -294,13 +293,13 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	logs := test.logHook.Drain()
 	require.Len(t, logs, 1)
 	assert.Contains(t, logs[0].Message, "cannot initialize more")
 	assert.Equal(t, int64(5), count)
-	assert.Equal(t, float64(5), sumMetricValues(engineOut, metrics.DroppedIterationsName))
+	assert.Equal(t, float64(5), sumMetricValues(engineOut, workerMetrics.DroppedIterationsName))
 ***REMOVED***
 
 func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
@@ -340,7 +339,7 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			test := setupExecutorTest(t, tc.seg, tc.seq, libWorker.Options***REMOVED******REMOVED***, runner, config)
 			defer test.cancel()
 
-			engineOut := make(chan metrics.SampleContainer, 100)
+			engineOut := make(chan workerMetrics.SampleContainer, 100)
 			require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 			assert.Equal(t, tc.expIters, gotIters)
 		***REMOVED***)

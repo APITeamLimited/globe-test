@@ -13,8 +13,8 @@ const minIterationDurationMilliseconds = 1000
 func MinIterationDuration(options *libWorker.Options) error ***REMOVED***
 	// Ensure that user duration is within the allowed range
 
-	// Don't enforce minimum iteration duration for non-iteration tests
-	if options.Iterations.Valid && options.Iterations.Int64 == 1 ***REMOVED***
+	// Don't enforce minimum iteration duration for RESTSingleExecutionMode
+	if options.ExecutionMode.Valid && options.ExecutionMode.Value == types.RESTSingleExecutionMode ***REMOVED***
 		return nil
 	***REMOVED***
 

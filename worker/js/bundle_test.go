@@ -25,7 +25,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -37,12 +36,12 @@ func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *libWorker
 	if rtOpts == nil ***REMOVED***
 		rtOpts = &libWorker.RuntimeOptions***REMOVED******REMOVED***
 	***REMOVED***
-	reg := metrics.NewRegistry()
+	reg := workerMetrics.NewRegistry()
 	return &libWorker.TestPreInitState***REMOVED***
 		Logger:         logger,
 		RuntimeOptions: *rtOpts,
 		Registry:       reg,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
 	***REMOVED***
 ***REMOVED***
 

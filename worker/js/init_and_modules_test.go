@@ -18,7 +18,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 type CheckModule struct ***REMOVED***
@@ -55,8 +54,8 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 
 	logger := testutils.NewLogger(t)
 	rtOptions := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
@@ -74,7 +73,7 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	assert.Equal(t, checkModule.initCtxCalled, 1)
 	assert.Equal(t, checkModule.vuCtxCalled, 0)
 
-	vu, err := runner.NewVU(1, 1, make(chan metrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
+	vu, err := runner.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 2)
 	assert.Equal(t, checkModule.vuCtxCalled, 0)
@@ -104,7 +103,7 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 3) // changes because we need to get the exported functions
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
-	vuFromArc, err := runnerFromArc.NewVU(2, 2, make(chan metrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
+	vuFromArc, err := runnerFromArc.NewVU(2, 2, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 4)
 	assert.Equal(t, checkModule.vuCtxCalled, 2)

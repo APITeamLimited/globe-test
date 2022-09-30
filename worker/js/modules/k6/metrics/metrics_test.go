@@ -6,16 +6,15 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type addTestValue struct ***REMOVED***
@@ -29,10 +28,10 @@ type addTest struct ***REMOVED***
 	val          addTestValue
 	rt           *goja.Runtime
 	hook         *testutils.SimpleLogrusHook
-	samples      chan metrics.SampleContainer
+	samples      chan workerMetrics.SampleContainer
 	isThrow      bool
-	mtyp         metrics.MetricType
-	valueType    metrics.ValueType
+	mtyp         workerMetrics.MetricType
+	valueType    workerMetrics.ValueType
 	js           string
 	expectedTags map[string]string
 ***REMOVED***
@@ -52,9 +51,9 @@ func (a addTest) run(t *testing.T) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
-	bufSamples := metrics.GetBufferedSamples(a.samples)
+	bufSamples := workerMetrics.GetBufferedSamples(a.samples)
 	if assert.Len(t, bufSamples, 1) ***REMOVED***
-		sample, ok := bufSamples[0].(metrics.Sample)
+		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
@@ -68,11 +67,11 @@ func (a addTest) run(t *testing.T) ***REMOVED***
 
 func TestMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
-	types := map[string]metrics.MetricType***REMOVED***
-		"Counter": metrics.Counter,
-		"Gauge":   metrics.Gauge,
-		"Trend":   metrics.Trend,
-		"Rate":    metrics.Rate,
+	types := map[string]workerMetrics.MetricType***REMOVED***
+		"Counter": workerMetrics.Counter,
+		"Gauge":   workerMetrics.Gauge,
+		"Trend":   workerMetrics.Trend,
+		"Rate":    workerMetrics.Rate,
 	***REMOVED***
 	values := map[string]addTestValue***REMOVED***
 		"Float":                 ***REMOVED***JS: `2.5`, Float: 2.5***REMOVED***,
@@ -92,7 +91,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		fn, mtyp := fn, mtyp
 		t.Run(fn, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			for isTime, valueType := range map[bool]metrics.ValueType***REMOVED***false: metrics.Default, true: metrics.Time***REMOVED*** ***REMOVED***
+			for isTime, valueType := range map[bool]workerMetrics.ValueType***REMOVED***false: workerMetrics.Default, true: workerMetrics.Time***REMOVED*** ***REMOVED***
 				isTime, valueType := isTime, valueType
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
 					t.Parallel()
@@ -104,13 +103,13 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					test.rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 					mii := &modulestest.VU***REMOVED***
 						RuntimeField: test.rt,
-						InitEnvField: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
+						InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
 						CtxField:     context.Background(),
 					***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
 					require.NoError(t, test.rt.Set("metrics", m.Exports().Named))
-					test.samples = make(chan metrics.SampleContainer, 1000)
+					test.samples = make(chan workerMetrics.SampleContainer, 1000)
 					state := &libWorker.State***REMOVED***
 						Options: libWorker.Options***REMOVED******REMOVED***,
 						Samples: test.samples,
@@ -123,13 +122,13 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					if isTime ***REMOVED***
 						isTimeString = `, true`
 					***REMOVED***
-					_, err := test.rt.RunString(fmt.Sprintf(`var m = new metrics.%s("my_metric"%s)`, fn, isTimeString))
+					_, err := test.rt.RunString(fmt.Sprintf(`var m = new workerMetrics.%s("my_metric"%s)`, fn, isTimeString))
 					require.NoError(t, err)
 
 					t.Run("ExitInit", func(t *testing.T) ***REMOVED***
 						mii.StateField = state
 						mii.InitEnvField = nil
-						_, err := test.rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
+						_, err := test.rt.RunString(fmt.Sprintf(`new workerMetrics.%s("my_metric")`, fn))
 						assert.Contains(t, err.Error(), "metrics must be declared in the init context")
 					***REMOVED***)
 					mii.StateField = state
@@ -171,14 +170,14 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 
 	mii := &modulestest.VU***REMOVED***
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
+		InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
 		CtxField:     context.Background(),
 	***REMOVED***
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("metrics", m.Exports().Named))
 	v, err := rt.RunString(`
-		var m = new metrics.Counter("my_metric")
+		var m = new workerMetrics.Counter("my_metric")
 		m.name
 	`)
 	require.NoError(t, err)
@@ -199,29 +198,29 @@ func TestMetricDuplicates(t *testing.T) ***REMOVED***
 
 	mii := &modulestest.VU***REMOVED***
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
+		InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
 		CtxField:     context.Background(),
 	***REMOVED***
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("metrics", m.Exports().Named))
 	_, err := rt.RunString(`
-		var m = new metrics.Counter("my_metric")
+		var m = new workerMetrics.Counter("my_metric")
 	`)
 	require.NoError(t, err)
 
 	_, err = rt.RunString(`
-		var m2 = new metrics.Counter("my_metric")
+		var m2 = new workerMetrics.Counter("my_metric")
 	`)
 	require.NoError(t, err)
 
 	_, err = rt.RunString(`
-		var m3 = new metrics.Gauge("my_metric")
+		var m3 = new workerMetrics.Gauge("my_metric")
 	`)
 	require.Error(t, err)
 
 	_, err = rt.RunString(`
-		var m4 = new metrics.Counter("my_metric", true)
+		var m4 = new workerMetrics.Counter("my_metric", true)
 	`)
 	require.Error(t, err)
 

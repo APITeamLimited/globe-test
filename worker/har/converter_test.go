@@ -11,7 +11,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestBuildK6Headers(t *testing.T) ***REMOVED***
@@ -39,8 +38,8 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	***REMOVED***
 	v, err := buildK6RequestObject(req)
 	assert.NoError(t, err)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	_, err = js.New(
 		&libWorker.TestPreInitState***REMOVED***
 			Logger:         testutils.NewLogger(t),
