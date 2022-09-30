@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // Ensure mock implementations conform to the interfaces.
@@ -19,9 +18,9 @@ var (
 // using a real JS runtime, it allows us to directly specify the options and
 // functions with Go code.
 type MiniRunner struct {
-	Fn              func(ctx context.Context, state *libWorker.State, out chan<- metrics.SampleContainer) error
-	SetupFn         func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error)
-	TeardownFn      func(ctx context.Context, out chan<- metrics.SampleContainer) error
+	Fn              func(ctx context.Context, state *libWorker.State, out chan<- workerMetrics.SampleContainer) error
+	SetupFn         func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error)
+	TeardownFn      func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error
 	HandleSummaryFn func(context.Context, *libWorker.Summary) (map[string]io.Reader, error)
 
 	SetupData []byte
@@ -37,7 +36,7 @@ func (r MiniRunner) MakeArchive() *libWorker.Archive {
 }
 
 // NewVU returns a new VU with an incremental ID.
-func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
+func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 	state := &libWorker.State{VUID: idLocal, VUIDGlobal: idGlobal, Iteration: int64(-1)}
 	return &VU{
 		R:            r,
@@ -50,7 +49,7 @@ func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- metrics.SampleCo
 }
 
 // Setup calls the supplied mock setup() function, if present.
-func (r *MiniRunner) Setup(ctx context.Context, out chan<- metrics.SampleContainer) (err error) {
+func (r *MiniRunner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer) (err error) {
 	if fn := r.SetupFn; fn != nil {
 		r.SetupData, err = fn(ctx, out)
 	}
@@ -69,7 +68,7 @@ func (r *MiniRunner) SetSetupData(data []byte) {
 }
 
 // Teardown calls the supplied mock teardown() function, if present.
-func (r MiniRunner) Teardown(ctx context.Context, out chan<- metrics.SampleContainer) error {
+func (r MiniRunner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 	if fn := r.TeardownFn; fn != nil {
 		return fn(ctx, out)
 	}
@@ -112,7 +111,7 @@ func (r *MiniRunner) HandleSummary(ctx context.Context, s *libWorker.Summary) (m
 // VU is a mock VU, spawned by a MiniRunner.
 type VU struct {
 	R            *MiniRunner
-	Out          chan<- metrics.SampleContainer
+	Out          chan<- workerMetrics.SampleContainer
 	ID, IDGlobal uint64
 	Iteration    int64
 	state        *libWorker.State

@@ -11,7 +11,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 //nolint:golint, revive
@@ -28,7 +27,7 @@ func getTestModuleInstance(
 	mockVU := &modulestest.VU{
 		RuntimeField: rt,
 		InitEnvField: &common.InitEnvironment{
-			Registry: metrics.NewRegistry(),
+			Registry: workerMetrics.NewRegistry(),
 		},
 		CtxField: ctx,
 	}

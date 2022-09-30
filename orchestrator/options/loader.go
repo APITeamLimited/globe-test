@@ -8,12 +8,12 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 )
 
-func getCompiledOptions(job map[string]string, gs *libOrch.GlobalState) (*libWorker.Options, error) {
+func getCompiledOptions(job map[string]string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	source, sourceName, err := validateSource(job, gs)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func getCompiledOptions(job map[string]string, gs *libOrch.GlobalState) (*libWor
 	return compileAndGetOptions(source, sourceName, gs)
 }
 
-func validateSource(job map[string]string, gs *libOrch.GlobalState) (string, string, error) {
+func validateSource(job map[string]string, gs libOrch.BaseGlobalState) (string, string, error) {
 	// Check sourceName is set
 	if _, ok := job["sourceName"]; !ok {
 		return "", "", errors.New("sourceName not set")
@@ -51,7 +51,7 @@ func validateSource(job map[string]string, gs *libOrch.GlobalState) (string, str
 	return source, sourceName, nil
 }
 
-func compileAndGetOptions(source string, sourceName string, gs *libOrch.GlobalState) (*libWorker.Options, error) {
+func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	runtimeOptions := libWorker.RuntimeOptions{
 		TestType:             null.StringFrom("js"),
 		IncludeSystemEnvVars: null.BoolFrom(false),
@@ -61,14 +61,14 @@ func compileAndGetOptions(source string, sourceName string, gs *libOrch.GlobalSt
 		Env:                  make(map[string]string),
 	}
 
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
-		Logger:         gs.Logger,
+		Logger:         gs.Logger(),
 		RuntimeOptions: runtimeOptions,
 		Registry:       registry,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 	}
 
 	sourceData := &loader.SourceData{
@@ -81,11 +81,11 @@ func compileAndGetOptions(source string, sourceName string, gs *libOrch.GlobalSt
 
 	// Pass orchestratorId as workerId, so that will dispatch as a worker message
 	orchestratorInfo := &libWorker.WorkerInfo{
-		Client:         gs.Client,
-		JobId:          gs.JobId,
-		OrchestratorId: gs.OrchestratorId,
-		WorkerId:       gs.OrchestratorId,
-		Ctx:            gs.Ctx,
+		Client:         gs.Client(),
+		JobId:          gs.JobId(),
+		OrchestratorId: gs.OrchestratorId(),
+		WorkerId:       gs.OrchestratorId(),
+		Ctx:            gs.Ctx(),
 		Environment:    nil,
 		Collection:     nil,
 	}

@@ -1,11 +1,11 @@
-package executor
+package options
 
 import (
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
+	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
-
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 // ExecutionConflictError is a custom error type used for all of the errors in
@@ -19,25 +19,25 @@ func (e ExecutionConflictError) Error() string {
 var _ error = ExecutionConflictError("")
 
 func getConstantVUsScenario(duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs {
-	ds := NewConstantVUsConfig(libWorker.DefaultScenarioName)
+	ds := executor.NewConstantVUsConfig(libWorker.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Duration = duration
 	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
 }
 
 func getRampingVUsScenario(stages []libWorker.Stage, startVUs null.Int) libWorker.ScenarioConfigs {
-	ds := NewRampingVUsConfig(libWorker.DefaultScenarioName)
+	ds := executor.NewRampingVUsConfig(libWorker.DefaultScenarioName)
 	ds.StartVUs = startVUs
 	for _, s := range stages {
 		if s.Duration.Valid {
-			ds.Stages = append(ds.Stages, Stage{Duration: s.Duration, Target: s.Target})
+			ds.Stages = append(ds.Stages, executor.Stage{Duration: s.Duration, Target: s.Target})
 		}
 	}
 	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
 }
 
 func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs {
-	ds := NewSharedIterationsConfig(libWorker.DefaultScenarioName)
+	ds := executor.NewSharedIterationsConfig(libWorker.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Iterations = iters
 	if duration.Valid {
@@ -46,10 +46,10 @@ func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vu
 	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
 }
 
-// DeriveScenariosFromShortcuts checks for conflicting options and turns any
+// deriveScenariosFromShortcuts checks for conflicting options and turns any
 // shortcut options (i.e. duration, iterations, stages) into the proper
 // long-form scenario/executor configuration in the scenarios property.
-func DeriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLogger) (libWorker.Options, error) {
+func deriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLogger) (libWorker.Options, error) {
 	result := opts
 
 	switch {
@@ -115,7 +115,7 @@ func DeriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLog
 		// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
 		// with 1 VU and 1 iteration.
 		result.Scenarios = libWorker.ScenarioConfigs{
-			libWorker.DefaultScenarioName: NewPerVUIterationsConfig(libWorker.DefaultScenarioName),
+			libWorker.DefaultScenarioName: executor.NewPerVUIterationsConfig(libWorker.DefaultScenarioName),
 		}
 	}
 

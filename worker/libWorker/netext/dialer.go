@@ -10,7 +10,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // Dialer wraps net.Dialer and provides k6 specific functionality -
@@ -74,12 +74,12 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 // TODO: Refactor this according to
 // https://github.com/k6io/k6/pull/1203#discussion_r337938370
 func (d *Dialer) GetTrail(
-	startTime, endTime time.Time, fullIteration bool, emitIterations bool, tags *metrics.SampleTags,
-	builtinMetrics *metrics.BuiltinMetrics,
+	startTime, endTime time.Time, fullIteration bool, emitIterations bool, tags *workerMetrics.SampleTags,
+	builtinMetrics *workerMetrics.BuiltinMetrics,
 ) *NetTrail {
 	bytesWritten := atomic.SwapInt64(&d.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&d.BytesRead, 0)
-	samples := []metrics.Sample{
+	samples := []workerMetrics.Sample{
 		{
 			Time:   endTime,
 			Metric: builtinMetrics.DataSent,
@@ -94,14 +94,14 @@ func (d *Dialer) GetTrail(
 		},
 	}
 	if fullIteration {
-		samples = append(samples, metrics.Sample{
+		samples = append(samples, workerMetrics.Sample{
 			Time:   endTime,
 			Metric: builtinMetrics.IterationDuration,
-			Value:  metrics.D(endTime.Sub(startTime)),
+			Value:  workerMetrics.D(endTime.Sub(startTime)),
 			Tags:   tags,
 		})
 		if emitIterations {
-			samples = append(samples, metrics.Sample{
+			samples = append(samples, workerMetrics.Sample{
 				Time:   endTime,
 				Metric: builtinMetrics.Iterations,
 				Value:  1,
@@ -202,24 +202,24 @@ type NetTrail struct {
 	FullIteration bool
 	StartTime     time.Time
 	EndTime       time.Time
-	Tags          *metrics.SampleTags
-	Samples       []metrics.Sample
+	Tags          *workerMetrics.SampleTags
+	Samples       []workerMetrics.Sample
 }
 
 // Ensure that interfaces are implemented correctly
-var _ metrics.ConnectedSampleContainer = &NetTrail{}
+var _ workerMetrics.ConnectedSampleContainer = &NetTrail{}
 
-// GetSamples implements the metrics.SampleContainer interface.
-func (ntr *NetTrail) GetSamples() []metrics.Sample {
+// GetSamples implements the workerMetrics.SampleContainer interface.
+func (ntr *NetTrail) GetSamples() []workerMetrics.Sample {
 	return ntr.Samples
 }
 
-// GetTags implements the metrics.ConnectedSampleContainer interface.
-func (ntr *NetTrail) GetTags() *metrics.SampleTags {
+// GetTags implements the workerMetrics.ConnectedSampleContainer interface.
+func (ntr *NetTrail) GetTags() *workerMetrics.SampleTags {
 	return ntr.Tags
 }
 
-// GetTime implements the metrics.ConnectedSampleContainer interface.
+// GetTime implements the workerMetrics.ConnectedSampleContainer interface.
 func (ntr *NetTrail) GetTime() time.Time {
 	return ntr.EndTime
 }

@@ -13,12 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
@@ -30,16 +24,21 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/mockresolver"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState {
-	reg := metrics.NewRegistry()
+	reg := workerMetrics.NewRegistry()
 	return &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
 		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
 	}
 }
 
@@ -57,7 +56,7 @@ func getTestRunState(
 
 func newTestExecutionScheduler(
 	t *testing.T, runner libWorker.Runner, logger *logrus.Logger, opts libWorker.Options,
-) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan metrics.SampleContainer) {
+) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan workerMetrics.SampleContainer) {
 	if runner == nil {
 		runner = &minirunner.MiniRunner{}
 	}
@@ -75,7 +74,7 @@ func newTestExecutionScheduler(
 	execScheduler, err = NewExecutionScheduler(testRunState)
 	require.NoError(t, err)
 
-	samples = make(chan metrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
+	samples = make(chan workerMetrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
 	go func() {
 		for {
 			select {
@@ -144,7 +143,7 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) {
 			defer cancel()
 
 			done := make(chan struct{})
-			samples := make(chan metrics.SampleContainer)
+			samples := make(chan workerMetrics.SampleContainer)
 			go func() {
 				err := execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo())
 				if tc.expErr != "" {
@@ -261,7 +260,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) {
 			defer cancel()
 
 			done := make(chan struct{})
-			samples := make(chan metrics.SampleContainer)
+			samples := make(chan workerMetrics.SampleContainer)
 			go func() {
 				assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
@@ -270,7 +269,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) {
 			for {
 				select {
 				case sample := <-samples:
-					if s, ok := sample.(metrics.Sample); ok && s.Metric.Name == "errors" {
+					if s, ok := sample.(workerMetrics.Sample); ok && s.Metric.Name == "errors" {
 						assert.FailNow(t, "received error sample from test")
 					}
 				case <-done:
@@ -319,7 +318,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(libWorker.Options{
-		SystemTags: &metrics.DefaultSystemTagSet,
+		SystemTags: &workerMetrics.DefaultSystemTagSet,
 	})))
 
 	testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
@@ -329,7 +328,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	samples := make(chan metrics.SampleContainer)
+	samples := make(chan workerMetrics.SampleContainer)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -337,7 +336,7 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 		require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 	}()
 
-	expCommonTrailTags := metrics.IntoSampleTags(&map[string]string{
+	expCommonTrailTags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":             "",
 		"method":            "GET",
 		"name":              sr("HTTPBIN_IP_URL/"),
@@ -348,15 +347,15 @@ func TestExecutionSchedulerSystemTags(t *testing.T) {
 	})
 	expTrailPVUTagsRaw := expCommonTrailTags.CloneTags()
 	expTrailPVUTagsRaw["scenario"] = "per_vu_test"
-	expTrailPVUTags := metrics.IntoSampleTags(&expTrailPVUTagsRaw)
+	expTrailPVUTags := workerMetrics.IntoSampleTags(&expTrailPVUTagsRaw)
 	expTrailSITagsRaw := expCommonTrailTags.CloneTags()
 	expTrailSITagsRaw["scenario"] = "shared_test"
-	expTrailSITags := metrics.IntoSampleTags(&expTrailSITagsRaw)
-	expNetTrailPVUTags := metrics.IntoSampleTags(&map[string]string{
+	expTrailSITags := workerMetrics.IntoSampleTags(&expTrailSITagsRaw)
+	expNetTrailPVUTags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":    "",
 		"scenario": "per_vu_test",
 	})
-	expNetTrailSITags := metrics.IntoSampleTags(&map[string]string{
+	expNetTrailSITags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":    "",
 		"scenario": "shared_test",
 	})
@@ -470,7 +469,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) {
 			defer cancel()
 
 			done := make(chan struct{})
-			samples := make(chan metrics.SampleContainer)
+			samples := make(chan workerMetrics.SampleContainer)
 			go func() {
 				defer close(done)
 				require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
@@ -505,7 +504,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) {
 
 // Ensure that custom executor settings are unique per executor and
 // that there's no "crossover"/"pollution" between executors.
-// Also test that custom tags are properly set on checks and groups metrics.
+// Also test that custom tags are properly set on checks and groups workerMetrics.
 func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -633,7 +632,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	samples := make(chan metrics.SampleContainer)
+	samples := make(chan workerMetrics.SampleContainer)
 	go func() {
 		assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
@@ -658,7 +657,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 	var gotSampleTags int
 	for sample := range samples {
 		switch s := sample.(type) {
-		case metrics.Sample:
+		case workerMetrics.Sample:
 			if s.Metric.Name == "errors" {
 				assert.FailNow(t, "received error sample from test")
 			}
@@ -684,7 +683,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 					gotSampleTags++
 				}
 			}
-		case metrics.ConnectedSamples:
+		case workerMetrics.ConnectedSamples:
 			for _, sm := range s.Samples {
 				tags := sm.Tags.CloneTags()
 				if reflect.DeepEqual(expectedConnSampleTags, tags) {
@@ -703,11 +702,11 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 		setupC := make(chan struct{})
 		teardownC := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) {
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				close(setupC)
 				return nil, nil
 			},
-			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error {
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				close(teardownC)
 				return nil
 			},
@@ -726,7 +725,7 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 	t.Run("Setup Error", func(t *testing.T) {
 		t.Parallel()
 		runner := &minirunner.MiniRunner{
-			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) {
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, errors.New("setup error")
 			},
 		}
@@ -737,10 +736,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 	t.Run("Don't Run Setup", func(t *testing.T) {
 		t.Parallel()
 		runner := &minirunner.MiniRunner{
-			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) {
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, errors.New("setup error")
 			},
-			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error {
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
 			},
 		}
@@ -756,10 +755,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 	t.Run("Teardown Error", func(t *testing.T) {
 		t.Parallel()
 		runner := &minirunner.MiniRunner{
-			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) {
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, nil
 			},
-			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error {
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
 			},
 		}
@@ -774,10 +773,10 @@ func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 	t.Run("Don't Run Teardown", func(t *testing.T) {
 		t.Parallel()
 		runner := &minirunner.MiniRunner{
-			SetupFn: func(ctx context.Context, out chan<- metrics.SampleContainer) ([]byte, error) {
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, nil
 			},
-			TeardownFn: func(ctx context.Context, out chan<- metrics.SampleContainer) error {
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
 			},
 		}
@@ -822,7 +821,7 @@ func TestExecutionSchedulerStages(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			runner := &minirunner.MiniRunner{
-				Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+				Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 					time.Sleep(100 * time.Millisecond)
 					return nil
 				},
@@ -841,7 +840,7 @@ func TestExecutionSchedulerStages(t *testing.T) {
 func TestExecutionSchedulerEndTime(t *testing.T) {
 	t.Parallel()
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		},
@@ -866,7 +865,7 @@ func TestExecutionSchedulerEndTime(t *testing.T) {
 func TestExecutionSchedulerRuntimeErrors(t *testing.T) {
 	t.Parallel()
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			time.Sleep(10 * time.Millisecond)
 			return errors.New("hi")
 		},
@@ -904,7 +903,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) {
 	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			<-ctx.Done()
 			return errors.New("hi")
 		},
@@ -931,7 +930,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) {
 
 func TestExecutionSchedulerEndIterations(t *testing.T) {
 	t.Parallel()
-	metric := &metrics.Metric{Name: "test_metric"}
+	metric := &workerMetrics.Metric{Name: "test_metric"}
 
 	options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		VUs:        null.IntFrom(1),
@@ -942,13 +941,13 @@ func TestExecutionSchedulerEndIterations(t *testing.T) {
 
 	var i int64
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			select {
 			case <-ctx.Done():
 			default:
 				atomic.AddInt64(&i, 1)
 			}
-			out <- metrics.Sample{Metric: metric, Value: 1.0}
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.0}
 			return nil
 		},
 		Options: options,
@@ -961,7 +960,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) {
 	execScheduler, err := NewExecutionScheduler(testRunState)
 	require.NoError(t, err)
 
-	samples := make(chan metrics.SampleContainer, 300)
+	samples := make(chan workerMetrics.SampleContainer, 300)
 	require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 	require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 
@@ -972,14 +971,14 @@ func TestExecutionSchedulerEndIterations(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		mySample, ok := <-samples
 		require.True(t, ok)
-		assert.Equal(t, metrics.Sample{Metric: metric, Value: 1.0}, mySample)
+		assert.Equal(t, workerMetrics.Sample{Metric: metric, Value: 1.0}, mySample)
 	}
 }
 
 func TestExecutionSchedulerIsRunning(t *testing.T) {
 	t.Parallel()
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			<-ctx.Done()
 			return nil
 		},
@@ -1066,8 +1065,8 @@ func TestDNSResolver(t *testing.T) {
 				logHook := testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 				logger.AddHook(&logHook)
 
-				registry := metrics.NewRegistry()
-				builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+				registry := workerMetrics.NewRegistry()
+				builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 				runner, err := js.New(
 					&libWorker.TestPreInitState{
 						Logger:         logger,
@@ -1159,7 +1158,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(libWorker.Options{
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
-		SystemTags:      &metrics.DefaultSystemTagSet,
+		SystemTags:      &workerMetrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(4 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(4 * time.Second),
 	}), nil)
@@ -1173,14 +1172,14 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 	defer cancel()
 
 	done := make(chan struct{})
-	sampleContainers := make(chan metrics.SampleContainer)
+	sampleContainers := make(chan workerMetrics.SampleContainer)
 	go func() {
 		require.NoError(t, execScheduler.Init(ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
 		close(done)
 	}()
 
-	expectIn := func(from, to time.Duration, expected metrics.SampleContainer) {
+	expectIn := func(from, to time.Duration, expected workerMetrics.SampleContainer) {
 		start := time.Now()
 		from *= time.Millisecond
 		to *= time.Millisecond
@@ -1210,7 +1209,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 				if assert.Len(t, gotSamples, len(expSamples)) {
 					for i, s := range gotSamples {
 						expS := expSamples[i]
-						if s.Metric.Name != metrics.IterationDurationName {
+						if s.Metric.Name != workerMetrics.IterationDurationName {
 							assert.Equal(t, expS.Value, s.Value)
 						}
 						assert.Equal(t, expS.Metric.Name, s.Metric.Name)
@@ -1226,24 +1225,24 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 		}
 	}
 
-	getTags := func(args ...string) *metrics.SampleTags {
+	getTags := func(args ...string) *workerMetrics.SampleTags {
 		tags := map[string]string{}
 		for i := 0; i < len(args)-1; i += 2 {
 			tags[args[i]] = args[i+1]
 		}
-		return metrics.IntoSampleTags(&tags)
+		return workerMetrics.IntoSampleTags(&tags)
 	}
-	testCounter, err := piState.Registry.NewMetric("test_counter", metrics.Counter)
+	testCounter, err := piState.Registry.NewMetric("test_counter", workerMetrics.Counter)
 	require.NoError(t, err)
-	getSample := func(expValue float64, expMetric *metrics.Metric, expTags ...string) metrics.SampleContainer {
-		return metrics.Sample{
+	getSample := func(expValue float64, expMetric *workerMetrics.Metric, expTags ...string) workerMetrics.SampleContainer {
+		return workerMetrics.Sample{
 			Metric: expMetric,
 			Time:   time.Now(),
 			Tags:   getTags(expTags...),
 			Value:  expValue,
 		}
 	}
-	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) metrics.SampleContainer {
+	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) workerMetrics.SampleContainer {
 		expTags := []string{"group", group}
 		expTags = append(expTags, addExpTags...)
 		return netext.NewDialer(
@@ -1398,11 +1397,11 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) {
 
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	piState := &libWorker.TestPreInitState{
 		Logger:         logger,
 		Registry:       registry,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 	}
 	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)

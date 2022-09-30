@@ -11,7 +11,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // transport is an implementation of http.RoundTripper that will measure and emit
@@ -86,9 +86,9 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	}
 
 	enabledTags := t.state.Options.SystemTags
-	urlEnabled := enabledTags.Has(metrics.TagURL)
+	urlEnabled := enabledTags.Has(workerMetrics.TagURL)
 	var setName bool
-	if _, ok := tags["name"]; !ok && enabledTags.Has(metrics.TagName) {
+	if _, ok := tags["name"]; !ok && enabledTags.Has(workerMetrics.TagName) {
 		setName = true
 	}
 	if urlEnabled || setName {
@@ -101,49 +101,49 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 		}
 	}
 
-	if enabledTags.Has(metrics.TagMethod) {
+	if enabledTags.Has(workerMetrics.TagMethod) {
 		tags["method"] = unfReq.request.Method
 	}
 
 	if unfReq.err != nil {
 		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
-		if enabledTags.Has(metrics.TagError) {
+		if enabledTags.Has(workerMetrics.TagError) {
 			tags["error"] = result.errorMsg
 		}
 
-		if enabledTags.Has(metrics.TagErrorCode) {
+		if enabledTags.Has(workerMetrics.TagErrorCode) {
 			tags["error_code"] = strconv.Itoa(int(result.errorCode))
 		}
 
-		if enabledTags.Has(metrics.TagStatus) {
+		if enabledTags.Has(workerMetrics.TagStatus) {
 			tags["status"] = "0"
 		}
 	} else {
-		if enabledTags.Has(metrics.TagStatus) {
+		if enabledTags.Has(workerMetrics.TagStatus) {
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		}
 		if unfReq.response.StatusCode >= 400 {
-			if enabledTags.Has(metrics.TagErrorCode) {
+			if enabledTags.Has(workerMetrics.TagErrorCode) {
 				result.errorCode = errCode(1000 + unfReq.response.StatusCode)
 				tags["error_code"] = strconv.Itoa(int(result.errorCode))
 			}
 		}
-		if enabledTags.Has(metrics.TagProto) {
+		if enabledTags.Has(workerMetrics.TagProto) {
 			tags["proto"] = unfReq.response.Proto
 		}
 
 		if unfReq.response.TLS != nil {
 			tlsInfo, oscp := netext.ParseTLSConnState(unfReq.response.TLS)
-			if enabledTags.Has(metrics.TagTLSVersion) {
+			if enabledTags.Has(workerMetrics.TagTLSVersion) {
 				tags["tls_version"] = tlsInfo.Version
 			}
-			if enabledTags.Has(metrics.TagOCSPStatus) {
+			if enabledTags.Has(workerMetrics.TagOCSPStatus) {
 				tags["ocsp_status"] = oscp.Status
 			}
 			result.tlsInfo = tlsInfo
 		}
 	}
-	if enabledTags.Has(metrics.TagIP) && trail.ConnRemoteAddr != nil {
+	if enabledTags.Has(workerMetrics.TagIP) && trail.ConnRemoteAddr != nil {
 		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil {
 			tags["ip"] = ip
 		}
@@ -159,12 +159,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			failed = 1
 		}
 
-		if enabledTags.Has(metrics.TagExpectedResponse) {
-			tags[metrics.TagExpectedResponse.String()] = strconv.FormatBool(expected)
+		if enabledTags.Has(workerMetrics.TagExpectedResponse) {
+			tags[workerMetrics.TagExpectedResponse.String()] = strconv.FormatBool(expected)
 		}
 	}
 
-	finalTags := metrics.IntoSampleTags(&tags)
+	finalTags := workerMetrics.IntoSampleTags(&tags)
 	builtinMetrics := t.state.BuiltinMetrics
 	trail.SaveSamples(builtinMetrics, finalTags)
 	if t.responseCallback != nil {
@@ -173,12 +173,12 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			trail.Failed.Bool = true
 		}
 		trail.Samples = append(trail.Samples,
-			metrics.Sample{
+			workerMetrics.Sample{
 				Metric: builtinMetrics.HTTPReqFailed, Time: trail.EndTime, Tags: finalTags, Value: failed,
 			},
 		)
 	}
-	metrics.PushIfNotDone(t.ctx, t.state.Samples, trail)
+	workerMetrics.PushIfNotDone(t.ctx, t.state.Samples, trail)
 
 	return result
 }
@@ -205,7 +205,7 @@ func (t *transport) processLastSavedRequest(lastErr error) *finishedRequest {
 	if unprocessedRequest != nil {
 		// We don't want to overwrite any previous errors, but if there were
 		// none and we (i.e. the MakeRequest() function) have one, save it
-		// before we emit the metrics.
+		// before we emit the workerMetrics.
 		if unprocessedRequest.err == nil && lastErr != nil {
 			unprocessedRequest.err = lastErr
 		}

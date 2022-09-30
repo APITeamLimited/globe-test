@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -129,27 +130,57 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *re
 	manageExecution(ctx, orchestratorClient, scopesClient, workerClients, job, orchestratorId, executionList, storeMongoDB)
 }
 
+// Over-arching function that manages the execution of a job and handles its state and lifecycle
+// This is the highest level function with global state
 func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
 	fmt.Println("Assigned job", job["id"])
-
-	gs := libOrch.NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
-
 	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, "ASSIGNED")
-	result, err := run(gs, orchestratorId, orchestratorClient, scopesClient, workerClients, job)
 
+	// Setup the job
+
+	healthy := true
+
+	gs := NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
+
+	options, err := options.DetermineRuntimeOptions(job, gs)
+	if err != nil {
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
+		healthy = false
+	}
+
+	marshalledOptions, _ := json.Marshal(options)
+	if err != nil {
+		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
+		healthy = false
+	}
+
+	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledOptions), "OPTIONS")
+
+	scope, err := fetchScope(ctx, scopesClient, job["scopeId"])
 	if err != nil {
 		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
-		return
+		healthy = false
 	}
 
-	if result == "FAILED" {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, "A child job failed")
-		// DOn't return, still store the result
+	// Running the job
+
+	result := "FAILED"
+
+	if healthy {
+		result, err = runExecution(gs, options, scope, workerClients, job)
+		if err != nil {
+			libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
+		}
 	}
 
-	// Create a new objectId for globeTestLogs
+	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, result)
+
+	// Storing and cleaning up
+
+	(*gs.MetricsStore()).Stop()
+
+	// Create globe test log id, note this must be sent after cleanup
 	globeTestLogsId := primitive.NewObjectID()
-
 	globeTestLogsIdMessage := &libOrch.MarkMessage{
 		Mark:    "GlobeTestLogsStoreReceipt",
 		Message: globeTestLogsId.Hex(),
@@ -160,7 +191,6 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
 		return
 	}
-
 	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledLogs), "MARK")
 
 	// Temporary object storing map[string][]map[string]string, the job in production
@@ -168,34 +198,13 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 	childJobs := make(map[string][]map[string]string)
 	childJobs["portsmouth"] = append(childJobs["portsmouth"], job)
 
-	scope, err := scopesClient.Get(ctx, fmt.Sprintf("scope__id:%s", job["scopeId"])).Result()
-	if err != nil {
-		fmt.Println("Error getting scope", err)
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting scope %s", job["scopeId"]))
-		return
-	}
-
-	// Check scope not empty
-	if len(scope) == 0 {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Scope %s is empty", job["scopeId"]))
-		return
-	}
-
-	// Parse scope as map[string]string
-	scopeMap := make(map[string]string)
-	err = json.Unmarshal([]byte(scope), &scopeMap)
-	if err != nil {
-		fmt.Println("Error unmarshalling scope", err)
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling scope %s", job["scopeId"]))
-		return
-	}
-
 	// Clean up the job and store result in Mongo
-	cleanup(ctx, job, childJobs, orchestratorClient, workerClients, orchestratorId, storeMongoDB, scopeMap, globeTestLogsId)
+	cleanup(ctx, job, childJobs, orchestratorClient, workerClients, orchestratorId, storeMongoDB, scope, globeTestLogsId)
 
-	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, result)
+	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
 
 	executionList.removeJob(job["id"])
+
 	// Capacity was freed, so check for queued jobs
 	checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
 }

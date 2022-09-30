@@ -19,7 +19,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestConsoleContext(t *testing.T) {
@@ -61,8 +60,8 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface{}) 
 			tb.Fatalf("unknown test option %q", opt)
 		}
 	}
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	return New(
 		&lib.TestPreInitState{
 			Logger:         logger,
@@ -206,7 +205,7 @@ func TestConsoleLog(t *testing.T) {
 				`exports.default = function() { console.log(%s); }`, tt.in))
 			require.NoError(t, err)
 
-			samples := make(chan metrics.SampleContainer, 100)
+			samples := make(chan workerMetrics.SampleContainer, 100)
 			initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
 			require.NoError(t, err)
 
@@ -263,7 +262,7 @@ func TestConsoleLevels(t *testing.T) {
 					))
 					require.NoError(t, err)
 
-					samples := make(chan metrics.SampleContainer, 100)
+					samples := make(chan workerMetrics.SampleContainer, 100)
 					initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
 					require.NoError(t, err)
 
@@ -360,7 +359,7 @@ func TestFileConsole(t *testing.T) {
 							})
 							require.NoError(t, err)
 
-							samples := make(chan metrics.SampleContainer, 100)
+							samples := make(chan workerMetrics.SampleContainer, 100)
 							initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
 							require.NoError(t, err)
 

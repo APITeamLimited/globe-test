@@ -10,11 +10,9 @@ import (
 )
 
 func DispatchMessage(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, message string, messageType string) {
-	timestamp := time.Now().UnixMilli()
-
 	var messageStruct = OrchestratorMessage{
 		JobId:          jobId,
-		Time:           timestamp,
+		Time:           time.Now(),
 		OrchestratorId: orchestratorId,
 		Message:        message,
 		MessageType:    messageType,
@@ -35,11 +33,9 @@ func DispatchMessage(ctx context.Context, orchestratorClient *redis.Client, jobI
 }
 
 func DispatchWorkerMessage(ctx context.Context, orchestratorClient *redis.Client, jobId string, workerId string, message string, messageType string) {
-	timestamp := time.Now().UnixMilli()
-
 	var messageStruct = WorkerMessage{
 		JobId:       jobId,
-		Time:        timestamp,
+		Time:        time.Now(),
 		WorkerId:    workerId,
 		Message:     message,
 		MessageType: messageType,

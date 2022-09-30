@@ -17,7 +17,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -58,7 +57,7 @@ func TestVUTags(t *testing.T) {
 		tenv := setupTagsExecEnv(t)
 		tenv.MoveToVUContext(&libWorker.State{
 			Options: libWorker.Options{
-				SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+				SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 			},
 			Tags: libWorker.NewTagMap(map[string]string{
 				"vu": "42",
@@ -150,7 +149,7 @@ func TestVUTags(t *testing.T) {
 			tenv := setupTagsExecEnv(t)
 			tenv.MoveToVUContext(&libWorker.State{
 				Options: libWorker.Options{
-					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 				},
 				Tags: libWorker.NewTagMap(map[string]string{
 					"vu": "42",
@@ -177,7 +176,7 @@ func TestVUTags(t *testing.T) {
 			tenv := setupTagsExecEnv(t)
 			tenv.MoveToVUContext(&libWorker.State{
 				Options: libWorker.Options{
-					SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
+					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
 				},
 				Tags:   libWorker.NewTagMap(map[string]string{"vu": "42"}),
 				Logger: testLog,
@@ -320,9 +319,9 @@ func TestOptionsTestFull(t *testing.T) {
 						}(),
 					},
 				},
-				Thresholds: map[string]metrics.Thresholds{
+				Thresholds: map[string]workerMetrics.Thresholds{
 					"http_req_duration": {
-						Thresholds: []*metrics.Threshold{
+						Thresholds: []*workerMetrics.Threshold{
 							{
 								Source:           "rate>0.01",
 								LastFailed:       true,
@@ -348,8 +347,8 @@ func TestOptionsTestFull(t *testing.T) {
 				},
 				SummaryTrendStats: []string{"avg", "min", "max"},
 				SummaryTimeUnit:   null.StringFrom("ms"),
-				SystemTags: func() *metrics.SystemTagSet {
-					sysm := metrics.TagIter | metrics.TagVU
+				SystemTags: func() *workerMetrics.SystemTagSet {
+					sysm := workerMetrics.TagIter | workerMetrics.TagVU
 					return &sysm
 				}(),
 				RunTags:                 map[string]string{"runtag-key": "runtag-value"},

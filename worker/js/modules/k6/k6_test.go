@@ -13,7 +13,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestFail(t *testing.T) {
@@ -140,13 +139,13 @@ func TestGroup(t *testing.T) {
 		rt := goja.New()
 		state := &libWorker.State{
 			Group:   root,
-			Samples: make(chan metrics.SampleContainer, 1000),
+			Samples: make(chan workerMetrics.SampleContainer, 1000),
 			Tags:    libWorker.NewTagMap(nil),
 			Options: libWorker.Options{
-				SystemTags: metrics.NewSystemTagSet(metrics.TagGroup),
+				SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagGroup),
 			},
 		}
-		state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+		state.BuiltinMetrics = workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry())
 
 		m, ok := New().NewModuleInstance(
 			&modulestest.VU{
@@ -187,7 +186,7 @@ func TestGroup(t *testing.T) {
 	})
 }
 
-func checkTestRuntime(t testing.TB) (*goja.Runtime, chan metrics.SampleContainer, *metrics.BuiltinMetrics) {
+func checkTestRuntime(t testing.TB) (*goja.Runtime, chan workerMetrics.SampleContainer, *workerMetrics.BuiltinMetrics) {
 	rt := goja.New()
 
 	test := modulestest.NewRuntime(t)
@@ -197,17 +196,17 @@ func checkTestRuntime(t testing.TB) (*goja.Runtime, chan metrics.SampleContainer
 
 	root, err := libWorker.NewGroup("", nil)
 	assert.NoError(t, err)
-	samples := make(chan metrics.SampleContainer, 1000)
+	samples := make(chan workerMetrics.SampleContainer, 1000)
 	state := &libWorker.State{
 		Group: root,
 		Options: libWorker.Options{
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		},
 		Samples: samples,
 		Tags: libWorker.NewTagMap(map[string]string{
 			"group": root.Path,
 		}),
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry()),
 	}
 	test.MoveToVUContext(state)
 
@@ -221,13 +220,13 @@ func TestCheckObject(t *testing.T) {
 	_, err := rt.RunString(`k6.check(null, { "check": true })`)
 	assert.NoError(t, err)
 
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) {
-		sample, ok := bufSamples[0].(metrics.Sample)
+		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -242,7 +241,7 @@ func TestCheckObject(t *testing.T) {
 		_, err := rt.RunString(`k6.check(null, { "a": true, "b": false })`)
 		assert.NoError(t, err)
 
-		bufSamples := metrics.GetBufferedSamples(samples)
+		bufSamples := workerMetrics.GetBufferedSamples(samples)
 		assert.Len(t, bufSamples, 2)
 		var foundA, foundB bool
 		for _, sampleC := range bufSamples {
@@ -280,13 +279,13 @@ func TestCheckArray(t *testing.T) {
 	_, err := rt.RunString(`k6.check(null, [ true ])`)
 	assert.NoError(t, err)
 
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) {
-		sample, ok := bufSamples[0].(metrics.Sample)
+		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -301,7 +300,7 @@ func TestCheckLiteral(t *testing.T) {
 
 	_, err := rt.RunString(`k6.check(null, 12345)`)
 	assert.NoError(t, err)
-	assert.Len(t, metrics.GetBufferedSamples(samples), 0)
+	assert.Len(t, workerMetrics.GetBufferedSamples(samples), 0)
 }
 
 func TestCheckNull(t *testing.T) {
@@ -311,7 +310,7 @@ func TestCheckNull(t *testing.T) {
 	_, err := rt.RunString(`k6.check(5)`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no checks provided")
-	assert.Len(t, metrics.GetBufferedSamples(samples), 0)
+	assert.Len(t, workerMetrics.GetBufferedSamples(samples), 0)
 }
 
 func TestCheckThrows(t *testing.T) {
@@ -325,13 +324,13 @@ func TestCheckThrows(t *testing.T) {
 		`)
 	assert.EqualError(t, err, "Error: error A at a (<eval>:3:28(3))")
 
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) {
-		sample, ok := bufSamples[0].(metrics.Sample)
+		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(0), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -374,13 +373,13 @@ func TestCheckTypes(t *testing.T) {
 						assert.Equal(t, succ, v.Export())
 					}
 
-					bufSamples := metrics.GetBufferedSamples(samples)
+					bufSamples := workerMetrics.GetBufferedSamples(samples)
 					if assert.Len(t, bufSamples, 1) {
-						sample, ok := bufSamples[0].(metrics.Sample)
+						sample, ok := bufSamples[0].(workerMetrics.Sample)
 						require.True(t, ok)
 
 						assert.NotZero(t, sample.Time)
-						assert.Equal(t, builtinMetrics.Checks, sample.Metric)
+						assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
 						if succ {
 							assert.Equal(t, float64(1), sample.Value)
 						} else {
@@ -405,11 +404,11 @@ func TestCheckContextExpiry(t *testing.T) {
 	root, err := libWorker.NewGroup("", nil)
 	require.NoError(t, err)
 
-	samples := make(chan metrics.SampleContainer, 1000)
+	samples := make(chan workerMetrics.SampleContainer, 1000)
 	state := &libWorker.State{
 		Group: root,
 		Options: libWorker.Options{
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		},
 		Samples: samples,
 		Tags: libWorker.NewTagMap(map[string]string{
@@ -417,7 +416,7 @@ func TestCheckContextExpiry(t *testing.T) {
 		}),
 	}
 
-	state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+	state.BuiltinMetrics = workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry())
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU{
 			RuntimeField: rt,
@@ -456,13 +455,13 @@ func TestCheckTags(t *testing.T) {
 		assert.Equal(t, true, v.Export())
 	}
 
-	bufSamples := metrics.GetBufferedSamples(samples)
+	bufSamples := workerMetrics.GetBufferedSamples(samples)
 	if assert.Len(t, bufSamples, 1) {
-		sample, ok := bufSamples[0].(metrics.Sample)
+		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",

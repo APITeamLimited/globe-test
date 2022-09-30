@@ -15,7 +15,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func getTestSharedIterationsConfig() SharedIterationsConfig {
@@ -105,11 +104,11 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(5), count)
-	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterationsName))
+	assert.Equal(t, float64(95), sumMetricValues(engineOut, workerMetrics.DroppedIterationsName))
 }
 
 func TestSharedIterationsGlobalIters(t *testing.T) {
@@ -147,7 +146,7 @@ func TestSharedIterationsGlobalIters(t *testing.T) {
 			test := setupExecutorTest(t, tc.seg, tc.seq, libWorker.Options{}, runner, config)
 			defer test.cancel()
 
-			engineOut := make(chan metrics.SampleContainer, 100)
+			engineOut := make(chan workerMetrics.SampleContainer, 100)
 			require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 			sort.Slice(gotIters, func(i, j int) bool { return gotIters[i] < gotIters[j] })
 			assert.Equal(t, tc.expIters, gotIters)

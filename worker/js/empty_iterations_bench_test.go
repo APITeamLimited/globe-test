@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func BenchmarkEmptyIteration(b *testing.B) {
@@ -16,7 +15,7 @@ func BenchmarkEmptyIteration(b *testing.B) {
 	r, err := getSimpleRunner(b, "/script.js", `exports.default = function() { }`)
 	require.NoError(b, err)
 
-	ch := make(chan metrics.SampleContainer, 100)
+	ch := make(chan workerMetrics.SampleContainer, 100)
 	defer close(ch)
 	go func() { // read the channel so it doesn't block
 		for range ch {

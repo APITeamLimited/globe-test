@@ -9,12 +9,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
@@ -192,7 +193,7 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error {
 // and things like all of the TODOs below in one place only.
 //
 //nolint:funlen,cyclop
-func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
+func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	gracefulStop := car.config.GetGracefulStop()
 	duration := car.config.Duration.TimeDuration()
 	preAllocatedVUs := car.config.GetPreAllocatedVUs(car.executionState.ExecutionTuple)
@@ -333,7 +334,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- metrics
 			// Since there aren't any free VUs available, consider this iteration
 			// dropped - we aren't going to try to recover it, but
 
-			metrics.PushIfNotDone(parentCtx, out, metrics.Sample{
+			workerMetrics.PushIfNotDone(parentCtx, out, workerMetrics.Sample{
 				Value: 1, Metric: droppedIterationMetric,
 				Tags: metricTags, Time: time.Now(),
 			})

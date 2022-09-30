@@ -15,7 +15,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestSetupDataMarshalling(t *testing.T) {
@@ -96,8 +95,8 @@ func TestSetupDataMarshalling(t *testing.T) {
 		}
 	`))
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -118,7 +117,7 @@ func TestSetupDataMarshalling(t *testing.T) {
 
 	require.NoError(t, err)
 
-	samples := make(chan<- metrics.SampleContainer, 100)
+	samples := make(chan<- workerMetrics.SampleContainer, 100)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

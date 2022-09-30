@@ -16,7 +16,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig {
@@ -54,7 +53,7 @@ func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestRampingArrivalRateConfig())
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
@@ -96,7 +95,7 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) {
 		currentCount = atomic.SwapInt64(&count, 0)
 		assert.InDelta(t, 50, currentCount, 3)
 	}()
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
@@ -136,7 +135,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
@@ -163,7 +162,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) {
 	assert.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 
-	droppedIters := sumMetricValues(engineOut, metrics.DroppedIterationsName)
+	droppedIters := sumMetricValues(engineOut, workerMetrics.DroppedIterationsName)
 	assert.Equal(t, count+int64(droppedIters), int64(9))
 }
 
@@ -196,7 +195,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		t.Log("init")
 		cur := atomic.LoadInt64(&count)
@@ -244,7 +243,7 @@ func TestRampingArrivalRateRunGracefulStop(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	defer close(engineOut)
 
 	assert.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
@@ -265,7 +264,7 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) {
 
 	for _, tc := range tests {
 		b.Run(fmt.Sprintf("VUs%d", tc.prealloc.ValueOrZero()), func(b *testing.B) {
-			engineOut := make(chan metrics.SampleContainer, 1000)
+			engineOut := make(chan workerMetrics.SampleContainer, 1000)
 			defer close(engineOut)
 			go func() {
 				for range engineOut {
@@ -708,7 +707,7 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) {
 			test := setupExecutorTest(t, tc.seg, tc.seq, libWorker.Options{}, runner, config)
 			defer test.cancel()
 
-			engineOut := make(chan metrics.SampleContainer, 100)
+			engineOut := make(chan workerMetrics.SampleContainer, 100)
 			require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 			assert.Equal(t, tc.expIters, gotIters)
 		})

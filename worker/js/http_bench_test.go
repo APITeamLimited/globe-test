@@ -10,7 +10,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func BenchmarkHTTPRequests(b *testing.B) {
@@ -34,7 +33,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	})
 	require.NoError(b, err)
 
-	ch := make(chan metrics.SampleContainer, 100)
+	ch := make(chan workerMetrics.SampleContainer, 100)
 	defer close(ch)
 	go func() { // read the channel so it doesn't block
 		for range ch {
@@ -72,7 +71,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) {
 	})
 	require.NoError(b, err)
 
-	ch := make(chan metrics.SampleContainer, 100)
+	ch := make(chan workerMetrics.SampleContainer, 100)
 	defer close(ch)
 	go func() { // read the channel so it doesn't block
 		for range ch {

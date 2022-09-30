@@ -23,7 +23,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 const traceDelay = 100 * time.Millisecond
@@ -110,7 +109,7 @@ func TestTracer(t *testing.T) { //nolint:tparallel
 		}
 		prev = val
 	}
-	builtinMetrics := metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry())
 
 	for tnum, isReuse := range []bool{false, true, true} { //nolint:paralleltest
 		t.Run(fmt.Sprintf("Test #%d", tnum), func(t *testing.T) {
@@ -129,7 +128,7 @@ func TestTracer(t *testing.T) { //nolint:tparallel
 				time.Sleep(traceDelay)
 			}
 			trail := tracer.Done()
-			trail.SaveSamples(builtinMetrics, metrics.IntoSampleTags(&map[string]string{"tag": "value"}))
+			trail.SaveSamples(builtinMetrics, workerMetrics.IntoSampleTags(&map[string]string{"tag": "value"}))
 			samples := trail.GetSamples()
 
 			assertLaterOrZero(t, tracer.getConn, isReuse)
@@ -145,7 +144,7 @@ func TestTracer(t *testing.T) { //nolint:tparallel
 			assert.Equal(t, strings.TrimPrefix(srv.URL, "https://"), trail.ConnRemoteAddr.String())
 
 			assert.Len(t, samples, 8)
-			seenMetrics := map[*metrics.Metric]bool{}
+			seenMetrics := map[*workerMetrics.Metric]bool{}
 			for i, s := range samples {
 				assert.NotContains(t, seenMetrics, s.Metric)
 				seenMetrics[s.Metric] = true
@@ -154,16 +153,16 @@ func TestTracer(t *testing.T) { //nolint:tparallel
 				assert.Equal(t, map[string]string{"tag": "value"}, s.Tags.CloneTags())
 
 				switch s.Metric {
-				case builtinMetrics.HTTPReqs:
+				case builtinMetrics..HTTPReqs:
 					assert.Equal(t, 1.0, s.Value)
 					assert.Equal(t, 0, i, "`HTTPReqs` is reported before the other HTTP builtinMetrics")
-				case builtinMetrics.HTTPReqConnecting, builtinMetrics.HTTPReqTLSHandshaking:
+				case builtinMetrics..HTTPReqConnecting, builtinMetrics..HTTPReqTLSHandshaking:
 					if isReuse {
 						assert.Equal(t, 0.0, s.Value)
 						break
 					}
 					fallthrough
-				case builtinMetrics.HTTPReqDuration, builtinMetrics.HTTPReqBlocked, builtinMetrics.HTTPReqSending, builtinMetrics.HTTPReqWaiting, builtinMetrics.HTTPReqReceiving:
+				case builtinMetrics..HTTPReqDuration, builtinMetrics..HTTPReqBlocked, builtinMetrics..HTTPReqSending, builtinMetrics..HTTPReqWaiting, builtinMetrics..HTTPReqReceiving:
 					assert.True(t, s.Value > 0.0, "%s is <= 0", s.Metric.Name)
 				default:
 					t.Errorf("unexpected metric: %s", s.Metric.Name)
@@ -226,7 +225,7 @@ func TestTracerNegativeHttpSendingValues(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, res.Body.Close())
 		trail := tracer.Done()
-		builtinMetrics := metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+		builtinMetrics := workerMetrics.RegisterBuiltinMetrics(workerMetrics.NewRegistry())
 		trail.SaveSamples(builtinMetrics, nil)
 
 		require.True(t, trail.Sending > 0)

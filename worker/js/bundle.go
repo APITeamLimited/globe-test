@@ -18,7 +18,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // A Bundle is a self-contained bundle of scripts and resources.
@@ -33,7 +33,7 @@ type Bundle struct {
 
 	RuntimeOptions    libWorker.RuntimeOptions
 	CompatibilityMode libWorker.CompatibilityMode // parsed value
-	registry          *metrics.Registry
+	registry          *workerMetrics.Registry
 
 	exports map[string]goja.Callable
 }

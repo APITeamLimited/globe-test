@@ -28,15 +28,13 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledJobInfo), "JOB_INFO")
 
 	go func() {
-		for _, value := range workerClients {
+		for _, client := range workerClients {
 			for _, zone := range childJobs {
 				for _, childJob := range zone {
-					updatesKey := fmt.Sprintf("%s:updates", childJob["id"])
-					value.Del(ctx, updatesKey)
-					value.Del(ctx, childJob["id"])
+					client.Del(ctx, childJob["id"])
 
 					// Remove childJob["id"] from k6:executionHistory set
-					value.SRem(ctx, "k6:executionHistory", childJob["id"])
+					client.SRem(ctx, "k6:executionHistory", childJob["id"])
 				}
 			}
 		}

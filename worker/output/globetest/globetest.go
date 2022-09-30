@@ -1,14 +1,13 @@
 package globetest
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/output"
-	jwriter "github.com/mailru/easyjson/jwriter"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const flushPeriod = 200 * time.Millisecond
@@ -20,7 +19,7 @@ type Output struct {
 
 	workerInfo  *libWorker.WorkerInfo
 	seenMetrics map[string]struct{}
-	thresholds  map[string]metrics.Thresholds
+	thresholds  map[string]workerMetrics.Thresholds
 }
 
 func New(workerInfo *libWorker.WorkerInfo) (output.Output, error) {
@@ -50,11 +49,11 @@ func (o *Output) Stop() error {
 }
 
 // SetThresholds receives the thresholds before the output is Start()-ed.
-func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
+func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) {
 	if len(thresholds) == 0 {
 		return
 	}
-	o.thresholds = make(map[string]metrics.Thresholds, len(thresholds))
+	o.thresholds = make(map[string]workerMetrics.Thresholds, len(thresholds))
 	for name, t := range thresholds {
 		o.thresholds[name] = t
 	}
@@ -63,46 +62,30 @@ func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
 func (o *Output) flushMetrics() {
 	samples := o.GetBufferedSamples()
 	var count int
-	jw := new(jwriter.Writer)
+
+	formattedSamples := make([]SampleEnvelope, 0)
+
 	for _, sc := range samples {
 		samples := sc.GetSamples()
 		count += len(samples)
 		for _, sample := range samples {
 			sample := sample
-			o.handleMetric(sample.Metric, jw)
-			wrapSample(sample).MarshalEasyJSON(jw)
-			jw.RawByte('\n')
+
+			wrapped := wrapSample(sample)
+
+			formattedSamples = append(formattedSamples, wrapped)
 		}
 	}
 
-	buffer := jw.Buffer.BuildBytes()
+	if len(formattedSamples) > 0 {
+		marshalled, err := json.Marshal(formattedSamples)
+		if err != nil {
+			libWorker.HandleError(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, err)
+			return
+		}
 
-	formatted := strings.ReplaceAll(fmt.Sprintf("[%s]", strings.ReplaceAll(string(buffer), "\n", ",")), ",]", "]")
+		fmt.Printf("Sending %d samples to GlobeTest\n", count)
 
-	if count > 0 {
-		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, formatted, "METRICS")
+		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, string(marshalled), "METRICS")
 	}
-}
-
-func (o *Output) handleMetric(m *metrics.Metric, jw *jwriter.Writer) {
-	if _, ok := o.seenMetrics[m.Name]; ok {
-		return
-	}
-	o.seenMetrics[m.Name] = struct{}{}
-
-	wrapped := metricEnvelope{
-		Type:   "Metric",
-		Metric: m.Name,
-	}
-	wrapped.Data.Name = m.Name
-	wrapped.Data.Type = m.Type
-	wrapped.Data.Contains = m.Contains
-	wrapped.Data.Submetrics = m.Submetrics
-
-	if ts, ok := o.thresholds[m.Name]; ok {
-		wrapped.Data.Thresholds = ts
-	}
-
-	wrapped.MarshalEasyJSON(jw)
-	jw.RawByte('\n')
 }

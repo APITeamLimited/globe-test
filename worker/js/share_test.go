@@ -11,7 +11,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestNewSharedArrayIntegration(t *testing.T) {
@@ -62,8 +61,8 @@ exports.default = function() {
 	assert.Equal(t, logrus.InfoLevel, entries[0].Level)
 	assert.Equal(t, "once", entries[0].Message)
 
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         logger,
@@ -81,7 +80,7 @@ exports.default = function() {
 		r := r
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			samples := make(chan metrics.SampleContainer, 100)
+			samples := make(chan workerMetrics.SampleContainer, 100)
 			initVU, err := r.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 

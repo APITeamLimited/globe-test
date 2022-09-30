@@ -11,24 +11,23 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func simpleRunner(vuFn func(context.Context, *libWorker.State) error) libWorker.Runner {
 	return &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, state *libWorker.State, _ chan<- metrics.SampleContainer) error {
+		Fn: func(ctx context.Context, state *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 			return vuFn(ctx, state)
 		},
 	}
 }
 
 func getTestRunState(tb testing.TB, options libWorker.Options, runner libWorker.Runner) *libWorker.TestRunState {
-	reg := metrics.NewRegistry()
+	reg := workerMetrics.NewRegistry()
 	piState := &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
 		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
 	}
 
 	require.NoError(tb, runner.SetOptions(options))
@@ -44,7 +43,7 @@ func setupExecutor(t testing.TB, config libWorker.ExecutorConfig, es *libWorker.
 	context.Context, context.CancelFunc, libWorker.Executor, *testutils.SimpleLogrusHook,
 ) {
 	ctx, cancel := context.WithCancel(context.Background())
-	engineOut := make(chan metrics.SampleContainer, 100) // TODO: return this for more complicated tests?
+	engineOut := make(chan workerMetrics.SampleContainer, 100) // TODO: return this for more complicated tests?
 
 	logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 	testLog := logrus.New()

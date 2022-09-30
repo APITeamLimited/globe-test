@@ -3,44 +3,31 @@ package globetest
 import (
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-//go:generate easyjson -pkg -no_std_marshalers -gen_build_flags -mod=mod .
+type SampleData struct {
+	Time  time.Time                 `json:"time"`
+	Value float64                   `json:"value"`
+	Tags  *workerMetrics.SampleTags `json:"tags"`
+}
 
-//easyjson:json
-type sampleEnvelope struct {
-	Type string `json:"type"`
-	Data struct {
-		Time  time.Time           `json:"time"`
-		Value float64             `json:"value"`
-		Tags  *metrics.SampleTags `json:"tags"`
-	} `json:"data"`
-	Metric string `json:"metric"`
+// Stores a metric and data point
+type SampleEnvelope struct {
+	Type   string                `json:"type"`
+	Data   SampleData            `json:"data"`
+	Metric *workerMetrics.Metric `json:"metric"`
 }
 
 // wrapSample is used to package a metric sample in a way that's nice to export
 // to JSON.
-func wrapSample(sample metrics.Sample) sampleEnvelope {
-	s := sampleEnvelope{
+func wrapSample(sample workerMetrics.Sample) SampleEnvelope {
+	s := SampleEnvelope{
 		Type:   "Point",
-		Metric: sample.Metric.Name,
+		Metric: sample.Metric,
 	}
 	s.Data.Time = sample.Time
 	s.Data.Value = sample.Value
 	s.Data.Tags = sample.Tags
 	return s
-}
-
-//easyjson:json
-type metricEnvelope struct {
-	Type string `json:"type"`
-	Data struct {
-		Name       string               `json:"name"`
-		Type       metrics.MetricType   `json:"type"`
-		Contains   metrics.ValueType    `json:"contains"`
-		Thresholds metrics.Thresholds   `json:"thresholds"`
-		Submetrics []*metrics.Submetric `json:"submetrics"`
-	} `json:"data"`
-	Metric string `json:"metric"`
 }

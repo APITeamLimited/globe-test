@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // ActiveVU represents an actively running virtual user.
@@ -50,10 +50,10 @@ type Runner interface {
 	// Spawns a new VU. It's fine to make this function rather heavy, if it means a performance
 	// improvement at runtime. Remember, this is called once per VU and normally only at the start
 	// of a test - RunOnce() may be called hundreds of thousands of times, and must be fast.
-	NewVU(idLocal, idGlobal uint64, out chan<- metrics.SampleContainer, workerInfo *WorkerInfo) (InitializedVU, error)
+	NewVU(idLocal, idGlobal uint64, out chan<- workerMetrics.SampleContainer, workerInfo *WorkerInfo) (InitializedVU, error)
 
 	// Runs pre-test setup, if applicable.
-	Setup(ctx context.Context, out chan<- metrics.SampleContainer) error
+	Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer) error
 
 	// Returns json representation of the setup data if setup() is specified and run, nil otherwise
 	GetSetupData() []byte
@@ -62,7 +62,7 @@ type Runner interface {
 	SetSetupData([]byte)
 
 	// Runs post-test teardown, if applicable.
-	Teardown(ctx context.Context, out chan<- metrics.SampleContainer) error
+	Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer) error
 
 	// Returns the default (root) Group.
 	GetDefaultGroup() *Group
@@ -91,8 +91,8 @@ type UIState struct {
 
 // Summary contains all of the data the summary handler gets.
 type Summary struct {
-	Metrics         map[string]*metrics.Metric `json:"metrics"`
-	RootGroup       *Group                     `json:"rootGroup"`
-	TestRunDuration time.Duration              `json:"testRunDuration"`
-	UIState         UIState                    `json:"uiState"`
+	Metrics         map[string]*workerMetrics.Metric `json:"metrics"`
+	RootGroup       *Group                           `json:"rootGroup"`
+	TestRunDuration time.Duration                    `json:"testRunDuration"`
+	UIState         UIState                          `json:"uiState"`
 }

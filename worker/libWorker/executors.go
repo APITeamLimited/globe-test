@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/sirupsen/logrus"
 )
 
 // TODO: remove globals and use some type of explicit dependency injection?
@@ -112,7 +111,7 @@ type Executor interface {
 	GetLogger() *logrus.Entry
 
 	Init(ctx context.Context) error
-	Run(ctx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *WorkerInfo) error
+	Run(ctx context.Context, engineOut chan<- workerMetrics.SampleContainer, workerInfo *WorkerInfo) error
 }
 
 // PausableExecutor should be implemented by the executors that can be paused

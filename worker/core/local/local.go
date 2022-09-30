@@ -7,12 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
@@ -135,7 +135,7 @@ func (e *ExecutionScheduler) GetExecutionPlan() []libWorker.ExecutionStep {
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 func (e *ExecutionScheduler) initVU(
-	samplesOut chan<- metrics.SampleContainer, logger logrus.FieldLogger, workerInfo *libWorker.WorkerInfo,
+	samplesOut chan<- workerMetrics.SampleContainer, logger logrus.FieldLogger, workerInfo *libWorker.WorkerInfo,
 ) (libWorker.InitializedVU, error) {
 	// Get the VU IDs here, so that the VUs are (mostly) ordered by their
 	// number in the channel buffer
@@ -170,7 +170,7 @@ func (e *ExecutionScheduler) getRunStats() string {
 }
 
 func (e *ExecutionScheduler) initVUsConcurrently(
-	ctx context.Context, samplesOut chan<- metrics.SampleContainer, count uint64,
+	ctx context.Context, samplesOut chan<- workerMetrics.SampleContainer, count uint64,
 	concurrency int, logger logrus.FieldLogger,
 	workerInfo *libWorker.WorkerInfo,
 ) chan error {
@@ -203,14 +203,14 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 	return doneInits
 }
 
-func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- metrics.SampleContainer) {
-	e.state.Test.Logger.Debug("Starting emission of VUs and VUsMax metrics...")
-	runTags := metrics.NewSampleTags(e.state.Test.Options.RunTags)
+func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- workerMetrics.SampleContainer) {
+	e.state.Test.Logger.Debug("Starting emission of VUs and VUsMax workerMetrics...")
+	runTags := workerMetrics.NewSampleTags(e.state.Test.Options.RunTags)
 
 	emitMetrics := func() {
 		t := time.Now()
-		samples := metrics.ConnectedSamples{
-			Samples: []metrics.Sample{
+		samples := workerMetrics.ConnectedSamples{
+			Samples: []workerMetrics.Sample{
 				{
 					Time:   t,
 					Metric: e.state.Test.BuiltinMetrics.VUs,
@@ -226,7 +226,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 			Tags: runTags,
 			Time: t,
 		}
-		metrics.PushIfNotDone(ctx, out, samples)
+		workerMetrics.PushIfNotDone(ctx, out, samples)
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -252,7 +252,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 
 // Init concurrently initializes all of the planned VUs and then sequentially
 // initializes all of the configured executors.
-func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
+func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	e.emitVUsAndVUsMax(ctx, samplesOut)
 
 	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-init")
@@ -318,7 +318,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- metrics
 // configured startTime for the specific executor and then running its Run()
 // method.
 func (e *ExecutionScheduler) runExecutor(
-	runCtx context.Context, runResults chan<- error, engineOut chan<- metrics.SampleContainer, executor libWorker.Executor, workerInfo *libWorker.WorkerInfo,
+	runCtx context.Context, runResults chan<- error, engineOut chan<- workerMetrics.SampleContainer, executor libWorker.Executor, workerInfo *libWorker.WorkerInfo,
 ) {
 	executorConfig := executor.GetConfig()
 	executorStartTime := executorConfig.GetStartTime()
@@ -368,7 +368,7 @@ func (e *ExecutionScheduler) runExecutor(
 // out channel.
 //
 //nolint:funlen
-func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
+func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	defer func() {
 		close(e.stopVUsEmission)
 		<-e.vusEmissionStopped

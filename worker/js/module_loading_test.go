@@ -14,11 +14,10 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
-func newDevNullSampleChannel() chan metrics.SampleContainer {
-	ch := make(chan metrics.SampleContainer, 100)
+func newDevNullSampleChannel() chan workerMetrics.SampleContainer {
+	ch := make(chan workerMetrics.SampleContainer, 100)
 	go func() {
 		for range ch {
 		}
@@ -87,8 +86,8 @@ func TestLoadOnceGlobalVars(t *testing.T) {
 			require.NoError(t, err)
 
 			arc := r1.MakeArchive()
-			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+			registry := workerMetrics.NewRegistry()
+			builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 			r2, err := NewFromArchive(&libWorker.TestPreInitState{
 				Logger:         testutils.NewLogger(t),
 				BuiltinMetrics: builtinMetrics,
@@ -144,8 +143,8 @@ func TestLoadExportsIsUsableInModule(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -199,8 +198,8 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) {
 
 	require.NoError(t, r1.SetOptions(libWorker.Options{Hosts: tb.Dialer.Hosts}))
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -252,8 +251,8 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -324,8 +323,8 @@ func TestLoadCycle(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -394,8 +393,8 @@ func TestLoadCycleBinding(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -466,8 +465,8 @@ func TestBrowserified(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -481,7 +480,7 @@ func TestBrowserified(t *testing.T) {
 		r := r
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ch := make(chan metrics.SampleContainer, 100)
+			ch := make(chan workerMetrics.SampleContainer, 100)
 			defer close(ch)
 			initVU, err := r.NewVU(1, 1, ch, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
@@ -517,8 +516,8 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) {
 	require.NoError(t, arc.Write(buf))
 	arc, err = libWorker.ReadArchive(buf)
 	require.NoError(t, err)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -559,8 +558,8 @@ func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) {
 	require.NoError(t, arc.Write(buf))
 	arc, err = libWorker.ReadArchive(buf)
 	require.NoError(t, err)
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
 		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
@@ -620,8 +619,8 @@ func TestOptionsAreGloballyReadable(t *testing.T) {
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(&libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,
@@ -679,8 +678,8 @@ func TestOptionsAreNotGloballyWritable(t *testing.T) {
 	// here it exists
 	require.EqualValues(t, time.Minute*5, r1.GetOptions().MinIterationDuration.Duration)
 	arc := r1.MakeArchive()
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	registry := workerMetrics.NewRegistry()
+	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(&libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(t),
 		BuiltinMetrics: builtinMetrics,

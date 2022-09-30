@@ -7,14 +7,13 @@ import (
 	"testing"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 )
 
 func BenchmarkMeasureAndEmitMetrics(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	samples := make(chan metrics.SampleContainer, 10)
+	samples := make(chan workerMetrics.SampleContainer, 10)
 	defer close(samples)
 	go func() {
 		for range samples {
@@ -23,12 +22,12 @@ func BenchmarkMeasureAndEmitMetrics(b *testing.B) {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	state := &libWorker.State{
 		Options: libWorker.Options{
-			SystemTags: &metrics.DefaultSystemTagSet,
+			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		},
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Samples:        samples,
 		Logger:         logger,
 	}

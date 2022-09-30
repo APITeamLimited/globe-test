@@ -13,7 +13,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func getTestPerVUIterationsConfig() PerVUIterationsConfig {
@@ -39,7 +38,7 @@ func TestPerVUIterationsRun(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestPerVUIterationsConfig())
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 
 	var totalIters uint64
@@ -73,7 +72,7 @@ func TestPerVUIterationsRunVariableVU(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestPerVUIterationsConfig())
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 
 	val, ok := result.Load(slowVUID)
@@ -114,9 +113,9 @@ func TestPerVuIterationsEmitDroppedIterations(t *testing.T) {
 	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	engineOut := make(chan metrics.SampleContainer, 1000)
+	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(5), count)
-	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterationsName))
+	assert.Equal(t, float64(95), sumMetricValues(engineOut, workerMetrics.DroppedIterationsName))
 }

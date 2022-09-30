@@ -7,11 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dop251/goja"
-
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/dop251/goja"
 )
 
 var (
@@ -103,7 +102,7 @@ func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) {
 	old := state.Group
 	state.Group = g
 
-	shouldUpdateTag := state.Options.SystemTags.Has(metrics.TagGroup)
+	shouldUpdateTag := state.Options.SystemTags.Has(workerMetrics.TagGroup)
 	if shouldUpdateTag {
 		state.Tags.Set("group", g.Path)
 	}
@@ -121,11 +120,11 @@ func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) {
 	tags := state.CloneTags()
 
 	ctx := mi.vu.Context()
-	metrics.PushIfNotDone(ctx, state.Samples, metrics.Sample{
+	workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.Sample{
 		Time:   t,
 		Metric: state.BuiltinMetrics.GroupDuration,
-		Tags:   metrics.IntoSampleTags(&tags),
-		Value:  metrics.D(t.Sub(startTime)),
+		Tags:   workerMetrics.IntoSampleTags(&tags),
+		Value:  workerMetrics.D(t.Sub(startTime)),
 	})
 
 	return ret, err
@@ -170,7 +169,7 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 		if err != nil {
 			return false, err
 		}
-		if state.Options.SystemTags.Has(metrics.TagCheck) {
+		if state.Options.SystemTags.Has(workerMetrics.TagCheck) {
 			tags["check"] = check.Name
 		}
 
@@ -185,7 +184,7 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 			}
 		}
 
-		sampleTags := metrics.IntoSampleTags(&tags)
+		sampleTags := workerMetrics.IntoSampleTags(&tags)
 
 		// Emit! (But only if we have a valid context.)
 		select {
@@ -193,12 +192,12 @@ func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error)
 		default:
 			if val.ToBoolean() {
 				atomic.AddInt64(&check.Passes, 1)
-				metrics.PushIfNotDone(ctx, state.Samples,
-					metrics.Sample{Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 1})
+				workerMetrics.PushIfNotDone(ctx, state.Samples,
+					workerMetrics.Sample{Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 1})
 			} else {
 				atomic.AddInt64(&check.Fails, 1)
-				metrics.PushIfNotDone(ctx, state.Samples,
-					metrics.Sample{Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 0})
+				workerMetrics.PushIfNotDone(ctx, state.Samples,
+					workerMetrics.Sample{Time: t, Metric: state.BuiltinMetrics.Checks, Tags: sampleTags, Value: 0})
 				// A single failure makes the return value false.
 				succ = false
 			}

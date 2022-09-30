@@ -14,7 +14,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func mockNextIterations() (uint64, uint64) {
@@ -35,7 +34,7 @@ func TestVUHandleRace(t *testing.T) {
 	logEntry := logrus.NewEntry(testLog)
 
 	runner := &minirunner.MiniRunner{}
-	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 		return nil
 	}
 
@@ -124,7 +123,7 @@ func TestVUHandleStartStopRace(t *testing.T) {
 	logEntry := logrus.NewEntry(testLog)
 
 	runner := &minirunner.MiniRunner{}
-	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 		return nil
 	}
 
@@ -367,7 +366,7 @@ func BenchmarkVUHandleIterations(b *testing.B) {
 	}
 
 	runner := &minirunner.MiniRunner{}
-	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
+	runner.Fn = func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 		return nil
 	}
 	getVU := func() (libWorker.InitializedVU, error) {

@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 )
@@ -22,7 +22,7 @@ type MetricsEngine struct {
 	logger logrus.FieldLogger
 
 	// These can be both top-level metrics or sub-metrics
-	metricsWithThresholds []*metrics.Metric
+	metricsWithThresholds []*workerMetrics.Metric
 
 	// TODO: completely refactor:
 	//   - make these private,
@@ -30,7 +30,7 @@ type MetricsEngine struct {
 	//   - have one lock per metric instead of a a global one, when
 	//     the metrics are decoupled from their types
 	MetricsLock     sync.Mutex
-	ObservedMetrics map[string]*metrics.Metric
+	ObservedMetrics map[string]*workerMetrics.Metric
 }
 
 // NewMetricsEngine creates a new metrics Engine with the given parameters.
@@ -39,7 +39,7 @@ func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) {
 		es:     es,
 		logger: es.Test.Logger.WithField("component", "metrics-engine"),
 
-		ObservedMetrics: make(map[string]*metrics.Metric),
+		ObservedMetrics: make(map[string]*workerMetrics.Metric),
 	}
 
 	if !me.es.Test.RuntimeOptions.NoThresholds.Bool {
@@ -61,7 +61,7 @@ func (me *MetricsEngine) GetIngester() output.Output {
 	}
 }
 
-func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Metric, error) {
+func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*workerMetrics.Metric, error) {
 	// TODO: replace with strings.Cut after Go 1.18
 	nameParts := strings.SplitN(name, "{", 2)
 
@@ -119,7 +119,7 @@ func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Me
 	return sm.Metric, nil
 }
 
-func (me *MetricsEngine) markObserved(metric *metrics.Metric) {
+func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) {
 	if !metric.Observed {
 		metric.Observed = true
 		me.ObservedMetrics[metric.Name] = metric
@@ -155,7 +155,7 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error {
 
 	// TODO: refactor out of here when https://github.com/grafana/k6/issues/1321
 	// lands and there is a better way to enable a metric with tag
-	if me.es.Test.Options.SystemTags.Has(metrics.TagExpectedResponse) {
+	if me.es.Test.Options.SystemTags.Has(workerMetrics.TagExpectedResponse) {
 		_, err := me.getThresholdMetricOrSubmetric("http_req_duration{expected_response:true}")
 		if err != nil {
 			return err // shouldn't happen, but ¯\_(ツ)_/¯

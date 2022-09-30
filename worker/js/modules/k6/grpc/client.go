@@ -12,7 +12,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/grpcext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 
 	"github.com/dop251/goja"
 	"github.com/jhump/protoreflect/desc"
@@ -176,19 +175,19 @@ func (c *Client) Invoke(
 		tags[k] = v
 	}
 
-	if state.Options.SystemTags.Has(metrics.TagURL) {
+	if state.Options.SystemTags.Has(workerMetrics.TagURL) {
 		tags["url"] = fmt.Sprintf("%s%s", c.addr, method)
 	}
 	parts := strings.Split(method[1:], "/")
-	if state.Options.SystemTags.Has(metrics.TagService) {
+	if state.Options.SystemTags.Has(workerMetrics.TagService) {
 		tags["service"] = parts[0]
 	}
-	if state.Options.SystemTags.Has(metrics.TagMethod) {
+	if state.Options.SystemTags.Has(workerMetrics.TagMethod) {
 		tags["method"] = parts[1]
 	}
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(metrics.TagName) {
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(workerMetrics.TagName) {
 		tags["name"] = method
 	}
 

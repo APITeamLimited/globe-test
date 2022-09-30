@@ -7,12 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
@@ -132,7 +132,7 @@ var _ libWorker.Executor = &PerVUIterations{}
 // Run executes a specific number of iterations with each configured VU.
 //
 //nolint:funlen
-func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
+func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	numVUs := pvi.config.GetVUs(pvi.executionState.ExecutionTuple)
 	iterations := pvi.config.GetIterations()
 	duration := pvi.config.MaxDuration.TimeDuration()
@@ -213,7 +213,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- metrics.Sam
 		for i := int64(0); i < iterations; i++ {
 			select {
 			case <-regDurationDone:
-				metrics.PushIfNotDone(parentCtx, out, metrics.Sample{
+				workerMetrics.PushIfNotDone(parentCtx, out, workerMetrics.Sample{
 					Value: float64(iterations - i), Metric: droppedIterationMetric,
 					Tags: pvi.getMetricTags(&vuID), Time: time.Now(),
 				})

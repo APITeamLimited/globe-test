@@ -6,44 +6,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 func TestSampleBufferBasics(t *testing.T) {
 	t.Parallel()
 
-	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", metrics.Rate)
+	registry := workerMetrics.NewRegistry()
+	metric, err := registry.NewMetric("my_metric", workerMetrics.Rate)
 	require.NoError(t, err)
 
-	single := metrics.Sample{
+	single := workerMetrics.Sample{
 		Time:   time.Now(),
 		Metric: metric,
 		Value:  float64(123),
-		Tags:   metrics.NewSampleTags(map[string]string{"tag1": "val1"}),
+		Tags:   workerMetrics.NewSampleTags(map[string]string{"tag1": "val1"}),
 	}
-	connected := metrics.ConnectedSamples{Samples: []metrics.Sample{single, single}, Time: single.Time}
+	connected := workerMetrics.ConnectedSamples{Samples: []workerMetrics.Sample{single, single}, Time: single.Time}
 	buffer := SampleBuffer{}
 
 	assert.Empty(t, buffer.GetBufferedSamples())
-	buffer.AddMetricSamples([]metrics.SampleContainer{single, single})
-	buffer.AddMetricSamples([]metrics.SampleContainer{single, connected, single})
-	assert.Equal(t, []metrics.SampleContainer{single, single, single, connected, single}, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, single})
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, connected, single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single, single, single, connected, single}, buffer.GetBufferedSamples())
 	assert.Empty(t, buffer.GetBufferedSamples())
 
 	// Verify some internals
 	assert.Equal(t, cap(buffer.buffer), 5)
-	buffer.AddMetricSamples([]metrics.SampleContainer{single, connected})
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, connected})
 	buffer.AddMetricSamples(nil)
-	buffer.AddMetricSamples([]metrics.SampleContainer{})
-	buffer.AddMetricSamples([]metrics.SampleContainer{single})
-	assert.Equal(t, []metrics.SampleContainer{single, connected, single}, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{})
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single, connected, single}, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 4)
-	buffer.AddMetricSamples([]metrics.SampleContainer{single})
-	assert.Equal(t, []metrics.SampleContainer{single}, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single}, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 3)
 	assert.Empty(t, buffer.GetBufferedSamples())
 }
@@ -55,8 +54,8 @@ func TestSampleBufferConcurrently(t *testing.T) {
 	r := rand.New(rand.NewSource(seed)) //nolint:gosec
 	t.Logf("Random source seeded with %d\n", seed)
 
-	registry := metrics.NewRegistry()
-	metric, err := registry.NewMetric("my_metric", metrics.Gauge)
+	registry := workerMetrics.NewRegistry()
+	metric, err := registry.NewMetric("my_metric", workerMetrics.Gauge)
 	require.NoError(t, err)
 
 	producersCount := 50 + r.Intn(50)
@@ -67,11 +66,11 @@ func TestSampleBufferConcurrently(t *testing.T) {
 	wg := make(chan struct{})
 	fillBuffer := func() {
 		for i := 0; i < sampleCount; i++ {
-			buffer.AddMetricSamples([]metrics.SampleContainer{metrics.Sample{
+			buffer.AddMetricSamples([]workerMetrics.SampleContainer{workerMetrics.Sample{
 				Time:   time.Unix(1562324644, 0),
 				Metric: metric,
 				Value:  float64(i),
-				Tags:   metrics.NewSampleTags(map[string]string{"tag1": "val1"}),
+				Tags:   workerMetrics.NewSampleTags(map[string]string{"tag1": "val1"}),
 			}})
 			time.Sleep(time.Duration(i*sleepModifier) * time.Microsecond)
 		}
@@ -84,7 +83,7 @@ func TestSampleBufferConcurrently(t *testing.T) {
 	timer := time.NewTicker(5 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
 	defer timer.Stop()
-	readSamples := make([]metrics.SampleContainer, 0, sampleCount*producersCount)
+	readSamples := make([]workerMetrics.SampleContainer, 0, sampleCount*producersCount)
 	finishedProducers := 0
 loop:
 	for {

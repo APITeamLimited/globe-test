@@ -25,7 +25,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/mockoutput"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/output"
 )
 
@@ -42,12 +41,12 @@ type testStruct struct {
 }
 
 func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState {
-	reg := metrics.NewRegistry()
+	reg := workerMetrics.NewRegistry()
 	return &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
 		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(reg),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
 	}
 }
 
@@ -126,7 +125,7 @@ func TestEngineRun(t *testing.T) {
 		t.Parallel()
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *libWorker.State, _ chan<- metrics.SampleContainer) error {
+			Fn: func(ctx context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 				<-ctx.Done()
 				close(done)
 				return nil
@@ -157,17 +156,17 @@ func TestEngineRun(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
-		testMetric, err := piState.Registry.NewMetric("test_metric", metrics.Trend)
+		testMetric, err := piState.Registry.NewMetric("test_metric", workerMetrics.Trend)
 		require.NoError(t, err)
 
 		signalChan := make(chan interface{})
 
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-				metrics.PushIfNotDone(ctx, out, metrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
 				close(signalChan)
 				<-ctx.Done()
-				metrics.PushIfNotDone(ctx, out, metrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
+				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
 				return nil
 			},
 		}
@@ -227,12 +226,12 @@ func TestEngineOutput(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
-	testMetric, err := piState.Registry.NewMetric("test_metric", metrics.Trend)
+	testMetric, err := piState.Registry.NewMetric("test_metric", workerMetrics.Trend)
 	require.NoError(t, err)
 
 	runner := &minirunner.MiniRunner{
-		Fn: func(_ context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-			out <- metrics.Sample{Metric: testMetric}
+		Fn: func(_ context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: testMetric}
 			return nil
 		},
 	}
@@ -246,7 +245,7 @@ func TestEngineOutput(t *testing.T) {
 	assert.NoError(t, test.run())
 	test.wait()
 
-	cSamples := []metrics.Sample{}
+	cSamples := []workerMetrics.Sample{}
 	for _, sample := range mockOutput.Samples {
 		if sample.Metric == testMetric {
 			cSamples = append(cSamples, sample)
@@ -254,7 +253,7 @@ func TestEngineOutput(t *testing.T) {
 	}
 	metric := test.engine.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) {
-		sink := metric.Sink.(*metrics.TrendSink) //nolint:forcetypeassert
+		sink := metric.Sink.(*workerMetrics.TrendSink) //nolint:forcetypeassert
 		if assert.NotNil(t, sink) {
 			numOutputSamples := len(cSamples)
 			numEngineSamples := len(sink.Values)
@@ -270,13 +269,13 @@ func TestEngine_processSamples(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
-		metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
+		metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 		require.NoError(t, err)
 
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-				out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 				close(done)
 				return nil
 			},
@@ -296,29 +295,29 @@ func TestEngine_processSamples(t *testing.T) {
 
 		test.wait()
 
-		assert.IsType(t, &metrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
 	})
 	t.Run("submetric", func(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
-		metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
+		metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 		require.NoError(t, err)
 
-		ths := metrics.NewThresholds([]string{`value<2`})
+		ths := workerMetrics.NewThresholds([]string{`value<2`})
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
 		done := make(chan struct{})
 		runner := &minirunner.MiniRunner{
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-				out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1", "b": "2"})}
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1", "b": "2"})}
 				close(done)
 				return nil
 			},
 		}
 		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{
-			Thresholds: map[string]metrics.Thresholds{
+			Thresholds: map[string]workerMetrics.Thresholds{
 				"my_metric{a:1}": ths,
 			},
 		}, piState)
@@ -339,8 +338,8 @@ func TestEngine_processSamples(t *testing.T) {
 		sms := test.engine.MetricsEngine.ObservedMetrics["my_metric{a:1}"]
 		assert.EqualValues(t, map[string]string{"a": "1"}, sms.Sub.Tags.CloneTags())
 
-		assert.IsType(t, &metrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
-		assert.IsType(t, &metrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric{a:1}"].Sink)
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric{a:1}"].Sink)
 	})
 }
 
@@ -348,23 +347,23 @@ func TestEngineThresholdsWillAbort(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
-	metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
+	metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 	require.NoError(t, err)
 
 	// The incoming samples for the metric set it to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
-	ths := metrics.NewThresholds([]string{"value>1.25"})
+	ths := workerMetrics.NewThresholds([]string{"value>1.25"})
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]metrics.Thresholds{metric.Name: ths}
+	thresholds := map[string]workerMetrics.Thresholds{metric.Name: ths}
 
 	done := make(chan struct{})
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-			out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			close(done)
 			return nil
 		},
@@ -389,24 +388,24 @@ func TestEngineAbortedByThresholds(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
-	metric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
+	metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 	require.NoError(t, err)
 
 	// The MiniRunner sets the value of the metric to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
 	// **N.B**: a threshold returning an error, won't trigger an abort.
-	ths := metrics.NewThresholds([]string{"value>1.25"})
+	ths := workerMetrics.NewThresholds([]string{"value>1.25"})
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]metrics.Thresholds{metric.Name: ths}
+	thresholds := map[string]workerMetrics.Thresholds{metric.Name: ths}
 
 	done := make(chan struct{})
 	runner := &minirunner.MiniRunner{
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- metrics.SampleContainer) error {
-			out <- metrics.Sample{Metric: metric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})}
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			<-ctx.Done()
 			close(done)
 			return nil
@@ -464,16 +463,16 @@ func TestEngine_processThresholds(t *testing.T) {
 			t.Parallel()
 
 			piState := getTestPreInitState(t)
-			gaugeMetric, err := piState.Registry.NewMetric("my_metric", metrics.Gauge)
+			gaugeMetric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 			require.NoError(t, err)
-			counterMetric, err := piState.Registry.NewMetric("used_counter", metrics.Counter)
+			counterMetric, err := piState.Registry.NewMetric("used_counter", workerMetrics.Counter)
 			require.NoError(t, err)
-			_, err = piState.Registry.NewMetric("unused_counter", metrics.Counter)
+			_, err = piState.Registry.NewMetric("unused_counter", workerMetrics.Counter)
 			require.NoError(t, err)
 
-			thresholds := make(map[string]metrics.Thresholds, len(data.ths))
+			thresholds := make(map[string]workerMetrics.Thresholds, len(data.ths))
 			for m, srcs := range data.ths {
-				ths := metrics.NewThresholds(srcs)
+				ths := workerMetrics.NewThresholds(srcs)
 				gotParseErr := ths.Parse()
 				require.NoError(t, gotParseErr)
 				thresholds[m] = ths
@@ -485,9 +484,9 @@ func TestEngine_processThresholds(t *testing.T) {
 			)
 
 			test.engine.OutputManager.AddMetricSamples(
-				[]metrics.SampleContainer{
-					metrics.Sample{Metric: gaugeMetric, Value: 1.25, Tags: metrics.IntoSampleTags(&map[string]string{"a": "1"})},
-					metrics.Sample{Metric: counterMetric, Value: 2, Tags: metrics.IntoSampleTags(&map[string]string{"b": "1"})},
+				[]workerMetrics.SampleContainer{
+					workerMetrics.Sample{Metric: gaugeMetric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})},
+					workerMetrics.Sample{Metric: counterMetric, Value: 2, Tags: workerMetrics.IntoSampleTags(&map[string]string{"b": "1"})},
 				},
 			)
 
@@ -633,8 +632,8 @@ func TestSentReceivedMetrics(t *testing.T) {
 			return data
 		}
 
-		return checkData(metrics.DataSentName, ts.ExpectedDataSent),
-			checkData(metrics.DataReceivedName, ts.ExpectedDataReceived)
+		return checkData(workerMetrics.DataSentName, ts.ExpectedDataSent),
+			checkData(workerMetrics.DataReceivedName, ts.ExpectedDataReceived)
 	}
 
 	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) {
@@ -744,7 +743,7 @@ func TestRunTags(t *testing.T) {
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
 		RunTags:               runTags,
-		SystemTags:            &metrics.DefaultSystemTagSet,
+		SystemTags:            &workerMetrics.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	})
 
@@ -760,8 +759,8 @@ func TestRunTags(t *testing.T) {
 	test.wait()
 
 	systemMetrics := []string{
-		metrics.VUsName, metrics.VUsMaxName, metrics.IterationsName, metrics.IterationDurationName,
-		metrics.GroupDurationName, metrics.DataSentName, metrics.DataReceivedName,
+		workerMetrics.VUsName, workerMetrics.VUsMaxName, workerMetrics.IterationsName, workerMetrics.IterationDurationName,
+		workerMetrics.GroupDurationName, workerMetrics.DataSentName, workerMetrics.DataReceivedName,
 	}
 
 	getExpectedOverVal := func(metricName string) string {
@@ -816,7 +815,7 @@ func TestSetupException(t *testing.T) {
 	require.NoError(t, err)
 
 	test := newTestEngine(t, nil, runner, nil, libWorker.Options{
-		SystemTags:      &metrics.DefaultSystemTagSet,
+		SystemTags:      &workerMetrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
@@ -948,11 +947,11 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) {
 	// The 3.1 sleep in the default function would cause the first VU to complete 2 full iterations
 	// and stat executing its third one, while the second VU will only fully complete 1 iteration
 	// and will be canceled in the middle of its second one.
-	assert.Equal(t, 3.0, getMetricSum(mockOutput, metrics.IterationsName))
+	assert.Equal(t, 3.0, getMetricSum(mockOutput, workerMetrics.IterationsName))
 
 	// That means that we expect to see 8 HTTP requests in total, 3*2=6 from the complete iterations
 	// and one each from the two iterations that would be canceled in the middle of their execution
-	assert.Equal(t, 8.0, getMetricSum(mockOutput, metrics.HTTPReqsName))
+	assert.Equal(t, 8.0, getMetricSum(mockOutput, workerMetrics.HTTPReqsName))
 
 	// And we expect to see the data_received for all 8 of those requests. Previously, the data for
 	// the 8th request (the 3rd one in the first VU before the test ends) was cut off by the engine
@@ -961,7 +960,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) {
 	// it was interrupted.
 	dataReceivedExpectedMin := 15000.0 * 8
 	dataReceivedExpectedMax := (15000.0 + expectedHeaderMaxLength) * 8
-	dataReceivedActual := getMetricSum(mockOutput, metrics.DataReceivedName)
+	dataReceivedActual := getMetricSum(mockOutput, workerMetrics.DataReceivedName)
 	if dataReceivedActual < dataReceivedExpectedMin || dataReceivedActual > dataReceivedExpectedMax {
 		t.Errorf(
 			"The data_received sum should be in the interval [%f, %f] but was %f",
@@ -971,9 +970,9 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) {
 
 	// Also, the interrupted iterations shouldn't affect the average iteration_duration in any way, only
 	// complete iterations should be taken into account
-	durationCount := float64(getMetricCount(mockOutput, metrics.IterationDurationName))
+	durationCount := float64(getMetricCount(mockOutput, workerMetrics.IterationDurationName))
 	assert.Equal(t, 3.0, durationCount)
-	durationSum := getMetricSum(mockOutput, metrics.IterationDurationName)
+	durationSum := getMetricSum(mockOutput, workerMetrics.IterationDurationName)
 	assert.InDelta(t, 3.35, durationSum/(1000*durationCount), 0.25)
 }
 
@@ -1049,7 +1048,7 @@ func TestMetricsEmission(t *testing.T) {
 				require.False(t, test.engine.IsTainted())
 			}
 
-			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, metrics.IterationsName))
+			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, workerMetrics.IterationsName))
 			assert.Equal(t, tc.expCount, getMetricSum(mockOutput, "testcounter"))
 		})
 	}
@@ -1139,17 +1138,17 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
-	testMetric, err := piState.Registry.NewMetric("teardown_metric", metrics.Counter)
+	testMetric, err := piState.Registry.NewMetric("teardown_metric", workerMetrics.Counter)
 	require.NoError(t, err)
 
 	var test *testStruct
 	runner := &minirunner.MiniRunner{
-		Fn: func(_ context.Context, _ *libWorker.State, _ chan<- metrics.SampleContainer) error {
+		Fn: func(_ context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 			test.runCancel() // we cancel the run immediately after the test starts
 			return nil
 		},
-		TeardownFn: func(_ context.Context, out chan<- metrics.SampleContainer) error {
-			out <- metrics.Sample{Metric: testMetric, Value: 1}
+		TeardownFn: func(_ context.Context, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: testMetric, Value: 1}
 			return nil
 		},
 	}
@@ -1223,11 +1222,11 @@ func TestActiveVUsCount(t *testing.T) {
 
 	rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("base")}
 
-	registry := metrics.NewRegistry()
+	registry := workerMetrics.NewRegistry()
 	piState := &libWorker.TestPreInitState{
 		Logger:         logger,
 		Registry:       registry,
-		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		RuntimeOptions: rtOpts,
 	}
 	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
@@ -1265,8 +1264,8 @@ func TestActiveVUsCount(t *testing.T) {
 		require.False(t, engine.IsTainted())
 	}
 
-	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsName))
-	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsMaxName))
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, workerMetrics.VUsName))
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, workerMetrics.VUsMaxName))
 
 	logEntries := logHook.Drain()
 	assert.Len(t, logEntries, 3)
