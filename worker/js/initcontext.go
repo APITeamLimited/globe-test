@@ -14,8 +14,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam"
-	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/collection"
-	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/environment"
+	apiteamContext "github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/context"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/crypto"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/crypto/x509"
@@ -367,9 +366,8 @@ func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface
 		"k6/http":    http.New(),
 		"k6/metrics": metrics.New(),
 		//"k6/ws":               ws.New(),
-		"apiteam":             apiteam.New(),
-		"apiteam/environment": environment.New(workerInfo),
-		"apiteam/collection":  collection.New(workerInfo),
+		"apiteam":         apiteam.New(),
+		"apiteam/context": apiteamContext.New(workerInfo),
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 )
 
 // Import script to determine options on the orchestrator
-func DetermineRuntimeOptions(job map[string]string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
+func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	options, err := getCompiledOptions(job, gs)
 	if err != nil {
 		return nil, err

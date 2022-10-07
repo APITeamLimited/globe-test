@@ -16,26 +16,30 @@ import (
 /*
 Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
-func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]map[string]string, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, orchestratorId string, storeMongoDB *mongo.Database, scope map[string]string, globeTestLogsId primitive.ObjectID) {
+func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistribution,
+	orchestratorClient *redis.Client, orchestratorId string, storeMongoDB *mongo.Database,
+	scope map[string]string, globeTestLogsReceipt primitive.ObjectID,
+	metricsStoreReceipt primitive.ObjectID) error {
 	// Clean up worker
 	// Set job in orchestrator redis
 
 	marshalledJobInfo, err := json.Marshal(job)
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["jobId"], orchestratorId, "Error marshalling job info")
+		return err
 	}
 
-	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledJobInfo), "JOB_INFO")
+	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledJobInfo), "JOB_INFO")
 
 	go func() {
-		for _, client := range workerClients {
-			for _, zone := range childJobs {
-				for _, childJob := range zone {
-					client.Del(ctx, childJob["id"])
+		for _, jobDistribution := range childJobs {
+			client := jobDistribution.workerClient
 
-					// Remove childJob["id"] from k6:executionHistory set
-					client.SRem(ctx, "k6:executionHistory", childJob["id"])
-				}
+			for _, childJob := range *jobDistribution.jobs {
+				client.Del(ctx, childJob.ChildJobId)
+
+				// Remove childJob["id"] from worker:executionHistory set
+				client.SRem(ctx, "worker:executionHistory", childJob.ChildJobId)
+
 			}
 		}
 	}()
@@ -44,26 +48,25 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 	bucketName := fmt.Sprintf("%s:%s", scope["variant"], scope["variantTargetId"])
 	jobBucket, err := gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error creating job output bucket: %s", err.Error()))
-		return
+		return err
 	}
 
-	updatesKey := fmt.Sprintf("%s:updates", job["id"])
+	updatesKey := fmt.Sprintf("%s:updates", job.Id)
 
 	unparsedMessages, err := orchestratorClient.SMembers(ctx, updatesKey).Result()
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error getting unparsed messages: %s", err.Error()))
-		return
+		return err
 	}
 
-	var logs []libOrch.OrchestratorOrWorkerMessage
+	var globeTestLogs []libOrch.OrchestratorOrWorkerMessage
+	var metrics []libOrch.OrchestratorOrWorkerMessage
+
+	var message libOrch.OrchestratorOrWorkerMessage
 
 	for _, value := range unparsedMessages {
-		var message libOrch.OrchestratorOrWorkerMessage
 		err := json.Unmarshal([]byte(value), &message)
 		if err != nil {
-			libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
-			return
+			return err
 		}
 
 		// TODO: make a seperate store datatype for large data
@@ -73,11 +76,11 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 
 				err := json.Unmarshal([]byte(message.Message), &parsedStoreMessage)
 				if err != nil {
-					libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
+					libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
 					return
 				}
 
-				storeTag := fmt.Sprintf("%s:store:%s", job["id"], parsedStoreMessage.Filename)
+				storeTag := fmt.Sprintf("%s:store:%s", job.Id, parsedStoreMessage.Filename)
 
 				setInBucket(jobBucket, storeTag, []byte(parsedStoreMessage.Message))
 
@@ -86,25 +89,63 @@ func cleanup(ctx context.Context, job map[string]string, childJobs map[string][]
 				message.Message = storeTag
 			}
 		*/
-		logs = append(logs, message)
+
+		if message.MessageType == "METRICS" {
+			metrics = append(metrics, message)
+		} else {
+			globeTestLogs = append(globeTestLogs, message)
+		}
 	}
 
-	// Convert logs to JSON and set in bucket
-	logsJSON, err := json.Marshal(logs)
-	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling logs: %s", err.Error()))
-		return
-	}
+	channel := make(chan error)
 
-	err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:messages.json", job["id"]), logsJSON, "application/json", globeTestLogsId)
-	if err != nil {
-		// Can't alert client here, as the client has already been cleaned up
-		fmt.Printf("Error setting logs in bucket: %s\n", err.Error())
-		return
+	go func() {
+		// Convert logs to JSON and set in bucket
+		globeTestLogsMarshalled, err := json.Marshal(globeTestLogs)
+		if err != nil {
+			// Can't alert client here, as the client has already been cleaned up
+			channel <- fmt.Errorf("error marshalling logs: %s", err.Error())
+			return
+		}
+
+		err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:messages.json", job.Id), globeTestLogsMarshalled, "application/json", globeTestLogsReceipt)
+		if err != nil {
+			// Can't alert client here, as the client has already been cleaned up
+			channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+			return
+		}
+
+		channel <- nil
+	}()
+
+	go func() {
+		// Convert metrics to JSON and set in bucket
+		metricsMarshalled, err := json.Marshal(metrics)
+		if err != nil {
+			channel <- fmt.Errorf("error marshalling metrics: %s", err.Error())
+			return
+		}
+
+		err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:metrics.json", job.Id), metricsMarshalled, "application/json", metricsStoreReceipt)
+		if err != nil {
+			channel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
+			return
+		}
+
+		channel <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-channel
+		if err != nil {
+			return err
+		}
 	}
 
 	// Clean up orchestrator
 	orchestratorClient.Del(ctx, updatesKey)
-	orchestratorClient.Del(ctx, job["id"])
-	orchestratorClient.SRem(ctx, "orchestrator:executionHistory", job["id"])
+	orchestratorClient.Del(ctx, job.Id)
+	orchestratorClient.SRem(ctx, "orchestrator:executionHistory", job.Id)
+
+	return nil
 }

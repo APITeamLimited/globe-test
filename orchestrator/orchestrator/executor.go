@@ -11,38 +11,60 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope map[string]string, workerClients map[string]*redis.Client, job map[string]string) (string, error) {
+func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope map[string]string, childJobs map[string]jobDistribution, jobId string) (string, error) {
+	// TODO: implement credit check
+
 	// Check if has credits
-	hasCredits, err := checkIfHasCredits(gs.Ctx(), scope, job)
+	/*hasCredits, err := checkIfHasCredits(gs.Ctx(), scope, job)
 	if err != nil {
 		return "", err
 	}
 	if !hasCredits {
 		libOrch.UpdateStatus(gs.Ctx(), gs.Client(), gs.JobId(), gs.OrchestratorId(), "NO_CREDITS")
 		return "", errors.New("not enough credits to execute that job")
+	}*/
+
+	workerSubscriptions := make(map[string]*redis.PubSub)
+	for location, jobDistribution := range childJobs {
+		if jobDistribution.jobs != nil && len(*jobDistribution.jobs) > 0 {
+			workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+		}
 	}
 
-	workerClient := workerClients["portsmouth"]
-	workerSubscription := workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job["id"]))
-
-	//marshalledOptions, err := json.Marshal(options)
-	if err != nil {
-		return "", err
+	workerChannels := make(map[string]<-chan *redis.Message)
+	for location, subscription := range workerSubscriptions {
+		workerChannels[location] = subscription.Channel()
 	}
 
 	// Update the status
-	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), job["id"], gs.OrchestratorId(), "RUNNING")
+	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "RUNNING")
 
-	err = dispatchJob(gs, workerClient, job, "PENDING", options)
-	if err != nil {
-		return "", err
+	// Check if workerSubscriptions is empty
+	if len(workerSubscriptions) == 0 {
+		libOrch.DispatchMessage(gs.Ctx(), gs.Client(), gs.JobId(), gs.OrchestratorId(), "No child jobs were created", "INFO")
+		return "SUCCESS", nil
 	}
 
-	if err != nil {
-		return "", err
+	for _, jobDistribution := range childJobs {
+		for _, job := range *jobDistribution.jobs {
+			err := dispatchJob(gs, jobDistribution.workerClient, job, options)
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 
-	for msg := range workerSubscription.Channel() {
+	unifiedChannel := make(chan *redis.Message)
+
+	for _, channel := range workerChannels {
+		go func(channel <-chan *redis.Message) {
+			for msg := range channel {
+				unifiedChannel <- msg
+			}
+		}(channel)
+	}
+
+	for msg := range unifiedChannel {
 		workerMessage := libOrch.WorkerMessage{}
 		err := json.Unmarshal([]byte(msg.Payload), &workerMessage)
 		if err != nil {
@@ -69,20 +91,20 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 		// Could handle these differently, but for now just dispatch them
 
 		/*else if workerMessage.MessageType == "MARK" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "MARK")
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "MARK")
 		} else if workerMessage.MessageType == "CONSOLE" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "CONSOLE")
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "CONSOLE")
 		} else if workerMessage.MessageType == "METRICS" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "METRICS")
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "METRICS")
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "SUMMARY_METRICS")
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "SUMMARY_METRICS")
 			workerSubscription.Close()
 		} else if workerMessage.MessageType == "ERROR" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "ERROR")
-			libOrch.HandleStringError(gs.Ctx, orchestratorClient, job["id"], gs.orchestratorId, workerMessage.Message)
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "ERROR")
+			libOrch.HandleStringError(gs.Ctx, orchestratorClient, job.Id, gs.orchestratorId, workerMessage.Message)
 			return
 		} else if workerMessage.MessageType == "DEBUG" {
-			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job["id"], workerMessage.WorkerId, workerMessage.Message, "DEBUG")
+			libOrch.DispatchWorkerMessage(gs.Ctx, orchestratorClient, job.Id, workerMessage.WorkerId, workerMessage.Message, "DEBUG")
 		}*/
 	}
 
@@ -90,23 +112,17 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 	return "", errors.New("an unexpected error occurred")
 }
 
-func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job map[string]string, status string, options *libWorker.Options) error {
+func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, options *libWorker.Options) error {
 	// Convert options to json
-	marshalledOptions, err := json.Marshal(options)
+	marshalledChildJob, err := json.Marshal(job)
 	if err != nil {
 		return err
 	}
 
-	workerClient.HSet(gs.Ctx(), job["id"], "id", job["id"])
-	workerClient.HSet(gs.Ctx(), job["id"], "source", job["source"])
-	workerClient.HSet(gs.Ctx(), job["id"], "sourceName", job["sourceName"])
-	workerClient.HSet(gs.Ctx(), job["id"], "status", status)
-	workerClient.HSet(gs.Ctx(), job["id"], "scopeId", job["scopeId"])
-	workerClient.HSet(gs.Ctx(), job["id"], "gs.orchestratorId", gs.OrchestratorId)
-	workerClient.HSet(gs.Ctx(), job["id"], "options", string(marshalledOptions))
+	workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
-	workerClient.Publish(gs.Ctx(), "k6:execution", job["id"])
-	workerClient.SAdd(gs.Ctx(), "k6:executionHistory", job["id"])
+	workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
+	workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
 
 	return nil
 }
@@ -114,7 +130,7 @@ func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job map
 /*
 Check i the scope has the required credits to execute the job
 */
-func checkIfHasCredits(ctx context.Context, scope map[string]string, job map[string]string) (bool, error) {
+func checkIfHasCredits(ctx context.Context, scope map[string]string, job libOrch.Job) (bool, error) {
 	// TODO: implement fully
 	return true, nil
 	/*

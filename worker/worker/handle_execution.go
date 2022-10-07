@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/core"
 	"github.com/APITeamLimited/globe-test/worker/core/local"
 	"github.com/APITeamLimited/globe-test/worker/errext"
@@ -20,30 +21,25 @@ This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context,
-	client *redis.Client, job map[string]string, workerId string) {
-	fmt.Println("\033[1;32mGot job", job["id"], "\033[0m")
-	go libWorker.UpdateStatus(ctx, client, job["id"], workerId, "LOADING")
+	client *redis.Client, job libOrch.ChildJob, workerId string) {
+	fmt.Printf("\033[1;32mGot child job %s\033[0m\n", job.ChildJobId)
+	go libWorker.UpdateStatus(ctx, client, job.Id, workerId, "LOADING")
 
-	globalState := newGlobalState(ctx, client, job["id"], workerId)
-
-	workerInfo, err := loadWorkerInfo(ctx, client, job, workerId)
-	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
-		return
-	}
+	globalState := newGlobalState(ctx, client, job, workerId)
+	workerInfo := loadWorkerInfo(ctx, client, job, workerId)
 
 	test, err := loadAndConfigureTest(globalState, job, workerInfo)
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("failed to load test: %s", err))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("failed to load test: %s", err))
 		return
 	}
 
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return
 	}
 
@@ -64,56 +60,56 @@ func handleExecution(ctx context.Context,
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return
 	}
 
 	// Create all outputs.
 	outputs, err := createOutputs(workerInfo)
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return
 	}
 
 	// Create the engine.
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Initializing the Engine...", "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return
 	}
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
 	if err != nil {
-		go libWorker.HandleStringError(ctx, client, job["id"], workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
+		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
 		return
 	}
 	defer engine.OutputManager.StopOutputs()
 
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	gracefulStop := func(sig os.Signal) {
-		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
+		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
 	}
 	onHardStop := func(sig os.Signal) {
-		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
+		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
 		globalCancel() // not that it matters, given the following command...
 	}
 	stopSignalHandling := handleTestAbortSignals(globalState, gracefulStop, onHardStop)
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Initializing VU(s)...", "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Initializing VU(s)...", "DEBUG")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, workerInfo)
 	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
-		go libWorker.HandleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
+		go libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return
 	}
 
 	// Start the test run
-	go libWorker.UpdateStatus(ctx, client, job["id"], workerId, "RUNNING")
+	go libWorker.UpdateStatus(ctx, client, job.Id, workerId, "RUNNING")
 	var interrupt error
 	err = engineRun()
 	if err != nil {
@@ -126,12 +122,12 @@ func handleExecution(ctx context.Context,
 		}
 	}
 	runCancel()
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Engine run terminated cleanly", "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Engine run terminated cleanly", "DEBUG")
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 {
-		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
+		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	}
 
 	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
@@ -143,22 +139,22 @@ func handleExecution(ctx context.Context,
 	engine.MetricsEngine.MetricsLock.Unlock()
 
 	if err == nil {
-		go libWorker.DispatchMessage(ctx, client, job["id"], workerId, string(marshalledMetrics), "SUMMARY_METRICS")
+		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, string(marshalledMetrics), "SUMMARY_METRICS")
 	} else {
-		go libWorker.HandleError(ctx, client, job["id"], workerId, err)
+		go libWorker.HandleError(ctx, client, job.Id, workerId, err)
 	}
 
-	libWorker.UpdateStatus(ctx, client, job["id"], workerId, "SUCCESS")
+	libWorker.UpdateStatus(ctx, client, job.Id, workerId, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Waiting for the Engine to finish...", "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Waiting for the Engine to finish...", "DEBUG")
 	engineWait()
-	go libWorker.DispatchMessage(ctx, client, job["id"], workerId, "Everything has finished, exiting worker", "DEBUG")
+	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Everything has finished, exiting worker", "DEBUG")
 	if interrupt != nil {
 		return
 	}
 	if engine.IsTainted() {
-		go libWorker.HandleError(ctx, client, job["id"], workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
+		go libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return
 	}
 }

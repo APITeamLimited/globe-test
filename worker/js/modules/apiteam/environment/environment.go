@@ -1,6 +1,8 @@
 package environment
 
 import (
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
@@ -12,58 +14,62 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct {
-		env sharedEnvironment
+	EnvironmentModule struct {
+		sharedEnvironment sharedEnvironment
 	}
 
-	// Environment represents an instance of the environment module.
-	Environment struct {
-		vu          modules.VU
-		environment *sharedEnvironment
+	// EnvironmentInstance represents an instance of the environment module.
+	EnvironmentInstance struct {
+		vu     modules.VU
+		module *EnvironmentModule
 	}
 
 	sharedEnvironment struct {
 		isEnabled bool
-		data      map[string]libWorker.KeyValueItem
-		mu        sync.RWMutex
+		data      map[string]string
+
+		mu *sync.RWMutex
 	}
 )
 
 var (
-	_ modules.Module   = &RootModule{}
-	_ modules.Instance = &Environment{}
+	_ modules.Module   = &EnvironmentModule{}
+	_ modules.Instance = &EnvironmentInstance{}
 )
 
-// New returns a pointer to a new RootModule instance.
-func New(workerInfo *libWorker.WorkerInfo) *RootModule {
+// New returns a pointer to a new EnvironmentModule instance.
+func New(workerInfo *libWorker.WorkerInfo) *EnvironmentModule {
+	marshalled, _ := json.Marshal(workerInfo)
+	fmt.Println("new environment module", string(marshalled))
+
 	// Check environment actually exists
 	if workerInfo.Environment != nil {
-		return &RootModule{
-			env: sharedEnvironment{
+		return &EnvironmentModule{
+			sharedEnvironment: sharedEnvironment{
 				isEnabled: true,
-				data:      make(map[string]libWorker.KeyValueItem),
+				data:      workerInfo.Environment,
 			},
 		}
 	}
 
-	return &RootModule{
-		env: sharedEnvironment{
+	return &EnvironmentModule{
+		sharedEnvironment: sharedEnvironment{
 			isEnabled: false,
 		},
 	}
 }
 
 // NewModuleInstance returns an environment module instance for each VU.
-func (rm *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
-	return &Environment{
-		vu:          vu,
-		environment: &rm.env,
+func (module *EnvironmentModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &EnvironmentInstance{
+		vu:     vu,
+		module: module,
 	}
 }
 
 // Exports returns the exports of the environment module.
-func (mi *Environment) Exports() modules.Exports {
-	if !mi.environment.isEnabled {
+func (mi *EnvironmentInstance) Exports() modules.Exports {
+	if !mi.module.sharedEnvironment.isEnabled {
 		return modules.Exports{
 			Named: map[string]interface{}{
 				"isEnabled": mi.isEnabled,
@@ -85,57 +91,53 @@ func (mi *Environment) Exports() modules.Exports {
 }
 
 // isEnabled is a getter for the isEnabled property.
-func (mi *Environment) isEnabled() bool {
-	return mi.environment.isEnabled
+func (mi *EnvironmentInstance) isEnabled() bool {
+	return mi.module.sharedEnvironment.isEnabled
 }
 
 // set sets a key-value pair in the environment.
-func (mi *Environment) set(key string, value string) bool {
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) set(key string, value string) bool {
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.environment.data[key] = libWorker.KeyValueItem{
-		Key:   key,
-		Value: value,
-	}
-
+	mi.module.sharedEnvironment.data[key] = value
 	return true
 }
 
 // get gets a value from the environment.
-func (mi *Environment) get(key string) string {
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+func (mi *EnvironmentInstance) get(key string) string {
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	if value, ok := mi.environment.data[key]; ok {
-		return value.Value
+	if value, ok := mi.module.sharedEnvironment.data[key]; ok {
+		return value
 	}
 
 	return ""
 }
 
 // has checks if a key exists in the environment.
-func (mi *Environment) has(key string) bool {
+func (mi *EnvironmentInstance) has(key string) bool {
 	// Check if environment is enabled
-	if !mi.environment.isEnabled {
+	if !mi.module.sharedEnvironment.isEnabled {
 		return false
 	}
 
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	_, ok := mi.environment.data[key]
+	_, ok := mi.module.sharedEnvironment.data[key]
 	return ok
 }
 
 // unset removes a key-value pair from the environment.
-func (mi *Environment) unset(key string) bool {
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) unset(key string) bool {
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
-	if _, ok := mi.environment.data[key]; ok {
-		delete(mi.environment.data, key)
+	if _, ok := mi.module.sharedEnvironment.data[key]; ok {
+		delete(mi.module.sharedEnvironment.data, key)
 		return true
 	}
 
@@ -143,21 +145,21 @@ func (mi *Environment) unset(key string) bool {
 }
 
 // clear removes all key-value pairs from the environment.
-func (mi *Environment) clear() bool {
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) clear() bool {
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
-	mi.environment.data = make(map[string]libWorker.KeyValueItem)
+	mi.module.sharedEnvironment.data = make(map[string]string)
 	return true
 }
 
 // list returns a list of all key-value pairs in the environment.
-func (mi *Environment) list() []libWorker.KeyValueItem {
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+func (mi *EnvironmentInstance) list() []string {
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	list := make([]libWorker.KeyValueItem, 0, len(mi.environment.data))
-	for _, item := range mi.environment.data {
+	list := make([]string, 0, len(mi.module.sharedEnvironment.data))
+	for _, item := range mi.module.sharedEnvironment.data {
 		list = append(list, item)
 	}
 

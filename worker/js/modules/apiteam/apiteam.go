@@ -46,7 +46,7 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	return &APITeam{vu: vu}
 }
 
-// Exports returns the exports of the k6 module.
+// Exports returns the exports of the apiteam module.
 func (mi *APITeam) Exports() modules.Exports {
 	return modules.Exports{
 		Named: map[string]interface{}{

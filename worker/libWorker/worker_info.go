@@ -11,7 +11,7 @@ import (
 
 type (
 	Collection struct {
-		Variables *map[string]KeyValueItem
+		Variables map[string]string
 	}
 
 	KeyValueItem struct {
@@ -22,11 +22,12 @@ type (
 	WorkerInfo struct {
 		Client         *redis.Client
 		JobId          string
+		ChildJobId     string
 		ScopeId        string
 		OrchestratorId string
 		WorkerId       string
 		Ctx            context.Context
-		Environment    *map[string]KeyValueItem
+		Environment    map[string]string
 		Collection     *Collection
 	}
 )

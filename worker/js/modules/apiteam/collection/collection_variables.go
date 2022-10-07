@@ -1,9 +1,5 @@
 package collection
 
-import (
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
-)
-
 type (
 	variables struct {
 		set   func(string, string) bool
@@ -11,11 +7,11 @@ type (
 		has   func(string) bool
 		unset func(string) bool
 		clear func() bool
-		list  func() []libWorker.KeyValueItem
+		list  func() []string
 	}
 )
 
-func (mi *Collection) getVariables() variables {
+func (mi *CollectionInstance) getVariables() variables {
 	return variables{
 		set:   mi.set,
 		get:   mi.get,
@@ -27,47 +23,44 @@ func (mi *Collection) getVariables() variables {
 }
 
 // set sets a key-value pair in the collection.
-func (mi *Collection) set(key string, value string) bool {
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) set(key string, value string) bool {
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.collection.variables[key] = libWorker.KeyValueItem{
-		Key:   key,
-		Value: value,
-	}
+	mi.module.sharedCollection.data.Variables[key] = value
 
 	return true
 }
 
 // get gets a value from the collection.
-func (mi *Collection) get(key string) string {
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) get(key string) string {
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	if value, ok := mi.collection.variables[key]; ok {
-		return value.Value
+	if value, ok := mi.module.sharedCollection.data.Variables[key]; ok {
+		return value
 	}
 
 	return ""
 }
 
 // has checks if a key exists in the collection.
-func (mi *Collection) has(key string) bool {
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) has(key string) bool {
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	_, ok := mi.collection.variables[key]
+	_, ok := mi.module.sharedCollection.data.Variables[key]
 	return ok
 }
 
 // unset removes a key-value pair from the collection.
-func (mi *Collection) unset(key string) bool {
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) unset(key string) bool {
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
-	if _, ok := mi.collection.variables[key]; ok {
-		delete(mi.collection.variables, key)
+	if _, ok := mi.module.sharedCollection.data.Variables[key]; ok {
+		delete(mi.module.sharedCollection.data.Variables, key)
 		return true
 	}
 
@@ -75,21 +68,21 @@ func (mi *Collection) unset(key string) bool {
 }
 
 // clear removes all key-value pairs from the collection.
-func (mi *Collection) clear() bool {
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) clear() bool {
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
-	mi.collection.variables = make(map[string]libWorker.KeyValueItem)
+	mi.module.sharedCollection.data.Variables = make(map[string]string)
 	return true
 }
 
 // list returns a list of all key-value pairs in the collection.
-func (mi *Collection) list() []libWorker.KeyValueItem {
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) list() []string {
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	list := make([]libWorker.KeyValueItem, 0, len(mi.collection.variables))
-	for _, item := range mi.collection.variables {
+	list := make([]string, 0, len(mi.module.sharedCollection.data.Variables))
+	for _, item := range mi.module.sharedCollection.data.Variables {
 		list = append(list, item)
 	}
 

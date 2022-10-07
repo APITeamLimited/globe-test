@@ -1,49 +1,73 @@
 package libOrch
 
-import "time"
+import (
+	"time"
 
-type Distribution struct {
-	LoadZone string `json:"loadZone"`
-	Percent  int    `json:"percent"`
-}
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+)
 
-type APITeamOptions struct {
-	Distribution `json:"distribution"`
-}
+type (
+	Distribution struct {
+		LoadZone string `json:"loadZone"`
+		Percent  int    `json:"percent"`
+	}
 
-type Job struct {
-	Id         string `json:"id"`
-	Source     string `json:"source"`
-	SourceName string `json:"sourceName"`
-	Options    string `json:"options"`
-}
+	APITeamOptions struct {
+		Distribution `json:"distribution"`
+	}
 
-type OrchestratorMessage struct {
-	JobId          string    `json:"jobId"`
-	Time           time.Time `json:"time"`
-	OrchestratorId string    `json:"orchestratorId"`
-	Message        string    `json:"message"`
-	MessageType    string    `json:"messageType"`
-}
+	EnvironmentContext struct {
+		Variables []libWorker.KeyValueItem `json:"variables"`
+	}
 
-type WorkerMessage struct {
-	JobId       string    `json:"jobId"`
-	Time        time.Time `json:"time"`
-	WorkerId    string    `json:"workerId"`
-	Message     string    `json:"message"`
-	MessageType string    `json:"messageType"`
-}
+	CollectionContext struct {
+		Variables []libWorker.KeyValueItem `json:"variables"`
+	}
 
-type OrchestratorOrWorkerMessage struct {
-	JobId          string    `json:"jobId"`
-	Time           time.Time `json:"time"`
-	OrchestratorId string    `json:"orchestratorId"`
-	WorkerId       string    `json:"workerId"`
-	Message        string    `json:"message"`
-	MessageType    string    `json:"messageType"`
-}
+	Job struct {
+		Id                   string                 `json:"id"`
+		Source               string                 `json:"source"`
+		SourceName           string                 `json:"sourceName"`
+		ScopeId              string                 `json:"scopeId"`
+		EnvironmentContext   *EnvironmentContext    `json:"environmentContext"`
+		CollectionContext    *CollectionContext     `json:"collectionContext"`
+		RestRequest          map[string]interface{} `json:"restRequest"`
+		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
+	}
 
-type MarkMessage struct {
-	Mark    string      `json:"mark"`
-	Message interface{} `json:"message"`
-}
+	ChildJob struct {
+		Job
+		ChildJobId string            `json:"childJobId"`
+		Options    libWorker.Options `json:"options"`
+	}
+
+	OrchestratorMessage struct {
+		JobId          string    `json:"jobId"`
+		Time           time.Time `json:"time"`
+		OrchestratorId string    `json:"orchestratorId"`
+		Message        string    `json:"message"`
+		MessageType    string    `json:"messageType"`
+	}
+
+	WorkerMessage struct {
+		JobId       string    `json:"jobId"`
+		Time        time.Time `json:"time"`
+		WorkerId    string    `json:"workerId"`
+		Message     string    `json:"message"`
+		MessageType string    `json:"messageType"`
+	}
+
+	OrchestratorOrWorkerMessage struct {
+		JobId          string    `json:"jobId"`
+		Time           time.Time `json:"time"`
+		OrchestratorId string    `json:"orchestratorId"`
+		WorkerId       string    `json:"workerId"`
+		Message        string    `json:"message"`
+		MessageType    string    `json:"messageType"`
+	}
+
+	MarkMessage struct {
+		Mark    string      `json:"mark"`
+		Message interface{} `json:"message"`
+	}
+)

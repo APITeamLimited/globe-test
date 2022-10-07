@@ -16,7 +16,7 @@ import (
 )
 
 type ExecutionList struct {
-	currentJobs map[string]map[string]string
+	currentJobs map[string]libOrch.Job
 	mutex       sync.Mutex
 	maxJobs     int
 }
@@ -24,7 +24,7 @@ type ExecutionList struct {
 func Run() {
 	ctx := context.Background()
 
-	orchestratorId := uuid.New()
+	orchestratorId := uuid.NewString()
 
 	// Orchestrator orchestratorClient deals with macro jos and connection to the rest of
 	// APITEAM services
@@ -44,26 +44,32 @@ func Run() {
 
 	workerClients := connectWorkerClients(ctx)
 
-	currentTime := time.Now().UnixMilli()
+	// Set the orchestrator id and the start time in the index
+	orchestratorClient.SAdd(ctx, "orchestrators", orchestratorId)
+
+	// Every second set a heartbeat update
+	heartbeatTicker := time.NewTicker(1 * time.Second)
+	go func() {
+		for range heartbeatTicker.C {
+			orchestratorClient.Set(ctx, fmt.Sprintf("orchestrator:%s:lastHeartbeat", orchestratorId), time.Now().UnixMilli(), time.Second*10)
+		}
+	}()
+
+	fmt.Print("\n\033[1;35mAPITEAM Orchestrator\033[0m\n\n")
+	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
+	fmt.Printf("Listening for new jobs on %s...\n\n", orchestratorClient.Options().Addr)
 
 	executionList := &ExecutionList{
-		currentJobs: make(map[string]map[string]string),
+		currentJobs: make(map[string]libOrch.Job),
 		maxJobs:     -1,
 	}
 
-	//Set the orchestrator id and current time
-	orchestratorClient.HSet(ctx, "orchestrators", orchestratorId.String(), currentTime)
-
-	fmt.Print("\n\033[1;35mAPITEAM Orchestrator\033[0m\n\n")
-	fmt.Printf("Starting orchestrator %s\n", orchestratorId.String())
-	fmt.Printf("Listening for new jobs on %s...\n", orchestratorClient.Options().Addr)
-
-	go checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId.String(), executionList, storeMongoDB)
+	go checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
 
 	// Subscribe to the execution channel
-	psc := orchestratorClient.Subscribe(ctx, "orchestrator:execution")
+	pubSub := orchestratorClient.Subscribe(ctx, "orchestrator:execution")
 
-	channel := psc.Channel()
+	channel := pubSub.Channel()
 
 	for msg := range channel {
 		jobId, err := uuid.Parse(msg.Payload)
@@ -71,7 +77,7 @@ func Run() {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		go checkIfCanExecute(ctx, orchestratorClient, scopesClient, workerClients, jobId.String(), orchestratorId.String(), executionList, storeMongoDB)
+		go checkIfCanExecute(ctx, orchestratorClient, scopesClient, workerClients, jobId.String(), orchestratorId, executionList, storeMongoDB)
 	}
 }
 
@@ -93,19 +99,18 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient, scopesClient *r
 
 func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
 	// Try to HGetAll the orchestrator id
-	job, err := orchestratorClient.HGetAll(ctx, jobId).Result()
+	job, err := fetchJob(ctx, orchestratorClient, jobId)
+	if err != nil || job == nil {
+		fmt.Println("Error getting job")
+		return
+	}
 
-	if err != nil {
-		fmt.Println("Error getting orchestrator")
+	// Check if orchestrtator has already been assigned
+	if job.AssignedOrchestrator != "" {
 		return
 	}
 
 	// TODO: check if has capacity to execute here
-
-	// Check orchestrator['assignedOrchestrator'] is nil
-	if _, ok := job["assignedOrchestrator"]; ok {
-		return
-	}
 
 	// Check if currently full execution list
 	if !checkExecutionCapacity(executionList) {
@@ -113,7 +118,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *re
 	}
 
 	// HSetNX assignedOrchestrator to the orchestratorId
-	assignmentResult, err := orchestratorClient.HSetNX(ctx, jobId, "assignedOrchestrator", orchestratorId).Result()
+	assignmentResult, err := orchestratorClient.HSetNX(ctx, job.Id, "assignedOrchestrator", orchestratorId).Result()
 
 	if err != nil {
 		fmt.Println("Error setting orchestrator")
@@ -126,87 +131,128 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *re
 	}
 
 	// We got the job
-	executionList.addJob(job)
-	manageExecution(ctx, orchestratorClient, scopesClient, workerClients, job, orchestratorId, executionList, storeMongoDB)
+	job.AssignedOrchestrator = orchestratorId
+	executionList.addJob(*job)
+	manageExecution(ctx, orchestratorClient, scopesClient, workerClients, *job, orchestratorId, executionList, storeMongoDB)
+
+	// Capacity was freed, so check for queued jobs
+	checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
+}
+
+type jobDistribution struct {
+	jobs         *[]libOrch.ChildJob
+	workerClient *redis.Client
 }
 
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
-func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job map[string]string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
-	fmt.Println("Assigned job", job["id"])
-	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, "ASSIGNED")
+func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job libOrch.Job, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+	// Get the job id and check if it is a string
+	fmt.Println("Assigned job", job.Id)
+	libOrch.UpdateStatus(ctx, orchestratorClient, job.Id, orchestratorId, "ASSIGNED")
 
 	// Setup the job
 
 	healthy := true
 
-	gs := NewGlobalState(ctx, orchestratorClient, job["id"], orchestratorId)
+	gs := NewGlobalState(ctx, orchestratorClient, job.Id, orchestratorId)
 
 	options, err := options.DetermineRuntimeOptions(job, gs)
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
+		libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
 		healthy = false
 	}
 
-	marshalledOptions, _ := json.Marshal(options)
+	if healthy {
+		marshalledOptions, err := json.Marshal(options)
+		if err != nil {
+			libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
+			healthy = false
+		}
+
+		libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledOptions), "OPTIONS")
+	}
+
+	scope, err := fetchScope(ctx, scopesClient, job.ScopeId)
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
+		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
 		healthy = false
 	}
 
-	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledOptions), "OPTIONS")
+	childJobs := make(map[string]jobDistribution)
 
-	scope, err := fetchScope(ctx, scopesClient, job["scopeId"])
-	if err != nil {
-		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
-		healthy = false
+	if healthy {
+		childJob := libOrch.ChildJob{
+			Job:        job,
+			ChildJobId: uuid.NewString(),
+			Options:    *options,
+		}
+
+		childJobs["portsmouth"] = jobDistribution{
+			jobs:         &[]libOrch.ChildJob{childJob},
+			workerClient: workerClients["portsmouth"],
+		}
 	}
 
-	// Running the job
+	// Run the job
 
 	result := "FAILED"
 
 	if healthy {
-		result, err = runExecution(gs, options, scope, workerClients, job)
+		result, err = runExecution(gs, options, scope, childJobs, job.Id)
 		if err != nil {
-			libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
+			fmt.Println("Error running execution", err)
+			libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
 		}
 	}
 
-	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, result)
+	libOrch.UpdateStatus(ctx, orchestratorClient, job.Id, orchestratorId, result)
 
 	// Storing and cleaning up
 
 	(*gs.MetricsStore()).Stop()
 
-	// Create globe test log id, note this must be sent after cleanup
-	globeTestLogsId := primitive.NewObjectID()
-	globeTestLogsIdMessage := &libOrch.MarkMessage{
+	// Create GlobeTest logs store receipt, note this must be sent after cleanup
+	globeTestLogsReceipt := primitive.NewObjectID()
+	globeTestLogsReceiptMessage := &libOrch.MarkMessage{
 		Mark:    "GlobeTestLogsStoreReceipt",
-		Message: globeTestLogsId.Hex(),
+		Message: globeTestLogsReceipt.Hex(),
 	}
 
-	marshalledLogs, err := json.Marshal(globeTestLogsIdMessage)
+	marshalledGlobeTestReceipt, err := json.Marshal(globeTestLogsReceiptMessage)
 	if err != nil {
-		libOrch.HandleError(ctx, orchestratorClient, job["id"], orchestratorId, err)
+		fmt.Println("Error marshalling GlobeTestLogsStoreReceipt", err)
+		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
 		return
 	}
-	libOrch.DispatchMessage(ctx, orchestratorClient, job["id"], orchestratorId, string(marshalledLogs), "MARK")
+	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledGlobeTestReceipt), "MARK")
 
-	// Temporary object storing map[string][]map[string]string, the job in production
-	// should be separate to allow for parallel child jobs
-	childJobs := make(map[string][]map[string]string)
-	childJobs["portsmouth"] = append(childJobs["portsmouth"], job)
+	//Create Metrics Store receipt, note this must be sent after cleanup
+	metricsStoreReceipt := primitive.NewObjectID()
+	metricsStoreReceiptMessage := &libOrch.MarkMessage{
+		Mark:    "MetricsStoreReceipt",
+		Message: metricsStoreReceipt.Hex(),
+	}
+
+	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
+	if err != nil {
+		fmt.Println("Error marshalling metrics store receipt", err)
+		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
+		return
+	}
+	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledMetricsStoreReceipt), "MARK")
 
 	// Clean up the job and store result in Mongo
-	cleanup(ctx, job, childJobs, orchestratorClient, workerClients, orchestratorId, storeMongoDB, scope, globeTestLogsId)
+	err = cleanup(ctx, job, childJobs, orchestratorClient, orchestratorId, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
+	if err != nil {
+		fmt.Println("Error cleaning up", err)
+		libOrch.HandleErrorNoSet(ctx, orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.UpdateStatusNoSet(ctx, orchestratorClient, job.Id, orchestratorId, result)
+	} else {
+		libOrch.UpdateStatusNoSet(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
+	}
 
-	libOrch.UpdateStatus(ctx, orchestratorClient, job["id"], orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
-
-	executionList.removeJob(job["id"])
-
-	// Capacity was freed, so check for queued jobs
-	checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
+	executionList.removeJob(job.Id)
 }
 
 /*

@@ -13,7 +13,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func getCompiledOptions(job map[string]string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
+func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	source, sourceName, err := validateSource(job, gs)
 	if err != nil {
 		return nil, err
@@ -22,33 +22,26 @@ func getCompiledOptions(job map[string]string, gs libOrch.BaseGlobalState) (*lib
 	return compileAndGetOptions(source, sourceName, gs)
 }
 
-func validateSource(job map[string]string, gs libOrch.BaseGlobalState) (string, string, error) {
-	// Check sourceName is set
-	if _, ok := job["sourceName"]; !ok {
-		return "", "", errors.New("sourceName not set")
+func validateSource(job libOrch.Job, gs libOrch.BaseGlobalState) (string, string, error) {
+	// Check job.SourceName is set
+	if job.SourceName == "" {
+		return "", "", errors.New("job.SourceName not set")
 	}
 
-	sourceName, ok := job["sourceName"]
-	if !ok {
-		return "", "", errors.New("sourceName is not a string")
+	if len(job.SourceName) < 3 {
+		return "", "", errors.New("job.SourceName must be a .js file")
 	}
 
-	if len(sourceName) < 3 {
-		return "", "", errors.New("sourceName must be a .js file")
+	if job.SourceName[len(job.SourceName)-3:] != ".js" {
+		return "", "", errors.New("job.SourceName must be a .js file")
 	}
-
-	if sourceName[len(sourceName)-3:] != ".js" {
-		return "", "", errors.New("sourceName must be a .js file")
-	}
-
-	source, ok := job["source"]
 
 	// Check source in options, if it is return it
-	if !ok {
+	if job.Source == "" {
 		return "", "", errors.New("source not set")
 	}
 
-	return source, sourceName, nil
+	return job.Source, job.SourceName, nil
 }
 
 func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
