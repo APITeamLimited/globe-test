@@ -1,9 +1,5 @@
 package collection
 
-import (
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
-)
-
 type (
 	variables struct ***REMOVED***
 		set   func(string, string) bool
@@ -11,11 +7,11 @@ type (
 		has   func(string) bool
 		unset func(string) bool
 		clear func() bool
-		list  func() []libWorker.KeyValueItem
+		list  func() []string
 	***REMOVED***
 )
 
-func (mi *Collection) getVariables() variables ***REMOVED***
+func (mi *CollectionInstance) getVariables() variables ***REMOVED***
 	return variables***REMOVED***
 		set:   mi.set,
 		get:   mi.get,
@@ -27,47 +23,44 @@ func (mi *Collection) getVariables() variables ***REMOVED***
 ***REMOVED***
 
 // set sets a key-value pair in the collection.
-func (mi *Collection) set(key string, value string) bool ***REMOVED***
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) set(key string, value string) bool ***REMOVED***
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.collection.variables[key] = libWorker.KeyValueItem***REMOVED***
-		Key:   key,
-		Value: value,
-	***REMOVED***
+	mi.module.sharedCollection.data.Variables[key] = value
 
 	return true
 ***REMOVED***
 
 // get gets a value from the collection.
-func (mi *Collection) get(key string) string ***REMOVED***
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) get(key string) string ***REMOVED***
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	if value, ok := mi.collection.variables[key]; ok ***REMOVED***
-		return value.Value
+	if value, ok := mi.module.sharedCollection.data.Variables[key]; ok ***REMOVED***
+		return value
 	***REMOVED***
 
 	return ""
 ***REMOVED***
 
 // has checks if a key exists in the collection.
-func (mi *Collection) has(key string) bool ***REMOVED***
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) has(key string) bool ***REMOVED***
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	_, ok := mi.collection.variables[key]
+	_, ok := mi.module.sharedCollection.data.Variables[key]
 	return ok
 ***REMOVED***
 
 // unset removes a key-value pair from the collection.
-func (mi *Collection) unset(key string) bool ***REMOVED***
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) unset(key string) bool ***REMOVED***
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
-	if _, ok := mi.collection.variables[key]; ok ***REMOVED***
-		delete(mi.collection.variables, key)
+	if _, ok := mi.module.sharedCollection.data.Variables[key]; ok ***REMOVED***
+		delete(mi.module.sharedCollection.data.Variables, key)
 		return true
 	***REMOVED***
 
@@ -75,21 +68,21 @@ func (mi *Collection) unset(key string) bool ***REMOVED***
 ***REMOVED***
 
 // clear removes all key-value pairs from the collection.
-func (mi *Collection) clear() bool ***REMOVED***
-	mi.collection.mu.Lock()
-	defer mi.collection.mu.Unlock()
+func (mi *CollectionInstance) clear() bool ***REMOVED***
+	mi.module.sharedCollection.mu.Lock()
+	defer mi.module.sharedCollection.mu.Unlock()
 
-	mi.collection.variables = make(map[string]libWorker.KeyValueItem)
+	mi.module.sharedCollection.data.Variables = make(map[string]string)
 	return true
 ***REMOVED***
 
 // list returns a list of all key-value pairs in the collection.
-func (mi *Collection) list() []libWorker.KeyValueItem ***REMOVED***
-	mi.collection.mu.RLock()
-	defer mi.collection.mu.RUnlock()
+func (mi *CollectionInstance) list() []string ***REMOVED***
+	mi.module.sharedCollection.mu.RLock()
+	defer mi.module.sharedCollection.mu.RUnlock()
 
-	list := make([]libWorker.KeyValueItem, 0, len(mi.collection.variables))
-	for _, item := range mi.collection.variables ***REMOVED***
+	list := make([]string, 0, len(mi.module.sharedCollection.data.Variables))
+	for _, item := range mi.module.sharedCollection.data.Variables ***REMOVED***
 		list = append(list, item)
 	***REMOVED***
 

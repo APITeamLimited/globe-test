@@ -3,7 +3,6 @@
 package worker
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/worker/js"
@@ -23,16 +23,16 @@ import (
 
 func loadAndConfigureTest(
 	gs *globalState,
-	job map[string]string,
+	job libOrch.ChildJob,
 	workerInfo *libWorker.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
-	sourceName := job["sourceName"]
+	sourceName := job.SourceName
 
 	if sourceName == "" ***REMOVED***
 		return nil, fmt.Errorf("sourceName not found on job, this is probably a bug")
 	***REMOVED***
 
-	stringSource := job["source"]
+	stringSource := job.Source
 
 	if stringSource == "" ***REMOVED***
 		return nil, fmt.Errorf("source not found on job, this is probably a bug")
@@ -138,23 +138,11 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 ***REMOVED***
 
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
-	gs *globalState, job map[string]string,
+	gs *globalState, job libOrch.ChildJob,
 ) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
 	// Options have already been determined by the orchestrator, just load them
-
-	var redisOptions = libWorker.Options***REMOVED******REMOVED***
-
-	if job["options"] == "" ***REMOVED***
-		return nil, fmt.Errorf("unexpected error, options not found on job")
-	***REMOVED***
-
-	err := json.Unmarshal([]byte(job["options"]), &redisOptions)
-	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("could not parse options: %w", err)
-	***REMOVED***
-
 	consolidatedConfig := Config***REMOVED***
-		Options: redisOptions,
+		Options: job.Options,
 	***REMOVED***
 
 	// Parse the thresholds, only if the --no-threshold flag is not set.

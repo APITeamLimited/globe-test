@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -66,9 +67,9 @@ type globalState struct ***REMOVED***
 
 // Care is needed to prevent leaking system info to malicious actors.
 
-func newGlobalState(ctx context.Context, client *redis.Client, jobId string, workerId string) *globalState ***REMOVED***
-	redisStdOut := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
-	redisStdErr := &consoleWriter***REMOVED***ctx, client, jobId, workerId***REMOVED***
+func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string) *globalState ***REMOVED***
+	redisStdOut := &consoleWriter***REMOVED***ctx, client, job.Id, workerId***REMOVED***
+	redisStdErr := &consoleWriter***REMOVED***ctx, client, job.Id, workerId***REMOVED***
 
 	envVars := make(map[string]string)
 

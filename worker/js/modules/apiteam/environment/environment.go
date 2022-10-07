@@ -1,6 +1,8 @@
 package environment
 
 import (
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
@@ -12,58 +14,62 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct ***REMOVED***
-		env sharedEnvironment
+	EnvironmentModule struct ***REMOVED***
+		sharedEnvironment sharedEnvironment
 	***REMOVED***
 
-	// Environment represents an instance of the environment module.
-	Environment struct ***REMOVED***
-		vu          modules.VU
-		environment *sharedEnvironment
+	// EnvironmentInstance represents an instance of the environment module.
+	EnvironmentInstance struct ***REMOVED***
+		vu     modules.VU
+		module *EnvironmentModule
 	***REMOVED***
 
 	sharedEnvironment struct ***REMOVED***
 		isEnabled bool
-		data      map[string]libWorker.KeyValueItem
-		mu        sync.RWMutex
+		data      map[string]string
+
+		mu *sync.RWMutex
 	***REMOVED***
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &Environment***REMOVED******REMOVED***
+	_ modules.Module   = &EnvironmentModule***REMOVED******REMOVED***
+	_ modules.Instance = &EnvironmentInstance***REMOVED******REMOVED***
 )
 
-// New returns a pointer to a new RootModule instance.
-func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
+// New returns a pointer to a new EnvironmentModule instance.
+func New(workerInfo *libWorker.WorkerInfo) *EnvironmentModule ***REMOVED***
+	marshalled, _ := json.Marshal(workerInfo)
+	fmt.Println("new environment module", string(marshalled))
+
 	// Check environment actually exists
 	if workerInfo.Environment != nil ***REMOVED***
-		return &RootModule***REMOVED***
-			env: sharedEnvironment***REMOVED***
+		return &EnvironmentModule***REMOVED***
+			sharedEnvironment: sharedEnvironment***REMOVED***
 				isEnabled: true,
-				data:      make(map[string]libWorker.KeyValueItem),
+				data:      workerInfo.Environment,
 			***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 
-	return &RootModule***REMOVED***
-		env: sharedEnvironment***REMOVED***
+	return &EnvironmentModule***REMOVED***
+		sharedEnvironment: sharedEnvironment***REMOVED***
 			isEnabled: false,
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
 // NewModuleInstance returns an environment module instance for each VU.
-func (rm *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &Environment***REMOVED***
-		vu:          vu,
-		environment: &rm.env,
+func (module *EnvironmentModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	return &EnvironmentInstance***REMOVED***
+		vu:     vu,
+		module: module,
 	***REMOVED***
 ***REMOVED***
 
 // Exports returns the exports of the environment module.
-func (mi *Environment) Exports() modules.Exports ***REMOVED***
-	if !mi.environment.isEnabled ***REMOVED***
+func (mi *EnvironmentInstance) Exports() modules.Exports ***REMOVED***
+	if !mi.module.sharedEnvironment.isEnabled ***REMOVED***
 		return modules.Exports***REMOVED***
 			Named: map[string]interface***REMOVED******REMOVED******REMOVED***
 				"isEnabled": mi.isEnabled,
@@ -85,57 +91,53 @@ func (mi *Environment) Exports() modules.Exports ***REMOVED***
 ***REMOVED***
 
 // isEnabled is a getter for the isEnabled property.
-func (mi *Environment) isEnabled() bool ***REMOVED***
-	return mi.environment.isEnabled
+func (mi *EnvironmentInstance) isEnabled() bool ***REMOVED***
+	return mi.module.sharedEnvironment.isEnabled
 ***REMOVED***
 
 // set sets a key-value pair in the environment.
-func (mi *Environment) set(key string, value string) bool ***REMOVED***
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) set(key string, value string) bool ***REMOVED***
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
 	// Overwrite existing value if key already exists
-	mi.environment.data[key] = libWorker.KeyValueItem***REMOVED***
-		Key:   key,
-		Value: value,
-	***REMOVED***
-
+	mi.module.sharedEnvironment.data[key] = value
 	return true
 ***REMOVED***
 
 // get gets a value from the environment.
-func (mi *Environment) get(key string) string ***REMOVED***
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+func (mi *EnvironmentInstance) get(key string) string ***REMOVED***
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	if value, ok := mi.environment.data[key]; ok ***REMOVED***
-		return value.Value
+	if value, ok := mi.module.sharedEnvironment.data[key]; ok ***REMOVED***
+		return value
 	***REMOVED***
 
 	return ""
 ***REMOVED***
 
 // has checks if a key exists in the environment.
-func (mi *Environment) has(key string) bool ***REMOVED***
+func (mi *EnvironmentInstance) has(key string) bool ***REMOVED***
 	// Check if environment is enabled
-	if !mi.environment.isEnabled ***REMOVED***
+	if !mi.module.sharedEnvironment.isEnabled ***REMOVED***
 		return false
 	***REMOVED***
 
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	_, ok := mi.environment.data[key]
+	_, ok := mi.module.sharedEnvironment.data[key]
 	return ok
 ***REMOVED***
 
 // unset removes a key-value pair from the environment.
-func (mi *Environment) unset(key string) bool ***REMOVED***
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) unset(key string) bool ***REMOVED***
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
-	if _, ok := mi.environment.data[key]; ok ***REMOVED***
-		delete(mi.environment.data, key)
+	if _, ok := mi.module.sharedEnvironment.data[key]; ok ***REMOVED***
+		delete(mi.module.sharedEnvironment.data, key)
 		return true
 	***REMOVED***
 
@@ -143,21 +145,21 @@ func (mi *Environment) unset(key string) bool ***REMOVED***
 ***REMOVED***
 
 // clear removes all key-value pairs from the environment.
-func (mi *Environment) clear() bool ***REMOVED***
-	mi.environment.mu.Lock()
-	defer mi.environment.mu.Unlock()
+func (mi *EnvironmentInstance) clear() bool ***REMOVED***
+	mi.module.sharedEnvironment.mu.Lock()
+	defer mi.module.sharedEnvironment.mu.Unlock()
 
-	mi.environment.data = make(map[string]libWorker.KeyValueItem)
+	mi.module.sharedEnvironment.data = make(map[string]string)
 	return true
 ***REMOVED***
 
 // list returns a list of all key-value pairs in the environment.
-func (mi *Environment) list() []libWorker.KeyValueItem ***REMOVED***
-	mi.environment.mu.RLock()
-	defer mi.environment.mu.RUnlock()
+func (mi *EnvironmentInstance) list() []string ***REMOVED***
+	mi.module.sharedEnvironment.mu.RLock()
+	defer mi.module.sharedEnvironment.mu.RUnlock()
 
-	list := make([]libWorker.KeyValueItem, 0, len(mi.environment.data))
-	for _, item := range mi.environment.data ***REMOVED***
+	list := make([]string, 0, len(mi.module.sharedEnvironment.data))
+	for _, item := range mi.module.sharedEnvironment.data ***REMOVED***
 		list = append(list, item)
 	***REMOVED***
 

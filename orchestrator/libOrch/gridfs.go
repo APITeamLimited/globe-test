@@ -6,14 +6,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func SetInBucket(bucket *gridfs.Bucket, filename string, data []byte, contentType string, globeTestLogsId primitive.ObjectID) error ***REMOVED***
+func SetInBucket(bucket *gridfs.Bucket, filename string, data []byte, contentType string, globeTestLogsReceipt primitive.ObjectID) error ***REMOVED***
 	bucketOptions := options.GridFSUpload()
 	bucketOptions.Metadata = map[string]interface***REMOVED******REMOVED******REMOVED***
 		"filename":    filename,
 		"contentType": contentType,
 	***REMOVED***
 
-	uploadStream, err := bucket.OpenUploadStreamWithID(globeTestLogsId, filename, bucketOptions)
+	uploadStream, err := bucket.OpenUploadStreamWithID(globeTestLogsReceipt, filename, bucketOptions)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***

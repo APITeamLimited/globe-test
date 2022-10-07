@@ -7,49 +7,50 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
-// RootModule is the global module object type. It is instantiated once per test
+// CollectionModule is the global module object type. It is instantiated once per test
 // run and will be used to create collection module instances for each VU.
 //
 // TODO: add sync.Once for all of the deprecation warnings we might want to do
 // for the old k6/http APIs here, so they are shown only once in a test run.
 type (
-	// RootModule is the global module instance that will create module
+	// CollectionModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct ***REMOVED***
-		col sharedCollection
+	CollectionModule struct ***REMOVED***
+		sharedCollection sharedCollection
 	***REMOVED***
 
-	// Collection represents an instance of the collection module.
-	Collection struct ***REMOVED***
-		vu         modules.VU
-		collection *sharedCollection
+	// CollectionInstance represents an instance of the collection module.
+	CollectionInstance struct ***REMOVED***
+		vu     modules.VU
+		module *CollectionModule
 	***REMOVED***
 
 	sharedCollection struct ***REMOVED***
 		isEnabled bool
-		variables map[string]libWorker.KeyValueItem
-		mu        sync.RWMutex
+		data      libWorker.Collection
+
+		mu *sync.RWMutex
 	***REMOVED***
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &Collection***REMOVED******REMOVED***
+	_ modules.Module   = &CollectionModule***REMOVED******REMOVED***
+	_ modules.Instance = &CollectionInstance***REMOVED******REMOVED***
 )
 
-// New returns a pointer to a new RootModule instance.
-func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
+// New returns a pointer to a new CollectionModule instance.
+func New(workerInfo *libWorker.WorkerInfo) *CollectionModule ***REMOVED***
 	// Check collection actually exists
 	if workerInfo.Collection != nil ***REMOVED***
-		return &RootModule***REMOVED***
-			col: sharedCollection***REMOVED***
+		return &CollectionModule***REMOVED***
+			sharedCollection: sharedCollection***REMOVED***
 				isEnabled: true,
-				variables: *workerInfo.Collection.Variables,
+				data:      *workerInfo.Collection,
 			***REMOVED***,
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		return &RootModule***REMOVED***
-			col: sharedCollection***REMOVED***
+		return &CollectionModule***REMOVED***
+			sharedCollection: sharedCollection***REMOVED***
 				isEnabled: false,
 			***REMOVED***,
 		***REMOVED***
@@ -57,16 +58,16 @@ func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
 ***REMOVED***
 
 // NewModuleInstance returns an collection module instance for each VU.
-func (rm *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &Collection***REMOVED***
-		vu:         vu,
-		collection: &rm.col,
+func (module *CollectionModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	return &CollectionInstance***REMOVED***
+		vu,
+		module,
 	***REMOVED***
 ***REMOVED***
 
 // Exports returns the exports of the collection module.
-func (mi *Collection) Exports() modules.Exports ***REMOVED***
-	if !mi.collection.isEnabled ***REMOVED***
+func (mi *CollectionInstance) Exports() modules.Exports ***REMOVED***
+	if !mi.module.sharedCollection.isEnabled ***REMOVED***
 		return modules.Exports***REMOVED***
 			Named: map[string]interface***REMOVED******REMOVED******REMOVED***
 				"isEnabled": mi.isEnabled,
@@ -83,6 +84,6 @@ func (mi *Collection) Exports() modules.Exports ***REMOVED***
 ***REMOVED***
 
 // isEnabled returns whether the collection is enabled or not.
-func (mi *Collection) isEnabled() bool ***REMOVED***
-	return mi.collection.isEnabled
+func (mi *CollectionInstance) isEnabled() bool ***REMOVED***
+	return mi.module.sharedCollection.isEnabled
 ***REMOVED***

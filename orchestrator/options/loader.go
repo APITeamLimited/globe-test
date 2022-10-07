@@ -13,7 +13,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func getCompiledOptions(job map[string]string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***
+func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***
 	source, sourceName, err := validateSource(job, gs)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -22,33 +22,26 @@ func getCompiledOptions(job map[string]string, gs libOrch.BaseGlobalState) (*lib
 	return compileAndGetOptions(source, sourceName, gs)
 ***REMOVED***
 
-func validateSource(job map[string]string, gs libOrch.BaseGlobalState) (string, string, error) ***REMOVED***
-	// Check sourceName is set
-	if _, ok := job["sourceName"]; !ok ***REMOVED***
-		return "", "", errors.New("sourceName not set")
+func validateSource(job libOrch.Job, gs libOrch.BaseGlobalState) (string, string, error) ***REMOVED***
+	// Check job.SourceName is set
+	if job.SourceName == "" ***REMOVED***
+		return "", "", errors.New("job.SourceName not set")
 	***REMOVED***
 
-	sourceName, ok := job["sourceName"]
-	if !ok ***REMOVED***
-		return "", "", errors.New("sourceName is not a string")
+	if len(job.SourceName) < 3 ***REMOVED***
+		return "", "", errors.New("job.SourceName must be a .js file")
 	***REMOVED***
 
-	if len(sourceName) < 3 ***REMOVED***
-		return "", "", errors.New("sourceName must be a .js file")
+	if job.SourceName[len(job.SourceName)-3:] != ".js" ***REMOVED***
+		return "", "", errors.New("job.SourceName must be a .js file")
 	***REMOVED***
-
-	if sourceName[len(sourceName)-3:] != ".js" ***REMOVED***
-		return "", "", errors.New("sourceName must be a .js file")
-	***REMOVED***
-
-	source, ok := job["source"]
 
 	// Check source in options, if it is return it
-	if !ok ***REMOVED***
+	if job.Source == "" ***REMOVED***
 		return "", "", errors.New("source not set")
 	***REMOVED***
 
-	return source, sourceName, nil
+	return job.Source, job.SourceName, nil
 ***REMOVED***
 
 func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***

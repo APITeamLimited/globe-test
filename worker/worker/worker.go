@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
 )
 
 type ExecutionList struct ***REMOVED***
-	currentJobs            map[string]map[string]string
+	currentJobs            map[string]libOrch.ChildJob
 	mutex                  sync.Mutex
 	maxJobs                int
 	maxIterationsPerSecond int
@@ -22,44 +23,54 @@ type ExecutionList struct ***REMOVED***
 func Run() ***REMOVED***
 	ctx := context.Background()
 
-	workerId := uuid.New()
+	workerId := uuid.NewString()
+
+	fmt.Println("Client host", libWorker.GetEnvVariable("CLIENT_HOST", "localhost"))
+	fmt.Println("Client port", libWorker.GetEnvVariable("CLIENT_PORT", "6379"))
+	fmt.Println("Client password", libWorker.GetEnvVariable("CLIENT_PASSWORD", ""))
 
 	client := redis.NewClient(&redis.Options***REMOVED***
 		Addr:     fmt.Sprintf("%s:%s", libWorker.GetEnvVariable("CLIENT_HOST", "localhost"), libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
+		Username: "default",
 		Password: libWorker.GetEnvVariable("CLIENT_PASSWORD", ""),
-		DB:       0, // use default DB
 	***REMOVED***)
 
-	currentTime := time.Now().UnixMilli()
+	// Set the worker id and current time
+	client.SAdd(ctx, "workers", workerId)
+
+	// Every second set a heartbeat update
+	heartbeatTicker := time.NewTicker(1 * time.Second)
+	go func() ***REMOVED***
+		for range heartbeatTicker.C ***REMOVED***
+			client.Set(ctx, fmt.Sprintf("worker:%s:lastHeartbeat", workerId), time.Now().UnixMilli(), time.Second*10)
+		***REMOVED***
+	***REMOVED***()
+
+	fmt.Print("\n\033[1;35mAPITEAM Worker\033[0m\n\n")
+	fmt.Printf("Starting worker %s\n", workerId)
+	fmt.Printf("Listening for new jobs on %s...\n\n", client.Options().Addr)
 
 	executionList := &ExecutionList***REMOVED***
-		currentJobs:            make(map[string]map[string]string),
+		currentJobs:            make(map[string]libOrch.ChildJob),
 		maxJobs:                -1,
 		maxIterationsPerSecond: -1,
 		maxVUs:                 -1,
 	***REMOVED***
 
-	//Set the worker id and current time
-	client.HSet(ctx, "k6:workers", workerId.String(), currentTime)
-
-	fmt.Print("\n\033[1;35mAPITEAM Worker\033[0m\n\n")
-	fmt.Printf("Starting worker %s\n", workerId.String())
-	fmt.Printf("Listening for new jobs on %s...\n", client.Options().Addr)
-
-	go checkForQueuedJobs(ctx, client, workerId.String(), executionList)
+	go checkForQueuedJobs(ctx, client, workerId, executionList)
 
 	// Subscribe to the execution channel
-	psc := client.Subscribe(ctx, "k6:execution")
+	pubSub := client.Subscribe(ctx, "worker:execution")
 
-	channel := psc.Channel()
+	channel := pubSub.Channel()
 
 	for msg := range channel ***REMOVED***
-		jobId, err := uuid.Parse(msg.Payload)
+		childJobId, err := uuid.Parse(msg.Payload)
 		if err != nil ***REMOVED***
 			fmt.Println("Error, got did not parse job id")
 			return
 		***REMOVED***
-		go checkIfCanExecute(ctx, client, jobId.String(), workerId.String(), executionList)
+		go checkIfCanExecute(ctx, client, childJobId.String(), workerId, executionList)
 	***REMOVED***
 ***REMOVED***
 
@@ -68,40 +79,39 @@ Check for queued jobs that were deferered as they couldn't be executed when they
 were queued as no workers were available.
 */
 func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) ***REMOVED***
-	// Check for job keys in the "k6:executionHistory" set
-	historyIds, err := client.SMembers(ctx, "k6:executionHistory").Result()
+	// Check for job keys in the "worker:executionHistory" set
+	historyIds, err := client.SMembers(ctx, "worker:executionHistory").Result()
 	if err != nil ***REMOVED***
 		fmt.Println("Error getting history ids", err)
 	***REMOVED***
 
-	for _, jobId := range historyIds ***REMOVED***
-		go checkIfCanExecute(ctx, client, jobId, workerId, executionList)
+	for _, childJobId := range historyIds ***REMOVED***
+		go checkIfCanExecute(ctx, client, childJobId, workerId, executionList)
 	***REMOVED***
 ***REMOVED***
 
-func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, workerId string, executionList *ExecutionList) ***REMOVED***
+func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId string, workerId string, executionList *ExecutionList) ***REMOVED***
 	// Try to HGetAll the worker id
-	job, err := client.HGetAll(ctx, jobId).Result()
-
-	if err != nil ***REMOVED***
-		fmt.Println("Error getting job from redis")
+	job, err := fetchChildJob(ctx, client, childJobId)
+	if err != nil || job == nil ***REMOVED***
+		fmt.Println("Error fetching child job", err)
 		return
 	***REMOVED***
 
-	// TODO: check if has capacity to execute here
-
-	// Check worker['assignedWorker'] is nil
-	if job["assignedWorker"] != "" ***REMOVED***
-		return
-	***REMOVED***
-
-	if job["id"] == "" ***REMOVED***
-		_, err = client.Del(ctx, jobId).Result()
+	if job.Id == "" ***REMOVED***
+		_, err = client.Del(ctx, childJobId).Result()
 		if err != nil ***REMOVED***
 			fmt.Println("Error deleting job from redis")
 		***REMOVED***
 		return
 	***REMOVED***
+
+	assignedWorker, _ := client.HGet(ctx, childJobId, "assignedWorker").Result()
+	if assignedWorker != "" ***REMOVED***
+		return
+	***REMOVED***
+
+	// TODO: check if has capacity to execute here
 
 	// Check if currently full execution list
 	if !checkExecutionCapacity(executionList) ***REMOVED***
@@ -109,7 +119,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	***REMOVED***
 
 	// HSetNX assignedWorker to the workerId
-	assignmentResult, err := client.HSetNX(ctx, jobId, "assignedWorker", workerId).Result()
+	assignmentResult, err := client.HSetNX(ctx, childJobId, "assignedWorker", workerId).Result()
 
 	if err != nil ***REMOVED***
 		fmt.Println("Error setting worker")
@@ -122,24 +132,24 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, jobId string, 
 	***REMOVED***
 
 	// We got the job
-	executionList.addJob(job)
+	executionList.addJob(*job)
 
-	go libWorker.UpdateStatus(ctx, client, jobId, workerId, "ASSIGNED")
-	handleExecution(ctx, client, job, workerId)
-	executionList.removeJob(jobId)
+	go libWorker.UpdateStatus(ctx, client, childJobId, workerId, "ASSIGNED")
+	handleExecution(ctx, client, *job, workerId)
+	executionList.removeJob(childJobId)
 	// Capacity was freed, so check for queued jobs
 	checkForQueuedJobs(ctx, client, workerId, executionList)
 ***REMOVED***
 
-func (e *ExecutionList) addJob(job map[string]string) ***REMOVED***
+func (e *ExecutionList) addJob(job libOrch.ChildJob) ***REMOVED***
 	e.mutex.Lock()
-	e.currentJobs[job["id"]] = job
+	e.currentJobs[job.Id] = job
 	e.mutex.Unlock()
 ***REMOVED***
 
-func (e *ExecutionList) removeJob(jobId string) ***REMOVED***
+func (e *ExecutionList) removeJob(childJobId string) ***REMOVED***
 	e.mutex.Lock()
-	delete(e.currentJobs, jobId)
+	delete(e.currentJobs, childJobId)
 	e.mutex.Unlock()
 ***REMOVED***
 

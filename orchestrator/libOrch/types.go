@@ -1,49 +1,73 @@
 package libOrch
 
-import "time"
+import (
+	"time"
 
-type Distribution struct ***REMOVED***
-	LoadZone string `json:"loadZone"`
-	Percent  int    `json:"percent"`
-***REMOVED***
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+)
 
-type APITeamOptions struct ***REMOVED***
-	Distribution `json:"distribution"`
-***REMOVED***
+type (
+	Distribution struct ***REMOVED***
+		LoadZone string `json:"loadZone"`
+		Percent  int    `json:"percent"`
+	***REMOVED***
 
-type Job struct ***REMOVED***
-	Id         string `json:"id"`
-	Source     string `json:"source"`
-	SourceName string `json:"sourceName"`
-	Options    string `json:"options"`
-***REMOVED***
+	APITeamOptions struct ***REMOVED***
+		Distribution `json:"distribution"`
+	***REMOVED***
 
-type OrchestratorMessage struct ***REMOVED***
-	JobId          string    `json:"jobId"`
-	Time           time.Time `json:"time"`
-	OrchestratorId string    `json:"orchestratorId"`
-	Message        string    `json:"message"`
-	MessageType    string    `json:"messageType"`
-***REMOVED***
+	EnvironmentContext struct ***REMOVED***
+		Variables []libWorker.KeyValueItem `json:"variables"`
+	***REMOVED***
 
-type WorkerMessage struct ***REMOVED***
-	JobId       string    `json:"jobId"`
-	Time        time.Time `json:"time"`
-	WorkerId    string    `json:"workerId"`
-	Message     string    `json:"message"`
-	MessageType string    `json:"messageType"`
-***REMOVED***
+	CollectionContext struct ***REMOVED***
+		Variables []libWorker.KeyValueItem `json:"variables"`
+	***REMOVED***
 
-type OrchestratorOrWorkerMessage struct ***REMOVED***
-	JobId          string    `json:"jobId"`
-	Time           time.Time `json:"time"`
-	OrchestratorId string    `json:"orchestratorId"`
-	WorkerId       string    `json:"workerId"`
-	Message        string    `json:"message"`
-	MessageType    string    `json:"messageType"`
-***REMOVED***
+	Job struct ***REMOVED***
+		Id                   string                 `json:"id"`
+		Source               string                 `json:"source"`
+		SourceName           string                 `json:"sourceName"`
+		ScopeId              string                 `json:"scopeId"`
+		EnvironmentContext   *EnvironmentContext    `json:"environmentContext"`
+		CollectionContext    *CollectionContext     `json:"collectionContext"`
+		RestRequest          map[string]interface***REMOVED******REMOVED*** `json:"restRequest"`
+		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
+	***REMOVED***
 
-type MarkMessage struct ***REMOVED***
-	Mark    string      `json:"mark"`
-	Message interface***REMOVED******REMOVED*** `json:"message"`
-***REMOVED***
+	ChildJob struct ***REMOVED***
+		Job
+		ChildJobId string            `json:"childJobId"`
+		Options    libWorker.Options `json:"options"`
+	***REMOVED***
+
+	OrchestratorMessage struct ***REMOVED***
+		JobId          string    `json:"jobId"`
+		Time           time.Time `json:"time"`
+		OrchestratorId string    `json:"orchestratorId"`
+		Message        string    `json:"message"`
+		MessageType    string    `json:"messageType"`
+	***REMOVED***
+
+	WorkerMessage struct ***REMOVED***
+		JobId       string    `json:"jobId"`
+		Time        time.Time `json:"time"`
+		WorkerId    string    `json:"workerId"`
+		Message     string    `json:"message"`
+		MessageType string    `json:"messageType"`
+	***REMOVED***
+
+	OrchestratorOrWorkerMessage struct ***REMOVED***
+		JobId          string    `json:"jobId"`
+		Time           time.Time `json:"time"`
+		OrchestratorId string    `json:"orchestratorId"`
+		WorkerId       string    `json:"workerId"`
+		Message        string    `json:"message"`
+		MessageType    string    `json:"messageType"`
+	***REMOVED***
+
+	MarkMessage struct ***REMOVED***
+		Mark    string      `json:"mark"`
+		Message interface***REMOVED******REMOVED*** `json:"message"`
+	***REMOVED***
+)

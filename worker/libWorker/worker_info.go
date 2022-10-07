@@ -11,7 +11,7 @@ import (
 
 type (
 	Collection struct ***REMOVED***
-		Variables *map[string]KeyValueItem
+		Variables map[string]string
 	***REMOVED***
 
 	KeyValueItem struct ***REMOVED***
@@ -22,11 +22,12 @@ type (
 	WorkerInfo struct ***REMOVED***
 		Client         *redis.Client
 		JobId          string
+		ChildJobId     string
 		ScopeId        string
 		OrchestratorId string
 		WorkerId       string
 		Ctx            context.Context
-		Environment    *map[string]KeyValueItem
+		Environment    map[string]string
 		Collection     *Collection
 	***REMOVED***
 )

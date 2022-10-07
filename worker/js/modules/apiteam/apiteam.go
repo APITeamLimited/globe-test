@@ -46,7 +46,7 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED*
 	return &APITeam***REMOVED***vu: vu***REMOVED***
 ***REMOVED***
 
-// Exports returns the exports of the k6 module.
+// Exports returns the exports of the apiteam module.
 func (mi *APITeam) Exports() modules.Exports ***REMOVED***
 	return modules.Exports***REMOVED***
 		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
