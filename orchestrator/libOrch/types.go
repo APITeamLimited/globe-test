@@ -33,6 +33,12 @@ type (
 		CollectionContext    *CollectionContext     `json:"collectionContext"`
 		RestRequest          map[string]interface{} `json:"restRequest"`
 		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
+		Scope                Scope                  `json:"scope"`
+	}
+
+	Scope struct {
+		Variant         string `json:"variant"`
+		VariantTargetId string `json:"variantTargetId"`
 	}
 
 	ChildJob struct {

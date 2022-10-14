@@ -18,7 +18,7 @@ Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
 func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistribution,
 	orchestratorClient *redis.Client, orchestratorId string, storeMongoDB *mongo.Database,
-	scope map[string]string, globeTestLogsReceipt primitive.ObjectID,
+	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID,
 	metricsStoreReceipt primitive.ObjectID) error {
 	// Clean up worker
 	// Set job in orchestrator redis
@@ -45,7 +45,7 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 	}()
 
 	// Store results in MongoDB
-	bucketName := fmt.Sprintf("%s:%s", scope["variant"], scope["variantTargetId"])
+	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)
 	jobBucket, err := gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))
 	if err != nil {
 		return err
