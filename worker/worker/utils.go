@@ -98,29 +98,37 @@ func loadWorkerInfo(ctx context.Context,
 		OrchestratorId: job.AssignedOrchestrator,
 		WorkerId:       workerId,
 		Ctx:            ctx,
+		WorkerOptions:  job.Options,
 	}
 
-	if job.CollectionContext != nil {
-		colletionVariables := make(map[string]string)
+	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
+		collectionVariables := make(map[string]string)
 
 		for _, variable := range job.CollectionContext.Variables {
-			colletionVariables[variable.Key] = variable.Value
+			collectionVariables[variable.Key] = variable.Value
 		}
 
 		workerInfo.Collection = &libWorker.Collection{
-			Variables: colletionVariables,
+			Variables: collectionVariables,
+			Name:      job.CollectionContext.Name,
 		}
 	}
 
-	if job.EnvironmentContext != nil {
+	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" {
 		environmentVariables := make(map[string]string)
 
 		for _, variable := range job.EnvironmentContext.Variables {
 			environmentVariables[variable.Key] = variable.Value
 		}
 
-		workerInfo.Environment = environmentVariables
+		workerInfo.Environment = &libWorker.Environment{
+			Variables: environmentVariables,
+			Name:      job.EnvironmentContext.Name,
+		}
 	}
+
+	workerInfo.FinalRequest = job.FinalRequest
+	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
 }

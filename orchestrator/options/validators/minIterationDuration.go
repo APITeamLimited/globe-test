@@ -13,8 +13,8 @@ const minIterationDurationMilliseconds = 1000
 func MinIterationDuration(options *libWorker.Options) error {
 	// Ensure that user duration is within the allowed range
 
-	// Don't enforce minimum iteration duration for RESTSingleExecutionMode
-	if options.ExecutionMode.Valid && options.ExecutionMode.Value == types.RESTSingleExecutionMode {
+	// Don't enforce minimum iteration duration for HTTPSingleExecutionMode
+	if options.ExecutionMode.Valid && options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
 		return nil
 	}
 

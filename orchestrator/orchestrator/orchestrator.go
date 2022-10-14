@@ -148,7 +148,6 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 	// Setup the job
 
 	healthy := true
-
 	gs := NewGlobalState(ctx, orchestratorClient, job.Id, orchestratorId)
 
 	options, err := options.DetermineRuntimeOptions(job, gs)
@@ -173,9 +172,11 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 
 	if healthy {
 		childJob := libOrch.ChildJob{
-			Job:        job,
-			ChildJobId: uuid.NewString(),
-			Options:    *options,
+			Job:               job,
+			ChildJobId:        uuid.NewString(),
+			Options:           *options,
+			UnderlyingRequest: job.UnderlyingRequest,
+			FinalRequest:      job.FinalRequest,
 		}
 
 		childJobs["portsmouth"] = jobDistribution{
@@ -186,7 +187,7 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 
 	// Run the job
 
-	result := "FAILED"
+	result := "FAILURE"
 
 	if healthy {
 		result, err = runExecution(gs, options, scope, childJobs, job.Id)

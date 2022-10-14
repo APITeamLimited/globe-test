@@ -12,6 +12,12 @@ import (
 type (
 	Collection struct {
 		Variables map[string]string
+		Name      string
+	}
+
+	Environment struct {
+		Variables map[string]string
+		Name      string
 	}
 
 	KeyValueItem struct {
@@ -20,15 +26,23 @@ type (
 	}
 
 	WorkerInfo struct {
-		Client         *redis.Client
-		JobId          string
-		ChildJobId     string
-		ScopeId        string
-		OrchestratorId string
-		WorkerId       string
-		Ctx            context.Context
-		Environment    map[string]string
-		Collection     *Collection
+		Client            *redis.Client
+		JobId             string
+		ChildJobId        string
+		ScopeId           string
+		OrchestratorId    string
+		WorkerId          string
+		Ctx               context.Context
+		Environment       *Environment
+		Collection        *Collection
+		WorkerOptions     Options
+		FinalRequest      map[string]interface{}
+		UnderlyingRequest map[string]interface{}
+	}
+
+	MarkMessage struct {
+		Mark    string      `json:"mark"`
+		Message interface{} `json:"message"`
 	}
 )
 
@@ -89,10 +103,10 @@ func UpdateStatus(ctx context.Context, client *redis.Client, jobId string, worke
 
 func HandleStringError(ctx context.Context, client *redis.Client, jobId string, workerId string, errString string) {
 	DispatchMessage(ctx, client, jobId, workerId, errString, "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILED")
+	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
 }
 
 func HandleError(ctx context.Context, client *redis.Client, jobId string, workerId string, err error) {
 	DispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILED")
+	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
 }

@@ -1,25 +1,30 @@
 package collection
 
-type (
-	variables struct {
-		set   func(string, string) bool
-		get   func(string) string
-		has   func(string) bool
-		unset func(string) bool
-		clear func() bool
-		list  func() []string
-	}
+import (
+	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/dop251/goja"
 )
 
-func (mi *CollectionInstance) getVariables() variables {
-	return variables{
-		set:   mi.set,
-		get:   mi.get,
-		has:   mi.has,
-		unset: mi.unset,
-		clear: mi.clear,
-		list:  mi.list,
+func (mi *CollectionInstance) getVariablesObject() *goja.Object {
+	// Make sure variables are enabled before calling
+
+	rt := mi.vu.Runtime()
+	variablesObject := rt.NewObject()
+
+	mustExport := func(name string, value interface{}) {
+		if err := variablesObject.Set(name, value); err != nil {
+			common.Throw(rt, err)
+		}
 	}
+
+	mustExport("set", mi.set)
+	mustExport("get", mi.get)
+	mustExport("has", mi.has)
+	mustExport("unset", mi.unset)
+	mustExport("clear", mi.clear)
+	mustExport("list", mi.list)
+
+	return variablesObject
 }
 
 // set sets a key-value pair in the collection.
@@ -51,6 +56,7 @@ func (mi *CollectionInstance) has(key string) bool {
 	defer mi.module.sharedCollection.mu.RUnlock()
 
 	_, ok := mi.module.sharedCollection.data.Variables[key]
+
 	return ok
 }
 
@@ -76,15 +82,10 @@ func (mi *CollectionInstance) clear() bool {
 	return true
 }
 
-// list returns a list of all key-value pairs in the collection.
-func (mi *CollectionInstance) list() []string {
+// list returns a dictionary of all key-value pairs in the collection.
+func (mi *CollectionInstance) list() map[string]string {
 	mi.module.sharedCollection.mu.RLock()
 	defer mi.module.sharedCollection.mu.RUnlock()
 
-	list := make([]string, 0, len(mi.module.sharedCollection.data.Variables))
-	for _, item := range mi.module.sharedCollection.data.Variables {
-		list = append(list, item)
-	}
-
-	return list
+	return mi.module.sharedCollection.data.Variables
 }

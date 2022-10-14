@@ -9,6 +9,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/dop251/goja"
 )
 
 var (
@@ -63,23 +64,25 @@ func (mi *APITeam) Context() *libWorker.WorkerInfo {
 	return workerInfo
 }
 
-type markMessage struct {
-	Mark    string      `json:"mark"`
-	Message interface{} `json:"message"`
-}
-
 // Returns a marked value to the orchestrator
-func (mi *APITeam) Mark(mark string, value interface{}) error {
+func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error {
 	workerInfo := mi.vu.InitEnv().WorkerInfo
+	rt := mi.vu.Runtime()
 
 	// Ensure no ':' in the tag
 	if strings.Contains(mark, ":") {
-		return fmt.Errorf("filename cannot contain ':'")
+		return common.NewInitContextError(fmt.Sprintf("Mark tag cannot contain ':' character: %s", mark))
 	}
 
-	markMessage := markMessage{
+	exportedResponse := map[string]interface{}{}
+	err := rt.ExportTo(markedObject, &exportedResponse)
+	if err != nil {
+		common.Throw(rt, err)
+	}
+
+	markMessage := libWorker.MarkMessage{
 		Mark:    mark,
-		Message: value,
+		Message: exportedResponse,
 	}
 
 	marshalled, err := json.Marshal(markMessage)

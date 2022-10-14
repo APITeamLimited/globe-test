@@ -34,7 +34,6 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	}
 
 	job := libOrch.Job{}
-
 	// Parse job as libOrch.Job
 	err = json.Unmarshal([]byte(jobRaw), &job)
 	if err != nil {

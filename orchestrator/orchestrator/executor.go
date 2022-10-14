@@ -72,13 +72,17 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 		}
 
 		if workerMessage.MessageType == "STATUS" {
-			if workerMessage.Message == "FAILED" {
+			if workerMessage.Message == "FAILURE" {
 				return "FAILURE", nil
 			} else if workerMessage.Message == "SUCCESS" {
 				return "SUCCESS", nil
 			} else {
 				libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
 			}
+			// Sometimes errors don't stop the execution automatically so stop them here
+		} else if workerMessage.MessageType == "ERROR" {
+			libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
+			return "FAILURE", nil
 		} else if workerMessage.MessageType == "METRICS" {
 			(*gs.MetricsStore()).AddMessage(workerMessage, "portsmouth")
 		} else if workerMessage.MessageType == "DEBUG" {

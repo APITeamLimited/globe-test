@@ -84,8 +84,6 @@ func (o *Output) flushMetrics() {
 			return
 		}
 
-		fmt.Printf("Sending %d samples to GlobeTest\n", count)
-
 		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, string(marshalled), "METRICS")
 	}
 }

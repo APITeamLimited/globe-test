@@ -18,10 +18,12 @@ type (
 
 	EnvironmentContext struct {
 		Variables []libWorker.KeyValueItem `json:"variables"`
+		Name      string                   `json:"name"`
 	}
 
 	CollectionContext struct {
 		Variables []libWorker.KeyValueItem `json:"variables"`
+		Name      string                   `json:"name"`
 	}
 
 	Job struct {
@@ -31,7 +33,8 @@ type (
 		ScopeId              string                 `json:"scopeId"`
 		EnvironmentContext   *EnvironmentContext    `json:"environmentContext"`
 		CollectionContext    *CollectionContext     `json:"collectionContext"`
-		RestRequest          map[string]interface{} `json:"restRequest"`
+		UnderlyingRequest    map[string]interface{} `json:"underlyingRequest"`
+		FinalRequest         map[string]interface{} `json:"finalRequest"`
 		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
 		Scope                Scope                  `json:"scope"`
 	}
@@ -43,8 +46,10 @@ type (
 
 	ChildJob struct {
 		Job
-		ChildJobId string            `json:"childJobId"`
-		Options    libWorker.Options `json:"options"`
+		ChildJobId        string                 `json:"childJobId"`
+		Options           libWorker.Options      `json:"options"`
+		UnderlyingRequest map[string]interface{} `json:"underlyingRequest"`
+		FinalRequest      map[string]interface{} `json:"finalRequest"`
 	}
 
 	OrchestratorMessage struct {
