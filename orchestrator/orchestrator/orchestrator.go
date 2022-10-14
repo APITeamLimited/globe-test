@@ -34,12 +34,6 @@ func Run() ***REMOVED***
 		Password: libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
 	***REMOVED***)
 
-	scopesClient := redis.NewClient(&redis.Options***REMOVED***
-		Addr:     fmt.Sprintf("%s:%s", libOrch.GetEnvVariable("CORE_CACHE_REDIS_HOST", "localhost"), libOrch.GetEnvVariable("CORE_CACHE_REDIS_PORT", "10001")),
-		Username: "default",
-		Password: libOrch.GetEnvVariable("CORE_CACHE_REDIS_PASSWORD", ""),
-	***REMOVED***)
-
 	storeMongoDB := getStoreMongoDB(ctx)
 
 	workerClients := connectWorkerClients(ctx)
@@ -64,7 +58,7 @@ func Run() ***REMOVED***
 		maxJobs:     -1,
 	***REMOVED***
 
-	go checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
+	go checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB)
 
 	// Subscribe to the execution channel
 	pubSub := orchestratorClient.Subscribe(ctx, "orchestrator:execution")
@@ -77,7 +71,7 @@ func Run() ***REMOVED***
 			fmt.Println("Error, got did not parse job id")
 			return
 		***REMOVED***
-		go checkIfCanExecute(ctx, orchestratorClient, scopesClient, workerClients, jobId.String(), orchestratorId, executionList, storeMongoDB)
+		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(), orchestratorId, executionList, storeMongoDB)
 	***REMOVED***
 ***REMOVED***
 
@@ -85,7 +79,7 @@ func Run() ***REMOVED***
 Check for queued jobs that were deferered as they couldn't be executed when they
 were queued as no workers were available.
 */
-func checkForQueuedJobs(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
+func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil ***REMOVED***
@@ -93,11 +87,11 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient, scopesClient *r
 	***REMOVED***
 
 	for _, jobId := range historyIds ***REMOVED***
-		go checkIfCanExecute(ctx, orchestratorClient, scopesClient, workerClients, jobId, orchestratorId, executionList, storeMongoDB)
+		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId, orchestratorId, executionList, storeMongoDB)
 	***REMOVED***
 ***REMOVED***
 
-func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
+func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil ***REMOVED***
@@ -133,10 +127,10 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient, scopesClient *re
 	// We got the job
 	job.AssignedOrchestrator = orchestratorId
 	executionList.addJob(*job)
-	manageExecution(ctx, orchestratorClient, scopesClient, workerClients, *job, orchestratorId, executionList, storeMongoDB)
+	manageExecution(ctx, orchestratorClient, workerClients, *job, orchestratorId, executionList, storeMongoDB)
 
 	// Capacity was freed, so check for queued jobs
-	checkForQueuedJobs(ctx, orchestratorClient, scopesClient, workerClients, orchestratorId, executionList, storeMongoDB)
+	checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB)
 ***REMOVED***
 
 type jobDistribution struct ***REMOVED***
@@ -146,7 +140,7 @@ type jobDistribution struct ***REMOVED***
 
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
-func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redis.Client, workerClients map[string]*redis.Client, job libOrch.Job, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
+func manageExecution(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, job libOrch.Job, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
 	// Get the job id and check if it is a string
 	fmt.Println("Assigned job", job.Id)
 	libOrch.UpdateStatus(ctx, orchestratorClient, job.Id, orchestratorId, "ASSIGNED")
@@ -173,11 +167,7 @@ func manageExecution(ctx context.Context, orchestratorClient, scopesClient *redi
 		libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledOptions), "OPTIONS")
 	***REMOVED***
 
-	scope, err := fetchScope(ctx, scopesClient, job.ScopeId)
-	if err != nil ***REMOVED***
-		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
-		healthy = false
-	***REMOVED***
+	scope := job.Scope
 
 	childJobs := make(map[string]jobDistribution)
 

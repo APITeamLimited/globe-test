@@ -11,7 +11,7 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope map[string]string, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
+func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
 	// TODO: implement credit check
 
 	// Check if has credits
@@ -130,25 +130,7 @@ func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job lib
 /*
 Check i the scope has the required credits to execute the job
 */
-func checkIfHasCredits(ctx context.Context, scope map[string]string, job libOrch.Job) (bool, error) ***REMOVED***
-	// TODO: implement fully
+func checkIfHasCredits(ctx context.Context, scope libOrch.Scope, job libOrch.Job) (bool, error) ***REMOVED***
+	// TODO: implement elsewhere
 	return true, nil
-	/*
-	   // Check max requests has not been reached
-	   maxRequests := scope["maxRequests"]
-
-	   	if maxRequests != "" ***REMOVED***
-	   		return false, fmt.Errorf("maxRequests not found")
-	   	***REMOVED***
-
-	   currentRequests := scope["currentRequests"]
-
-	   	if currentRequests != "" ***REMOVED***
-	   		return false, fmt.Errorf("currentRequests not found")
-	   	***REMOVED***
-
-	   // TODO: More checks
-
-	   return currentRequests < maxRequests, nil
-	*/
 ***REMOVED***
