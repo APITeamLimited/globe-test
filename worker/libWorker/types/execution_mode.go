@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	RESTSingleExecutionMode   = "rest_single"
-	RESTMultipleExecutionMode = "rest_multiple"
+	HTTPSingleExecutionMode   = "http_single"
+	HTTPMultipleExecutionMode = "http_multiple"
 )
 
 type NullExecutionMode struct ***REMOVED***

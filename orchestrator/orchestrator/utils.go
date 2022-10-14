@@ -34,7 +34,6 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	***REMOVED***
 
 	job := libOrch.Job***REMOVED******REMOVED***
-
 	// Parse job as libOrch.Job
 	err = json.Unmarshal([]byte(jobRaw), &job)
 	if err != nil ***REMOVED***

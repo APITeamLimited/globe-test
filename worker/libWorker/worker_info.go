@@ -12,6 +12,12 @@ import (
 type (
 	Collection struct ***REMOVED***
 		Variables map[string]string
+		Name      string
+	***REMOVED***
+
+	Environment struct ***REMOVED***
+		Variables map[string]string
+		Name      string
 	***REMOVED***
 
 	KeyValueItem struct ***REMOVED***
@@ -20,15 +26,23 @@ type (
 	***REMOVED***
 
 	WorkerInfo struct ***REMOVED***
-		Client         *redis.Client
-		JobId          string
-		ChildJobId     string
-		ScopeId        string
-		OrchestratorId string
-		WorkerId       string
-		Ctx            context.Context
-		Environment    map[string]string
-		Collection     *Collection
+		Client            *redis.Client
+		JobId             string
+		ChildJobId        string
+		ScopeId           string
+		OrchestratorId    string
+		WorkerId          string
+		Ctx               context.Context
+		Environment       *Environment
+		Collection        *Collection
+		WorkerOptions     Options
+		FinalRequest      map[string]interface***REMOVED******REMOVED***
+		UnderlyingRequest map[string]interface***REMOVED******REMOVED***
+	***REMOVED***
+
+	MarkMessage struct ***REMOVED***
+		Mark    string      `json:"mark"`
+		Message interface***REMOVED******REMOVED*** `json:"message"`
 	***REMOVED***
 )
 
@@ -89,10 +103,10 @@ func UpdateStatus(ctx context.Context, client *redis.Client, jobId string, worke
 
 func HandleStringError(ctx context.Context, client *redis.Client, jobId string, workerId string, errString string) ***REMOVED***
 	DispatchMessage(ctx, client, jobId, workerId, errString, "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILED")
+	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
 ***REMOVED***
 
 func HandleError(ctx context.Context, client *redis.Client, jobId string, workerId string, err error) ***REMOVED***
 	DispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILED")
+	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
 ***REMOVED***

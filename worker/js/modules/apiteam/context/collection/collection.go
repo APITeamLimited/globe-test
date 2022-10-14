@@ -1,10 +1,13 @@
 package collection
 
 import (
+	"fmt"
 	"sync"
 
+	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/dop251/goja"
 )
 
 // CollectionModule is the global module object type. It is instantiated once per test
@@ -16,18 +19,19 @@ type (
 	// CollectionModule is the global module instance that will create module
 	// instances for each VU.
 	CollectionModule struct ***REMOVED***
+		isEnabled        bool
 		sharedCollection sharedCollection
 	***REMOVED***
 
 	// CollectionInstance represents an instance of the collection module.
 	CollectionInstance struct ***REMOVED***
-		vu     modules.VU
-		module *CollectionModule
+		vu            modules.VU
+		module        *CollectionModule
+		defaultExport *goja.Object
 	***REMOVED***
 
 	sharedCollection struct ***REMOVED***
-		isEnabled bool
-		data      libWorker.Collection
+		data *libWorker.Collection
 
 		mu *sync.RWMutex
 	***REMOVED***
@@ -43,47 +47,50 @@ func New(workerInfo *libWorker.WorkerInfo) *CollectionModule ***REMOVED***
 	// Check collection actually exists
 	if workerInfo.Collection != nil ***REMOVED***
 		return &CollectionModule***REMOVED***
+			isEnabled: true,
 			sharedCollection: sharedCollection***REMOVED***
-				isEnabled: true,
-				data:      *workerInfo.Collection,
+				data: workerInfo.Collection,
+				mu:   &sync.RWMutex***REMOVED******REMOVED***,
 			***REMOVED***,
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		return &CollectionModule***REMOVED***
-			sharedCollection: sharedCollection***REMOVED***
-				isEnabled: false,
-			***REMOVED***,
+			isEnabled:        false,
+			sharedCollection: sharedCollection***REMOVED******REMOVED***,
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
 // NewModuleInstance returns an collection module instance for each VU.
 func (module *CollectionModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &CollectionInstance***REMOVED***
-		vu,
-		module,
+	rt := vu.Runtime()
+
+	mi := &CollectionInstance***REMOVED***
+		vu:            vu,
+		module:        module,
+		defaultExport: rt.NewObject(),
 	***REMOVED***
+
+	mi.defaultExport.DefineDataProperty(
+		"enabled", rt.ToValue(module.isEnabled), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+
+	if module.isEnabled ***REMOVED***
+		mi.defaultExport.DefineDataProperty(
+			"name", rt.ToValue(module.sharedCollection.data.Name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE,
+		)
+
+		if err := mi.defaultExport.Set("variables", mi.getVariablesObject()); err != nil ***REMOVED***
+			fmt.Println("Error setting collection variables object: ", err)
+			common.Throw(rt, err)
+		***REMOVED***
+	***REMOVED***
+
+	return mi
 ***REMOVED***
 
 // Exports returns the exports of the collection module.
 func (mi *CollectionInstance) Exports() modules.Exports ***REMOVED***
-	if !mi.module.sharedCollection.isEnabled ***REMOVED***
-		return modules.Exports***REMOVED***
-			Named: map[string]interface***REMOVED******REMOVED******REMOVED***
-				"isEnabled": mi.isEnabled,
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED***
-
 	return modules.Exports***REMOVED***
-		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
-			"isEnabled": mi.isEnabled,
-			"variables": mi.getVariables,
-		***REMOVED***,
+		Default: mi.defaultExport,
 	***REMOVED***
-***REMOVED***
-
-// isEnabled returns whether the collection is enabled or not.
-func (mi *CollectionInstance) isEnabled() bool ***REMOVED***
-	return mi.module.sharedCollection.isEnabled
 ***REMOVED***

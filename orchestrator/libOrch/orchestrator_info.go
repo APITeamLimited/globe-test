@@ -85,15 +85,15 @@ func UpdateStatusNoSet(ctx context.Context, orchestratorClient *redis.Client, jo
 
 func HandleStringError(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, errString string) ***REMOVED***
 	DispatchMessage(ctx, orchestratorClient, jobId, orchestratorId, errString, "ERROR")
-	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILED")
+	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
 ***REMOVED***
 
 func HandleError(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, err error) ***REMOVED***
 	DispatchMessage(ctx, orchestratorClient, jobId, orchestratorId, err.Error(), "ERROR")
-	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILED")
+	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
 ***REMOVED***
 
 func HandleErrorNoSet(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, err error) ***REMOVED***
 	DispatchMessageNoSet(ctx, orchestratorClient, jobId, orchestratorId, err.Error(), "ERROR")
-	UpdateStatusNoSet(ctx, orchestratorClient, jobId, orchestratorId, "FAILED")
+	UpdateStatusNoSet(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
 ***REMOVED***

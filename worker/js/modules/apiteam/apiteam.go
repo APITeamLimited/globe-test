@@ -9,6 +9,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/dop251/goja"
 )
 
 var (
@@ -63,23 +64,25 @@ func (mi *APITeam) Context() *libWorker.WorkerInfo ***REMOVED***
 	return workerInfo
 ***REMOVED***
 
-type markMessage struct ***REMOVED***
-	Mark    string      `json:"mark"`
-	Message interface***REMOVED******REMOVED*** `json:"message"`
-***REMOVED***
-
 // Returns a marked value to the orchestrator
-func (mi *APITeam) Mark(mark string, value interface***REMOVED******REMOVED***) error ***REMOVED***
+func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error ***REMOVED***
 	workerInfo := mi.vu.InitEnv().WorkerInfo
+	rt := mi.vu.Runtime()
 
 	// Ensure no ':' in the tag
 	if strings.Contains(mark, ":") ***REMOVED***
-		return fmt.Errorf("filename cannot contain ':'")
+		return common.NewInitContextError(fmt.Sprintf("Mark tag cannot contain ':' character: %s", mark))
 	***REMOVED***
 
-	markMessage := markMessage***REMOVED***
+	exportedResponse := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+	err := rt.ExportTo(markedObject, &exportedResponse)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+
+	markMessage := libWorker.MarkMessage***REMOVED***
 		Mark:    mark,
-		Message: value,
+		Message: exportedResponse,
 	***REMOVED***
 
 	marshalled, err := json.Marshal(markMessage)
