@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -33,8 +34,6 @@ func handleExecution(ctx context.Context,
 		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("failed to load test: %s", err))
 		return
 	}
-
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Loaded test %s", test.workerLoadedTest.sourceRootPath), "DEBUG")
 
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
@@ -72,12 +71,16 @@ func handleExecution(ctx context.Context,
 	}
 
 	// Create the engine.
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Initializing the Engine...", "DEBUG")
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil {
 		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return
 	}
+
+	go libWorker.UpdateStatus(ctx, client, job.Id, workerId, "READY")
+
+	// Wait for the job to be started on redis
+	// TODO: implement as a blocking redis call
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
@@ -122,12 +125,12 @@ func handleExecution(ctx context.Context,
 		}
 	}
 	runCancel()
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Engine run terminated cleanly", "DEBUG")
+	libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Engine run terminated cleanly", "DEBUG")
 
 	executionState := execScheduler.GetState()
 	// Warn if no iterations could be completed.
 	if executionState.GetFullIterationCount() == 0 {
-		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
+		libWorker.DispatchMessage(ctx, client, job.Id, workerId, "No script iterations finished, consider making the test duration longer", "DEBUG")
 	}
 
 	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
@@ -138,23 +141,44 @@ func handleExecution(ctx context.Context,
 	})
 	engine.MetricsEngine.MetricsLock.Unlock()
 
+	// Retrive collection and environment variables
+	if workerInfo.Collection != nil {
+		collectionVariables, err := json.Marshal(workerInfo.Collection.Variables)
+
+		if err != nil {
+			libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error marshalling collection variables %s", err.Error()))
+		} else {
+			libWorker.DispatchMessage(ctx, client, job.Id, workerId, string(collectionVariables), "COLLECTION_VARIABLES")
+		}
+	}
+
+	if workerInfo.Environment != nil {
+		environmentVariables, err := json.Marshal(workerInfo.Environment.Variables)
+
+		if err != nil {
+			libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error marshalling environment variables %s", err.Error()))
+		} else {
+			libWorker.DispatchMessage(ctx, client, job.Id, workerId, string(environmentVariables), "ENVIRONMENT_VARIABLES")
+		}
+	}
+
 	if err == nil {
-		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, string(marshalledMetrics), "SUMMARY_METRICS")
+		libWorker.DispatchMessage(ctx, client, job.Id, workerId, string(marshalledMetrics), "SUMMARY_METRICS")
 	} else {
-		go libWorker.HandleError(ctx, client, job.Id, workerId, err)
+		libWorker.HandleError(ctx, client, job.Id, workerId, err)
 	}
 
 	libWorker.UpdateStatus(ctx, client, job.Id, workerId, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Waiting for the Engine to finish...", "DEBUG")
+	libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Waiting for the Engine to finish...", "DEBUG")
 	engineWait()
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Everything has finished, exiting worker", "DEBUG")
+	libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Everything has finished, exiting worker", "DEBUG")
 	if interrupt != nil {
 		return
 	}
 	if engine.IsTainted() {
-		go libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
+		libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return
 	}
 }

@@ -41,8 +41,8 @@ type (
 	}
 
 	MarkMessage struct {
-		Mark    string      `json:"mark"`
-		Message interface{} `json:"message"`
+		Mark    string                 `json:"mark"`
+		Message map[string]interface{} `json:"message"`
 	}
 )
 

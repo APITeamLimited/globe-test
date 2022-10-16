@@ -75,6 +75,7 @@ func (mi *EnvironmentInstance) clear() bool {
 	defer mi.module.sharedEnvironment.mu.Unlock()
 
 	mi.module.sharedEnvironment.data.Variables = make(map[string]string)
+	//mi.vu.InitEnv().WorkerInfo.Environment.Variables = make(map[string]string)
 
 	return true
 }

@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
@@ -96,7 +98,7 @@ func (mi *LifecylcleInstance) Exports() modules.Exports {
 	}
 }
 
-func (mi *LifecylcleInstance) markResponse(responseObject *goja.Object) {
+func (mi *LifecylcleInstance) markResponse(responseObject goja.Value) {
 	// Get golang value from goja object
 	workerInfo := *mi.vu.InitEnv().WorkerInfo
 	rt := mi.vu.Runtime()
@@ -112,9 +114,17 @@ func (mi *LifecylcleInstance) markResponse(responseObject *goja.Object) {
 		Message: exportedResponse,
 	}
 
+	// Loop over marked response message and delete any function calls
+	for key, value := range markedResponse.Message {
+		if reflect.TypeOf(value).Kind() == reflect.Func {
+			delete(markedResponse.Message, key)
+		}
+	}
+
 	// Marshal response to JSON
 	marshalledMarkedResponse, err := json.Marshal(markedResponse)
 	if err != nil {
+		fmt.Println("Error marshalling marked response", err)
 		common.Throw(rt, err)
 	}
 
