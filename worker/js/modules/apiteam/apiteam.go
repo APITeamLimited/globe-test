@@ -4,6 +4,7 @@ package apiteam
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
@@ -51,17 +52,9 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED*
 func (mi *APITeam) Exports() modules.Exports ***REMOVED***
 	return modules.Exports***REMOVED***
 		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
-			"context": mi.Context,
-			"mark":    mi.Mark,
+			"mark": mi.Mark,
 		***REMOVED***,
 	***REMOVED***
-***REMOVED***
-
-// Info returns current info about the APITeam Execution Context.
-func (mi *APITeam) Context() *libWorker.WorkerInfo ***REMOVED***
-	workerInfo := mi.vu.InitEnv().WorkerInfo
-
-	return workerInfo
 ***REMOVED***
 
 // Returns a marked value to the orchestrator
@@ -80,17 +73,24 @@ func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error ***REMOVED
 		common.Throw(rt, err)
 	***REMOVED***
 
-	markMessage := libWorker.MarkMessage***REMOVED***
+	markedMessage := libWorker.MarkMessage***REMOVED***
 		Mark:    mark,
 		Message: exportedResponse,
 	***REMOVED***
 
-	marshalled, err := json.Marshal(markMessage)
+	// Loop over marked response message and delete any function calls
+	for key, value := range markedMessage.Message ***REMOVED***
+		if reflect.TypeOf(value).Kind() == reflect.Func ***REMOVED***
+			delete(markedMessage.Message, key)
+		***REMOVED***
+	***REMOVED***
+
+	marshalledMarkedMessage, err := json.Marshal(markedMessage)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	libWorker.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalled), "MARK")
+	libWorker.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalledMarkedMessage), "MARK")
 
 	return nil
 ***REMOVED***

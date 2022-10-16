@@ -41,8 +41,8 @@ type (
 	***REMOVED***
 
 	MarkMessage struct ***REMOVED***
-		Mark    string      `json:"mark"`
-		Message interface***REMOVED******REMOVED*** `json:"message"`
+		Mark    string                 `json:"mark"`
+		Message map[string]interface***REMOVED******REMOVED*** `json:"message"`
 	***REMOVED***
 )
 

@@ -4,4 +4,6 @@ Globe Test
 
 Run distributed load tests using the K6 runtime engine
 
-This project is built on top of and is derivative works of the K6 project. It is not affiliated with the K6 project. The upstream repo can be found at https://github.com/grafana/k6
+Note: GlobeTest is not affiliated with the K6 project. This is a fork of the K6 project with modifications to support distributed load testing and other features.
+
+More documentation on how to use this shall be added soon.

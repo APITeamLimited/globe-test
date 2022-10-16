@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
@@ -92,6 +93,8 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 
 		if message.MessageType == "METRICS" ***REMOVED***
 			metrics = append(metrics, message)
+		***REMOVED*** else if message.MessageType == "COLLECTION_VARIABLES" || message.MessageType == "ENVIRONMENT_VARIABLES" ***REMOVED***
+			continue
 		***REMOVED*** else ***REMOVED***
 			globeTestLogs = append(globeTestLogs, message)
 		***REMOVED***
@@ -143,8 +146,9 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 	***REMOVED***
 
 	// Clean up orchestrator
-	orchestratorClient.Del(ctx, updatesKey)
-	orchestratorClient.Del(ctx, job.Id)
+	// Set types to expire so lagging users can access environment variables
+	orchestratorClient.Expire(ctx, updatesKey, time.Second*10)
+	orchestratorClient.Expire(ctx, job.Id, time.Second*10)
 	orchestratorClient.SRem(ctx, "orchestrator:executionHistory", job.Id)
 
 	return nil
