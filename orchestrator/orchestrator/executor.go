@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,18 +10,13 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
-	// TODO: implement credit check
+type locatedMesaage struct {
+	location string
+	msg      *redis.Message
+}
 
-	// Check if has credits
-	/*hasCredits, err := checkIfHasCredits(gs.Ctx(), scope, job)
-	if err != nil {
-		return "", err
-	}
-	if !hasCredits {
-		libOrch.UpdateStatus(gs.Ctx(), gs.Client(), gs.JobId(), gs.OrchestratorId(), "NO_CREDITS")
-		return "", errors.New("not enough credits to execute that job")
-	}*/
+func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
+	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "LOADING")
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs {
@@ -54,37 +48,58 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 		}
 	}
 
-	unifiedChannel := make(chan *redis.Message)
+	unifiedChannel := make(chan locatedMesaage)
 
-	for _, channel := range workerChannels {
+	for location, channel := range workerChannels {
 		go func(channel <-chan *redis.Message) {
 			for msg := range channel {
-				unifiedChannel <- msg
+				unifiedChannel <- locatedMesaage{
+					location,
+					msg,
+				}
 			}
 		}(channel)
 	}
 
-	for msg := range unifiedChannel {
+	chilJobCount := len(childJobs)
+	jobsInitialised := 0
+
+	for locatedMessage := range unifiedChannel {
 		workerMessage := libOrch.WorkerMessage{}
-		err := json.Unmarshal([]byte(msg.Payload), &workerMessage)
+		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil {
 			return "", err
 		}
 
 		if workerMessage.MessageType == "STATUS" {
-			if workerMessage.Message == "FAILURE" {
+			if workerMessage.Message == "READY" {
+				jobsInitialised++
+				if jobsInitialised == chilJobCount {
+					// Broadcast the start message to all child jobs
+
+					for _, jobDistribution := range childJobs {
+						for _, job := range *jobDistribution.jobs {
+							jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), "GO TIME")
+						}
+					}
+
+				}
+
+				libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "RUNNING")
+			} else if workerMessage.Message == "FAILURE" {
 				return "FAILURE", nil
 			} else if workerMessage.Message == "SUCCESS" {
 				return "SUCCESS", nil
-			} else {
-				libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
 			}
+			// Ignore other kinds of messages
+			//libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
+
 			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
 			libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
 			return "FAILURE", nil
 		} else if workerMessage.MessageType == "METRICS" {
-			(*gs.MetricsStore()).AddMessage(workerMessage, "portsmouth")
+			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location)
 		} else if workerMessage.MessageType == "DEBUG" {
 			// TODO: make this configurable
 			continue
@@ -129,12 +144,4 @@ func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job lib
 	workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
 
 	return nil
-}
-
-/*
-Check i the scope has the required credits to execute the job
-*/
-func checkIfHasCredits(ctx context.Context, scope libOrch.Scope, job libOrch.Job) (bool, error) {
-	// TODO: implement elsewhere
-	return true, nil
 }

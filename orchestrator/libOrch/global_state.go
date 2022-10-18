@@ -10,6 +10,7 @@ import (
 type BaseGlobalState interface {
 	Ctx() context.Context
 	Logger() *logrus.Logger
+	// The orchestrator client
 	Client() *redis.Client
 	JobId() string
 	OrchestratorId() string

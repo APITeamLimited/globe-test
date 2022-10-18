@@ -25,8 +25,7 @@ func DispatchMessage(ctx context.Context, orchestratorClient *redis.Client, jobI
 	}
 
 	// Update main job
-	updatesKey := fmt.Sprintf("%s:updates", jobId)
-	orchestratorClient.SAdd(ctx, updatesKey, messageJson)
+	orchestratorClient.SAdd(ctx, fmt.Sprintf("%s:updates", jobId), messageJson)
 
 	// Dispatch to channel
 	orchestratorClient.Publish(ctx, fmt.Sprintf("orchestrator:executionUpdates:%s", jobId), string(messageJson))
@@ -67,8 +66,7 @@ func DispatchWorkerMessage(ctx context.Context, orchestratorClient *redis.Client
 	}
 
 	// Update main job
-	updatesKey := fmt.Sprintf("%s:updates", jobId)
-	orchestratorClient.SAdd(ctx, updatesKey, messageJson)
+	orchestratorClient.SAdd(ctx, fmt.Sprintf("%s:updates", jobId), messageJson)
 
 	// Dispatch to channel
 	orchestratorClient.Publish(ctx, fmt.Sprintf("orchestrator:executionUpdates:%s", jobId), string(messageJson))
