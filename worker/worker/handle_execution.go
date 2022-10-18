@@ -77,42 +77,47 @@ func handleExecution(ctx context.Context,
 		return
 	***REMOVED***
 
-	go libWorker.UpdateStatus(ctx, client, job.Id, workerId, "READY")
-
 	// Wait for the job to be started on redis
 	// TODO: implement as a blocking redis call
+
+	startChannel := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId)).Channel()
+
+	libWorker.UpdateStatus(ctx, client, job.Id, workerId, "READY")
+
+	// Wait for start message on the channel
+	<-startChannel
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
+		libWorker.HandleStringError(ctx, client, job.Id, workerId, fmt.Sprintf("Error starting outputs %s", err.Error()))
 		return
 	***REMOVED***
 	defer engine.OutputManager.StopOutputs()
 
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	gracefulStop := func(sig os.Signal) ***REMOVED***
-		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
+		libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
 	***REMOVED***
 	onHardStop := func(sig os.Signal) ***REMOVED***
-		go libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
+		libWorker.DispatchMessage(ctx, client, job.Id, workerId, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
 		globalCancel() // not that it matters, given the following command...
 	***REMOVED***
 	stopSignalHandling := handleTestAbortSignals(globalState, gracefulStop, onHardStop)
 	defer stopSignalHandling()
 
 	// Initialize the engine
-	go libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Initializing VU(s)...", "DEBUG")
+	libWorker.DispatchMessage(ctx, client, job.Id, workerId, "Initializing VU(s)...", "DEBUG")
 	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, workerInfo)
 	if err != nil ***REMOVED***
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
-		go libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
+		libWorker.HandleError(ctx, client, job.Id, workerId, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return
 	***REMOVED***
 
 	// Start the test run
-	go libWorker.UpdateStatus(ctx, client, job.Id, workerId, "RUNNING")
+	libWorker.UpdateStatus(ctx, client, job.Id, workerId, "RUNNING")
 	var interrupt error
 	err = engineRun()
 	if err != nil ***REMOVED***

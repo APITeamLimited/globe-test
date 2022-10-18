@@ -62,9 +62,10 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 	var globeTestLogs []libOrch.OrchestratorOrWorkerMessage
 	var metrics []libOrch.OrchestratorOrWorkerMessage
 
-	var message libOrch.OrchestratorOrWorkerMessage
-
 	for _, value := range unparsedMessages ***REMOVED***
+		// Declare here else fields will be inherited from previous iteration
+		var message libOrch.OrchestratorOrWorkerMessage
+
 		err := json.Unmarshal([]byte(value), &message)
 		if err != nil ***REMOVED***
 			return err
