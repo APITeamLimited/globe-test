@@ -545,3 +545,7 @@ func (p *activeVUPool) Close() ***REMOVED***
 	close(p.iterations)
 	p.wg.Wait()
 ***REMOVED***
+
+func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+	return varc.MaxVUs.Int64
+***REMOVED***

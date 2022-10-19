@@ -206,3 +206,7 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.S
 
 	return nil
 ***REMOVED***
+
+func (clvc ConstantVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+	return clvc.VUs.Int64
+***REMOVED***

@@ -295,7 +295,10 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
-	ExecutionMode types.NullExecutionMode `json:"executionMode"`
+	ExecutionMode    types.NullExecutionMode    `json:"executionMode"`
+	LoadDistribution types.NullLoadDistribution `json:"loadDistribution"`
+
+	MaxPossibleVUs null.Int `json:"maxPossibleVUs"`
 
 	// Should the test start in a paused state?
 	Paused null.Bool `json:"paused" envconfig:"K6_PAUSED"`

@@ -1,23 +1,3 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package worker
 
 import (
@@ -25,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
@@ -66,8 +48,8 @@ func handleTestAbortSignals(gs *globalState, gracefulStopHandler, onHardStop fun
 	***REMOVED***
 ***REMOVED***
 
-func fetchChildJob(ctx context.Context, orchestratorClient *redis.Client, childJobId string) (*libOrch.ChildJob, error) ***REMOVED***
-	childJobRaw, err := orchestratorClient.HGet(ctx, childJobId, "job").Result()
+func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string) (*libOrch.ChildJob, error) ***REMOVED***
+	childJobRaw, err := client.HGet(ctx, childJobId, "job").Result()
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -131,4 +113,51 @@ func loadWorkerInfo(ctx context.Context,
 	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
+***REMOVED***
+
+func startJobScheduling(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) ***REMOVED***
+	client.SAdd(ctx, "workers", workerId)
+
+	jobsCheckScheduler := time.NewTicker(1 * time.Second)
+
+	go func() ***REMOVED***
+		for range jobsCheckScheduler.C ***REMOVED***
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "lastHeartbeat", time.Now().UnixMilli())
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "currentJobsCount", executionList.currentJobsCount)
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "currentVUsCount", executionList.currentVUsCount)
+
+			// Capacity may have freed up, check for queued jobs
+			checkForQueuedJobs(ctx, client, workerId, executionList)
+		***REMOVED***
+	***REMOVED***()
+
+	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "launchTime", time.Now().UnixMilli())
+	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxJobs", executionList.maxJobs)
+	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxVUs", executionList.maxVUs)
+***REMOVED***
+
+func getWorkerClient() *redis.Client ***REMOVED***
+	return redis.NewClient(&redis.Options***REMOVED***
+		Addr:     fmt.Sprintf("%s:%s", libWorker.GetEnvVariable("CLIENT_HOST", "localhost"), libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
+		Username: "default",
+		Password: libWorker.GetEnvVariable("CLIENT_PASSWORD", ""),
+	***REMOVED***)
+***REMOVED***
+
+func getMaxJobs() int ***REMOVED***
+	maxJobs, err := strconv.Atoi(libOrch.GetEnvVariable("WORKER_MAX_JOBS", "1000"))
+	if err != nil ***REMOVED***
+		maxJobs = 1000
+	***REMOVED***
+
+	return maxJobs
+***REMOVED***
+
+func getMaxVUs() int64 ***REMOVED***
+	maxVUs, err := strconv.ParseInt(libOrch.GetEnvVariable("WORKER_MAX_VUS", "5000"), 10, 64)
+	if err != nil ***REMOVED***
+		maxVUs = 10000
+	***REMOVED***
+
+	return maxVUs
 ***REMOVED***

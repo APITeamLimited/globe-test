@@ -8,10 +8,11 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"gopkg.in/guregu/null.v3"
 )
 
 // Import script to determine options on the orchestrator
-func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***
+func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, workerClients libOrch.WorkerClients) (*libWorker.Options, error) ***REMOVED***
 	options, err := getCompiledOptions(job, gs)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -63,11 +64,23 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 		return nil, err
 	***REMOVED***
 
+	err = validators.LoadDistribution(options, workerClients)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	// Check the generated and user supplied options are valid
 	checkedOptions, err := deriveScenariosFromShortcuts(applyDefault(options), gs.Logger())
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+
+	// Add max possible VU count
+	maxVUsCount := int64(0)
+	for _, scenario := range checkedOptions.Scenarios ***REMOVED***
+		maxVUsCount += scenario.GetMaxExecutorVUs()
+	***REMOVED***
+	checkedOptions.MaxPossibleVUs = null.IntFrom(maxVUsCount)
 
 	return &checkedOptions, nil
 ***REMOVED***

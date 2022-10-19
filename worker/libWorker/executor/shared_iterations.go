@@ -269,3 +269,7 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- workerMetri
 
 	return nil
 ***REMOVED***
+
+func (sic SharedIterationsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+	return sic.VUs.Int64
+***REMOVED***
