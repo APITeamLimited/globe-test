@@ -20,7 +20,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs {
-		if jobDistribution.jobs != nil && len(*jobDistribution.jobs) > 0 {
+		if jobDistribution.jobs != nil && len(jobDistribution.jobs) > 0 {
 			workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
 		}
 	}
@@ -40,7 +40,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 	}
 
 	for _, jobDistribution := range childJobs {
-		for _, job := range *jobDistribution.jobs {
+		for _, job := range jobDistribution.jobs {
 			err := dispatchJob(gs, jobDistribution.workerClient, job, options)
 			if err != nil {
 				return "", err
@@ -78,7 +78,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 					// Broadcast the start message to all child jobs
 
 					for _, jobDistribution := range childJobs {
-						for _, job := range *jobDistribution.jobs {
+						for _, job := range jobDistribution.jobs {
 							jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), "GO TIME")
 						}
 					}
@@ -91,7 +91,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 			} else if workerMessage.Message == "SUCCESS" {
 				return "SUCCESS", nil
 			}
-			// Ignore other kinds of messages
+			// Ignore other kinds of status messages
 			//libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
 
 			// Sometimes errors don't stop the execution automatically so stop them here
@@ -140,8 +140,8 @@ func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job lib
 
 	workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
-	workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
 	workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
+	workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
 
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/redis/v9"
 )
 
 type (
@@ -37,6 +38,7 @@ type (
 		FinalRequest         map[string]interface{} `json:"finalRequest"`
 		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
 		Scope                Scope                  `json:"scope"`
+		Options              *libWorker.Options     `json:"options"`
 	}
 
 	Scope struct {
@@ -80,5 +82,15 @@ type (
 	MarkMessage struct {
 		Mark    string      `json:"mark"`
 		Message interface{} `json:"message"`
+	}
+
+	WorkerClients struct {
+		Clients       map[string]*NamedClient
+		DefaultClient *NamedClient
+	}
+
+	NamedClient struct {
+		Name   string
+		Client *redis.Client
 	}
 )

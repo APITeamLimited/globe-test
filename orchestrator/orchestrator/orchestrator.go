@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options"
@@ -15,55 +13,33 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type ExecutionList struct {
-	currentJobs map[string]libOrch.Job
-	mutex       sync.Mutex
-	maxJobs     int
-}
-
 func Run() {
 	ctx := context.Background()
-
 	orchestratorId := uuid.NewString()
-
-	// Orchestrator orchestratorClient deals with macro jos and connection to the rest of
-	// APITEAM services
-	orchestratorClient := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost"), libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
-		Username: "default",
-		Password: libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
-	})
-
+	orchestratorClient := getOrchestratorClient()
 	storeMongoDB := getStoreMongoDB(ctx)
-
 	workerClients := connectWorkerClients(ctx)
+	maxJobs := getMaxJobs()
+	maxManagedVUs := getMaxManagedVUs()
 
-	// Set the orchestrator id and the start time in the index
-	orchestratorClient.SAdd(ctx, "orchestrators", orchestratorId)
+	executionList := &ExecutionList{
+		currentJobs:   make(map[string]libOrch.Job),
+		maxJobs:       maxJobs,
+		maxManagedVUs: maxManagedVUs,
+	}
 
-	// Every second set a heartbeat update
-	heartbeatTicker := time.NewTicker(1 * time.Second)
-	go func() {
-		for range heartbeatTicker.C {
-			orchestratorClient.Set(ctx, fmt.Sprintf("orchestrator:%s:lastHeartbeat", orchestratorId), time.Now().UnixMilli(), time.Second*10)
-		}
-	}()
+	// Create a scheduler for regular updates and checks
+	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB)
+
+	// Periodically check for and delete offline orchestrators
+	createDeletionScheduler(ctx, orchestratorClient, workerClients)
 
 	fmt.Print("\n\033[1;35mAPITEAM Orchestrator\033[0m\n\n")
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 	fmt.Printf("Listening for new jobs on %s...\n\n", orchestratorClient.Options().Addr)
 
-	executionList := &ExecutionList{
-		currentJobs: make(map[string]libOrch.Job),
-		maxJobs:     -1,
-	}
-
-	go checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB)
-
-	// Subscribe to the execution channel
-	pubSub := orchestratorClient.Subscribe(ctx, "orchestrator:execution")
-
-	channel := pubSub.Channel()
+	// Subscribe to the execution channel and listen for new jobs
+	channel := orchestratorClient.Subscribe(ctx, "orchestrator:execution").Channel()
 
 	for msg := range channel {
 		jobId, err := uuid.Parse(msg.Payload)
@@ -75,11 +51,9 @@ func Run() {
 	}
 }
 
-/*
-Check for queued jobs that were deferered as they couldn't be executed when they
-were queued as no workers were available.
-*/
-func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+// Check for queued jobs that were deferered as they couldn't be executed when they
+// were queued as no workers were available.
+func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
@@ -91,98 +65,108 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, w
 	}
 }
 
-func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+// Ensures job has no already been assigned and determines if this node has capacity to execute
+func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
-		fmt.Println("Error getting job")
+		if err != nil {
+			fmt.Println("Error getting job")
+		}
 		return
 	}
 
-	// Check if orchestrtator has already been assigned
-	if job.AssignedOrchestrator != "" {
+	executionList.mutex.Lock()
+
+	// Don't even bother calculating options if we don't have capacity
+	if !executionList.checkExecutionCapacity(nil) {
 		return
 	}
 
-	// TODO: check if has capacity to execute here
+	if value, _ := orchestratorClient.HGet(ctx, job.Id, "assignedOrchestrator").Result(); value != "" {
+		// If the job has been assigned to another orchestrator, return
 
-	// Check if currently full execution list
-	if !checkExecutionCapacity(executionList) {
+		executionList.mutex.Unlock()
+		return
+	}
+
+	executionList.mutex.Unlock()
+
+	gs := NewGlobalState(ctx, orchestratorClient, job.Id, orchestratorId)
+	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
+	job.Options = options
+
+	// Check execution capacity again, bearing in mind options
+	executionList.mutex.Lock()
+	if !executionList.checkExecutionCapacity(options) {
+		executionList.mutex.Unlock()
 		return
 	}
 
 	// HSetNX assignedOrchestrator to the orchestratorId
 	assignmentResult, err := orchestratorClient.HSetNX(ctx, job.Id, "assignedOrchestrator", orchestratorId).Result()
 
-	if err != nil {
-		fmt.Println("Error setting orchestrator")
-		return
-	}
-
 	// If result is 0, orchestrator is already assigned
 	if !assignmentResult {
+		executionList.mutex.Unlock()
 		return
 	}
 
-	// We got the job
-	job.AssignedOrchestrator = orchestratorId
-	executionList.addJob(*job)
-	manageExecution(ctx, orchestratorClient, workerClients, *job, orchestratorId, executionList, storeMongoDB)
+	if err != nil {
+		fmt.Println("Error setting orchestrator")
+		executionList.mutex.Unlock()
+		return
+	}
 
-	// Capacity was freed, so check for queued jobs
-	checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB)
+	// We got the job and have confirmed capacity for it
+
+	job.AssignedOrchestrator = orchestratorId
+
+	executionList.addJob(job)
+	executionList.mutex.Unlock()
+
+	manageExecution(gs, orchestratorClient, workerClients, *job, orchestratorId, executionList, storeMongoDB, optionsErr)
 }
 
 type jobDistribution struct {
-	jobs         *[]libOrch.ChildJob
+	jobs         []libOrch.ChildJob
 	workerClient *redis.Client
 }
 
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
-func manageExecution(ctx context.Context, orchestratorClient *redis.Client, workerClients map[string]*redis.Client, job libOrch.Job, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, job libOrch.Job,
+	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) {
 	// Get the job id and check if it is a string
 	fmt.Println("Assigned job", job.Id)
-	libOrch.UpdateStatus(ctx, orchestratorClient, job.Id, orchestratorId, "ASSIGNED")
+	libOrch.UpdateStatus(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, "ASSIGNED")
 
 	// Setup the job
 
-	healthy := true
-	gs := NewGlobalState(ctx, orchestratorClient, job.Id, orchestratorId)
+	healthy := optionsErr == nil
 
-	options, err := options.DetermineRuntimeOptions(job, gs)
+	options, err := options.DetermineRuntimeOptions(job, gs, workerClients)
 	if err != nil {
-		libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
+		libOrch.HandleStringError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
 		healthy = false
 	}
 
 	if healthy {
 		marshalledOptions, err := json.Marshal(options)
 		if err != nil {
-			libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
+			libOrch.HandleStringError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
 			healthy = false
 		}
 
-		libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledOptions), "OPTIONS")
+		libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledOptions), "OPTIONS")
 	}
 
 	scope := job.Scope
 
-	childJobs := make(map[string]jobDistribution)
-
-	if healthy {
-		childJob := libOrch.ChildJob{
-			Job:               job,
-			ChildJobId:        uuid.NewString(),
-			Options:           *options,
-			UnderlyingRequest: job.UnderlyingRequest,
-			FinalRequest:      job.FinalRequest,
-		}
-
-		childJobs["portsmouth"] = jobDistribution{
-			jobs:         &[]libOrch.ChildJob{childJob},
-			workerClient: workerClients["portsmouth"],
-		}
+	childJobs, err := determineChildJobs(healthy, job, options, workerClients)
+	if err != nil {
+		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+		healthy = false
 	}
 
 	// Run the job
@@ -193,11 +177,11 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 		result, err = runExecution(gs, options, scope, childJobs, job.Id)
 		if err != nil {
 			fmt.Println("Error running execution", err)
-			libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
+			libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
 		}
 	}
 
-	libOrch.UpdateStatus(ctx, orchestratorClient, job.Id, orchestratorId, result)
+	libOrch.UpdateStatus(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, result)
 
 	// Storing and cleaning up
 
@@ -213,10 +197,10 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 	marshalledGlobeTestReceipt, err := json.Marshal(globeTestLogsReceiptMessage)
 	if err != nil {
 		fmt.Println("Error marshalling GlobeTestLogsStoreReceipt", err)
-		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
 		return
 	}
-	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledGlobeTestReceipt), "MARK")
+	libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledGlobeTestReceipt), "MARK")
 
 	//Create Metrics Store receipt, note this must be sent after cleanup
 	metricsStoreReceipt := primitive.NewObjectID()
@@ -228,37 +212,22 @@ func manageExecution(ctx context.Context, orchestratorClient *redis.Client, work
 	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
 	if err != nil {
 		fmt.Println("Error marshalling metrics store receipt", err)
-		libOrch.HandleError(ctx, orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
 		return
 	}
-	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledMetricsStoreReceipt), "MARK")
+	libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledMetricsStoreReceipt), "MARK")
 
 	// Clean up the job and store result in Mongo
-	err = cleanup(ctx, job, childJobs, orchestratorClient, orchestratorId, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
+	err = cleanup(gs.Ctx(), job, childJobs, orchestratorClient, orchestratorId, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
 	if err != nil {
 		fmt.Println("Error cleaning up", err)
-		libOrch.HandleErrorNoSet(ctx, orchestratorClient, job.Id, orchestratorId, err)
-		libOrch.UpdateStatusNoSet(ctx, orchestratorClient, job.Id, orchestratorId, result)
+		libOrch.HandleErrorNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.UpdateStatusNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, result)
 	} else {
-		libOrch.UpdateStatusNoSet(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
+		libOrch.UpdateStatusNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
 	}
 
-	executionList.removeJob(job.Id)
-}
-
-/*
-Check if the exectutor has the physical capacity to execute this job, this does
-not concern whether the user has the required credits to execute the job.
-*/
-func checkExecutionCapacity(executionList *ExecutionList) bool {
-	// TODO: check if has capacity to execute here
-
-	// If more than max jobs, return false
-	if executionList.maxJobs >= 0 && len(executionList.currentJobs) >= executionList.maxJobs {
-		return false
+	if healthy {
+		executionList.removeJob(job.Id)
 	}
-
-	// TODO: implement more capacity checks
-
-	return true
 }

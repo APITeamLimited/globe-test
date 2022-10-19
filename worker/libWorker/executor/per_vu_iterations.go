@@ -239,3 +239,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- workerMetri
 
 	return nil
 }
+
+func (pvic PerVUIterationsConfig) GetMaxExecutorVUs() int64 {
+	return pvic.VUs.Int64
+}

@@ -87,6 +87,9 @@ type ExecutorConfig interface {
 
 	// HasWork reports whether there is any work for the executor to do with a given segment.
 	HasWork(*ExecutionTuple) bool
+
+	// Returns theoretical maximum vus that will be used by the executor
+	GetMaxExecutorVUs() int64
 }
 
 // ScenarioState holds runtime scenario information returned by the k6/execution

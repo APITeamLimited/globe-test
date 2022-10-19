@@ -1,4 +1,4 @@
-// Package apiteam implements the module imported as 'apiteam' from inside k6.
+// Javascript api for interracting with APITeam, for more information, see https://apiteam.cloud
 package apiteam
 
 import (

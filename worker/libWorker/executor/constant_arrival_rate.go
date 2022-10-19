@@ -360,3 +360,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 		}
 	}
 }
+
+func (config *ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 {
+	return config.MaxVUs.Int64
+}

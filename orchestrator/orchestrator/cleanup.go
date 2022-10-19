@@ -35,7 +35,7 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 		for _, jobDistribution := range childJobs {
 			client := jobDistribution.workerClient
 
-			for _, childJob := range *jobDistribution.jobs {
+			for _, childJob := range jobDistribution.jobs {
 				client.Del(ctx, childJob.ChildJobId)
 
 				// Remove childJob["id"] from worker:executionHistory set
