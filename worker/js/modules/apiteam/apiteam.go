@@ -90,7 +90,7 @@ func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error {
 		return err
 	}
 
-	libWorker.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalledMarkedMessage), "MARK")
+	libWorker.DispatchMessage(*workerInfo.Gs, string(marshalledMarkedMessage), "MARK")
 
 	return nil
 }

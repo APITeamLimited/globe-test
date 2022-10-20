@@ -45,7 +45,8 @@ func New(workerInfo *libWorker.WorkerInfo) *LifecycleModule {
 	// Only run in http_single execution mode
 
 	// Check lifecycle actually exists
-	if workerInfo.WorkerOptions.ExecutionMode.Value == types.HTTPSingleExecutionMode {
+	if workerInfo.WorkerOptions.ExecutionMode.Value == types.HTTPSingleExecutionMode ||
+		workerInfo.WorkerOptions.ExecutionMode.Value == types.HTTPMultipleExecutionMode {
 		return &LifecycleModule{
 			isEnabled: true,
 			sharedRequest: sharedRequest{
@@ -56,8 +57,7 @@ func New(workerInfo *libWorker.WorkerInfo) *LifecycleModule {
 	}
 
 	return &LifecycleModule{
-		isEnabled:     false,
-		sharedRequest: sharedRequest{},
+		isEnabled: false,
 	}
 }
 
@@ -128,5 +128,5 @@ func (mi *LifecylcleInstance) markResponse(responseObject goja.Value) {
 		common.Throw(rt, err)
 	}
 
-	libWorker.DispatchMessage(workerInfo.Ctx, workerInfo.Client, workerInfo.JobId, workerInfo.WorkerId, string(marshalledMarkedResponse), "MARK")
+	libWorker.DispatchMessage(*workerInfo.Gs, string(marshalledMarkedResponse), "MARK")
 }

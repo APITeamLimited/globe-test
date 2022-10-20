@@ -1,19 +1,16 @@
 package libOrch
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/APITeamLimited/redis/v9"
 )
 
-func DispatchMessage(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, message string, messageType string) {
+func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 	var messageStruct = OrchestratorMessage{
-		JobId:          jobId,
+		JobId:          gs.JobId(),
 		Time:           time.Now(),
-		OrchestratorId: orchestratorId,
+		OrchestratorId: gs.OrchestratorId(),
 		Message:        message,
 		MessageType:    messageType,
 	}
@@ -25,17 +22,17 @@ func DispatchMessage(ctx context.Context, orchestratorClient *redis.Client, jobI
 	}
 
 	// Update main job
-	orchestratorClient.SAdd(ctx, fmt.Sprintf("%s:updates", jobId), messageJson)
+	gs.Client().SAdd(gs.Ctx(), fmt.Sprintf("%s:updates", gs.JobId()), messageJson)
 
 	// Dispatch to channel
-	orchestratorClient.Publish(ctx, fmt.Sprintf("orchestrator:executionUpdates:%s", jobId), string(messageJson))
+	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), string(messageJson))
 }
 
-func DispatchMessageNoSet(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, message string, messageType string) {
+func DispatchMessageNoSet(gs BaseGlobalState, message string, messageType string) {
 	var messageStruct = OrchestratorMessage{
-		JobId:          jobId,
+		JobId:          gs.JobId(),
 		Time:           time.Now(),
-		OrchestratorId: orchestratorId,
+		OrchestratorId: gs.OrchestratorId(),
 		Message:        message,
 		MessageType:    messageType,
 	}
@@ -47,12 +44,13 @@ func DispatchMessageNoSet(ctx context.Context, orchestratorClient *redis.Client,
 	}
 
 	// Dispatch to channel
-	orchestratorClient.Publish(ctx, fmt.Sprintf("orchestrator:executionUpdates:%s", jobId), string(messageJson))
+	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), string(messageJson))
 }
 
-func DispatchWorkerMessage(ctx context.Context, orchestratorClient *redis.Client, jobId string, workerId string, message string, messageType string) {
+func DispatchWorkerMessage(gs BaseGlobalState, workerId string, childJobId string, message string, messageType string) {
 	var messageStruct = WorkerMessage{
-		JobId:       jobId,
+		JobId:       gs.JobId(),
+		ChildJobId:  childJobId,
 		Time:        time.Now(),
 		WorkerId:    workerId,
 		Message:     message,
@@ -66,32 +64,37 @@ func DispatchWorkerMessage(ctx context.Context, orchestratorClient *redis.Client
 	}
 
 	// Update main job
-	orchestratorClient.SAdd(ctx, fmt.Sprintf("%s:updates", jobId), messageJson)
+	gs.Client().SAdd(gs.Ctx(), fmt.Sprintf("%s:updates", gs.JobId()), messageJson)
 
 	// Dispatch to channel
-	orchestratorClient.Publish(ctx, fmt.Sprintf("orchestrator:executionUpdates:%s", jobId), string(messageJson))
+	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), string(messageJson))
 }
 
-func UpdateStatus(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, status string) {
-	orchestratorClient.HSet(ctx, jobId, "status", status)
-	DispatchMessage(ctx, orchestratorClient, jobId, orchestratorId, status, "STATUS")
+func UpdateStatus(gs BaseGlobalState, status string) {
+	if gs.GetStatus() != status {
+		gs.Client().HSet(gs.Ctx(), gs.JobId(), "status", status)
+		gs.SetStatus(status)
+		DispatchMessage(gs, status, "STATUS")
+	}
 }
 
-func UpdateStatusNoSet(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, status string) {
-	DispatchMessageNoSet(ctx, orchestratorClient, jobId, orchestratorId, status, "STATUS")
+func UpdateStatusNoSet(gs BaseGlobalState, status string) {
+	if gs.GetStatus() != status {
+		DispatchMessageNoSet(gs, status, "STATUS")
+	}
 }
 
-func HandleStringError(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, errString string) {
-	DispatchMessage(ctx, orchestratorClient, jobId, orchestratorId, errString, "ERROR")
-	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
+func HandleStringError(gs BaseGlobalState, errString string) {
+	DispatchMessage(gs, errString, "ERROR")
+	UpdateStatus(gs, "FAILURE")
 }
 
-func HandleError(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, err error) {
-	DispatchMessage(ctx, orchestratorClient, jobId, orchestratorId, err.Error(), "ERROR")
-	UpdateStatus(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
+func HandleError(gs BaseGlobalState, err error) {
+	DispatchMessage(gs, err.Error(), "ERROR")
+	UpdateStatus(gs, "FAILURE")
 }
 
-func HandleErrorNoSet(ctx context.Context, orchestratorClient *redis.Client, jobId string, orchestratorId string, err error) {
-	DispatchMessageNoSet(ctx, orchestratorClient, jobId, orchestratorId, err.Error(), "ERROR")
-	UpdateStatusNoSet(ctx, orchestratorClient, jobId, orchestratorId, "FAILURE")
+func HandleErrorNoSet(gs BaseGlobalState, err error) {
+	DispatchMessageNoSet(gs, err.Error(), "ERROR")
+	UpdateStatusNoSet(gs, "FAILURE")
 }

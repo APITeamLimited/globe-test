@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxJobSize = 500
+const maxJobSize = 10
 
 func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options,
 	workerClients libOrch.WorkerClients) (map[string]jobDistribution, error) {
@@ -52,24 +52,28 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 		}
 
 		totalFraction := loadZone.Fraction
+		maxVUs := options.MaxPossibleVUs.ValueOrZero()
 
 		var subFractions = []float32{}
 
 		// If max possible vus is greater than 500, then split into multiple jobs
-		if int(options.MaxPossibleVUs.ValueOrZero())*(totalFraction/100) <= maxJobSize {
+		if int(maxVUs)*(totalFraction/100) <= maxJobSize {
 			subFractions = append(subFractions, float32(totalFraction))
 		} else {
 			// Split into multiple jobs, each with a max of 500 vus and one job with the remainder
 			// Floor plus one to ensure we don't lose any vus
-			numJobs := int(math.Floor(float64(options.MaxPossibleVUs.ValueOrZero())/maxJobSize)) + 1
+			numJobs := int(math.Floor(float64(maxVUs)/maxJobSize)) + 1
 
 			// Calculate sub fractions
 			for i := 0; i < numJobs-1; i++ {
-				subFractions = append(subFractions, float32(totalFraction)/maxJobSize)
+				subFractions = append(subFractions, float32(totalFraction)*float32(maxJobSize)/float32(maxVUs))
 			}
 
 			// Add remainder
-			subFractions = append(subFractions, float32(totalFraction%maxJobSize)/maxJobSize)
+			remainingVUs := float32(maxVUs) - float32(maxJobSize)*(float32(numJobs)-1)
+			if remainingVUs > 0 {
+				subFractions = append(subFractions, float32(totalFraction)*remainingVUs/float32(maxVUs))
+			}
 		}
 
 		zoneChildJobs := make([]libOrch.ChildJob, len(subFractions))
@@ -83,7 +87,7 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			zoneChildJobs[i] = libOrch.ChildJob{
 				Job:               jobNoOptions,
 				ChildJobId:        uuid.NewString(),
-				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, workerClient, *options, subFraction),
+				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, workerClient, *options, subFraction/100),
 				UnderlyingRequest: job.UnderlyingRequest,
 				FinalRequest:      job.FinalRequest,
 			}

@@ -364,3 +364,17 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 func (config *ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 {
 	return config.MaxVUs.Int64
 }
+
+func (config *ConstantArrivalRateConfig) ScaleOptions(subFraction float32) {
+	if config.Rate.Valid {
+		config.Rate.Int64 = int64(float64(config.Rate.Int64) * float64(subFraction))
+	}
+
+	if config.PreAllocatedVUs.Valid {
+		config.PreAllocatedVUs.Int64 = int64(float64(config.PreAllocatedVUs.Int64) * float64(subFraction))
+	}
+
+	if config.MaxVUs.Valid {
+		config.MaxVUs.Int64 = int64(float64(config.MaxVUs.Int64) * float64(subFraction))
+	}
+}

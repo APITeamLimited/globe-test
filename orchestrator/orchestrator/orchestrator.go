@@ -34,7 +34,10 @@ func Run() {
 	// Periodically check for and delete offline orchestrators
 	createDeletionScheduler(ctx, orchestratorClient, workerClients)
 
-	fmt.Print("\n\033[1;35mAPITEAM Orchestrator\033[0m\n\n")
+	// Change process title
+	fmt.Printf("\033]0;GlobeTest Orchestrator: %s\007", orchestratorId)
+
+	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 	fmt.Printf("Listening for new jobs on %s...\n\n", orchestratorClient.Options().Addr)
 
@@ -139,7 +142,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) {
 	// Get the job id and check if it is a string
 	fmt.Println("Assigned job", job.Id)
-	libOrch.UpdateStatus(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, "ASSIGNED")
+	libOrch.UpdateStatus(gs, "ASSIGNED")
 
 	// Setup the job
 
@@ -147,25 +150,25 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 
 	options, err := options.DetermineRuntimeOptions(job, gs, workerClients)
 	if err != nil {
-		libOrch.HandleStringError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
+		libOrch.HandleStringError(gs, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
 		healthy = false
 	}
 
 	if healthy {
 		marshalledOptions, err := json.Marshal(options)
 		if err != nil {
-			libOrch.HandleStringError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
+			libOrch.HandleStringError(gs, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
 			healthy = false
 		}
 
-		libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledOptions), "OPTIONS")
+		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
 	}
 
 	scope := job.Scope
 
 	childJobs, err := determineChildJobs(healthy, job, options, workerClients)
 	if err != nil {
-		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.HandleError(gs, err)
 		healthy = false
 	}
 
@@ -174,14 +177,14 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	result := "FAILURE"
 
 	if healthy {
-		result, err = runExecution(gs, options, scope, childJobs, job.Id)
+		result, err = handleExecution(gs, options, scope, childJobs, job.Id)
 		if err != nil {
 			fmt.Println("Error running execution", err)
-			libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+			libOrch.HandleError(gs, err)
 		}
 	}
 
-	libOrch.UpdateStatus(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, result)
+	libOrch.UpdateStatus(gs, result)
 
 	// Storing and cleaning up
 
@@ -197,10 +200,10 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	marshalledGlobeTestReceipt, err := json.Marshal(globeTestLogsReceiptMessage)
 	if err != nil {
 		fmt.Println("Error marshalling GlobeTestLogsStoreReceipt", err)
-		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.HandleError(gs, err)
 		return
 	}
-	libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledGlobeTestReceipt), "MARK")
+	libOrch.DispatchMessage(gs, string(marshalledGlobeTestReceipt), "MARK")
 
 	//Create Metrics Store receipt, note this must be sent after cleanup
 	metricsStoreReceipt := primitive.NewObjectID()
@@ -212,19 +215,19 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
 	if err != nil {
 		fmt.Println("Error marshalling metrics store receipt", err)
-		libOrch.HandleError(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
+		libOrch.HandleError(gs, err)
 		return
 	}
-	libOrch.DispatchMessage(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, string(marshalledMetricsStoreReceipt), "MARK")
+	libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
 
 	// Clean up the job and store result in Mongo
-	err = cleanup(gs.Ctx(), job, childJobs, orchestratorClient, orchestratorId, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
+	err = cleanup(gs, job, childJobs, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
 	if err != nil {
 		fmt.Println("Error cleaning up", err)
-		libOrch.HandleErrorNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, err)
-		libOrch.UpdateStatusNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, result)
+		libOrch.HandleErrorNoSet(gs, err)
+		libOrch.UpdateStatusNoSet(gs, result)
 	} else {
-		libOrch.UpdateStatusNoSet(gs.Ctx(), orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("COMPLETED_%s", result))
+		libOrch.UpdateStatusNoSet(gs, fmt.Sprintf("COMPLETED_%s", result))
 	}
 
 	if healthy {

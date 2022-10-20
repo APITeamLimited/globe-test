@@ -80,6 +80,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	for _, scenario := range checkedOptions.Scenarios {
 		maxVUsCount += scenario.GetMaxExecutorVUs()
 	}
+
 	checkedOptions.MaxPossibleVUs = null.IntFrom(maxVUsCount)
 
 	return &checkedOptions, nil

@@ -8,11 +8,11 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
 )
 
-func createOutputs(workerInfo *libWorker.WorkerInfo) ([]output.Output, error) {
+func createOutputs(gs libWorker.BaseGlobalState) ([]output.Output, error) {
 	result := make([]output.Output, 0, 1)
 
 	// Using globetest output only
-	globetestOutput, err := globetest.New(workerInfo)
+	globetestOutput, err := globetest.New(gs)
 	if err != nil {
 		return nil, fmt.Errorf("could not create the 'globetest' output: %w", err)
 	}

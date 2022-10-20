@@ -1,21 +1,16 @@
 package worker
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/redis/v9"
 	"github.com/spf13/afero"
 )
 
 type consoleWriter struct {
-	ctx      context.Context
-	client   *redis.Client
-	jobId    string
-	workerId string
+	gs libWorker.BaseGlobalState
 }
 
 func (w *consoleWriter) Write(p []byte) (n int, err error) {
@@ -31,14 +26,14 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
 		if parsed["error"] != nil {
-			go libWorker.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["error"].(string))
+			go libWorker.HandleStringError(w.gs, parsed["error"].(string))
 		} else {
-			go libWorker.HandleStringError(w.ctx, w.client, w.jobId, w.workerId, parsed["msg"].(string))
+			go libWorker.HandleStringError(w.gs, parsed["msg"].(string))
 		}
 		return
 	}
 
-	go libWorker.DispatchMessage(w.ctx, w.client, w.jobId, w.workerId, string(p), "CONSOLE")
+	go libWorker.DispatchMessage(w.gs, string(p), "CONSOLE")
 
 	return origLen, err
 }

@@ -120,10 +120,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 		}
 		lt.keyLogger = f
 		lt.preInitState.KeyLogger = &consoleWriter{
-			ctx:      gs.ctx,
-			client:   workerInfo.Client,
-			jobId:    workerInfo.JobId,
-			workerId: workerInfo.WorkerId,
+			gs,
 		}
 	}
 

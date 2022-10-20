@@ -547,5 +547,33 @@ func (p *activeVUPool) Close() {
 }
 
 func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 {
-	return varc.MaxVUs.Int64
+	// Not sure which one of these values will actually be used
+	// TODO: figure out which one of these values will actually be used
+	maxCount := int64(varc.PreAllocatedVUs.ValueOrZero())
+
+	for _, stage := range varc.Stages {
+		if stage.Target.ValueOrZero() > maxCount {
+			maxCount = stage.Target.ValueOrZero()
+		}
+	}
+
+	if varc.MaxVUs.ValueOrZero() > maxCount {
+		maxCount = varc.MaxVUs.ValueOrZero()
+	}
+
+	return maxCount
+}
+
+func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float32) {
+	if varc.MaxVUs.Valid {
+		varc.MaxVUs.Int64 = int64(float32(varc.MaxVUs.Int64) * subFraction)
+	}
+
+	if varc.PreAllocatedVUs.Valid {
+		varc.PreAllocatedVUs.Int64 = int64(float32(varc.PreAllocatedVUs.Int64) * subFraction)
+	}
+
+	for stage := range varc.Stages {
+		varc.Stages[stage].Target.Int64 = int64(float32(varc.Stages[stage].Target.ValueOrZero()) * subFraction)
+	}
 }

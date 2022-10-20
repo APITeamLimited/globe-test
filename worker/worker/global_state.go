@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -58,7 +59,16 @@ type globalState struct {
 
 	logger         *logrus.Logger
 	fallbackLogger *logrus.Logger
+
+	client *redis.Client
+
+	workerId   string
+	jobId      string
+	childJobId string
+	status     string
 }
+
+var _ libWorker.BaseGlobalState = &globalState{}
 
 // Ideally, this should be the only function in the whole codebase where we use
 // global variables and functions from the os package. Anywhere else, things
@@ -68,43 +78,46 @@ type globalState struct {
 // Care is needed to prevent leaking system info to malicious actors.
 
 func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string) *globalState {
-	redisStdOut := &consoleWriter{ctx, client, job.Id, workerId}
-	redisStdErr := &consoleWriter{ctx, client, job.Id, workerId}
+	gs := &globalState{
+		ctx:          ctx,
+		fs:           afero.NewMemMapFs(),
+		getwd:        os.Getwd,
+		args:         []string{},
+		envVars:      make(map[string]string),
+		stdIn:        os.Stdin,
+		osExit:       os.Exit,
+		signalNotify: signal.Notify,
+		signalStop:   signal.Stop,
+		workerId:     workerId,
+		client:       client,
+		jobId:        job.Id,
+		childJobId:   job.ChildJobId,
+	}
 
-	envVars := make(map[string]string)
+	gs.stdOut = &consoleWriter{gs}
+	gs.stdErr = &consoleWriter{gs}
 
-	logger := &logrus.Logger{
-		Out:       redisStdOut,
+	gs.logger = &logrus.Logger{
+		Out:       gs.stdOut,
 		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
 	}
 
+	gs.fallbackLogger = gs.logger
+
 	confDir, err := os.UserConfigDir()
 	if err != nil {
-		logger.WithError(err).Warn("could not get config directory")
+		gs.logger.WithError(err).Warn("could not get config directory")
 		confDir = ".config"
 	}
 
 	defaultFlags := getDefaultFlags(confDir)
 
-	return &globalState{
-		ctx:            ctx,
-		fs:             afero.NewMemMapFs(),
-		getwd:          os.Getwd,
-		args:           []string{},
-		envVars:        envVars,
-		defaultFlags:   defaultFlags,
-		flags:          defaultFlags,
-		stdOut:         redisStdOut,
-		stdErr:         redisStdErr,
-		stdIn:          os.Stdin,
-		osExit:         os.Exit,
-		signalNotify:   signal.Notify,
-		signalStop:     signal.Stop,
-		logger:         logger,
-		fallbackLogger: logger,
-	}
+	gs.defaultFlags = defaultFlags
+	gs.flags = defaultFlags
+
+	return gs
 }
 
 func getDefaultFlags(homeFolder string) globalFlags {
@@ -113,4 +126,32 @@ func getDefaultFlags(homeFolder string) globalFlags {
 		configFilePath: filepath.Join(homeFolder, "loadimpact", "k6", defaultConfigFileName),
 		logOutput:      "stderr",
 	}
+}
+
+func (gs *globalState) Ctx() context.Context {
+	return gs.ctx
+}
+
+func (gs *globalState) Client() *redis.Client {
+	return gs.client
+}
+
+func (gs *globalState) JobId() string {
+	return gs.jobId
+}
+
+func (gs *globalState) ChildJobId() string {
+	return gs.childJobId
+}
+
+func (gs *globalState) WorkerId() string {
+	return gs.workerId
+}
+
+func (gs *globalState) GetWorkerStatus() string {
+	return gs.status
+}
+
+func (gs *globalState) SetWorkerStatus(status string) {
+	gs.status = status
 }

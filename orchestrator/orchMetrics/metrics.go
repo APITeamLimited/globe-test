@@ -1,7 +1,6 @@
 package orchMetrics
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/output"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
-	"github.com/APITeamLimited/redis/v9"
 )
 
 // Wrapped envelope allows for grouping
@@ -25,13 +23,10 @@ type wrappedEnvelope struct {
 // Cached metrics are stored before being collated and sent
 type cachedMetricsStore struct {
 	// Each envelope in the map is a certain metric
-	envelopes      map[string][]*wrappedEnvelope
-	mu             sync.RWMutex
-	flusher        *output.PeriodicFlusher
-	ctx            context.Context
-	client         *redis.Client
-	orchestratorId string
-	jobId          string
+	envelopes map[string][]*wrappedEnvelope
+	mu        sync.RWMutex
+	flusher   *output.PeriodicFlusher
+	gs        libOrch.BaseGlobalState
 }
 
 var (
@@ -40,14 +35,11 @@ var (
 
 const globalName = "global"
 
-func NewCachedMetricsStore(ctx context.Context, client *redis.Client, orchestratorId string, jobId string) *cachedMetricsStore {
+func NewCachedMetricsStore(gs libOrch.BaseGlobalState) *cachedMetricsStore {
 	store := &cachedMetricsStore{
-		ctx:            ctx,
-		client:         client,
-		orchestratorId: orchestratorId,
-		jobId:          jobId,
-		envelopes:      make(map[string][]*wrappedEnvelope),
-		// Mutex doesn't need to be initialised
+		gs:        gs,
+		envelopes: make(map[string][]*wrappedEnvelope),
+		mu:        sync.RWMutex{},
 	}
 
 	// This will never return an error
@@ -121,21 +113,22 @@ func (store *cachedMetricsStore) FlushMetrics() {
 	// Marshall the envelopes
 	marshalledEnvelopes, err := json.Marshal(envelopes)
 	if err != nil {
-		libOrch.HandleError(store.ctx, store.client, store.jobId, store.orchestratorId, err)
+		fmt.Println("FlushMetrics", err)
+		libOrch.HandleError(store.gs, err)
 		return
 	}
 
-	libOrch.DispatchMessage(store.ctx, store.client, store.jobId, store.orchestratorId, string(marshalledEnvelopes), "METRICS")
+	libOrch.DispatchMessage(store.gs, string(marshalledEnvelopes), "METRICS")
 }
 
 func (store *cachedMetricsStore) getMetrics() (map[string][]*wrappedEnvelope, error) {
 	envelopeMap := store.emptyStore()
 	currentTime := time.Now()
 
-	// Combined metrics is indexed by location NOT metric name
+	// Combined metrics is the collated metrics
 	combinedMetrics := make(map[string][]*wrappedEnvelope)
 
-	// Create names for the groups
+	// Create global name entry
 	combinedMetrics[globalName] = make([]*wrappedEnvelope, 0)
 
 	for _, envelopes := range envelopeMap {
@@ -149,7 +142,7 @@ func (store *cachedMetricsStore) getMetrics() (map[string][]*wrappedEnvelope, er
 		}
 	}
 
-	// Sorted envelope map, idnex by location
+	// sortedEnvelopeMap is the raw envelopes, indexed by location
 	sortedEnvelopeMap := make(map[string][]*wrappedEnvelope)
 
 	sortedEnvelopeMap[globalName] = make([]*wrappedEnvelope, 0)
@@ -183,7 +176,7 @@ func (store *cachedMetricsStore) getMetrics() (map[string][]*wrappedEnvelope, er
 				continue
 			}
 
-			// Find worker Vu count
+			// Find worker VU count
 			vuCount, err := findVuCount(&workerVuCount, envelopeMap, envelope.workerId)
 			if err != nil {
 				vuCount = -1 // Set to -1 to indicate that the vu count was not found

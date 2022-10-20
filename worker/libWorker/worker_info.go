@@ -38,6 +38,7 @@ type (
 		WorkerOptions     Options
 		FinalRequest      map[string]interface{}
 		UnderlyingRequest map[string]interface{}
+		Gs                *BaseGlobalState
 	}
 
 	MarkMessage struct {
@@ -63,17 +64,19 @@ func GetTestWorkerInfo() *WorkerInfo {
 
 type Message struct {
 	JobId       string    `json:"jobId"`
+	ChildJobId  string    `json:"childJobId"`
 	Time        time.Time `json:"time"`
 	WorkerId    string    `json:"workerId"`
 	Message     string    `json:"message"`
 	MessageType string    `json:"messageType"`
 }
 
-func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, workerId string, message string, messageType string) {
+func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 	var messageStruct = Message{
-		JobId:       jobId,
+		JobId:       gs.JobId(),
+		ChildJobId:  gs.ChildJobId(),
 		Time:        time.Now(),
-		WorkerId:    workerId,
+		WorkerId:    gs.WorkerId(),
 		Message:     message,
 		MessageType: messageType,
 	}
@@ -87,26 +90,24 @@ func DispatchMessage(ctx context.Context, client *redis.Client, jobId string, wo
 	// Worker doesn't need to set the message, it's just for the orchestrator and will be
 	// instantly received by the orchestrator
 
-	// Update main job
-	//updatesKey := fmt.Sprintf("%s:updates", jobId)
-
-	//client.SAdd(ctx, updatesKey, messageJson)
-
 	// Dispatch to channel
-	client.Publish(ctx, fmt.Sprintf("worker:executionUpdates:%s", jobId), messageJson)
+	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), messageJson)
 }
 
-func UpdateStatus(ctx context.Context, client *redis.Client, jobId string, workerId string, status string) {
-	client.HSet(ctx, jobId, "status", status)
-	DispatchMessage(ctx, client, jobId, workerId, status, "STATUS")
+func UpdateStatus(gs BaseGlobalState, status string) {
+	if gs.GetWorkerStatus() != status {
+		gs.Client().HSet(gs.Ctx(), gs.JobId(), "status", status)
+		DispatchMessage(gs, status, "STATUS")
+		gs.SetWorkerStatus(status)
+	}
 }
 
-func HandleStringError(ctx context.Context, client *redis.Client, jobId string, workerId string, errString string) {
-	DispatchMessage(ctx, client, jobId, workerId, errString, "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
+func HandleStringError(gs BaseGlobalState, errString string) {
+	DispatchMessage(gs, errString, "ERROR")
+	UpdateStatus(gs, "FAILURE")
 }
 
-func HandleError(ctx context.Context, client *redis.Client, jobId string, workerId string, err error) {
-	DispatchMessage(ctx, client, jobId, workerId, err.Error(), "ERROR")
-	UpdateStatus(ctx, client, jobId, workerId, "FAILURE")
+func HandleError(gs BaseGlobalState, err error) {
+	DispatchMessage(gs, err.Error(), "ERROR")
+	UpdateStatus(gs, "FAILURE")
 }

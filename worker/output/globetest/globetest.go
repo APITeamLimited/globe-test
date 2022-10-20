@@ -17,20 +17,20 @@ type Output struct {
 
 	periodicFlusher *output.PeriodicFlusher
 
-	workerInfo  *libWorker.WorkerInfo
+	gs          libWorker.BaseGlobalState
 	seenMetrics map[string]struct{}
 	thresholds  map[string]workerMetrics.Thresholds
 }
 
-func New(workerInfo *libWorker.WorkerInfo) (output.Output, error) {
+func New(gs libWorker.BaseGlobalState) (output.Output, error) {
 	return &Output{
-		workerInfo:  workerInfo,
+		gs:          gs,
 		seenMetrics: make(map[string]struct{}),
 	}, nil
 }
 
 func (o *Output) Description() string {
-	return fmt.Sprintf("GlobeTest output for job %s", o.workerInfo.JobId)
+	return fmt.Sprintf("GlobeTest output for job %s", o.gs.JobId())
 }
 
 func (o *Output) Start() error {
@@ -80,10 +80,10 @@ func (o *Output) flushMetrics() {
 	if len(formattedSamples) > 0 {
 		marshalled, err := json.Marshal(formattedSamples)
 		if err != nil {
-			libWorker.HandleError(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, err)
+			libWorker.HandleError(o.gs, err)
 			return
 		}
 
-		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, string(marshalled), "METRICS")
+		libWorker.DispatchMessage(o.gs, string(marshalled), "METRICS")
 	}
 }
