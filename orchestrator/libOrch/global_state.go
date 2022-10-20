@@ -7,6 +7,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type WorkerState struct ***REMOVED***
+	Status     string `json:"status"`
+	WorkerId   string `json:"workerId"`
+	ChildJobId string `json:"childJobId"`
+***REMOVED***
+
 type BaseGlobalState interface ***REMOVED***
 	Ctx() context.Context
 	Logger() *logrus.Logger
@@ -15,4 +21,9 @@ type BaseGlobalState interface ***REMOVED***
 	JobId() string
 	OrchestratorId() string
 	MetricsStore() *BaseMetricsStore
+	GetStatus() string
+	SetStatus(string)
+
+	GetChildJobStates() []WorkerState
+	SetChildJobState(workerId string, childJobId string, status string)
 ***REMOVED***

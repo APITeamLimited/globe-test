@@ -71,7 +71,7 @@ func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string)
 ***REMOVED***
 
 func loadWorkerInfo(ctx context.Context,
-	client *redis.Client, job libOrch.ChildJob, workerId string) *libWorker.WorkerInfo ***REMOVED***
+	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState) *libWorker.WorkerInfo ***REMOVED***
 	workerInfo := &libWorker.WorkerInfo***REMOVED***
 		Client:         client,
 		JobId:          job.Id,
@@ -81,6 +81,7 @@ func loadWorkerInfo(ctx context.Context,
 		WorkerId:       workerId,
 		Ctx:            ctx,
 		WorkerOptions:  job.Options,
+		Gs:             &gs,
 	***REMOVED***
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" ***REMOVED***

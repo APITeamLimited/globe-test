@@ -1,13 +1,11 @@
 package orchestrator
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
@@ -17,10 +15,9 @@ import (
 /*
 Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
-func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistribution,
-	orchestratorClient *redis.Client, orchestratorId string, storeMongoDB *mongo.Database,
-	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID,
-	metricsStoreReceipt primitive.ObjectID) error ***REMOVED***
+func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]jobDistribution, storeMongoDB *mongo.Database,
+	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID, metricsStoreReceipt primitive.ObjectID) error ***REMOVED***
+
 	// Clean up worker
 	// Set job in orchestrator redis
 
@@ -29,17 +26,17 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 		return err
 	***REMOVED***
 
-	libOrch.DispatchMessage(ctx, orchestratorClient, job.Id, orchestratorId, string(marshalledJobInfo), "JOB_INFO")
+	libOrch.DispatchMessage(gs, string(marshalledJobInfo), "JOB_INFO")
 
 	go func() ***REMOVED***
 		for _, jobDistribution := range childJobs ***REMOVED***
 			client := jobDistribution.workerClient
 
 			for _, childJob := range jobDistribution.jobs ***REMOVED***
-				client.Del(ctx, childJob.ChildJobId)
+				client.Del(gs.Ctx(), childJob.ChildJobId)
 
 				// Remove childJob["id"] from worker:executionHistory set
-				client.SRem(ctx, "worker:executionHistory", childJob.ChildJobId)
+				client.SRem(gs.Ctx(), "worker:executionHistory", childJob.ChildJobId)
 
 			***REMOVED***
 		***REMOVED***
@@ -54,7 +51,7 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 
 	updatesKey := fmt.Sprintf("%s:updates", job.Id)
 
-	unparsedMessages, err := orchestratorClient.SMembers(ctx, updatesKey).Result()
+	unparsedMessages, err := gs.Client().SMembers(gs.Ctx(), updatesKey).Result()
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -148,9 +145,9 @@ func cleanup(ctx context.Context, job libOrch.Job, childJobs map[string]jobDistr
 
 	// Clean up orchestrator
 	// Set types to expire so lagging users can access environment variables
-	orchestratorClient.Expire(ctx, updatesKey, time.Second*10)
-	orchestratorClient.Expire(ctx, job.Id, time.Second*10)
-	orchestratorClient.SRem(ctx, "orchestrator:executionHistory", job.Id)
+	gs.Client().Expire(gs.Ctx(), updatesKey, time.Second*10)
+	gs.Client().Expire(gs.Ctx(), job.Id, time.Second*10)
+	gs.Client().SRem(gs.Ctx(), "orchestrator:executionHistory", job.Id)
 
 	return nil
 ***REMOVED***

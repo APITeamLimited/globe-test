@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -58,7 +59,16 @@ type globalState struct ***REMOVED***
 
 	logger         *logrus.Logger
 	fallbackLogger *logrus.Logger
+
+	client *redis.Client
+
+	workerId   string
+	jobId      string
+	childJobId string
+	status     string
 ***REMOVED***
+
+var _ libWorker.BaseGlobalState = &globalState***REMOVED******REMOVED***
 
 // Ideally, this should be the only function in the whole codebase where we use
 // global variables and functions from the os package. Anywhere else, things
@@ -68,43 +78,46 @@ type globalState struct ***REMOVED***
 // Care is needed to prevent leaking system info to malicious actors.
 
 func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string) *globalState ***REMOVED***
-	redisStdOut := &consoleWriter***REMOVED***ctx, client, job.Id, workerId***REMOVED***
-	redisStdErr := &consoleWriter***REMOVED***ctx, client, job.Id, workerId***REMOVED***
+	gs := &globalState***REMOVED***
+		ctx:          ctx,
+		fs:           afero.NewMemMapFs(),
+		getwd:        os.Getwd,
+		args:         []string***REMOVED******REMOVED***,
+		envVars:      make(map[string]string),
+		stdIn:        os.Stdin,
+		osExit:       os.Exit,
+		signalNotify: signal.Notify,
+		signalStop:   signal.Stop,
+		workerId:     workerId,
+		client:       client,
+		jobId:        job.Id,
+		childJobId:   job.ChildJobId,
+	***REMOVED***
 
-	envVars := make(map[string]string)
+	gs.stdOut = &consoleWriter***REMOVED***gs***REMOVED***
+	gs.stdErr = &consoleWriter***REMOVED***gs***REMOVED***
 
-	logger := &logrus.Logger***REMOVED***
-		Out:       redisStdOut,
+	gs.logger = &logrus.Logger***REMOVED***
+		Out:       gs.stdOut,
 		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
 	***REMOVED***
 
+	gs.fallbackLogger = gs.logger
+
 	confDir, err := os.UserConfigDir()
 	if err != nil ***REMOVED***
-		logger.WithError(err).Warn("could not get config directory")
+		gs.logger.WithError(err).Warn("could not get config directory")
 		confDir = ".config"
 	***REMOVED***
 
 	defaultFlags := getDefaultFlags(confDir)
 
-	return &globalState***REMOVED***
-		ctx:            ctx,
-		fs:             afero.NewMemMapFs(),
-		getwd:          os.Getwd,
-		args:           []string***REMOVED******REMOVED***,
-		envVars:        envVars,
-		defaultFlags:   defaultFlags,
-		flags:          defaultFlags,
-		stdOut:         redisStdOut,
-		stdErr:         redisStdErr,
-		stdIn:          os.Stdin,
-		osExit:         os.Exit,
-		signalNotify:   signal.Notify,
-		signalStop:     signal.Stop,
-		logger:         logger,
-		fallbackLogger: logger,
-	***REMOVED***
+	gs.defaultFlags = defaultFlags
+	gs.flags = defaultFlags
+
+	return gs
 ***REMOVED***
 
 func getDefaultFlags(homeFolder string) globalFlags ***REMOVED***
@@ -113,4 +126,32 @@ func getDefaultFlags(homeFolder string) globalFlags ***REMOVED***
 		configFilePath: filepath.Join(homeFolder, "loadimpact", "k6", defaultConfigFileName),
 		logOutput:      "stderr",
 	***REMOVED***
+***REMOVED***
+
+func (gs *globalState) Ctx() context.Context ***REMOVED***
+	return gs.ctx
+***REMOVED***
+
+func (gs *globalState) Client() *redis.Client ***REMOVED***
+	return gs.client
+***REMOVED***
+
+func (gs *globalState) JobId() string ***REMOVED***
+	return gs.jobId
+***REMOVED***
+
+func (gs *globalState) ChildJobId() string ***REMOVED***
+	return gs.childJobId
+***REMOVED***
+
+func (gs *globalState) WorkerId() string ***REMOVED***
+	return gs.workerId
+***REMOVED***
+
+func (gs *globalState) GetWorkerStatus() string ***REMOVED***
+	return gs.status
+***REMOVED***
+
+func (gs *globalState) SetWorkerStatus(status string) ***REMOVED***
+	gs.status = status
 ***REMOVED***

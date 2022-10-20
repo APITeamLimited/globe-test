@@ -90,6 +90,9 @@ type ExecutorConfig interface ***REMOVED***
 
 	// Returns theoretical maximum vus that will be used by the executor
 	GetMaxExecutorVUs() int64
+
+	// Scales load options for child jobs proportionately based on their subFraction
+	ScaleOptions(subFraction float32)
 ***REMOVED***
 
 // ScenarioState holds runtime scenario information returned by the k6/execution

@@ -4,16 +4,14 @@ Globe Test
 
 ##### Run distributed load tests using the K6 runtime engine
 
-<span style="
-    font-family: Roboto, sans-serif;
-    font-size: 60px;
-    font-weight: 1000;
-    user-select: none;
-">API Team</span>
+Actively being developed by <a href="https://apiteam.cloud">APITeam (https://apiteam.cloud)</a>. APITeam is an all in one platform for designing, testing and scaling your APIs collaboratively. 
 
-Actively developed by <a href="https://apiteam.cloud">APITeam</a>. APITeam is an all in one platform for designing, testing and scaling your APIs collaboratively.
+Note: GlobeTest and APITeam are not affiliated with the K6 project.
 
-Note: GlobeTest is not affiliated with the K6 project. This is a fork of the K6 project with modifications to support distributed load testing and other features.
+The aim of this project is to provide a simple way to run distributed load tests using the K6 runtime engine that avoids the need for Kubernetes. A further aim is to provide simultanous concurrent execution of multiple load tests.
 
-The aim of this project is to provide a simple way to run distributed load tests using the K6 runtime engine that avoids the need for Kubernetes while. A further aim is to provide simultanous concurrent execution of multiple load tests.
+Globe Test is designed to be deployed as several different containers on different hosts. The two kinds of nodes are orchestrator and worker nodes. The orchestrator nodes are responsible for managing the load tests and the worker nodes are responsible for executing the load tests.
+
+Communciation between nodes is accomplished via several redis containers, logs and metrics are stored in a gridfs database.
+
 More documentation on how to use this shall be added soon.

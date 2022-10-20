@@ -210,3 +210,9 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.S
 func (clvc ConstantVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return clvc.VUs.Int64
 ***REMOVED***
+
+func (clvc ConstantVUsConfig) ScaleOptions(subFraction float32) ***REMOVED***
+	if clvc.VUs.Valid ***REMOVED***
+		clvc.VUs.Int64 = int64(float32(clvc.VUs.Int64) * subFraction)
+	***REMOVED***
+***REMOVED***

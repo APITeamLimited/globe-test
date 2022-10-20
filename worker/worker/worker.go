@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
 )
@@ -26,7 +25,10 @@ func Run() ***REMOVED***
 	// Create a scheduler for regular updates and checks
 	startJobScheduling(ctx, client, workerId, executionList)
 
-	fmt.Print("\n\033[1;35mAPITEAM Worker\033[0m\n\n")
+	// Change process title
+	fmt.Printf("\033]0;GlobeTest Worker %s\007", workerId)
+
+	fmt.Print("\n\033[1;35mGlobeTest Worker\033[0m\n\n")
 	fmt.Printf("Starting worker %s\n", workerId)
 	fmt.Printf("Listening for new jobs on %s...\n\n", client.Options().Addr)
 
@@ -99,7 +101,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	executionList.addJob(*job)
 	executionList.mutex.Unlock()
 
-	libWorker.UpdateStatus(ctx, client, childJobId, workerId, "ASSIGNED")
 	handleExecution(ctx, client, *job, workerId)
+
 	executionList.removeJob(childJobId)
 ***REMOVED***

@@ -15,8 +15,8 @@ type locatedMesaage struct ***REMOVED***
 	msg      *redis.Message
 ***REMOVED***
 
-func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
-	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "LOADING")
+func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
+	libOrch.UpdateStatus(gs, "LOADING")
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs ***REMOVED***
@@ -31,11 +31,11 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 	***REMOVED***
 
 	// Update the status
-	libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "RUNNING")
+	libOrch.UpdateStatus(gs, "RUNNING")
 
 	// Check if workerSubscriptions is empty
 	if len(workerSubscriptions) == 0 ***REMOVED***
-		libOrch.DispatchMessage(gs.Ctx(), gs.Client(), gs.JobId(), gs.OrchestratorId(), "No child jobs were created", "INFO")
+		libOrch.DispatchMessage(gs, "No child jobs were created", "INFO")
 		return "SUCCESS", nil
 	***REMOVED***
 
@@ -72,6 +72,8 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 		***REMOVED***
 
 		if workerMessage.MessageType == "STATUS" ***REMOVED***
+			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
+
 			if workerMessage.Message == "READY" ***REMOVED***
 				jobsInitialised++
 				if jobsInitialised == chilJobCount ***REMOVED***
@@ -85,7 +87,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 
 				***REMOVED***
 
-				libOrch.UpdateStatus(gs.Ctx(), gs.Client(), jobId, gs.OrchestratorId(), "RUNNING")
+				libOrch.UpdateStatus(gs, "RUNNING")
 			***REMOVED*** else if workerMessage.Message == "FAILURE" ***REMOVED***
 				return "FAILURE", nil
 			***REMOVED*** else if workerMessage.Message == "SUCCESS" ***REMOVED***
@@ -96,7 +98,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 
 			// Sometimes errors don't stop the execution automatically so stop them here
 		***REMOVED*** else if workerMessage.MessageType == "ERROR" ***REMOVED***
-			libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
+			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 			return "FAILURE", nil
 		***REMOVED*** else if workerMessage.MessageType == "METRICS" ***REMOVED***
 			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location)
@@ -104,7 +106,7 @@ func runExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope 
 			// TODO: make this configurable
 			continue
 		***REMOVED*** else ***REMOVED***
-			libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, workerMessage.MessageType)
+			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 		***REMOVED***
 
 		// Could handle these differently, but for now just dispatch them

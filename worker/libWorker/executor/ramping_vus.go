@@ -717,7 +717,7 @@ func waiter(ctx context.Context, start time.Time) func(offset time.Duration) boo
 
 func (vlvc RampingVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	// Lop through stages and find the max number of VUs
-	maxVUs := int64(0)
+	maxVUs := int64(vlvc.StartVUs.ValueOrZero())
 
 	for _, stage := range vlvc.Stages ***REMOVED***
 		if stage.Target.ValueOrZero() > maxVUs ***REMOVED***
@@ -726,4 +726,16 @@ func (vlvc RampingVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	***REMOVED***
 
 	return maxVUs
+***REMOVED***
+
+func (vlvc RampingVUsConfig) ScaleOptions(subFraction float32) ***REMOVED***
+	if vlvc.StartVUs.Valid ***REMOVED***
+		vlvc.StartVUs.Int64 = int64(float32(vlvc.StartVUs.Int64) * subFraction)
+	***REMOVED***
+
+	for i := range vlvc.Stages ***REMOVED***
+		if vlvc.Stages[i].Target.Valid ***REMOVED***
+			vlvc.Stages[i].Target.Int64 = int64(float32(vlvc.Stages[i].Target.Int64) * subFraction)
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***

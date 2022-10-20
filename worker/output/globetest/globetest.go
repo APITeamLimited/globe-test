@@ -17,20 +17,20 @@ type Output struct ***REMOVED***
 
 	periodicFlusher *output.PeriodicFlusher
 
-	workerInfo  *libWorker.WorkerInfo
+	gs          libWorker.BaseGlobalState
 	seenMetrics map[string]struct***REMOVED******REMOVED***
 	thresholds  map[string]workerMetrics.Thresholds
 ***REMOVED***
 
-func New(workerInfo *libWorker.WorkerInfo) (output.Output, error) ***REMOVED***
+func New(gs libWorker.BaseGlobalState) (output.Output, error) ***REMOVED***
 	return &Output***REMOVED***
-		workerInfo:  workerInfo,
+		gs:          gs,
 		seenMetrics: make(map[string]struct***REMOVED******REMOVED***),
 	***REMOVED***, nil
 ***REMOVED***
 
 func (o *Output) Description() string ***REMOVED***
-	return fmt.Sprintf("GlobeTest output for job %s", o.workerInfo.JobId)
+	return fmt.Sprintf("GlobeTest output for job %s", o.gs.JobId())
 ***REMOVED***
 
 func (o *Output) Start() error ***REMOVED***
@@ -80,10 +80,10 @@ func (o *Output) flushMetrics() ***REMOVED***
 	if len(formattedSamples) > 0 ***REMOVED***
 		marshalled, err := json.Marshal(formattedSamples)
 		if err != nil ***REMOVED***
-			libWorker.HandleError(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, err)
+			libWorker.HandleError(o.gs, err)
 			return
 		***REMOVED***
 
-		libWorker.DispatchMessage(o.workerInfo.Ctx, o.workerInfo.Client, o.workerInfo.JobId, o.workerInfo.WorkerId, string(marshalled), "METRICS")
+		libWorker.DispatchMessage(o.gs, string(marshalled), "METRICS")
 	***REMOVED***
 ***REMOVED***

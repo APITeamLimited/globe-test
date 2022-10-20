@@ -51,6 +51,12 @@ func calculateMean(wrappedEnvelopes []*wrappedEnvelope, envelope *wrappedEnvelop
 	rateEnvelope := envelope.Data.Value
 
 	weightingNew := weightingOld + weightingEnvelope
+
+	// Cannot divide by zero
+	if weightingNew == 0 ***REMOVED***
+		return wrappedEnvelopes
+	***REMOVED***
+
 	rateNew := (rateOld*float64(weightingOld) + rateEnvelope*float64(weightingEnvelope)) / float64(weightingNew)
 
 	accEnvelope.weighting = weightingNew

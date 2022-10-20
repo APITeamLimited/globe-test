@@ -243,3 +243,13 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- workerMetri
 func (pvic PerVUIterationsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return pvic.VUs.Int64
 ***REMOVED***
+
+func (pvic PerVUIterationsConfig) ScaleOptions(subFraction float32) ***REMOVED***
+	if pvic.VUs.Valid ***REMOVED***
+		pvic.VUs.Int64 = int64(float32(pvic.VUs.Int64) * subFraction)
+	***REMOVED***
+
+	if pvic.Iterations.Valid ***REMOVED***
+		pvic.Iterations.Int64 = int64(float32(pvic.Iterations.Int64) * subFraction)
+	***REMOVED***
+***REMOVED***

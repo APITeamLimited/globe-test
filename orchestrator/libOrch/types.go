@@ -64,6 +64,7 @@ type (
 
 	WorkerMessage struct ***REMOVED***
 		JobId       string    `json:"jobId"`
+		ChildJobId  string    `json:"childJobId"`
 		Time        time.Time `json:"time"`
 		WorkerId    string    `json:"workerId"`
 		Message     string    `json:"message"`
@@ -73,6 +74,7 @@ type (
 	OrchestratorOrWorkerMessage struct ***REMOVED***
 		JobId          string    `json:"jobId"`
 		Time           time.Time `json:"time"`
+		ChildJobId     string    `json:"childJobId"`
 		OrchestratorId string    `json:"orchestratorId"`
 		WorkerId       string    `json:"workerId"`
 		Message        string    `json:"message"`

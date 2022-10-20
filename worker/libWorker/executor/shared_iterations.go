@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -272,4 +273,14 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- workerMetri
 
 func (sic SharedIterationsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return sic.VUs.Int64
+***REMOVED***
+
+func (sic SharedIterationsConfig) ScaleOptions(subFraction float32) ***REMOVED***
+	if sic.VUs.Valid ***REMOVED***
+		sic.VUs.Int64 = int64(math.Round(float64(sic.VUs.Int64) * float64(subFraction)))
+	***REMOVED***
+
+	if sic.Iterations.Valid ***REMOVED***
+		sic.Iterations.Int64 = int64(math.Round(float64(sic.Iterations.Int64) * float64(subFraction)))
+	***REMOVED***
 ***REMOVED***
