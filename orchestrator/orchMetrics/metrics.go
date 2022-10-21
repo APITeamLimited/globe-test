@@ -314,5 +314,7 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 }
 
 func (store *cachedMetricsStore) Stop() {
-	store.flusher.Stop()
+	if store.flusher != nil {
+		store.flusher.Stop()
+	}
 }
