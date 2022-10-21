@@ -89,7 +89,7 @@ func (carc ConstantArrivalRateConfig) GetDescription(et *libWorker.ExecutionTupl
 ***REMOVED***
 
 // Validate makes sure all options are configured and valid
-func (carc *ConstantArrivalRateConfig) Validate() []error ***REMOVED***
+func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	errors := carc.BaseConfig.Validate()
 	if !carc.Rate.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the iteration rate isn't specified"))
@@ -361,20 +361,36 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	***REMOVED***
 ***REMOVED***
 
-func (config *ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+func (config ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return config.MaxVUs.Int64
 ***REMOVED***
 
-func (config *ConstantArrivalRateConfig) ScaleOptions(subFraction float32) ***REMOVED***
-	if config.Rate.Valid ***REMOVED***
-		config.Rate.Int64 = int64(float64(config.Rate.Int64) * float64(subFraction))
+func (config ConstantArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig ***REMOVED***
+	newConfig := config
+
+	if newConfig.Rate.Valid ***REMOVED***
+		newConfig.Rate.Int64 = int64(float64(newConfig.Rate.Int64) * float64(subFraction))
+
+		if newConfig.Rate.Int64 < 1 ***REMOVED***
+			newConfig.Rate.Int64 = 1
+		***REMOVED***
 	***REMOVED***
 
-	if config.PreAllocatedVUs.Valid ***REMOVED***
-		config.PreAllocatedVUs.Int64 = int64(float64(config.PreAllocatedVUs.Int64) * float64(subFraction))
+	if newConfig.PreAllocatedVUs.Valid ***REMOVED***
+		newConfig.PreAllocatedVUs.Int64 = int64(float64(newConfig.PreAllocatedVUs.Int64) * float64(subFraction))
+
+		if newConfig.PreAllocatedVUs.Int64 < 1 ***REMOVED***
+			newConfig.PreAllocatedVUs.Int64 = 1
+		***REMOVED***
 	***REMOVED***
 
-	if config.MaxVUs.Valid ***REMOVED***
-		config.MaxVUs.Int64 = int64(float64(config.MaxVUs.Int64) * float64(subFraction))
+	if newConfig.MaxVUs.Valid ***REMOVED***
+		newConfig.MaxVUs.Int64 = int64(float64(newConfig.MaxVUs.Int64) * float64(subFraction))
+
+		if newConfig.MaxVUs.Int64 < 1 ***REMOVED***
+			newConfig.MaxVUs.Int64 = 1
+		***REMOVED***
 	***REMOVED***
+
+	return newConfig
 ***REMOVED***

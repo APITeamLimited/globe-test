@@ -633,3 +633,7 @@ func (o Options) ForEachSpecified(structTag string, callback func(key string, va
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
+
+func (o Options) Clone() Options ***REMOVED***
+	return o
+***REMOVED***

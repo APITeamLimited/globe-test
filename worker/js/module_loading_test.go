@@ -14,6 +14,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func newDevNullSampleChannel() chan workerMetrics.SampleContainer ***REMOVED***

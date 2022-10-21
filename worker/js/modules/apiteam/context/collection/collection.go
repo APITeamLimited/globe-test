@@ -20,6 +20,7 @@ type (
 	// instances for each VU.
 	CollectionModule struct ***REMOVED***
 		isEnabled        bool
+		setEnabled       bool
 		sharedCollection sharedCollection
 	***REMOVED***
 
@@ -56,6 +57,7 @@ func New(workerInfo *libWorker.WorkerInfo) *CollectionModule ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		return &CollectionModule***REMOVED***
 			isEnabled:        false,
+			setEnabled:       false,
 			sharedCollection: sharedCollection***REMOVED******REMOVED***,
 		***REMOVED***
 	***REMOVED***

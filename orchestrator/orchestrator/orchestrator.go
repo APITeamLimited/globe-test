@@ -2,14 +2,12 @@ package orchestrator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -54,27 +52,16 @@ func Run() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Check for queued jobs that were deferered as they couldn't be executed when they
-// were queued as no workers were available.
-func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
-	// Check for job keys in the "orchestrator:executionHistory" set
-	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
-	if err != nil ***REMOVED***
-		fmt.Println("Error getting history ids", err)
-	***REMOVED***
-
-	for _, jobId := range historyIds ***REMOVED***
-		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId, orchestratorId, executionList, storeMongoDB)
-	***REMOVED***
-***REMOVED***
-
 // Ensures job has no already been assigned and determines if this node has capacity to execute
 func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil ***REMOVED***
 		if err != nil ***REMOVED***
-			fmt.Println("Error getting job")
+			fmt.Println("Error getting job from orchestrator:executionHistory set, it will be deleted:", err)
+
+			// Remove the job from the history set
+			orchestratorClient.SRem(ctx, "orchestrator:executionHistory", jobId).Result()
 		***REMOVED***
 		return
 	***REMOVED***
@@ -127,110 +114,30 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.addJob(job)
 	executionList.mutex.Unlock()
+	defer executionList.removeJob(job.Id)
 
-	manageExecution(gs, orchestratorClient, workerClients, *job, orchestratorId, executionList, storeMongoDB, optionsErr)
-***REMOVED***
+	fmt.Println("Assigned job:", job.Id)
 
-type jobDistribution struct ***REMOVED***
-	jobs         []libOrch.ChildJob
-	workerClient *redis.Client
-***REMOVED***
+	successfullExecution := manageExecution(gs, orchestratorClient, workerClients,
+		*job, orchestratorId, executionList, storeMongoDB, optionsErr)
 
-// Over-arching function that manages the execution of a job and handles its state and lifecycle
-// This is the highest level function with global state
-func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, job libOrch.Job,
-	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) ***REMOVED***
-	// Get the job id and check if it is a string
-	fmt.Println("Assigned job", job.Id)
-	libOrch.UpdateStatus(gs, "ASSIGNED")
-
-	// Setup the job
-
-	healthy := optionsErr == nil
-
-	options, err := options.DetermineRuntimeOptions(job, gs, workerClients)
-	if err != nil ***REMOVED***
-		libOrch.HandleStringError(gs, fmt.Sprintf("Error determining runtime options: %s", err.Error()))
-		healthy = false
-	***REMOVED***
-
-	if healthy ***REMOVED***
-		marshalledOptions, err := json.Marshal(options)
-		if err != nil ***REMOVED***
-			libOrch.HandleStringError(gs, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
-			healthy = false
-		***REMOVED***
-
-		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
-	***REMOVED***
-
-	scope := job.Scope
-
-	childJobs, err := determineChildJobs(healthy, job, options, workerClients)
-	if err != nil ***REMOVED***
-		libOrch.HandleError(gs, err)
-		healthy = false
-	***REMOVED***
-
-	// Run the job
-
-	result := "FAILURE"
-
-	if healthy ***REMOVED***
-		result, err = handleExecution(gs, options, scope, childJobs, job.Id)
-		if err != nil ***REMOVED***
-			fmt.Println("Error running execution", err)
-			libOrch.HandleError(gs, err)
-		***REMOVED***
-	***REMOVED***
-
-	libOrch.UpdateStatus(gs, result)
-
-	// Storing and cleaning up
-
-	(*gs.MetricsStore()).Stop()
-
-	// Create GlobeTest logs store receipt, note this must be sent after cleanup
-	globeTestLogsReceipt := primitive.NewObjectID()
-	globeTestLogsReceiptMessage := &libOrch.MarkMessage***REMOVED***
-		Mark:    "GlobeTestLogsStoreReceipt",
-		Message: globeTestLogsReceipt.Hex(),
-	***REMOVED***
-
-	marshalledGlobeTestReceipt, err := json.Marshal(globeTestLogsReceiptMessage)
-	if err != nil ***REMOVED***
-		fmt.Println("Error marshalling GlobeTestLogsStoreReceipt", err)
-		libOrch.HandleError(gs, err)
-		return
-	***REMOVED***
-	libOrch.DispatchMessage(gs, string(marshalledGlobeTestReceipt), "MARK")
-
-	//Create Metrics Store receipt, note this must be sent after cleanup
-	metricsStoreReceipt := primitive.NewObjectID()
-	metricsStoreReceiptMessage := &libOrch.MarkMessage***REMOVED***
-		Mark:    "MetricsStoreReceipt",
-		Message: metricsStoreReceipt.Hex(),
-	***REMOVED***
-
-	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
-	if err != nil ***REMOVED***
-		fmt.Println("Error marshalling metrics store receipt", err)
-		libOrch.HandleError(gs, err)
-		return
-	***REMOVED***
-	libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
-
-	// Clean up the job and store result in Mongo
-	err = cleanup(gs, job, childJobs, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
-	if err != nil ***REMOVED***
-		fmt.Println("Error cleaning up", err)
-		libOrch.HandleErrorNoSet(gs, err)
-		libOrch.UpdateStatusNoSet(gs, result)
+	if successfullExecution ***REMOVED***
+		fmt.Printf("Completed job successfully: %s\n", job.Id)
 	***REMOVED*** else ***REMOVED***
-		libOrch.UpdateStatusNoSet(gs, fmt.Sprintf("COMPLETED_%s", result))
+		fmt.Printf("Job failed: %s\n", job.Id)
+	***REMOVED***
+***REMOVED***
+
+// Check for queued jobs that were deferered as they couldn't be executed when they
+// were queued as no workers were available.
+func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) ***REMOVED***
+	// Check for job keys in the "orchestrator:executionHistory" set
+	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
+	if err != nil ***REMOVED***
+		fmt.Println("Error getting history ids", err)
 	***REMOVED***
 
-	if healthy ***REMOVED***
-		executionList.removeJob(job.Id)
+	for _, jobId := range historyIds ***REMOVED***
+		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId, orchestratorId, executionList, storeMongoDB)
 	***REMOVED***
 ***REMOVED***

@@ -22,6 +22,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 type reader func([]byte) (int, error)

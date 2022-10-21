@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // Ensure mock implementations conform to the interfaces.

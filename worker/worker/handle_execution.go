@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/core"
@@ -21,9 +20,10 @@ import (
 This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
-func handleExecution(ctx context.Context,
-	client *redis.Client, job libOrch.ChildJob, workerId string) ***REMOVED***
-	fmt.Printf("\033[1;32mGot child job %s\033[0m\n", job.ChildJobId)
+func handleExecution(csdasdtx context.Context,
+	client *redis.Client, job libOrch.ChildJob, workerId string) bool ***REMOVED***
+	ctx := context.Background()
+
 	gs := newGlobalState(ctx, client, job, workerId)
 
 	libWorker.UpdateStatus(gs, "LOADING")
@@ -33,14 +33,14 @@ func handleExecution(ctx context.Context,
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(gs, fmt.Sprintf("failed to load test: %s", err))
-		return
+		return false
 	***REMOVED***
 
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
-		return
+		return false
 	***REMOVED***
 
 	// Don't know if these can be removed easily without unexpected side effects
@@ -61,21 +61,21 @@ func handleExecution(ctx context.Context,
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
-		return
+		return false
 	***REMOVED***
 
 	// Create all outputs.
 	outputs, err := createOutputs(gs)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
-		return
+		return false
 	***REMOVED***
 
 	// Create the engine.
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil ***REMOVED***
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
-		return
+		return false
 	***REMOVED***
 
 	// Wait for the job to be started on redis
@@ -92,29 +92,17 @@ func handleExecution(ctx context.Context,
 	err = engine.OutputManager.StartOutputs()
 	if err != nil ***REMOVED***
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error starting outputs %s", err.Error()))
-		return
+		return false
 	***REMOVED***
 	defer engine.OutputManager.StopOutputs()
 
-	// Trap Interrupts, SIGINTs and SIGTERMs.
-	gracefulStop := func(sig os.Signal) ***REMOVED***
-		libWorker.DispatchMessage(gs, fmt.Sprintf("Stopping worker in response to signal %s", sig), "DEBUG")
-	***REMOVED***
-	onHardStop := func(sig os.Signal) ***REMOVED***
-		libWorker.DispatchMessage(gs, fmt.Sprintf("Hard stop in response to signal %s", sig), "DEBUG")
-		globalCancel() // not that it matters, given the following command...
-	***REMOVED***
-	stopSignalHandling := handleTestAbortSignals(gs, gracefulStop, onHardStop)
-	defer stopSignalHandling()
-
 	// Initialize the engine
-	libWorker.DispatchMessage(gs, "Initializing VU(s)...", "DEBUG")
-	engineRun, engineWait, err := engine.Init(globalCtx, runCtx, workerInfo)
+	engineRun, _, err := engine.Init(globalCtx, runCtx, workerInfo)
 	if err != nil ***REMOVED***
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
-		return
+		return false
 	***REMOVED***
 
 	// Start the test run
@@ -130,14 +118,10 @@ func handleExecution(ctx context.Context,
 			fmt.Println(errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		***REMOVED***
 	***REMOVED***
+
 	runCancel()
-	libWorker.DispatchMessage(gs, "Engine run terminated cleanly", "DEBUG")
 
 	executionState := execScheduler.GetState()
-	// Warn if no iterations could be completed.
-	if executionState.GetFullIterationCount() == 0 ***REMOVED***
-		libWorker.DispatchMessage(gs, "No script iterations finished, consider making the test duration longer", "DEBUG")
-	***REMOVED***
 
 	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
 	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary***REMOVED***
@@ -177,16 +161,15 @@ func handleExecution(ctx context.Context,
 	libWorker.UpdateStatus(gs, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
-	libWorker.DispatchMessage(gs, "Waiting for the Engine to finish...", "DEBUG")
-	engineWait()
-	libWorker.DispatchMessage(gs, "Everything has finished, exiting worker", "DEBUG")
 	if interrupt != nil ***REMOVED***
-		return
+		return false
 	***REMOVED***
 	if engine.IsTainted() ***REMOVED***
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
-		return
+		return false
 	***REMOVED***
+
+	return true
 ***REMOVED***
 
 func (lct *workerLoadedAndConfiguredTest) buildTestRunState(

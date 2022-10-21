@@ -564,16 +564,32 @@ func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return maxCount
 ***REMOVED***
 
-func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float32) ***REMOVED***
-	if varc.MaxVUs.Valid ***REMOVED***
-		varc.MaxVUs.Int64 = int64(float32(varc.MaxVUs.Int64) * subFraction)
+func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig ***REMOVED***
+	newConfig := varc
+
+	if newConfig.MaxVUs.Valid ***REMOVED***
+		newConfig.MaxVUs.Int64 = int64(float64(newConfig.MaxVUs.Int64) * subFraction)
+
+		if newConfig.MaxVUs.Int64 < 1 ***REMOVED***
+			newConfig.MaxVUs.Int64 = 1
+		***REMOVED***
 	***REMOVED***
 
-	if varc.PreAllocatedVUs.Valid ***REMOVED***
-		varc.PreAllocatedVUs.Int64 = int64(float32(varc.PreAllocatedVUs.Int64) * subFraction)
+	if newConfig.PreAllocatedVUs.Valid ***REMOVED***
+		newConfig.PreAllocatedVUs.Int64 = int64(float64(newConfig.PreAllocatedVUs.Int64) * subFraction)
+
+		if newConfig.PreAllocatedVUs.Int64 < 1 ***REMOVED***
+			newConfig.PreAllocatedVUs.Int64 = 1
+		***REMOVED***
 	***REMOVED***
 
-	for stage := range varc.Stages ***REMOVED***
-		varc.Stages[stage].Target.Int64 = int64(float32(varc.Stages[stage].Target.ValueOrZero()) * subFraction)
+	for stage := range newConfig.Stages ***REMOVED***
+		newConfig.Stages[stage].Target.Int64 = int64(float64(newConfig.Stages[stage].Target.ValueOrZero()) * subFraction)
+
+		if newConfig.Stages[stage].Target.Int64 < 1 ***REMOVED***
+			newConfig.Stages[stage].Target.Int64 = 1
+		***REMOVED***
 	***REMOVED***
+
+	return newConfig
 ***REMOVED***

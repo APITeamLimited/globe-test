@@ -35,6 +35,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
 	grpcanytesting "github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin/grpc_any_testing"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const isWindows = runtime.GOOS == "windows"

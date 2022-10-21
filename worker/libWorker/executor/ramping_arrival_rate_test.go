@@ -16,6 +16,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig ***REMOVED***

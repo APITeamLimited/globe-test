@@ -20,4 +20,6 @@ type BaseGlobalState interface ***REMOVED***
 	WorkerId() string
 	GetWorkerStatus() string
 	SetWorkerStatus(status string)
+	// TODO: restrict setters to single exection
+	//SettersEnabled() bool
 ***REMOVED***

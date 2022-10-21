@@ -11,6 +11,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 //nolint:golint, revive

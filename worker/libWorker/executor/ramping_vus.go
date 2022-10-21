@@ -728,14 +728,26 @@ func (vlvc RampingVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
 	return maxVUs
 ***REMOVED***
 
-func (vlvc RampingVUsConfig) ScaleOptions(subFraction float32) ***REMOVED***
-	if vlvc.StartVUs.Valid ***REMOVED***
-		vlvc.StartVUs.Int64 = int64(float32(vlvc.StartVUs.Int64) * subFraction)
-	***REMOVED***
+func (vlvc RampingVUsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig ***REMOVED***
+	newConfig := vlvc
 
-	for i := range vlvc.Stages ***REMOVED***
-		if vlvc.Stages[i].Target.Valid ***REMOVED***
-			vlvc.Stages[i].Target.Int64 = int64(float32(vlvc.Stages[i].Target.Int64) * subFraction)
+	if newConfig.StartVUs.Valid ***REMOVED***
+		newConfig.StartVUs.Int64 = int64(float64(newConfig.StartVUs.Int64) * subFraction)
+
+		if newConfig.StartVUs.Int64 < 1 ***REMOVED***
+			newConfig.StartVUs.Int64 = 1
 		***REMOVED***
 	***REMOVED***
+
+	for i := range newConfig.Stages ***REMOVED***
+		if newConfig.Stages[i].Target.Valid ***REMOVED***
+			newConfig.Stages[i].Target.Int64 = int64(float64(newConfig.Stages[i].Target.Int64) * subFraction)
+
+			if newConfig.Stages[i].Target.Int64 < 1 ***REMOVED***
+				newConfig.Stages[i].Target.Int64 = 1
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return newConfig
 ***REMOVED***

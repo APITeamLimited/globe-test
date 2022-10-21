@@ -10,6 +10,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const testHTML = `

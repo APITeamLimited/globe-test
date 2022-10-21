@@ -17,8 +17,10 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorkerWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestConsoleContext(t *testing.T) ***REMOVED***
@@ -45,14 +47,14 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
 	var (
 		fs     = afero.NewMemMapFs()
-		rtOpts = lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
+		rtOpts = libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
 		logger = testutils.NewLogger(tb)
 	)
 	for _, o := range opts ***REMOVED***
 		switch opt := o.(type) ***REMOVED***
 		case afero.Fs:
 			fs = opt
-		case lib.RuntimeOptions:
+		case libWorker.RuntimeOptions:
 			rtOpts = opt
 		case *logrus.Logger:
 			logger = opt
@@ -63,7 +65,7 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	return New(
-		&lib.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState***REMOVED***
 			Logger:         logger,
 			RuntimeOptions: rtOpts,
 			BuiltinMetrics: builtinMetrics,
@@ -73,7 +75,7 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
 		***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***, lib.GetTestWorkerInfo(),
+		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***, libWorker.GetTestWorkerInfo(),
 	)
 ***REMOVED***
 
@@ -206,12 +208,12 @@ func TestConsoleLog(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			samples := make(chan workerMetrics.SampleContainer, 100)
-			initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+			initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 
 			logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
@@ -263,12 +265,12 @@ func TestConsoleLevels(t *testing.T) ***REMOVED***
 					require.NoError(t, err)
 
 					samples := make(chan workerMetrics.SampleContainer, 100)
-					initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+					initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 
 					logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
@@ -354,18 +356,18 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								))
 							require.NoError(t, err)
 
-							err = r.SetOptions(lib.Options***REMOVED***
+							err = r.SetOptions(libWorker.Options***REMOVED***
 								ConsoleOutput: null.StringFrom(logFilename),
 							***REMOVED***)
 							require.NoError(t, err)
 
 							samples := make(chan workerMetrics.SampleContainer, 100)
-							initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+							initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 							require.NoError(t, err)
 
 							ctx, cancel := context.WithCancel(context.Background())
 							defer cancel()
-							vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+							vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 							logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
 							logger.Level = logrus.DebugLevel
