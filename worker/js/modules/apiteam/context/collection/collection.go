@@ -20,6 +20,7 @@ type (
 	// instances for each VU.
 	CollectionModule struct {
 		isEnabled        bool
+		setEnabled       bool
 		sharedCollection sharedCollection
 	}
 
@@ -56,6 +57,7 @@ func New(workerInfo *libWorker.WorkerInfo) *CollectionModule {
 	} else {
 		return &CollectionModule{
 			isEnabled:        false,
+			setEnabled:       false,
 			sharedCollection: sharedCollection{},
 		}
 	}

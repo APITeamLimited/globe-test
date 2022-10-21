@@ -15,6 +15,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/httpmultibin"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestSetupDataMarshalling(t *testing.T) {

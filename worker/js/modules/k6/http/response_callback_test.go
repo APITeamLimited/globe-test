@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

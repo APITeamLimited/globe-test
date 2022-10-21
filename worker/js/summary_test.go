@@ -15,6 +15,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const (

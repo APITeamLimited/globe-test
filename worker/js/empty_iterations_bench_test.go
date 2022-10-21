@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func BenchmarkEmptyIteration(b *testing.B) {

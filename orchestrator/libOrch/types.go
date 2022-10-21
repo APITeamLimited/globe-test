@@ -52,6 +52,7 @@ type (
 		Options           libWorker.Options      `json:"options"`
 		UnderlyingRequest map[string]interface{} `json:"underlyingRequest"`
 		FinalRequest      map[string]interface{} `json:"finalRequest"`
+		SubFraction       float64                `json:"subFraction"`
 	}
 
 	OrchestratorMessage struct {

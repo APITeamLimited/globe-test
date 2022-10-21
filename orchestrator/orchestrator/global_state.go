@@ -67,13 +67,11 @@ func (g *globalState) GetChildJobStates() []libOrch.WorkerState {
 }
 
 func (g *globalState) SetChildJobState(workerId string, childJobId string, status string) {
-	newState := false
 	foundCurrent := false
 
 	for i, childJobState := range g.childJobStates {
 		if childJobState.ChildJobId == childJobId {
 			if g.childJobStates[i].Status != status {
-				newState = true
 				g.childJobStates[i].Status = status
 			}
 
@@ -87,12 +85,6 @@ func (g *globalState) SetChildJobState(workerId string, childJobId string, statu
 			WorkerId: workerId,
 			Status:   status,
 		})
-		newState = true
-	}
-
-	// If worker state changes, broadcast a message
-	if newState {
-		libOrch.DispatchWorkerMessage(g, workerId, childJobId, status, "STATUS")
 	}
 }
 

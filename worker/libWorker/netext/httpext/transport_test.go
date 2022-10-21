@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
 

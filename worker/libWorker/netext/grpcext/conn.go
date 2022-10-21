@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 
 	protov1 "github.com/golang/protobuf/proto" //nolint:staticcheck,nolintlint // this is the old v1 version

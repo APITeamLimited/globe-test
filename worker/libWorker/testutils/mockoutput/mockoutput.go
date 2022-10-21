@@ -3,6 +3,7 @@ package mockoutput
 import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // New exists so that the usage from tests avoids repetition, i.e. is

@@ -32,7 +32,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 		for _, jobDistribution := range childJobs {
 			client := jobDistribution.workerClient
 
-			for _, childJob := range jobDistribution.jobs {
+			for _, childJob := range jobDistribution.Jobs {
 				client.Del(gs.Ctx(), childJob.ChildJobId)
 
 				// Remove childJob["id"] from worker:executionHistory set

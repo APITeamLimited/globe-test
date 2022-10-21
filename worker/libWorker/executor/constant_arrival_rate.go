@@ -89,7 +89,7 @@ func (carc ConstantArrivalRateConfig) GetDescription(et *libWorker.ExecutionTupl
 }
 
 // Validate makes sure all options are configured and valid
-func (carc *ConstantArrivalRateConfig) Validate() []error {
+func (carc ConstantArrivalRateConfig) Validate() []error {
 	errors := carc.BaseConfig.Validate()
 	if !carc.Rate.Valid {
 		errors = append(errors, fmt.Errorf("the iteration rate isn't specified"))
@@ -361,20 +361,36 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	}
 }
 
-func (config *ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 {
+func (config ConstantArrivalRateConfig) GetMaxExecutorVUs() int64 {
 	return config.MaxVUs.Int64
 }
 
-func (config *ConstantArrivalRateConfig) ScaleOptions(subFraction float32) {
-	if config.Rate.Valid {
-		config.Rate.Int64 = int64(float64(config.Rate.Int64) * float64(subFraction))
+func (config ConstantArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
+	newConfig := config
+
+	if newConfig.Rate.Valid {
+		newConfig.Rate.Int64 = int64(float64(newConfig.Rate.Int64) * float64(subFraction))
+
+		if newConfig.Rate.Int64 < 1 {
+			newConfig.Rate.Int64 = 1
+		}
 	}
 
-	if config.PreAllocatedVUs.Valid {
-		config.PreAllocatedVUs.Int64 = int64(float64(config.PreAllocatedVUs.Int64) * float64(subFraction))
+	if newConfig.PreAllocatedVUs.Valid {
+		newConfig.PreAllocatedVUs.Int64 = int64(float64(newConfig.PreAllocatedVUs.Int64) * float64(subFraction))
+
+		if newConfig.PreAllocatedVUs.Int64 < 1 {
+			newConfig.PreAllocatedVUs.Int64 = 1
+		}
 	}
 
-	if config.MaxVUs.Valid {
-		config.MaxVUs.Int64 = int64(float64(config.MaxVUs.Int64) * float64(subFraction))
+	if newConfig.MaxVUs.Valid {
+		newConfig.MaxVUs.Int64 = int64(float64(newConfig.MaxVUs.Int64) * float64(subFraction))
+
+		if newConfig.MaxVUs.Int64 < 1 {
+			newConfig.MaxVUs.Int64 = 1
+		}
 	}
+
+	return newConfig
 }

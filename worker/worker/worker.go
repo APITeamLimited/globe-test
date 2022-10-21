@@ -64,7 +64,10 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	job, err := fetchChildJob(ctx, client, childJobId)
 	if err != nil || job == nil {
 		if err != nil {
-			fmt.Println("Error getting job")
+			fmt.Println("Error getting child job from worker:executionHistory set, it will be deleted:", err)
+
+			// Remove the job from the history set
+			client.SRem(ctx, "worker:executionHistory", childJobId).Result()
 		}
 		return
 	}
@@ -92,7 +95,6 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	}
 
 	if err != nil {
-		fmt.Println("Error setting worker")
 		executionList.mutex.Unlock()
 		return
 	}
@@ -100,8 +102,16 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	// We got the job
 	executionList.addJob(*job)
 	executionList.mutex.Unlock()
+	defer executionList.removeJob(childJobId)
 
-	handleExecution(ctx, client, *job, workerId)
+	fmt.Printf("Got child job: %s\n", job.ChildJobId)
 
-	executionList.removeJob(childJobId)
+	successfullExecution := handleExecution(ctx, client, *job, workerId)
+
+	if successfullExecution {
+		fmt.Printf("Completed child job successfully: %s\n", job.ChildJobId)
+	} else {
+		fmt.Printf("Error executing child job: %s\n", job.ChildJobId)
+	}
+
 }

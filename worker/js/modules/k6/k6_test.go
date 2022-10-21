@@ -13,6 +13,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestFail(t *testing.T) {
@@ -226,7 +227,7 @@ func TestCheckObject(t *testing.T) {
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -285,7 +286,7 @@ func TestCheckArray(t *testing.T) {
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -330,7 +331,7 @@ func TestCheckThrows(t *testing.T) {
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(0), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",
@@ -379,7 +380,7 @@ func TestCheckTypes(t *testing.T) {
 						require.True(t, ok)
 
 						assert.NotZero(t, sample.Time)
-						assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
+						assert.Equal(t, builtinMetrics.Checks, sample.Metric)
 						if succ {
 							assert.Equal(t, float64(1), sample.Value)
 						} else {
@@ -461,7 +462,7 @@ func TestCheckTags(t *testing.T) {
 		require.True(t, ok)
 
 		assert.NotZero(t, sample.Time)
-		assert.Equal(t, builtinworkerworkerMetrics.Checks, sample.Metric)
+		assert.Equal(t, builtinMetrics.Checks, sample.Metric)
 		assert.Equal(t, float64(1), sample.Value)
 		assert.Equal(t, map[string]string{
 			"group": "",

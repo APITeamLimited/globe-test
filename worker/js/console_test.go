@@ -17,8 +17,10 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/libWorkerWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestConsoleContext(t *testing.T) {
@@ -45,14 +47,14 @@ func TestConsoleContext(t *testing.T) {
 func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface{}) (*Runner, error) {
 	var (
 		fs     = afero.NewMemMapFs()
-		rtOpts = lib.RuntimeOptions{CompatibilityMode: null.NewString("base", true)}
+		rtOpts = libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)}
 		logger = testutils.NewLogger(tb)
 	)
 	for _, o := range opts {
 		switch opt := o.(type) {
 		case afero.Fs:
 			fs = opt
-		case lib.RuntimeOptions:
+		case libWorker.RuntimeOptions:
 			rtOpts = opt
 		case *logrus.Logger:
 			logger = opt
@@ -63,7 +65,7 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface{}) 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	return New(
-		&lib.TestPreInitState{
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			RuntimeOptions: rtOpts,
 			BuiltinMetrics: builtinMetrics,
@@ -73,7 +75,7 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface{}) 
 			URL:  &url.URL{Path: filename, Scheme: "file"},
 			Data: []byte(data),
 		},
-		map[string]afero.Fs{"file": fs, "https": afero.NewMemMapFs()}, lib.GetTestWorkerInfo(),
+		map[string]afero.Fs{"file": fs, "https": afero.NewMemMapFs()}, libWorker.GetTestWorkerInfo(),
 	)
 }
 
@@ -206,12 +208,12 @@ func TestConsoleLog(t *testing.T) {
 			require.NoError(t, err)
 
 			samples := make(chan workerMetrics.SampleContainer, 100)
-			initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+			initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 
 			logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
@@ -263,12 +265,12 @@ func TestConsoleLevels(t *testing.T) {
 					require.NoError(t, err)
 
 					samples := make(chan workerMetrics.SampleContainer, 100)
-					initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+					initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 
 					logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
@@ -354,18 +356,18 @@ func TestFileConsole(t *testing.T) {
 								))
 							require.NoError(t, err)
 
-							err = r.SetOptions(lib.Options{
+							err = r.SetOptions(libWorker.Options{
 								ConsoleOutput: null.StringFrom(logFilename),
 							})
 							require.NoError(t, err)
 
 							samples := make(chan workerMetrics.SampleContainer, 100)
-							initVU, err := r.newVU(1, 1, samples, lib.GetTestWorkerInfo())
+							initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 							require.NoError(t, err)
 
 							ctx, cancel := context.WithCancel(context.Background())
 							defer cancel()
-							vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+							vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 							logger := extractLogger(vu.(*ActiveVU).Console.logger)
 
 							logger.Level = logrus.DebugLevel

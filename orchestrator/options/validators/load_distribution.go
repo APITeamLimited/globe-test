@@ -2,6 +2,7 @@ package validators
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -9,6 +10,46 @@ import (
 )
 
 func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+	// In case user wants equal distribution
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName {
+		clientCount := len(workerClients.Clients)
+
+		// Set load distribution to equal distribution across all worker clients
+		// Or as close as possible
+		floorSize := int(math.Floor(float64(100 / float64(clientCount))))
+		remainderSize := 100 - (floorSize * (clientCount - 1))
+
+		options.LoadDistribution.Value = make([]types.LoadZone, clientCount)
+
+		currentIndex := 0
+
+		for _, workerClient := range workerClients.Clients {
+			if currentIndex == clientCount-1 {
+				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
+					Location: workerClient.Name,
+					Fraction: remainderSize,
+				}
+			} else {
+				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
+					Location: workerClient.Name,
+					Fraction: floorSize,
+				}
+				currentIndex++
+			}
+		}
+	}
+
+	// In case user just wants default load distribution
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == "Default" {
+		options.LoadDistribution = types.NullLoadDistribution{
+			Valid: true,
+			Value: []types.LoadZone{{
+				Location: workerClients.DefaultClient.Name,
+				Fraction: 100,
+			}},
+		}
+	}
+
 	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
 		if !options.LoadDistribution.Valid {
 			options.LoadDistribution = types.NullLoadDistribution{

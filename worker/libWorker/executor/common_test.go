@@ -11,6 +11,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func simpleRunner(vuFn func(context.Context, *libWorker.State) error) libWorker.Runner {

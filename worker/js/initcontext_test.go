@@ -23,6 +23,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestInitContextRequire(t *testing.T) {

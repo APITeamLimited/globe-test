@@ -244,12 +244,24 @@ func (pvic PerVUIterationsConfig) GetMaxExecutorVUs() int64 {
 	return pvic.VUs.Int64
 }
 
-func (pvic PerVUIterationsConfig) ScaleOptions(subFraction float32) {
-	if pvic.VUs.Valid {
-		pvic.VUs.Int64 = int64(float32(pvic.VUs.Int64) * subFraction)
+func (pvic PerVUIterationsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
+	newConfig := pvic
+
+	if newConfig.VUs.Valid {
+		newConfig.VUs.Int64 = int64(float64(newConfig.VUs.Int64) * subFraction)
+
+		if newConfig.VUs.Int64 < 1 {
+			newConfig.VUs.Int64 = 1
+		}
 	}
 
-	if pvic.Iterations.Valid {
-		pvic.Iterations.Int64 = int64(float32(pvic.Iterations.Int64) * subFraction)
+	if newConfig.Iterations.Valid {
+		newConfig.Iterations.Int64 = int64(float64(newConfig.Iterations.Int64) * subFraction)
+
+		if newConfig.Iterations.Int64 < 1 {
+			newConfig.Iterations.Int64 = 1
+		}
 	}
+
+	return newConfig
 }

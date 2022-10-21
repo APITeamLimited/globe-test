@@ -17,6 +17,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

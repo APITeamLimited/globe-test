@@ -211,8 +211,16 @@ func (clvc ConstantVUsConfig) GetMaxExecutorVUs() int64 {
 	return clvc.VUs.Int64
 }
 
-func (clvc ConstantVUsConfig) ScaleOptions(subFraction float32) {
-	if clvc.VUs.Valid {
-		clvc.VUs.Int64 = int64(float32(clvc.VUs.Int64) * subFraction)
+func (clvc ConstantVUsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
+	newConfig := clvc
+
+	if newConfig.VUs.Valid {
+		newConfig.VUs.Int64 = int64(float64(newConfig.VUs.Int64) * subFraction)
+
+		if newConfig.VUs.Int64 < 1 {
+			newConfig.VUs.Int64 = 1
+		}
 	}
+
+	return newConfig
 }

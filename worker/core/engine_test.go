@@ -26,6 +26,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const isWindows = runtime.GOOS == "windows"

@@ -564,16 +564,32 @@ func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 {
 	return maxCount
 }
 
-func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float32) {
-	if varc.MaxVUs.Valid {
-		varc.MaxVUs.Int64 = int64(float32(varc.MaxVUs.Int64) * subFraction)
+func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
+	newConfig := varc
+
+	if newConfig.MaxVUs.Valid {
+		newConfig.MaxVUs.Int64 = int64(float64(newConfig.MaxVUs.Int64) * subFraction)
+
+		if newConfig.MaxVUs.Int64 < 1 {
+			newConfig.MaxVUs.Int64 = 1
+		}
 	}
 
-	if varc.PreAllocatedVUs.Valid {
-		varc.PreAllocatedVUs.Int64 = int64(float32(varc.PreAllocatedVUs.Int64) * subFraction)
+	if newConfig.PreAllocatedVUs.Valid {
+		newConfig.PreAllocatedVUs.Int64 = int64(float64(newConfig.PreAllocatedVUs.Int64) * subFraction)
+
+		if newConfig.PreAllocatedVUs.Int64 < 1 {
+			newConfig.PreAllocatedVUs.Int64 = 1
+		}
 	}
 
-	for stage := range varc.Stages {
-		varc.Stages[stage].Target.Int64 = int64(float32(varc.Stages[stage].Target.ValueOrZero()) * subFraction)
+	for stage := range newConfig.Stages {
+		newConfig.Stages[stage].Target.Int64 = int64(float64(newConfig.Stages[stage].Target.ValueOrZero()) * subFraction)
+
+		if newConfig.Stages[stage].Target.Int64 < 1 {
+			newConfig.Stages[stage].Target.Int64 = 1
+		}
 	}
+
+	return newConfig
 }

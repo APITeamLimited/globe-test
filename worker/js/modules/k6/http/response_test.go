@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

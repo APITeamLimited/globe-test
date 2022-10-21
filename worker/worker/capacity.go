@@ -17,7 +17,7 @@ type ExecutionList struct {
 }
 
 func (executionList *ExecutionList) addJob(job libOrch.ChildJob) {
-	executionList.currentJobs[job.Id] = job
+	executionList.currentJobs[job.ChildJobId] = job
 
 	executionList.currentJobsCount++
 	executionList.currentVUsCount += job.Options.MaxPossibleVUs.ValueOrZero()

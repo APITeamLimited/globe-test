@@ -275,12 +275,24 @@ func (sic SharedIterationsConfig) GetMaxExecutorVUs() int64 {
 	return sic.VUs.Int64
 }
 
-func (sic SharedIterationsConfig) ScaleOptions(subFraction float32) {
-	if sic.VUs.Valid {
-		sic.VUs.Int64 = int64(math.Round(float64(sic.VUs.Int64) * float64(subFraction)))
+func (sic SharedIterationsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
+	newConfig := sic
+
+	if newConfig.VUs.Valid {
+		newConfig.VUs.Int64 = int64(math.Round(float64(newConfig.VUs.Int64) * float64(subFraction)))
+
+		if newConfig.VUs.Int64 < 1 {
+			newConfig.VUs.Int64 = 1
+		}
 	}
 
-	if sic.Iterations.Valid {
-		sic.Iterations.Int64 = int64(math.Round(float64(sic.Iterations.Int64) * float64(subFraction)))
+	if newConfig.Iterations.Valid {
+		newConfig.Iterations.Int64 = int64(math.Round(float64(newConfig.Iterations.Int64) * float64(subFraction)))
+
+		if newConfig.Iterations.Int64 < 1 {
+			newConfig.Iterations.Int64 = 1
+		}
 	}
+
+	return newConfig
 }

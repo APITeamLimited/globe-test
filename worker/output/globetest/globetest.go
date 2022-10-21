@@ -10,7 +10,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-const flushPeriod = 200 * time.Millisecond
+const flushPeriod = 1000 * time.Millisecond
 
 type Output struct {
 	output.SampleBuffer
