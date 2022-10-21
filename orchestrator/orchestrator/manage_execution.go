@@ -16,11 +16,11 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool ***REMOVED***
 	// Setup the job
 
-	(*gs.MetricsStore()).InitMetricsStore(job.Options)
-
 	healthy := optionsErr == nil
 
 	if healthy ***REMOVED***
+		(*gs.MetricsStore()).InitMetricsStore(job.Options)
+
 		marshalledOptions, err := json.Marshal(job.Options)
 		if err != nil ***REMOVED***
 			libOrch.HandleStringError(gs, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))

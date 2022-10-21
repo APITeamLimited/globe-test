@@ -17,7 +17,7 @@ type ExecutionList struct ***REMOVED***
 	currentManagedVUsCount int64
 ***REMOVED***
 
-// Add job assumes that the execution list is already locked
+// addJob assumes that the execution list is already locked
 func (executionList *ExecutionList) addJob(job *libOrch.Job) error ***REMOVED***
 	if job.Options == nil ***REMOVED***
 		return errors.New("job options should not be nil")
@@ -26,21 +26,27 @@ func (executionList *ExecutionList) addJob(job *libOrch.Job) error ***REMOVED***
 	executionList.currentJobs[job.Id] = *job
 
 	executionList.currentJobsCount++
-	executionList.currentManagedVUsCount += job.Options.MaxPossibleVUs.ValueOrZero()
+
+	if job.Options != nil ***REMOVED***
+		executionList.currentManagedVUsCount += job.Options.MaxPossibleVUs.ValueOrZero()
+	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 func (executionList *ExecutionList) removeJob(jobId string) ***REMOVED***
 	executionList.mutex.Lock()
-	managedVUsFreed := executionList.currentJobs[jobId].Options.MaxPossibleVUs.ValueOrZero()
+	defer executionList.mutex.Unlock()
+
+	job := executionList.currentJobs[jobId]
+
+	if job.Options != nil ***REMOVED***
+		managedVUsFreed := job.Options.MaxPossibleVUs.ValueOrZero()
+		executionList.currentManagedVUsCount -= managedVUsFreed
+	***REMOVED***
 
 	delete(executionList.currentJobs, jobId)
-
-	executionList.currentManagedVUsCount -= managedVUsFreed
 	executionList.currentJobsCount--
-
-	executionList.mutex.Unlock()
 ***REMOVED***
 
 // Checks if the exectutor has the physical capacity to execute this job, this does

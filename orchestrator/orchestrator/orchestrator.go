@@ -86,6 +86,11 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
 	job.Options = options
 
+	if optionsErr != nil ***REMOVED***
+		libOrch.HandleError(gs, optionsErr)
+		// Continue as need to delete job
+	***REMOVED***
+
 	// Check execution capacity again, bearing in mind options
 	executionList.mutex.Lock()
 	if !executionList.checkExecutionCapacity(options) ***REMOVED***
