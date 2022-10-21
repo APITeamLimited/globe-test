@@ -20,58 +20,47 @@ type summaryMetric struct ***REMOVED***
 
 type wrappedSummaryMetric struct ***REMOVED***
 	summaryMetric
-	childJobId  string
 	location    string
 	subFraction float64
 ***REMOVED***
 
-type zoneSummaryMetrics struct ***REMOVED***
-	// Fraction is the total weighting of a zone
-	ZoneMetrics []map[string]wrappedSummaryMetric `json:"zoneMetrics"`
-***REMOVED***
-
 type summaryBank struct ***REMOVED***
 	gs libOrch.BaseGlobalState
-	// Locations and list of summary metrics for each location
-	unknownMetrics map[string]zoneSummaryMetrics
-	mu             *sync.Mutex
+	// Locations and list of summary summaryMetrics for each location
+	collectedSummaryMetrics map[string][]map[string]wrappedSummaryMetric
+	mu                      *sync.Mutex
 ***REMOVED***
 
 func NewSummaryBank(gs libOrch.BaseGlobalState, options *libWorker.Options) *summaryBank ***REMOVED***
 	sb := &summaryBank***REMOVED***
-		gs:             gs,
-		unknownMetrics: make(map[string]zoneSummaryMetrics),
-		mu:             &sync.Mutex***REMOVED******REMOVED***,
+		gs:                      gs,
+		collectedSummaryMetrics: make(map[string][]map[string]wrappedSummaryMetric),
+		mu:                      &sync.Mutex***REMOVED******REMOVED***,
 	***REMOVED***
 
 	// Add load distribution locations
 	for _, location := range options.LoadDistribution.Value ***REMOVED***
-		sb.unknownMetrics[location.Location] = zoneSummaryMetrics***REMOVED***
-			ZoneMetrics: make([]map[string]wrappedSummaryMetric, 0),
-		***REMOVED***
+		sb.collectedSummaryMetrics[location.Location] = make([]map[string]wrappedSummaryMetric, 0)
 	***REMOVED***
 
 	// Add global location
-	sb.unknownMetrics[libOrch.GlobalName] = zoneSummaryMetrics***REMOVED***
-		ZoneMetrics: make([]map[string]wrappedSummaryMetric, 0),
-	***REMOVED***
+	sb.collectedSummaryMetrics[libOrch.GlobalName] = make([]map[string]wrappedSummaryMetric, 0)
 
 	return sb
 ***REMOVED***
 
 func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error ***REMOVED***
-	var metrics map[string]summaryMetric
+	var summaryMetrics map[string]summaryMetric
 
-	err := json.Unmarshal([]byte(message.Message), &metrics)
+	err := json.Unmarshal([]byte(message.Message), &summaryMetrics)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	wrappedMetrics := make(map[string]wrappedSummaryMetric)
-	for metricName, metric := range metrics ***REMOVED***
-		wrappedMetrics[metricName] = wrappedSummaryMetric***REMOVED***
+	wrappedSummaryMetrics := make(map[string]wrappedSummaryMetric)
+	for metricName, metric := range summaryMetrics ***REMOVED***
+		wrappedSummaryMetrics[metricName] = wrappedSummaryMetric***REMOVED***
 			summaryMetric: metric,
-			childJobId:    message.ChildJobId,
 			location:      workerLocation,
 			subFraction:   subFraction,
 		***REMOVED***
@@ -80,34 +69,30 @@ func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation 
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
-	// Add the metrics to correct location array
-	sb.unknownMetrics[workerLocation] = zoneSummaryMetrics***REMOVED***
-		ZoneMetrics: append(sb.unknownMetrics[workerLocation].ZoneMetrics, wrappedMetrics),
-	***REMOVED***
+	// Add the summaryMetrics to correct location array
+	sb.collectedSummaryMetrics[workerLocation] = append(sb.collectedSummaryMetrics[workerLocation], wrappedSummaryMetrics)
 
 	// And to the global array
-	sb.unknownMetrics[libOrch.GlobalName] = zoneSummaryMetrics***REMOVED***
-		ZoneMetrics: append(sb.unknownMetrics[libOrch.GlobalName].ZoneMetrics, wrappedMetrics),
-	***REMOVED***
+	sb.collectedSummaryMetrics[libOrch.GlobalName] = append(sb.collectedSummaryMetrics[libOrch.GlobalName], wrappedSummaryMetrics)
 
 	return nil
 ***REMOVED***
 
 func (sb *summaryBank) CalculateAndDispatchSummaryMetrics() error ***REMOVED***
-	if len(sb.unknownMetrics) == 0 ***REMOVED***
-		return errors.New("need at least one group of metrics to calculate summary")
+	if len(sb.collectedSummaryMetrics) == 0 ***REMOVED***
+		return errors.New("need at least one group of summaryMetrics to calculate summary")
 	***REMOVED***
 
-	fistKey := ""
+	firstKey := ""
 
 	// Ensure at least one metric in each location
-	for key, zoneSummaryMetrics := range sb.unknownMetrics ***REMOVED***
-		if fistKey == "" ***REMOVED***
-			fistKey = key
+	for key, zoneSummaryMetrics := range sb.collectedSummaryMetrics ***REMOVED***
+		if len(zoneSummaryMetrics) == 0 ***REMOVED***
+			return errors.New("need at least one metric in each location to calculate summary")
 		***REMOVED***
 
-		if len(zoneSummaryMetrics.ZoneMetrics) == 0 ***REMOVED***
-			return errors.New("need at least one metric in each location to calculate summary")
+		if firstKey == "" ***REMOVED***
+			firstKey = key
 		***REMOVED***
 	***REMOVED***
 
@@ -116,7 +101,7 @@ func (sb *summaryBank) CalculateAndDispatchSummaryMetrics() error ***REMOVED***
 	metricContains := make([]string, 0)
 
 	// Determine the metric keys from first metric
-	for metricKey, zoneSummaryMetric := range sb.unknownMetrics[fistKey].ZoneMetrics[0] ***REMOVED***
+	for metricKey, zoneSummaryMetric := range sb.collectedSummaryMetrics[firstKey][0] ***REMOVED***
 		metricKeys = append(metricKeys, metricKey)
 		metricTypes = append(metricTypes, zoneSummaryMetric.Type)
 		metricContains = append(metricContains, zoneSummaryMetric.Contains)
@@ -124,52 +109,52 @@ func (sb *summaryBank) CalculateAndDispatchSummaryMetrics() error ***REMOVED***
 
 	outputSummaryMetrics := make(map[string]map[string]summaryMetric)
 
-	// Add all locations to output metrics
-	for location, zoneSummaryMetrics := range sb.unknownMetrics ***REMOVED***
+	// Add all locations to output summaryMetrics
+	for location, zoneSummaryMetrics := range sb.collectedSummaryMetrics ***REMOVED***
 		outputSummaryMetrics[location] = make(map[string]summaryMetric)
 
 		for i, metricKey := range metricKeys ***REMOVED***
-			// Find all metrics is this zone that match the metric key
-			zoneMetrics := make([]map[string]wrappedSummaryMetric, 0)
-
-			for _, zoneMetric := range zoneSummaryMetrics.ZoneMetrics ***REMOVED***
+			// Find all summaryMetrics is this zone that match the metric key
+			matchingKeyMetrics := make([]map[string]wrappedSummaryMetric, 0)
+			for _, zoneMetric := range zoneSummaryMetrics ***REMOVED***
 				if zoneMetric[metricKey].Contains != "" ***REMOVED***
-					zoneMetrics = append(zoneMetrics, zoneMetric)
+					matchingKeyMetrics = append(matchingKeyMetrics, zoneMetric)
 				***REMOVED***
 			***REMOVED***
 
+			// Combine the summaryMetrics
 			if metricTypes[i] == workerMetrics.Counter ***REMOVED***
 				// Calculate the total for this metric
-				outputSummaryMetrics[location][metricKey] = determineCounter(zoneMetrics, metricKey, metricContains[i], workerMetrics.Counter)
+				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
 			***REMOVED*** else if metricTypes[i] == workerMetrics.Gauge ***REMOVED***
 				// Gauges are summed
-				outputSummaryMetrics[location][metricKey] = determineCounter(zoneMetrics, metricKey, metricContains[i], workerMetrics.Gauge)
+				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Gauge)
 			***REMOVED*** else if metricTypes[i] == workerMetrics.Rate ***REMOVED***
 				// Rates are summed
-				outputSummaryMetrics[location][metricKey] = determineCounter(zoneMetrics, metricKey, metricContains[i], workerMetrics.Counter)
+				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
 			***REMOVED*** else if metricTypes[i] == workerMetrics.Trend ***REMOVED***
 				// Calculate the trend for this metric
-				outputSummaryMetrics[location][metricKey] = determineTrend(zoneMetrics, metricKey, metricContains[i], workerMetrics.Trend)
+				outputSummaryMetrics[location][metricKey] = determineSummaryTrend(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Trend)
 			***REMOVED*** else ***REMOVED***
 				return fmt.Errorf("unknown metric type %s", metricTypes[i])
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	// Dispatch the summary metrics
+	// Dispatch the summary summaryMetrics
 	marshalledOutputSummary, err := json.Marshal(outputSummaryMetrics)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	// Send the summary metrics to the orchestrator
+	// Send the summary summaryMetrics to the orchestrator
 	libOrch.DispatchMessage(sb.gs, string(marshalledOutputSummary), "SUMMARY_METRICS")
 
 	return nil
 ***REMOVED***
 
-// Calculates an aggregated counter metric for a zone
-func determineCounter(zoneMetrics []map[string]wrappedSummaryMetric, metricName string,
+// Calculates an aggregated counter summaryMetric for a zone
+func determineSummaryCounter(matchingKeyMetrics []map[string]wrappedSummaryMetric, metricName string,
 	metricContains string, metricType workerMetrics.MetricType) summaryMetric ***REMOVED***
 	aggregatedMetric := summaryMetric***REMOVED***
 		Contains: metricContains,
@@ -178,18 +163,18 @@ func determineCounter(zoneMetrics []map[string]wrappedSummaryMetric, metricName 
 	***REMOVED***
 
 	// If no value keys, return an empty metric
-	if len(zoneMetrics[0][metricName].Values) == 0 ***REMOVED***
+	if len(matchingKeyMetrics[0][metricName].Values) == 0 ***REMOVED***
 		return aggregatedMetric
 	***REMOVED***
 
 	// Determine the value keys from first metric
 	valueKeys := make([]string, 0)
-	for valueKey := range zoneMetrics[0][metricName].Values ***REMOVED***
+	for valueKey := range matchingKeyMetrics[0][metricName].Values ***REMOVED***
 		valueKeys = append(valueKeys, valueKey)
 	***REMOVED***
 
 	for _, valueKey := range valueKeys ***REMOVED***
-		for _, zoneMetric := range zoneMetrics ***REMOVED***
+		for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
 			aggregatedMetric.Values[valueKey] += zoneMetric[metricName].Values[valueKey]
 		***REMOVED***
 	***REMOVED***
@@ -197,8 +182,8 @@ func determineCounter(zoneMetrics []map[string]wrappedSummaryMetric, metricName 
 	return aggregatedMetric
 ***REMOVED***
 
-// Calculates a weighted mean value metric for a zone
-func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName string,
+// Calculates a weighted mean value summaryMetric for a zone
+func determineSummaryTrend(matchingKeyMetrics []map[string]wrappedSummaryMetric, metricName string,
 	metricContains string, metricType workerMetrics.MetricType) summaryMetric ***REMOVED***
 	aggregatedMetric := summaryMetric***REMOVED***
 		Contains: metricContains,
@@ -207,13 +192,13 @@ func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName st
 	***REMOVED***
 
 	// If no value keys, return an empty metric
-	if len(zoneMetrics[0][metricName].Values) == 0 ***REMOVED***
+	if len(matchingKeyMetrics[0][metricName].Values) == 0 ***REMOVED***
 		return aggregatedMetric
 	***REMOVED***
 
 	// Determine the value keys from first metric
 	valueKeys := make([]string, 0)
-	for valueKey := range zoneMetrics[0][metricName].Values ***REMOVED***
+	for valueKey := range matchingKeyMetrics[0][metricName].Values ***REMOVED***
 		valueKeys = append(valueKeys, valueKey)
 	***REMOVED***
 
@@ -223,7 +208,7 @@ func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName st
 	for _, valueKey := range valueKeys ***REMOVED***
 		if valueKey == "max" ***REMOVED***
 			// Find biggest value
-			for _, zoneMetric := range zoneMetrics ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
 				if zoneMetric[metricName].Values[valueKey] > aggregatedMetric.Values[valueKey] ***REMOVED***
 					aggregatedMetric.Values[valueKey] = zoneMetric[metricName].Values[valueKey]
 				***REMOVED***
@@ -232,7 +217,7 @@ func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName st
 			// Find smallest value
 			aggregatedMetric.Values[valueKey] = math.MaxFloat64
 
-			for _, zoneMetric := range zoneMetrics ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
 				if zoneMetric[metricName].Values[valueKey] < aggregatedMetric.Values[valueKey] ***REMOVED***
 					aggregatedMetric.Values[valueKey] = zoneMetric[metricName].Values[valueKey]
 				***REMOVED***
@@ -240,7 +225,7 @@ func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName st
 		***REMOVED*** else ***REMOVED***
 			// This isn't ideal for all all remaining value keys but better than nothing
 
-			for _, zoneMetric := range zoneMetrics ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
 				subFractionTotal += zoneMetric[metricName].subFraction
 				aggregatedMetric.Values[valueKey] += zoneMetric[metricName].Values[valueKey] * zoneMetric[metricName].subFraction
 			***REMOVED***
@@ -256,9 +241,9 @@ func determineTrend(zoneMetrics []map[string]wrappedSummaryMetric, metricName st
 func (sb *summaryBank) Size() int ***REMOVED***
 	count := 0
 
-	for k, v := range sb.unknownMetrics ***REMOVED***
+	for k, v := range sb.collectedSummaryMetrics ***REMOVED***
 		if k != libOrch.GlobalName ***REMOVED***
-			count += len(v.ZoneMetrics)
+			count += len(v)
 		***REMOVED***
 	***REMOVED***
 

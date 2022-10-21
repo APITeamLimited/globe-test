@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxJobSize = 500
+const maxJobSize = 1
 
 type jobDistribution struct ***REMOVED***
 	Jobs         []libOrch.ChildJob `json:"jobs"`
