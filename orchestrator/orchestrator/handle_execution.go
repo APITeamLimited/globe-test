@@ -157,7 +157,12 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				return "FAILURE", nil
 			}
 		} else if workerMessage.MessageType == "METRICS" {
-			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location)
+			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
+			if childJob == nil {
+				return "FAILURE", fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId)
+			}
+
+			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
 			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {

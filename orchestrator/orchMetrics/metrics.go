@@ -3,56 +3,83 @@ package orchMetrics
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"math"
 	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/output"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-// Wrapped envelope allows for grouping
-type wrappedEnvelope struct {
-	globetest.SampleEnvelope `json:"sampleEnvelope"`
-	workerId                 string
-	location                 string
-	weighting                int
+type metric struct {
+	Contains string                   `json:"contains"`
+	Type     workerMetrics.MetricType `json:"type"`
+	Value    float64                  `json:"value"`
+}
+
+type wrappedMetric struct {
+	metric
+	name        string
+	location    string
+	subFraction float64
+	childJobId  string
 }
 
 // Cached metrics are stored before being collated and sent
 type cachedMetricsStore struct {
 	// Each envelope in the map is a certain metric
-	envelopes map[string][]*wrappedEnvelope
-	mu        sync.RWMutex
-	flusher   *output.PeriodicFlusher
-	gs        libOrch.BaseGlobalState
+	collectedMetrics map[string][]wrappedMetric
+	mu               sync.RWMutex
+	flusher          *output.PeriodicFlusher
+	gs               libOrch.BaseGlobalState
+	options          *libWorker.Options
 }
 
 var (
 	_ libOrch.BaseMetricsStore = &cachedMetricsStore{}
 )
 
-const globalName = "global"
-
 func NewCachedMetricsStore(gs libOrch.BaseGlobalState) *cachedMetricsStore {
-	store := &cachedMetricsStore{
-		gs:        gs,
-		envelopes: make(map[string][]*wrappedEnvelope),
-		mu:        sync.RWMutex{},
+	return &cachedMetricsStore{
+		gs:               gs,
+		collectedMetrics: make(map[string][]wrappedMetric),
+		mu:               sync.RWMutex{},
 	}
-
-	// This will never return an error
-	pf, _ := output.NewPeriodicFlusher(200*time.Millisecond, store.FlushMetrics)
-
-	store.flusher = pf
-
-	return store
 }
 
-func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string) error {
+func (store *cachedMetricsStore) InitMetricsStore(options *libWorker.Options) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	store.options = options
+
+	// Add load distribution locations
+	for _, location := range options.LoadDistribution.Value {
+		store.collectedMetrics[location.Location] = make([]wrappedMetric, 0)
+	}
+
+	// Add global location
+	store.collectedMetrics[libOrch.GlobalName] = make([]wrappedMetric, 0)
+
+	// This will never return an error
+	pf, _ := output.NewPeriodicFlusher(1000*time.Millisecond, store.FlushMetrics)
+
+	store.flusher = pf
+}
+
+func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
+	if store.options == nil {
+		return errors.New("metrics store not initialised")
+	}
+
+	// Ensure childJobId is not already in the store, prevents duplicate metrics
+	for _, existingWrappedMetric := range store.collectedMetrics[workerLocation] {
+		if existingWrappedMetric.childJobId == message.ChildJobId {
+			return nil
+		}
+	}
 
 	var sampleEnvelopes []globetest.SampleEnvelope
 
@@ -61,188 +88,161 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 		return err
 	}
 
+	wrappedMetrics := make([]wrappedMetric, 0)
 	for _, sampleEnvelope := range sampleEnvelopes {
-		metricName := sampleEnvelope.Metric.Name
-
-		// If the metric name is not in the map, create a new slice
-		if _, ok := store.envelopes[metricName]; !ok {
-			store.envelopes[metricName] = make([]*wrappedEnvelope, 0)
-		}
-
-		store.envelopes[metricName] = append(store.envelopes[metricName], &wrappedEnvelope{
-			SampleEnvelope: sampleEnvelope,
-			workerId:       message.WorkerId,
-			location:       workerLocation,
+		wrappedMetrics = append(wrappedMetrics, wrappedMetric{
+			metric: metric{
+				Contains: sampleEnvelope.Metric.Contains.String(),
+				Type:     sampleEnvelope.Metric.Type,
+				Value:    sampleEnvelope.Data.Value,
+			},
+			name:        sampleEnvelope.Metric.Name,
+			location:    workerLocation,
+			subFraction: subFraction,
+			childJobId:  message.ChildJobId,
 		})
+	}
+
+	// Add the metrics to the store
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	for _, wrappedMetric := range wrappedMetrics {
+		// Add the metrics to the correct location array
+		store.collectedMetrics[workerLocation] = append(store.collectedMetrics[workerLocation], wrappedMetric)
+
+		// Add the metrics to the global array
+		store.collectedMetrics[libOrch.GlobalName] = append(store.collectedMetrics[libOrch.GlobalName], wrappedMetric)
 	}
 
 	return nil
 }
 
 // Empty the store and returns its contents
-func (store *cachedMetricsStore) emptyStore() map[string][]*wrappedEnvelope {
+func (store *cachedMetricsStore) emptyStore() (map[string][]wrappedMetric, error) {
+	if store.options == nil {
+		return nil, errors.New("metrics store not initialised")
+	}
+
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	// Copy the map
-	result := make(map[string][]*wrappedEnvelope, len(store.envelopes))
-	for metricName, sampleEnvelopes := range store.envelopes {
-		result[metricName] = make([]*wrappedEnvelope, len(sampleEnvelopes))
+	result := make(map[string][]wrappedMetric, len(store.collectedMetrics))
+	for metricName, sampleEnvelopes := range store.collectedMetrics {
+		result[metricName] = make([]wrappedMetric, len(sampleEnvelopes))
 		copy(result[metricName], sampleEnvelopes)
 	}
 
 	// Empty the map
-	store.envelopes = make(map[string][]*wrappedEnvelope)
+	store.collectedMetrics = make(map[string][]wrappedMetric)
 
-	return result
+	// Add load distribution locations
+	for _, location := range store.options.LoadDistribution.Value {
+		store.collectedMetrics[location.Location] = make([]wrappedMetric, 0)
+	}
+
+	// Add global location
+	store.collectedMetrics[libOrch.GlobalName] = make([]wrappedMetric, 0)
+
+	return result, nil
 }
 
 func (store *cachedMetricsStore) FlushMetrics() {
-	envelopes, err := store.getMetrics()
-
+	collectedMetrics, err := store.getMetrics()
 	if err != nil {
-		fmt.Println(err)
-		//libOrch.HandleError(store.ctx, store.client, store.jobId, store.orchestratorId, err)
+		// Sometimes there are not enough metrics, this will throw an error
 		return
 	}
 
-	if len(envelopes) == 0 {
+	if len(collectedMetrics) == 0 {
 		return
 	}
 
 	// Marshall the envelopes
-	marshalledEnvelopes, err := json.Marshal(envelopes)
+	marshalledCollectedMetrics, err := json.Marshal(collectedMetrics)
 	if err != nil {
-		fmt.Println("FlushMetrics", err)
 		libOrch.HandleError(store.gs, err)
 		return
 	}
 
-	libOrch.DispatchMessage(store.gs, string(marshalledEnvelopes), "METRICS")
+	libOrch.DispatchMessage(store.gs, string(marshalledCollectedMetrics), "METRICS")
 }
 
-func (store *cachedMetricsStore) getMetrics() (map[string][]*wrappedEnvelope, error) {
-	envelopeMap := store.emptyStore()
-	currentTime := time.Now()
+func (store *cachedMetricsStore) getMetrics() (map[string]map[string]metric, error) {
+	collectedMetrics, err := store.emptyStore()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(collectedMetrics) == 0 {
+		return nil, errors.New("need at least one group of metrics")
+	}
+
+	firstKey := ""
+
+	// Ensure at least one metric in each location
+	for key, zoneMetrics := range collectedMetrics {
+		if len(zoneMetrics) == 0 {
+			return nil, errors.New("need at least one metric in each location")
+		}
+
+		if firstKey == "" {
+			firstKey = key
+		}
+	}
+
+	metricKeys := make([]string, 0)
+	metricTypes := make([]workerMetrics.MetricType, 0)
+	metricContains := make([]string, 0)
+
+	// Find first metric in first location
+	for _, metric := range collectedMetrics[firstKey] {
+		alreadExists := false
+		for i := 0; i < len(metricKeys); i++ {
+			if metricKeys[i] == metric.name {
+				alreadExists = true
+				break
+			}
+		}
+
+		if !alreadExists {
+			metricKeys = append(metricKeys, metric.name)
+			metricTypes = append(metricTypes, metric.metric.Type)
+			metricContains = append(metricContains, metric.metric.Contains)
+		}
+	}
 
 	// Combined metrics is the collated metrics
-	combinedMetrics := make(map[string][]*wrappedEnvelope)
+	combinedMetrics := make(map[string]map[string]metric)
 
-	// Create global name entry
-	combinedMetrics[globalName] = make([]*wrappedEnvelope, 0)
+	for location, collectedMetrics := range collectedMetrics {
+		combinedMetrics[location] = make(map[string]metric, 0)
 
-	for _, envelopes := range envelopeMap {
-		for _, envelope := range envelopes {
-			locationName := envelope.location
+		for i, metricKey := range metricKeys {
+			// Find all metrics in this zone that match the key
+			matchingKeyMetrics := make([]wrappedMetric, 0)
+			for _, metric := range collectedMetrics {
+				if metric.name == metricKey {
+					matchingKeyMetrics = append(matchingKeyMetrics, metric)
+				}
+			}
 
-			// If locationName is not in the map, create a new entry
-			if _, ok := combinedMetrics[locationName]; !ok {
-				combinedMetrics[locationName] = make([]*wrappedEnvelope, 0)
+			// Combine the metrics
+			if metricTypes[i] == workerMetrics.Counter {
+				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
+			} else if metricTypes[i] == workerMetrics.Gauge {
+				// Gauges are summed
+				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Gauge)
+			} else if metricTypes[i] == workerMetrics.Rate {
+				// Rates are summed
+				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Rate)
+			} else if metricTypes[i] == workerMetrics.Trend {
+				// Trends are summed
+				combinedMetrics[location][metricKey] = determineTrend(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Trend, "mean")
 			}
 		}
-	}
 
-	// sortedEnvelopeMap is the raw envelopes, indexed by location
-	sortedEnvelopeMap := make(map[string][]*wrappedEnvelope)
-
-	sortedEnvelopeMap[globalName] = make([]*wrappedEnvelope, 0)
-
-	for _, envelopes := range envelopeMap {
-		// Sort the envelopes by location
-		for _, envelope := range envelopes {
-			locationName := envelope.location
-
-			// If locationName is not in the map, create a new entry
-			if _, ok := sortedEnvelopeMap[locationName]; !ok {
-				sortedEnvelopeMap[locationName] = make([]*wrappedEnvelope, 0)
-			}
-
-			sortedEnvelopeMap[locationName] = append(sortedEnvelopeMap[locationName], envelope)
-
-			// Add to global
-			sortedEnvelopeMap[globalName] = append(sortedEnvelopeMap[globalName], envelope)
-		}
-	}
-
-	// Loop through the messages again and call the accumulator function for the
-	// correct type
-
-	// Store found vu count for that worker at that time
-	workerVuCount := make(map[string]int)
-
-	for location, envelopes := range sortedEnvelopeMap {
-		for _, envelope := range envelopes {
-			if envelope.Type != "Point" {
-				continue
-			}
-
-			// Find worker VU count
-			vuCount, err := findVuCount(&workerVuCount, envelopeMap, envelope.workerId)
-			if err != nil {
-				vuCount = -1 // Set to -1 to indicate that the vu count was not found
-				//return nil, err
-			}
-
-			// Determine based off metric type what accumulator function to use
-			metricName := envelope.Metric.Name
-
-			if metricName == "http_reqs" {
-				combinedMetrics[location] = calculateTotal(combinedMetrics[location], envelope, currentTime)
-				continue
-			}
-
-			if metricName == "vus" {
-				combinedMetrics[location] = calculateTotal(combinedMetrics[location], envelope, currentTime)
-				continue
-			}
-
-			if metricName == "vus_max" {
-				combinedMetrics[location] = calculateTotal(combinedMetrics[location], envelope, currentTime)
-				continue
-			}
-
-			// Think trends are just averages here
-
-			if metricName == "http_req_duration" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_blocked" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_connecting" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_sending" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_waiting" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_receiving" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_tls_handshaking" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-
-			if metricName == "http_req_failed" && vuCount != -1 {
-				combinedMetrics[location] = calculateMean(combinedMetrics[location], envelope, currentTime, vuCount)
-				continue
-			}
-		}
 	}
 
 	// If any keys are empty, remove them
@@ -255,27 +255,62 @@ func (store *cachedMetricsStore) getMetrics() (map[string][]*wrappedEnvelope, er
 	return combinedMetrics, nil
 }
 
-func findVuCount(workerVuCount *map[string]int, envelopeMap map[string][]*wrappedEnvelope, workerId string) (int, error) {
-	// Find worker Vu count in workerVuCount map first
-	if vuCount, ok := (*workerVuCount)[workerId]; ok {
-		return vuCount, nil
+// Calculates an aggregated counter metric for a zone
+func determineCounter(matchingKeyMetrics []wrappedMetric, metricName string, metricContains string,
+	metricType workerMetrics.MetricType) metric {
+	aggregatedMetric := metric{
+		Contains: metricContains,
+		Type:     metricType,
+		Value:    0.0,
 	}
 
-	// Check if vus is keyed in the envelope map
-	if _, ok := (envelopeMap)["vus"]; !ok {
-		return -1, errors.New("vu count not found")
+	for _, zoneMetric := range matchingKeyMetrics {
+		aggregatedMetric.Value += zoneMetric.Value
 	}
 
-	// Find vu count for this workerId
-	for _, envelope := range envelopeMap["vus"] {
-		if envelope.workerId == workerId {
-			newCount := int((*envelope).SampleEnvelope.Data.Value)
-			(*workerVuCount)[workerId] = newCount
-			return newCount, nil
+	return aggregatedMetric
+}
+
+// Calculates a weighted mean value metric for a zone
+func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metricContains string,
+	metricType workerMetrics.MetricType, valueKey string) metric {
+	aggregatedMetric := metric{
+		Contains: metricContains,
+		Type:     metricType,
+		Value:    0.0,
+	}
+
+	// Determine the weighted average of each value key from each metric
+	subFractionTotal := 0.0
+
+	if valueKey == "max" {
+		// Find biggest value
+		for _, zoneMetric := range matchingKeyMetrics {
+			if zoneMetric.Value > aggregatedMetric.Value {
+				aggregatedMetric.Value = zoneMetric.Value
+			}
 		}
+	} else if valueKey == "min" {
+		// Find smallest value
+		aggregatedMetric.Value = math.MaxFloat64
+
+		for _, zoneMetric := range matchingKeyMetrics {
+			if zoneMetric.Value < aggregatedMetric.Value {
+				aggregatedMetric.Value = zoneMetric.Value
+			}
+		}
+	} else {
+		// This isn't ideal for all all remaining value keys but better than nothing
+
+		for _, zoneMetric := range matchingKeyMetrics {
+			subFractionTotal += zoneMetric.subFraction
+			aggregatedMetric.Value += zoneMetric.Value * zoneMetric.subFraction
+		}
+
+		aggregatedMetric.Value /= subFractionTotal
 	}
 
-	return -1, errors.New("vu count not found")
+	return aggregatedMetric
 }
 
 func (store *cachedMetricsStore) Stop() {
