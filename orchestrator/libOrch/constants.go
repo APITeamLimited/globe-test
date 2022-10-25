@@ -1,3 +1,3 @@
 package libOrch
 
-const GlobalName = "Global"
+const GlobalName = "global"

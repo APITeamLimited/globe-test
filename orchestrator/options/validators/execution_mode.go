@@ -15,11 +15,11 @@ func ExecutionMode(options *libWorker.Options) error ***REMOVED***
 
 	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode ***REMOVED***
 		if (options.VUs.Valid && (options.VUs.ValueOrZero() > 1)) || (options.Iterations.Valid && options.Iterations.ValueOrZero() > 1) ***REMOVED***
-			return errors.New("cannot use executionMode 'http_single' with more than 1 VU or iteration")
+			return errors.New("cannot use executionMode 'httpSingle' with more than 1 VU or iteration")
 		***REMOVED*** else if options.Stages != nil ***REMOVED***
-			return errors.New("cannot use executionMode 'http_single' with stages")
+			return errors.New("cannot use executionMode 'httpSingle' with stages")
 		***REMOVED*** else if options.Scenarios != nil ***REMOVED***
-			return errors.New("cannot use executionMode 'http_single' with scenarios")
+			return errors.New("cannot use executionMode 'httpSingle' with scenarios")
 		***REMOVED***
 
 		return nil
