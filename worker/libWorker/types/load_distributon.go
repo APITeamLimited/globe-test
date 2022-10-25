@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	HTTPSingleLoadZone   = "http_single"
-	HTTPMultipleLoadZone = "http_multiple"
+	HTTPSingleLoadZone   = "httpSingle"
+	HTTPMultipleLoadZone = "httpMultiple"
 )
 
 type LoadZone struct {

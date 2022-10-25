@@ -42,7 +42,7 @@ var (
 
 // New returns a pointer to a new LifecycleModule instance.
 func New(workerInfo *libWorker.WorkerInfo) *LifecycleModule {
-	// Only run in http_single execution mode
+	// Only run in httpSingle execution mode
 
 	// Check lifecycle actually exists
 	if workerInfo.WorkerOptions.ExecutionMode.Value == types.HTTPSingleExecutionMode ||

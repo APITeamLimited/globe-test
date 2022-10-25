@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	HTTPSingleExecutionMode   = "http_single"
-	HTTPMultipleExecutionMode = "http_multiple"
+	HTTPSingleExecutionMode   = "httpSingle"
+	HTTPMultipleExecutionMode = "httpMultiple"
 )
 
 type NullExecutionMode struct {

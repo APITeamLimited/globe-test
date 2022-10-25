@@ -13,7 +13,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/compiler"
 	"github.com/APITeamLimited/globe-test/worker/js/eventloop"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
-	"github.com/APITeamLimited/globe-test/worker/js/modules/apiteam"
 	apiteamContext "github.com/APITeamLimited/globe-test/worker/js/modules/apiteam/context"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6"
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/crypto"
@@ -354,19 +353,38 @@ func (i *InitContext) allowOnlyOpenedFiles() {
 }
 
 func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface{} {
+	k6Module := k6.New()
+	kyCryptoModule := crypto.New()
+	k6Crypto509Module := x509.New()
+	k6DataModule := data.New()
+	k6EncodingModule := encoding.New()
+	k6ExecutionModule := execution.New()
+	k6HTMLModule := html.New()
+	k6HTTPModule := http.New()
+	k6MetricsModule := metrics.New()
+
 	return map[string]interface{}{
-		"k6":             k6.New(),
-		"k6/crypto":      crypto.New(),
-		"k6/crypto/x509": x509.New(),
-		"k6/data":        data.New(),
-		"k6/encoding":    encoding.New(),
-		"k6/execution":   execution.New(),
+		"k6":             k6Module,
+		"k6/crypto":      kyCryptoModule,
+		"k6/crypto/x509": k6Crypto509Module,
+		"k6/data":        k6DataModule,
+		"k6/encoding":    k6EncodingModule,
+		"k6/execution":   k6ExecutionModule,
 		//"k6/net/grpc":         grpc.New(),
-		"k6/html":    html.New(),
-		"k6/http":    http.New(),
-		"k6/metrics": metrics.New(),
+		"k6/html":             k6HTMLModule,
+		"k6/http":             k6HTTPModule,
+		"k6/metrics":          k6MetricsModule,
+		"apiteam":             k6Module,
+		"apiteam/crypto":      kyCryptoModule,
+		"apiteam/crypto/x509": k6Crypto509Module,
+		"apiteam/data":        k6DataModule,
+		"apiteam/encoding":    k6EncodingModule,
+		"apiteam/execution":   k6ExecutionModule,
+		//"k6/net/grpc":         grpc.New(),
+		"apiteam/html":    k6HTMLModule,
+		"apiteam/http":    k6HTTPModule,
+		"apiteam/metrics": k6MetricsModule,
 		//"k6/ws":               ws.New(),
-		"apiteam":         apiteam.New(),
 		"apiteam/context": apiteamContext.New(workerInfo),
 	}
 }
