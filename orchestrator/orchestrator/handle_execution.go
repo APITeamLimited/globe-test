@@ -112,7 +112,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			}
 
 			if jobUserUpdate.UpdateType == "CANCEL" {
-				fmt.Println("Received job abort signal")
+				fmt.Println("Aborting job due to user request")
 				libOrch.DispatchMessage(gs, "Job cancelled by user", "INFO")
 
 				// Cancel all child jobs

@@ -66,10 +66,10 @@ func handleExecution(csdasdtx context.Context,
 	defer runCancel()
 
 	// Create handler for test aborts
-	abortChannel := client.Subscribe(ctx, fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId)).Channel()
+	childJobUpdatesChannel := client.Subscribe(ctx, fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId)).Channel()
 
 	go func() {
-		for msg := range abortChannel {
+		for msg := range childJobUpdatesChannel {
 			var abortMessage = jobUserUpdate{}
 			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
@@ -77,7 +77,7 @@ func handleExecution(csdasdtx context.Context,
 			}
 
 			if abortMessage.UpdateType == "CANCEL" {
-				fmt.Println("Aborting test due to user request")
+				fmt.Println("Aborting child job due to user request")
 				runCancel()
 				globalCancel()
 				return
