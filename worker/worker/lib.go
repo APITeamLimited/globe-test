@@ -69,3 +69,7 @@ type workerLoadedAndConfiguredTest struct ***REMOVED***
 ***REMOVED***
 
 const testTypeJS = "js"
+
+type jobUserUpdate struct ***REMOVED***
+	UpdateType string `json:"updateType"`
+***REMOVED***

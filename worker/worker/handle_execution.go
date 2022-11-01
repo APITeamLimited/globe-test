@@ -43,6 +43,13 @@ func handleExecution(csdasdtx context.Context,
 		return false
 	***REMOVED***
 
+	startChannel := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId)).Channel()
+
+	libWorker.UpdateStatus(gs, "READY")
+
+	// Wait for start message on the channel
+	<-startChannel
+
 	// Don't know if these can be removed easily without unexpected side effects
 
 	// We prepare a bunch of contexts:
@@ -57,6 +64,26 @@ func handleExecution(csdasdtx context.Context,
 	defer globalCancel()
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
+
+	// Create handler for test aborts
+	abortChannel := client.Subscribe(ctx, fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId)).Channel()
+
+	go func() ***REMOVED***
+		for msg := range abortChannel ***REMOVED***
+			var abortMessage = jobUserUpdate***REMOVED******REMOVED***
+			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil ***REMOVED***
+				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
+				continue
+			***REMOVED***
+
+			if abortMessage.UpdateType == "CANCEL" ***REMOVED***
+				fmt.Println("Aborting test due to user request")
+				runCancel()
+				globalCancel()
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
@@ -80,13 +107,6 @@ func handleExecution(csdasdtx context.Context,
 
 	// Wait for the job to be started on redis
 	// TODO: implement as a blocking redis call
-
-	startChannel := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId)).Channel()
-
-	libWorker.UpdateStatus(gs, "READY")
-
-	// Wait for start message on the channel
-	<-startChannel
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()

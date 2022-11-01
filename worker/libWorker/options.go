@@ -297,6 +297,7 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 type Options struct ***REMOVED***
 	ExecutionMode    types.NullExecutionMode    `json:"executionMode"`
 	LoadDistribution types.NullLoadDistribution `json:"loadDistribution"`
+	OutputConfig     types.NullOutputConfig     `json:"outputConfig"`
 
 	MaxPossibleVUs null.Int `json:"maxPossibleVUs"`
 

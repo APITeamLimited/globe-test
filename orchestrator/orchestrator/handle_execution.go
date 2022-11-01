@@ -17,8 +17,15 @@ type locatedMesaage struct ***REMOVED***
 	msg      *redis.Message
 ***REMOVED***
 
+type jobUserUpdate struct ***REMOVED***
+	UpdateType string `json:"updateType"`
+***REMOVED***
+
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
 	libOrch.UpdateStatus(gs, "LOADING")
+
+	// Create a handler for aborts
+	jobUserUpdatesChannel := gs.Client().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs ***REMOVED***
@@ -53,7 +60,8 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	unifiedChannel := make(chan locatedMesaage)
 
 	for location, channel := range workerChannels ***REMOVED***
-		// Seems to be required to avoid capturing the loop variable
+		// Variable declaration here for locationLoop seems to be required to avoid
+		// capturing the loop variable error
 		locationLoop := location
 		go func(channel <-chan *redis.Message) ***REMOVED***
 			for msg := range channel ***REMOVED***
@@ -66,6 +74,18 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			***REMOVED***
 		***REMOVED***(channel)
 	***REMOVED***
+
+	// Add jobUserUpdatesChannel to the unifiedChannel
+	go func() ***REMOVED***
+		for msg := range jobUserUpdatesChannel ***REMOVED***
+			newMessage := locatedMesaage***REMOVED***
+				location: "jobUserUpdates",
+				msg:      msg,
+			***REMOVED***
+
+			unifiedChannel <- newMessage
+		***REMOVED***
+	***REMOVED***()
 
 	childJobCount := 0
 	for _, jobDistribution := range childJobs ***REMOVED***
@@ -82,6 +102,36 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	summaryBank := orchMetrics.NewSummaryBank(gs, options)
 
 	for locatedMessage := range unifiedChannel ***REMOVED***
+		// Handle user updates separately
+		if locatedMessage.location == "jobUserUpdates" ***REMOVED***
+			var jobUserUpdate = jobUserUpdate***REMOVED******REMOVED***
+
+			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
+			if err != nil ***REMOVED***
+				return "FAILURE", err
+			***REMOVED***
+
+			if jobUserUpdate.UpdateType == "CANCEL" ***REMOVED***
+				fmt.Println("Received job abort signal")
+				libOrch.DispatchMessage(gs, "Job cancelled by user", "INFO")
+
+				// Cancel all child jobs
+				for _, jobDistribution := range childJobs ***REMOVED***
+					for _, job := range jobDistribution.Jobs ***REMOVED***
+						err := jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId), locatedMessage.msg.Payload).Err()
+						if err != nil ***REMOVED***
+							return "FAILURE", err
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				return "FAILURE", errors.New("job cancelled by user")
+			***REMOVED***
+
+			// jobUserUpdates are different to other messages, so we can skip the rest of the loop
+			continue
+		***REMOVED***
+
 		var workerMessage = libOrch.WorkerMessage***REMOVED******REMOVED***
 		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil ***REMOVED***
