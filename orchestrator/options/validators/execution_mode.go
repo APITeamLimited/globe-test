@@ -10,7 +10,7 @@ import (
 
 func ExecutionMode(options *libWorker.Options) error {
 	if !options.ExecutionMode.Valid {
-		return errors.New("execution mode is not valid")
+		return errors.New("the option executionMode must be specified")
 	}
 
 	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode {

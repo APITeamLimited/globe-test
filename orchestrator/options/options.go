@@ -69,6 +69,11 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
+	err = validators.OutputConfig(options)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check the generated and user supplied options are valid
 	checkedOptions, err := deriveScenariosFromShortcuts(applyDefault(options), gs.Logger())
 	if err != nil {
