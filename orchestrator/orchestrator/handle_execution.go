@@ -52,7 +52,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		for _, job := range jobDistribution.Jobs {
 			err := dispatchJob(gs, jobDistribution.workerClient, job, options)
 			if err != nil {
-				return "FAILURE", err
+				return abortAndFailAll(gs, childJobs, err)
 			}
 		}
 	}
@@ -108,24 +108,19 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
 			if err != nil {
-				return "FAILURE", err
+				return abortAndFailAll(gs, childJobs, err)
 			}
 
 			if jobUserUpdate.UpdateType == "CANCEL" {
 				fmt.Println("Aborting job due to user request")
-				libOrch.DispatchMessage(gs, "Job cancelled by user", "INFO")
 
 				// Cancel all child jobs
-				for _, jobDistribution := range childJobs {
-					for _, job := range jobDistribution.Jobs {
-						err := jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId), locatedMessage.msg.Payload).Err()
-						if err != nil {
-							return "FAILURE", err
-						}
-					}
+				err := abortChildJobs(gs, childJobs)
+				if err != nil {
+					libOrch.HandleError(gs, err)
 				}
 
-				return "FAILURE", errors.New("job cancelled by user")
+				return abortAndFailAll(gs, childJobs, errors.New("job cancelled by user"))
 			}
 
 			// jobUserUpdates are different to other messages, so we can skip the rest of the loop
@@ -135,7 +130,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		var workerMessage = libOrch.WorkerMessage{}
 		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil {
-			return "FAILURE", err
+			return abortAndFailAll(gs, childJobs, err)
 		}
 
 		if workerMessage.MessageType == "STATUS" {
@@ -182,16 +177,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				if successCount+failureCount == childJobCount {
 					// All jobs have finished
 					if failureCount > 0 {
-						libOrch.UpdateStatus(gs, "FAILURE")
-						return "FAILURE", nil
+						// If one job fails, cancel all other jobs
+						return abortAndFailAll(gs, childJobs, nil)
 					} else {
 						libOrch.UpdateStatus(gs, "SUCCESS")
 						return "SUCCESS", nil
 					}
 				}
 			}
-			// Ignore other kinds of status messages
-			//libOrch.DispatchWorkerMessage(gs.Ctx(), gs.Client(), gs.JobId(), workerMessage.WorkerId, workerMessage.Message, "STATUS")
 
 			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
@@ -203,20 +196,19 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 			if successCount+failureCount == childJobCount {
 				// All jobs have finished
-				libOrch.UpdateStatus(gs, "FAILURE")
-				return "FAILURE", nil
+				return abortAndFailAll(gs, childJobs, nil)
 			}
 		} else if workerMessage.MessageType == "METRICS" {
 			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
-				return "FAILURE", fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId)
+				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId))
 			}
 
 			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
 			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
-				return "FAILURE", fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId)
+				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId))
 			}
 
 			summaryBank.AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
@@ -224,7 +216,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			if summaryBank.Size() == childJobCount {
 				err := summaryBank.CalculateAndDispatchSummaryMetrics()
 				if err != nil {
-					return "FAILURE", err
+					return abortAndFailAll(gs, childJobs, err)
 				}
 			}
 		} else if workerMessage.MessageType == "DEBUG" {
@@ -236,7 +228,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	}
 
 	// Should never get here
-	return "FAILURE", errors.New("an unexpected error occurred")
+	return abortAndFailAll(gs, childJobs, errors.New("an unexpected error occurred"))
 }
 
 func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, options *libWorker.Options) error {
