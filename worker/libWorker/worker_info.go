@@ -39,6 +39,8 @@ type (
 		FinalRequest      map[string]interface***REMOVED******REMOVED***
 		UnderlyingRequest map[string]interface***REMOVED******REMOVED***
 		Gs                *BaseGlobalState
+		VerifiedDomains   []string
+		SubFraction       float64
 	***REMOVED***
 
 	MarkMessage struct ***REMOVED***

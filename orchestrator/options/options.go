@@ -1,6 +1,7 @@
 package options
 
 import (
+	"errors"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -84,6 +85,11 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	maxVUsCount := int64(0)
 	for _, scenario := range checkedOptions.Scenarios ***REMOVED***
 		maxVUsCount += scenario.GetMaxExecutorVUs()
+	***REMOVED***
+
+	// Restrict VU count to 50 for now
+	if maxVUsCount > 50 ***REMOVED***
+		return nil, errors.New("max VU count is currently limited to 50")
 	***REMOVED***
 
 	checkedOptions.MaxPossibleVUs = null.IntFrom(maxVUsCount)

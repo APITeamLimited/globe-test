@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -13,9 +14,11 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"golang.org/x/time/rate"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
@@ -32,9 +35,66 @@ func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...go
 	***REMOVED***
 ***REMOVED***
 
+// Rate limits the number of requests per second to a certain domain
+func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+	domain, err := getDomainFromURL(url)
+	if err != nil ***REMOVED***
+		return nil, errors.New("could not extract domain from url")
+	***REMOVED***
+
+	c.moduleInstance.rootModule.domainLimitsLock.Lock()
+
+	if c.moduleInstance.rootModule.domainLimits[domain] == nil ***REMOVED***
+		c.createDomainLimiter(domain)
+	***REMOVED***
+
+	limiter := c.moduleInstance.rootModule.domainLimits[domain]
+
+	// Wait for the limiter to allow the request
+	if err := limiter.Wait(c.moduleInstance.vu.Context()); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	c.moduleInstance.rootModule.domainLimitsLock.Unlock()
+
+	return performRequest(c, method, url, args...)
+***REMOVED***
+
+func getDomainFromURL(url interface***REMOVED******REMOVED***) (string, error) ***REMOVED***
+	if urlJSValue, ok := url.(goja.Value); ok ***REMOVED***
+		url = urlJSValue.Export()
+	***REMOVED***
+	u, err := httpext.ToURL(url)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+
+	return u.GetURL().Hostname(), nil
+***REMOVED***
+
+func (c *Client) createDomainLimiter(domain string) ***REMOVED***
+	// Check if domain is in verified domains
+	verified := false
+	for _, verifiedDomain := range c.moduleInstance.rootModule.workerInfo.VerifiedDomains ***REMOVED***
+		if verifiedDomain == domain ***REMOVED***
+			verified = true
+			break
+		***REMOVED***
+	***REMOVED***
+
+	limit := math.MaxFloat64
+	if !verified ***REMOVED***
+		// Always seems to be one over
+		go libWorker.DispatchMessage(*c.moduleInstance.rootModule.workerInfo.Gs, "UNVERIFIED_DOMAIN_THROTTLED", "MESSAGE")
+		limit = 10 * c.moduleInstance.rootModule.workerInfo.SubFraction
+	***REMOVED***
+
+	c.moduleInstance.rootModule.domainLimits[domain] = rate.NewLimiter(rate.Limit(limit), 1)
+***REMOVED***
+
 // Request makes an http request of the provided `method` and returns a corresponding response by
 // taking goja.Values as arguments
-func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+func performRequest(c *Client, method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	state := c.moduleInstance.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrHTTPForbiddenInInitContext

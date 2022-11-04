@@ -3,12 +3,15 @@ package http
 import (
 	"net/http"
 	"net/http/cookiejar"
+	"sync"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
 	"github.com/dop251/goja"
+	"golang.org/x/time/rate"
 )
 
 // RootModule is the global module object type. It is instantiated once per test
@@ -16,7 +19,11 @@ import (
 //
 // TODO: add sync.Once for all of the deprecation warnings we might want to do
 // for the old k6/http APIs here, so they are shown only once in a test run.
-type RootModule struct***REMOVED******REMOVED***
+type RootModule struct ***REMOVED***
+	workerInfo       *libWorker.WorkerInfo
+	domainLimits     map[string]*rate.Limiter
+	domainLimitsLock sync.Mutex
+***REMOVED***
 
 // ModuleInstance represents an instance of the HTTP module for every VU.
 type ModuleInstance struct ***REMOVED***
@@ -32,8 +39,12 @@ var (
 )
 
 // New returns a pointer to a new HTTP RootModule.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
+	return &RootModule***REMOVED***
+		workerInfo:       workerInfo,
+		domainLimits:     make(map[string]*rate.Limiter),
+		domainLimitsLock: sync.Mutex***REMOVED******REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 // NewModuleInstance returns an HTTP module instance for each VU.

@@ -360,7 +360,7 @@ func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface
 	k6EncodingModule := encoding.New()
 	k6ExecutionModule := execution.New()
 	k6HTMLModule := html.New()
-	k6HTTPModule := http.New()
+	k6HTTPModule := http.New(workerInfo)
 	k6MetricsModule := metrics.New()
 
 	return map[string]interface***REMOVED******REMOVED******REMOVED***

@@ -77,9 +77,8 @@ func handleExecution(csdasdtx context.Context,
 			***REMOVED***
 
 			if abortMessage.UpdateType == "CANCEL" ***REMOVED***
-				fmt.Println("Aborting child job due to user request")
-				//runCancel()
-				globalCancel()
+				fmt.Println("Aborting child job due to a request from the orchestrator")
+				runCancel()
 				return
 			***REMOVED***
 		***REMOVED***

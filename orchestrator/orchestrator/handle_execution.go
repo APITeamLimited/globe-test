@@ -44,7 +44,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 	// Check if workerSubscriptions is empty
 	if len(workerSubscriptions) == 0 ***REMOVED***
-		libOrch.DispatchMessage(gs, "No child jobs were created", "INFO")
+		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
 		return "SUCCESS", nil
 	***REMOVED***
 
