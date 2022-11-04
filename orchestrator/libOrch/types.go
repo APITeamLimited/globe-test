@@ -39,6 +39,7 @@ type (
 		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
 		Scope                Scope                  `json:"scope"`
 		Options              *libWorker.Options     `json:"options"`
+		VerifiedDomains      []string               `json:"verifiedDomains"`
 	}
 
 	Scope struct {

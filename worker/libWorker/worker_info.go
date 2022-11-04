@@ -39,6 +39,8 @@ type (
 		FinalRequest      map[string]interface{}
 		UnderlyingRequest map[string]interface{}
 		Gs                *BaseGlobalState
+		VerifiedDomains   []string
+		SubFraction       float64
 	}
 
 	MarkMessage struct {

@@ -401,7 +401,7 @@ type Options struct {
 	RunTags map[string]string `json:"tags" envconfig:"K6_TAGS"`
 
 	// Buffer size of the channel for metric samples; 0 means unbuffered
-	MetricSamplesBufferSize null.Int `json:"metricSamplesBufferSize" envconfig:"K6_METRIC_SAMPLES_BUFFER_SIZE"`
+	//MetricSamplesBufferSize null.Int `json:"metricSamplesBufferSize" envconfig:"K6_METRIC_SAMPLES_BUFFER_SIZE"`
 
 	// Do not reset cookies after a VU iteration
 	NoCookiesReset null.Bool `json:"noCookiesReset" envconfig:"K6_NO_COOKIES_RESET"`
@@ -550,9 +550,9 @@ func (o Options) Apply(opts Options) Options {
 	if len(opts.RunTags) > 0 {
 		o.RunTags = opts.RunTags
 	}
-	if opts.MetricSamplesBufferSize.Valid {
-		o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
-	}
+	//if opts.MetricSamplesBufferSize.Valid {
+	//	o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
+	//}
 	if opts.DiscardResponseBodies.Valid {
 		o.DiscardResponseBodies = opts.DiscardResponseBodies
 	}

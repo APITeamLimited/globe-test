@@ -73,15 +73,17 @@ func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string)
 func loadWorkerInfo(ctx context.Context,
 	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState) *libWorker.WorkerInfo {
 	workerInfo := &libWorker.WorkerInfo{
-		Client:         client,
-		JobId:          job.Id,
-		ChildJobId:     job.ChildJobId,
-		ScopeId:        job.ScopeId,
-		OrchestratorId: job.AssignedOrchestrator,
-		WorkerId:       workerId,
-		Ctx:            ctx,
-		WorkerOptions:  job.Options,
-		Gs:             &gs,
+		Client:          client,
+		JobId:           job.Id,
+		ChildJobId:      job.ChildJobId,
+		ScopeId:         job.ScopeId,
+		OrchestratorId:  job.AssignedOrchestrator,
+		WorkerId:        workerId,
+		Ctx:             ctx,
+		WorkerOptions:   job.Options,
+		Gs:              &gs,
+		VerifiedDomains: job.VerifiedDomains,
+		SubFraction:     job.SubFraction,
 	}
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
