@@ -18,7 +18,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorkerWorker/testutils"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )

@@ -1,6 +1,7 @@
 package options
 
 import (
+	"database/sql"
 	"errors"
 	"time"
 
@@ -17,6 +18,15 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	options, err := getCompiledOptions(job, gs)
 	if err != nil ***REMOVED***
 		return nil, err
+	***REMOVED***
+
+	// Disable MetricSamplesBufferSize modifications, not sure what it does
+	// TODO: Check if MetricSamplesBufferSize config option is needed
+	options.MetricSamplesBufferSize = null.Int***REMOVED***
+		NullInt64: sql.NullInt64***REMOVED***
+			Int64: 0,
+			Valid: false,
+		***REMOVED***,
 	***REMOVED***
 
 	// Prevent the user from accessing internal ip ranges
