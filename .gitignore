@@ -14,7 +14,7 @@
 /versioninfo.json
 
 # Vendor folders
-/vendor/
+vendor/
 
 /packaging/.env
 /packaging/*.gpg
