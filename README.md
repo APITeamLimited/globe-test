@@ -4,7 +4,7 @@ Globe Test
 
 ##### Run distributed load tests using the K6 runtime engine
 
-Actively being developed by <a href="https://apiteam.cloud">APITeam (https://apiteam.cloud)</a>. APITeam is an all in one platform for designing, testing and scaling your APIs collaboratively. 
+Actively being developed by APITeam (<a href="https://apiteam.cloud">https://apiteam.cloud</a>). APITeam is an all in one platform for designing, testing and scaling your APIs collaboratively. 
 
 Note: GlobeTest and APITeam are not affiliated with the K6 project.
 
