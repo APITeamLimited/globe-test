@@ -32,8 +32,8 @@ func validateMetricGraphs(metricGraphs []types.MetricGraph) error {
 
 		for _, series := range metricGraph.Series {
 
-			if series.Name == "" {
-				return fmt.Errorf("metric graph series name cannot be empty")
+			if series.LoadZone == "" {
+				return fmt.Errorf("loadZone cannot be empty")
 			}
 
 			if !types.IsValidSeriesKind(series.Kind) {

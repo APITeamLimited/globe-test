@@ -13,28 +13,28 @@ func DefaultOutputConfig() NullOutputConfig {
 					Name: "Overview",
 					Series: []MetricGraphSeries{
 						{
-							Name:   "VUs",
-							Metric: "vus",
-							Kind:   AreaGraphSeriesType,
-							Color:  "#808080",
+							LoadZone: "global",
+							Metric:   "vus",
+							Kind:     AreaGraphSeriesType,
+							Color:    "#808080",
 						},
 						{
-							Name:   "Request Rate",
-							Metric: "http_reqs",
-							Kind:   LineGraphSeriesType,
-							Color:  "#0096FF",
+							LoadZone: "global",
+							Metric:   "http_reqs",
+							Kind:     LineGraphSeriesType,
+							Color:    "#0096FF",
 						},
 						{
-							Name:   "Request Duration",
-							Metric: "http_req_duration",
-							Kind:   LineGraphSeriesType,
-							Color:  "#FF00FF",
+							LoadZone: "global",
+							Metric:   "http_req_duration",
+							Kind:     LineGraphSeriesType,
+							Color:    "#FF00FF",
 						},
 						{
-							Name:   "Failure Rate",
-							Metric: "http_req_failed",
-							Kind:   LineGraphSeriesType,
-							Color:  "#FF0000",
+							LoadZone: "global",
+							Metric:   "http_req_failed",
+							Kind:     LineGraphSeriesType,
+							Color:    "#FF0000",
 						},
 					},
 					DesiredWidth: 3,
@@ -52,10 +52,10 @@ const (
 )
 
 type MetricGraphSeries struct {
-	Name   string `json:"name"`
-	Metric string `json:"metric"`
-	Kind   string `json:"kind"`
-	Color  string `json:"color"`
+	LoadZone string `json:"loadZone"`
+	Metric   string `json:"metric"`
+	Kind     string `json:"kind"`
+	Color    string `json:"color"`
 }
 
 type MetricGraph struct {
