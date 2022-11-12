@@ -150,7 +150,7 @@ func getWorkerClient() *redis.Client ***REMOVED***
 func getMaxJobs() int ***REMOVED***
 	maxJobs, err := strconv.Atoi(libOrch.GetEnvVariable("WORKER_MAX_JOBS", "1000"))
 	if err != nil ***REMOVED***
-		maxJobs = 1000
+		panic(err)
 	***REMOVED***
 
 	return maxJobs
@@ -159,7 +159,7 @@ func getMaxJobs() int ***REMOVED***
 func getMaxVUs() int64 ***REMOVED***
 	maxVUs, err := strconv.ParseInt(libOrch.GetEnvVariable("WORKER_MAX_VUS", "5000"), 10, 64)
 	if err != nil ***REMOVED***
-		maxVUs = 10000
+		panic(err)
 	***REMOVED***
 
 	return maxVUs

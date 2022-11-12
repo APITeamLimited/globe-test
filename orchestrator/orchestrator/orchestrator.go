@@ -14,6 +14,13 @@ import (
 func Run() ***REMOVED***
 	ctx := context.Background()
 	orchestratorId := uuid.NewString()
+
+	// Change process title
+	fmt.Printf("\033]0;GlobeTest Orchestrator: %s\007", orchestratorId)
+
+	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
+	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
+
 	orchestratorClient := getOrchestratorClient()
 	storeMongoDB := getStoreMongoDB(ctx)
 	workerClients := connectWorkerClients(ctx)
@@ -32,11 +39,6 @@ func Run() ***REMOVED***
 	// Periodically check for and delete offline orchestrators
 	createDeletionScheduler(ctx, orchestratorClient, workerClients)
 
-	// Change process title
-	fmt.Printf("\033]0;GlobeTest Orchestrator: %s\007", orchestratorId)
-
-	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
-	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 	fmt.Printf("Listening for new jobs on %s...\n\n", orchestratorClient.Options().Addr)
 
 	// Subscribe to the execution channel and listen for new jobs
