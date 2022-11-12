@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dop251/goja"
-	"golang.org/x/time/rate"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/bobesa/go-domain-util/domainutil"
+	"github.com/dop251/goja"
+	"golang.org/x/time/rate"
+	"gopkg.in/guregu/null.v3"
 )
 
 // ErrHTTPForbiddenInInitContext is used when a http requests was made in the init context
@@ -28,6 +28,8 @@ var ErrHTTPForbiddenInInitContext = common.NewInitContextError("Making http requ
 
 // ErrBatchForbiddenInInitContext is used when batch was made in the init context
 var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in the init context is not supported")
+
+const unverifiedDomainLimit = 10
 
 func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...goja.Value) (*Response, error) {
 	return func(url goja.Value, args ...goja.Value) (*Response, error) {
@@ -39,7 +41,7 @@ func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...go
 func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
 	domain, err := getDomainFromURL(url)
 	if err != nil {
-		return nil, errors.New("could not extract domain from url")
+		return nil, err
 	}
 
 	c.moduleInstance.rootModule.domainLimitsLock.Lock()
@@ -69,12 +71,19 @@ func getDomainFromURL(url interface{}) (string, error) {
 		return "", err
 	}
 
-	return u.GetURL().Hostname(), nil
+	domain := domainutil.Domain(u.GetURL().Hostname())
+
+	if domain == "" {
+		return "", errors.New("could not extract domain from url")
+	}
+
+	return domain, nil
 }
 
 func (c *Client) createDomainLimiter(domain string) {
 	// Check if domain is in verified domains
 	verified := false
+
 	for _, verifiedDomain := range c.moduleInstance.rootModule.workerInfo.VerifiedDomains {
 		if verifiedDomain == domain {
 			verified = true
@@ -84,9 +93,8 @@ func (c *Client) createDomainLimiter(domain string) {
 
 	limit := math.MaxFloat64
 	if !verified {
-		// Always seems to be one over
 		go libWorker.DispatchMessage(*c.moduleInstance.rootModule.workerInfo.Gs, "UNVERIFIED_DOMAIN_THROTTLED", "MESSAGE")
-		limit = 10 * c.moduleInstance.rootModule.workerInfo.SubFraction
+		limit = unverifiedDomainLimit * c.moduleInstance.rootModule.workerInfo.SubFraction
 	}
 
 	c.moduleInstance.rootModule.domainLimits[domain] = rate.NewLimiter(rate.Limit(limit), 1)

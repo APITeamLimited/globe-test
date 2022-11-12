@@ -17,9 +17,9 @@ func GetEnvVariable(key, defaultValue string) string {
 		return value
 	}
 
-	if SYSTEM_ENV == "development" {
-		return defaultValue
+	if SYSTEM_ENV != "development" {
+		fmt.Printf("%s is not set, and environment was %s, not development\n", key, SYSTEM_ENV)
 	}
 
-	panic(fmt.Sprintf("%s is not set, and environment was %s, not development", key, SYSTEM_ENV))
+	return defaultValue
 }
