@@ -207,3 +207,51 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
 	}, nil
 }
+
+func loadWorkerInfo(ctx context.Context,
+	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState) *libWorker.WorkerInfo {
+	workerInfo := &libWorker.WorkerInfo{
+		Client:          client,
+		JobId:           job.Id,
+		ChildJobId:      job.ChildJobId,
+		ScopeId:         job.ScopeId,
+		OrchestratorId:  job.AssignedOrchestrator,
+		WorkerId:        workerId,
+		Ctx:             ctx,
+		WorkerOptions:   job.Options,
+		Gs:              &gs,
+		VerifiedDomains: job.VerifiedDomains,
+		SubFraction:     job.SubFraction,
+	}
+
+	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
+		collectionVariables := make(map[string]string)
+
+		for _, variable := range job.CollectionContext.Variables {
+			collectionVariables[variable.Key] = variable.Value
+		}
+
+		workerInfo.Collection = &libWorker.Collection{
+			Variables: collectionVariables,
+			Name:      job.CollectionContext.Name,
+		}
+	}
+
+	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" {
+		environmentVariables := make(map[string]string)
+
+		for _, variable := range job.EnvironmentContext.Variables {
+			environmentVariables[variable.Key] = variable.Value
+		}
+
+		workerInfo.Environment = &libWorker.Environment{
+			Variables: environmentVariables,
+			Name:      job.EnvironmentContext.Name,
+		}
+	}
+
+	workerInfo.FinalRequest = job.FinalRequest
+	workerInfo.UnderlyingRequest = job.UnderlyingRequest
+
+	return workerInfo
+}

@@ -3,6 +3,6 @@ FROM golang:alpine
 COPY . /app
 WORKDIR /app
 RUN go get
-RUN go build -o main
+RUN go build -o globe-test
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./globe-test"]
