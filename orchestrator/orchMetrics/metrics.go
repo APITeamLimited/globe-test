@@ -151,7 +151,8 @@ func (store *cachedMetricsStore) emptyStore() (map[string][]wrappedMetric, error
 func (store *cachedMetricsStore) FlushMetrics() {
 	collectedMetrics, err := store.getMetrics()
 	if err != nil {
-		// Sometimes there are not enough metrics, this will throw an error
+		// Sometimes there are not enough metrics, this will throw an expected error
+		// that can be ignored
 		return
 	}
 

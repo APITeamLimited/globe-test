@@ -19,8 +19,6 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	healthy := optionsErr == nil
 
 	if healthy {
-		(*gs.MetricsStore()).InitMetricsStore(job.Options)
-
 		marshalledOptions, err := json.Marshal(job.Options)
 		if err != nil {
 			libOrch.HandleStringError(gs, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
@@ -28,6 +26,8 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		}
 
 		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
+
+		(*gs.MetricsStore()).InitMetricsStore(job.Options)
 	}
 
 	scope := job.Scope

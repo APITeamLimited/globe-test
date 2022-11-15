@@ -45,29 +45,7 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			return nil, fmt.Errorf("failed to find worker client %s, this is an internal error", loadZone.Location)
 		}
 
-		maxVUs := options.MaxPossibleVUs.ValueOrZero()
-
-		var subFractions = []float64{}
-
-		// If max possible vus is greater than 500, then split into multiple jobs
-		if int(maxVUs)*(loadZone.Fraction/100) <= maxJobSize {
-			subFractions = append(subFractions, float64(loadZone.Fraction/100))
-		} else {
-			// Split into multiple jobs, each with a max of 500 vus and one job with the remainder
-			// Floor plus one to ensure we don't lose any vus
-			numJobs := int(math.Floor(float64(maxVUs)/maxJobSize)) + 1
-
-			// Calculate sub fractions
-			for i := 0; i < numJobs-1; i++ {
-				subFractions = append(subFractions, float64(loadZone.Fraction/100)*float64(maxJobSize)/float64(maxVUs))
-			}
-
-			// Add remainder
-			remainingVUs := float64(maxVUs) - float64(maxJobSize)*(float64(numJobs)-1)
-			if remainingVUs > 0 {
-				subFractions = append(subFractions, float64(loadZone.Fraction/100)*remainingVUs/float64(maxVUs))
-			}
-		}
+		subFractions := determineSubFractions(loadZone.Fraction)
 
 		zoneChildJobs := make([]libOrch.ChildJob, len(subFractions))
 
@@ -99,4 +77,34 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 	}
 
 	return childJobs, nil
+}
+
+func determineSubFractions(fraction int) []float64 {
+	actualFraction := float64(fraction) / 100
+
+	if int(actualFraction*float64(maxJobSize)) <= maxJobSize {
+		return []float64{actualFraction}
+	}
+
+	// Split into multiple jobs, each with a max of 500 vus and one job with the remainder
+
+	// Floor plus one to ensure we don't lose any vus
+
+	numJobs := int(math.Floor(actualFraction*float64(maxJobSize))/maxJobSize) + 1
+
+	// Calculate sub fractions
+	subFractions := make([]float64, numJobs-1)
+
+	for i := 0; i < numJobs-1; i++ {
+		subFractions[i] = actualFraction * float64(maxJobSize) / float64(maxJobSize)
+	}
+
+	// Add remainder
+	remainingVUs := actualFraction*float64(maxJobSize) - float64(maxJobSize)*float64(numJobs-1)
+
+	if remainingVUs > 0 {
+		subFractions = append(subFractions, actualFraction*remainingVUs/float64(maxJobSize))
+	}
+
+	return subFractions
 }
