@@ -13,8 +13,6 @@ func Run() ***REMOVED***
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
-	// Change process title
-	fmt.Printf("\033]0;GlobeTest Worker %s\007", workerId)
 	fmt.Print("\n\033[1;35mGlobeTest Worker\033[0m\n\n")
 	fmt.Printf("Starting worker %s\n", workerId)
 
@@ -29,7 +27,7 @@ func Run() ***REMOVED***
 	***REMOVED***
 
 	// Create a scheduler for regular updates and checks
-	startJobScheduling(ctx, client, workerId, executionList)
+	startScheduling(ctx, client, workerId, executionList)
 
 	fmt.Printf("Listening for new jobs on %s...\n\n", client.Options().Addr)
 

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -11,22 +12,42 @@ import (
 )
 
 func tryGetClient(currentIndex int) *libOrch.NamedClient ***REMOVED***
-	host := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "")
-	port := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "")
-	password := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "")
-	displayName := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "")
+	host := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "NONE", false)
+	port := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "NONE", false)
+	password := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "NONE", false)
+	displayName := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "NONE", false)
 
-	if host == "" || port == "" || password == "" || displayName == "" ***REMOVED***
+	if host == "NONE" || port == "NONE" || password == "NONE" || displayName == "NONE" ***REMOVED***
 		return nil
 	***REMOVED***
 
+	options := &redis.Options***REMOVED***
+		Addr:     fmt.Sprintf("%s:%s", host, port),
+		Password: password,
+		DB:       0,
+	***REMOVED***
+
+	isSecure := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false") == "true"
+
+	if isSecure ***REMOVED***
+		clientCert := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_CERT", currentIndex), "")
+		clientKey := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_KEY", currentIndex), "")
+
+		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		if err != nil ***REMOVED***
+			panic(fmt.Errorf("error loading orchestrator cert: %s", err))
+		***REMOVED***
+
+		options.TLSConfig = &tls.Config***REMOVED***
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_INSECURE_SKIP_VERIFY", currentIndex), "false") == "true",
+			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
+		***REMOVED***
+	***REMOVED***
+
 	return &libOrch.NamedClient***REMOVED***
-		Name: displayName,
-		Client: redis.NewClient(&redis.Options***REMOVED***
-			Addr:     fmt.Sprintf("%s:%s", host, port),
-			Password: password,
-			DB:       0,
-		***REMOVED***),
+		Name:   displayName,
+		Client: redis.NewClient(options),
 	***REMOVED***
 ***REMOVED***
 

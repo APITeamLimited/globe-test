@@ -12,6 +12,11 @@ import (
 func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
 	// In case user wants equal distribution
 	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName ***REMOVED***
+		// Check fraction is valid and set to 100
+		if options.LoadDistribution.Value[0].Fraction != 100 ***REMOVED***
+			return fmt.Errorf("fraction must be 100 when using global distribution")
+		***REMOVED***
+
 		clientCount := len(workerClients.Clients)
 
 		// Set load distribution to equal distribution across all worker clients

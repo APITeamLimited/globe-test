@@ -33,7 +33,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 		return
 	***REMOVED***
 
-	go libWorker.DispatchMessage(w.gs, string(p), "CONSOLE")
+	libWorker.DispatchMessage(w.gs, string(p), "CONSOLE")
 
 	return origLen, err
 ***REMOVED***

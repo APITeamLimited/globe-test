@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options"
@@ -14,9 +15,6 @@ import (
 func Run() ***REMOVED***
 	ctx := context.Background()
 	orchestratorId := uuid.NewString()
-
-	// Change process title
-	fmt.Printf("\033]0;GlobeTest Orchestrator: %s\007", orchestratorId)
 
 	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
@@ -37,7 +35,9 @@ func Run() ***REMOVED***
 	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB)
 
 	// Periodically check for and delete offline orchestrators
-	createDeletionScheduler(ctx, orchestratorClient, workerClients)
+	if strings.ToLower(libOrch.GetEnvVariable("IS_MASTER", "false")) == "true" ***REMOVED***
+		createMasterScheduler(ctx, orchestratorClient, workerClients)
+	***REMOVED***
 
 	fmt.Printf("Listening for new jobs on %s...\n\n", orchestratorClient.Options().Addr)
 

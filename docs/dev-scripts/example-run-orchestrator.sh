@@ -12,4 +12,6 @@ export STORE_MONGO_HOST=
 export STORE_MONGO_PORT=
 export STORE_MONGO_DATABASE=
 
+export IS_MASTER=true
+
 go run main.go --mode=orchestrator

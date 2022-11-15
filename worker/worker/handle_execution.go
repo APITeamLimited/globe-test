@@ -207,3 +207,51 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
 	***REMOVED***, nil
 ***REMOVED***
+
+func loadWorkerInfo(ctx context.Context,
+	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState) *libWorker.WorkerInfo ***REMOVED***
+	workerInfo := &libWorker.WorkerInfo***REMOVED***
+		Client:          client,
+		JobId:           job.Id,
+		ChildJobId:      job.ChildJobId,
+		ScopeId:         job.ScopeId,
+		OrchestratorId:  job.AssignedOrchestrator,
+		WorkerId:        workerId,
+		Ctx:             ctx,
+		WorkerOptions:   job.Options,
+		Gs:              &gs,
+		VerifiedDomains: job.VerifiedDomains,
+		SubFraction:     job.SubFraction,
+	***REMOVED***
+
+	if job.CollectionContext != nil && job.CollectionContext.Name != "" ***REMOVED***
+		collectionVariables := make(map[string]string)
+
+		for _, variable := range job.CollectionContext.Variables ***REMOVED***
+			collectionVariables[variable.Key] = variable.Value
+		***REMOVED***
+
+		workerInfo.Collection = &libWorker.Collection***REMOVED***
+			Variables: collectionVariables,
+			Name:      job.CollectionContext.Name,
+		***REMOVED***
+	***REMOVED***
+
+	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" ***REMOVED***
+		environmentVariables := make(map[string]string)
+
+		for _, variable := range job.EnvironmentContext.Variables ***REMOVED***
+			environmentVariables[variable.Key] = variable.Value
+		***REMOVED***
+
+		workerInfo.Environment = &libWorker.Environment***REMOVED***
+			Variables: environmentVariables,
+			Name:      job.EnvironmentContext.Name,
+		***REMOVED***
+	***REMOVED***
+
+	workerInfo.FinalRequest = job.FinalRequest
+	workerInfo.UnderlyingRequest = job.UnderlyingRequest
+
+	return workerInfo
+***REMOVED***

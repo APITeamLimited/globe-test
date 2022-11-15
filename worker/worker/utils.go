@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -70,57 +71,7 @@ func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string)
 	return &childJob, nil
 ***REMOVED***
 
-func loadWorkerInfo(ctx context.Context,
-	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState) *libWorker.WorkerInfo ***REMOVED***
-	workerInfo := &libWorker.WorkerInfo***REMOVED***
-		Client:          client,
-		JobId:           job.Id,
-		ChildJobId:      job.ChildJobId,
-		ScopeId:         job.ScopeId,
-		OrchestratorId:  job.AssignedOrchestrator,
-		WorkerId:        workerId,
-		Ctx:             ctx,
-		WorkerOptions:   job.Options,
-		Gs:              &gs,
-		VerifiedDomains: job.VerifiedDomains,
-		SubFraction:     job.SubFraction,
-	***REMOVED***
-
-	if job.CollectionContext != nil && job.CollectionContext.Name != "" ***REMOVED***
-		collectionVariables := make(map[string]string)
-
-		for _, variable := range job.CollectionContext.Variables ***REMOVED***
-			collectionVariables[variable.Key] = variable.Value
-		***REMOVED***
-
-		workerInfo.Collection = &libWorker.Collection***REMOVED***
-			Variables: collectionVariables,
-			Name:      job.CollectionContext.Name,
-		***REMOVED***
-	***REMOVED***
-
-	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" ***REMOVED***
-		environmentVariables := make(map[string]string)
-
-		for _, variable := range job.EnvironmentContext.Variables ***REMOVED***
-			environmentVariables[variable.Key] = variable.Value
-		***REMOVED***
-
-		workerInfo.Environment = &libWorker.Environment***REMOVED***
-			Variables: environmentVariables,
-			Name:      job.EnvironmentContext.Name,
-		***REMOVED***
-	***REMOVED***
-
-	workerInfo.FinalRequest = job.FinalRequest
-	workerInfo.UnderlyingRequest = job.UnderlyingRequest
-
-	return workerInfo
-***REMOVED***
-
-func startJobScheduling(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) ***REMOVED***
-	client.SAdd(ctx, "workers", workerId)
-
+func startScheduling(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) ***REMOVED***
 	jobsCheckScheduler := time.NewTicker(1 * time.Second)
 
 	go func() ***REMOVED***
@@ -129,22 +80,46 @@ func startJobScheduling(ctx context.Context, client *redis.Client, workerId stri
 			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "currentJobsCount", executionList.currentJobsCount)
 			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "currentVUsCount", executionList.currentVUsCount)
 
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "launchTime", time.Now().UnixMilli())
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxJobs", executionList.maxJobs)
+			client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxVUs", executionList.maxVUs)
+
+			client.SAdd(ctx, "workers", workerId)
+
 			// Capacity may have freed up, check for queued jobs
 			checkForQueuedJobs(ctx, client, workerId, executionList)
 		***REMOVED***
 	***REMOVED***()
-
-	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "launchTime", time.Now().UnixMilli())
-	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxJobs", executionList.maxJobs)
-	client.HSet(ctx, fmt.Sprintf("worker:%s:info", workerId), "maxVUs", executionList.maxVUs)
 ***REMOVED***
 
 func getWorkerClient() *redis.Client ***REMOVED***
-	return redis.NewClient(&redis.Options***REMOVED***
-		Addr:     fmt.Sprintf("%s:%s", libWorker.GetEnvVariable("CLIENT_HOST", "localhost"), libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
+	clientHost := libWorker.GetEnvVariable("CLIENT_HOST", "localhost")
+
+	options := &redis.Options***REMOVED***
+		Addr:     fmt.Sprintf("%s:%s", clientHost, libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
 		Username: "default",
 		Password: libWorker.GetEnvVariable("CLIENT_PASSWORD", ""),
-	***REMOVED***)
+	***REMOVED***
+
+	isSecure := libOrch.GetEnvVariable("CLIENT_IS_SECURE", "false") == "true"
+
+	if isSecure ***REMOVED***
+		clientCert := libWorker.GetEnvVariable("CLIENT_CERT", "")
+		clientKey := libWorker.GetEnvVariable("CLIENT_KEY", "")
+
+		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		if err != nil ***REMOVED***
+			panic(fmt.Errorf("error loading client cert: %s", err))
+		***REMOVED***
+
+		options.TLSConfig = &tls.Config***REMOVED***
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: libWorker.GetEnvVariable("CLIENT_INSECURE_SKIP_VERIFY", "false") == "true",
+			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
+		***REMOVED***
+	***REMOVED***
+
+	return redis.NewClient(options)
 ***REMOVED***
 
 func getMaxJobs() int ***REMOVED***
