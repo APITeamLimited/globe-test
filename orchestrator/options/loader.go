@@ -2,6 +2,7 @@ package options
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -85,7 +86,7 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 
 	bundle, err := js.NewBundle(preInitState, sourceData, filesytems, orchestratorInfo)
 	if err != nil ***REMOVED***
-		return nil, err
+		return nil, fmt.Errorf("failed to parse options: %w", err)
 	***REMOVED***
 
 	// Get the options export frrom the exports

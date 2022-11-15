@@ -31,7 +31,6 @@ type (
 		Id                   string                 `json:"id"`
 		Source               string                 `json:"source"`
 		SourceName           string                 `json:"sourceName"`
-		ScopeId              string                 `json:"scopeId"`
 		EnvironmentContext   *EnvironmentContext    `json:"environmentContext"`
 		CollectionContext    *CollectionContext     `json:"collectionContext"`
 		UnderlyingRequest    map[string]interface***REMOVED******REMOVED*** `json:"underlyingRequest"`
