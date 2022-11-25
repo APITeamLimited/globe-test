@@ -38,5 +38,4 @@ func handleJobCreation(msg string, s socketio.Conn, runningJobs map[string]runni
 		SourceName: args.SourceName,
 		Messages:   []string{},
 	}
-	5
 }
