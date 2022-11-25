@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -22,10 +23,14 @@ type jobUserUpdate struct ***REMOVED***
 ***REMOVED***
 
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) ***REMOVED***
-	libOrch.UpdateStatus(gs, "LOADING")
+	if gs.CreditsManager().UseCredits(1) ***REMOVED***
+		libOrch.UpdateStatus(gs, "LOADING")
+	***REMOVED*** else ***REMOVED***
+		return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+	***REMOVED***
 
 	// Create a handler for aborts
-	jobUserUpdatesChannel := gs.Client().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
+	jobUserUpdatesChannel := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs ***REMOVED***
@@ -39,13 +44,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		workerChannels[location] = subscription.Channel()
 	***REMOVED***
 
-	// Update the status
-	libOrch.UpdateStatus(gs, "RUNNING")
-
 	// Check if workerSubscriptions is empty
 	if len(workerSubscriptions) == 0 ***REMOVED***
-		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
-		return "SUCCESS", nil
+		if gs.CreditsManager().UseCredits(1) ***REMOVED***
+			libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
+			return "SUCCESS", nil
+		***REMOVED*** else ***REMOVED***
+			return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+		***REMOVED***
 	***REMOVED***
 
 	for _, jobDistribution := range childJobs ***REMOVED***
@@ -162,7 +168,11 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 							***REMOVED***
 						***REMOVED***
 
-						libOrch.UpdateStatus(gs, "RUNNING")
+						if gs.CreditsManager().UseCredits(1) ***REMOVED***
+							libOrch.UpdateStatus(gs, "RUNNING")
+						***REMOVED*** else ***REMOVED***
+							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED*** else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" ***REMOVED***
@@ -180,15 +190,23 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 						// If one job fails, cancel all other jobs
 						return abortAndFailAll(gs, childJobs, nil)
 					***REMOVED*** else ***REMOVED***
-						libOrch.UpdateStatus(gs, "SUCCESS")
-						return "SUCCESS", nil
+						if gs.CreditsManager().UseCredits(1) ***REMOVED***
+							libOrch.UpdateStatus(gs, "SUCCESS")
+							return "SUCCESS", nil
+						***REMOVED*** else ***REMOVED***
+							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 
 			// Sometimes errors don't stop the execution automatically so stop them here
 		***REMOVED*** else if workerMessage.MessageType == "ERROR" ***REMOVED***
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			if gs.CreditsManager().UseCredits(1) ***REMOVED***
+				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			***REMOVED*** else ***REMOVED***
+				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+			***REMOVED***
 
 			resolutionMutex.Lock()
 			failureCount++
@@ -223,7 +241,11 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			// TODO: make this configurable
 			continue
 		***REMOVED*** else ***REMOVED***
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			if gs.CreditsManager().UseCredits(1) ***REMOVED***
+				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			***REMOVED*** else ***REMOVED***
+				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 

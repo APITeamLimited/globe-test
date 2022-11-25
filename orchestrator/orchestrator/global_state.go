@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/redis/v9"
@@ -25,10 +26,60 @@ type (
 		metricsStore   libOrch.BaseMetricsStore
 		status         string
 		childJobStates []libOrch.WorkerState
+		creditsManager *lib.CreditsManager
 	***REMOVED***
 )
 
 var _ libOrch.BaseGlobalState = &globalState***REMOVED******REMOVED***
+
+func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job, orchestratorId string, creditsClient *redis.Client) *globalState ***REMOVED***
+	gs := &globalState***REMOVED***
+		ctx:            ctx,
+		client:         orchestratorClient,
+		jobId:          job.Id,
+		orchestratorId: orchestratorId,
+		childJobStates: []libOrch.WorkerState***REMOVED******REMOVED***,
+		creditsManager: lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
+	***REMOVED***
+
+	gs.logger = &logrus.Logger***REMOVED***
+		Out:       &consoleWriter***REMOVED***gs: gs***REMOVED***,
+		Formatter: new(logrus.JSONFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	***REMOVED***
+
+	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
+
+	return gs
+***REMOVED***
+
+var _ io.Writer = &consoleWriter***REMOVED******REMOVED***
+
+func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
+	origLen := len(p)
+
+	// Intercept the write message so can assess log errors parse json
+	parsed := make(map[string]interface***REMOVED******REMOVED***)
+	if err := json.Unmarshal(p, &parsed); err != nil ***REMOVED***
+
+		return origLen, err
+	***REMOVED***
+
+	// Check message level, if error then log error
+	if parsed["level"] == "error" ***REMOVED***
+		if parsed["error"] != nil ***REMOVED***
+			libOrch.HandleStringError(w.gs, parsed["error"].(string))
+		***REMOVED*** else ***REMOVED***
+			libOrch.HandleStringError(w.gs, parsed["msg"].(string))
+		***REMOVED***
+		return
+	***REMOVED***
+
+	libOrch.DispatchMessage(w.gs, string(p), "STDOUT")
+
+	return origLen, err
+***REMOVED***
 
 func (g *globalState) Ctx() context.Context ***REMOVED***
 	return g.ctx
@@ -38,7 +89,7 @@ func (g *globalState) Logger() *logrus.Logger ***REMOVED***
 	return g.logger
 ***REMOVED***
 
-func (g *globalState) Client() *redis.Client ***REMOVED***
+func (g *globalState) OrchestratorClient() *redis.Client ***REMOVED***
 	return g.client
 ***REMOVED***
 
@@ -88,50 +139,6 @@ func (g *globalState) SetChildJobState(workerId string, childJobId string, statu
 	***REMOVED***
 ***REMOVED***
 
-func NewGlobalState(ctx context.Context, client *redis.Client, jobId string, orchestratorId string) *globalState ***REMOVED***
-	gs := &globalState***REMOVED***
-		ctx:            ctx,
-		client:         client,
-		jobId:          jobId,
-		orchestratorId: orchestratorId,
-		childJobStates: []libOrch.WorkerState***REMOVED******REMOVED***,
-	***REMOVED***
-
-	gs.logger = &logrus.Logger***REMOVED***
-		Out:       &consoleWriter***REMOVED***gs: gs***REMOVED***,
-		Formatter: new(logrus.JSONFormatter),
-		Hooks:     make(logrus.LevelHooks),
-		Level:     logrus.InfoLevel,
-	***REMOVED***
-
-	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
-
-	return gs
-***REMOVED***
-
-var _ io.Writer = &consoleWriter***REMOVED******REMOVED***
-
-func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
-	origLen := len(p)
-
-	// Intercept the write message so can assess log errors parse json
-	parsed := make(map[string]interface***REMOVED******REMOVED***)
-	if err := json.Unmarshal(p, &parsed); err != nil ***REMOVED***
-
-		return origLen, err
-	***REMOVED***
-
-	// Check message level, if error then log error
-	if parsed["level"] == "error" ***REMOVED***
-		if parsed["error"] != nil ***REMOVED***
-			libOrch.HandleStringError(w.gs, parsed["error"].(string))
-		***REMOVED*** else ***REMOVED***
-			libOrch.HandleStringError(w.gs, parsed["msg"].(string))
-		***REMOVED***
-		return
-	***REMOVED***
-
-	libOrch.DispatchMessage(w.gs, string(p), "STDOUT")
-
-	return origLen, err
+func (g *globalState) CreditsManager() *lib.CreditsManager ***REMOVED***
+	return g.creditsManager
 ***REMOVED***

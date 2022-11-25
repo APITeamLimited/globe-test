@@ -413,7 +413,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 		logger.Debug("Running setup()")
 		e.state.SetExecutionStatus(libWorker.ExecutionStatusSetup)
 		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
-		if err := e.state.Test.Runner.Setup(runSubCtx, engineOut); err != nil ***REMOVED***
+		if err := e.state.Test.Runner.Setup(runSubCtx, engineOut, workerInfo); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("setup() aborted by error")
 			return err
 		***REMOVED***
@@ -452,7 +452,7 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 
 		// We run teardown() with the global context, so it isn't interrupted by
 		// aborts caused by thresholds or even Ctrl+C (unless used twice).
-		if err := e.state.Test.Runner.Teardown(globalCtx, engineOut); err != nil ***REMOVED***
+		if err := e.state.Test.Runner.Teardown(globalCtx, engineOut, workerInfo); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("teardown() aborted by error")
 			return err
 		***REMOVED***

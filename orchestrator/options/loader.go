@@ -75,7 +75,7 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 
 	// Pass orchestratorId as workerId, so that will dispatch as a worker message
 	orchestratorInfo := &libWorker.WorkerInfo***REMOVED***
-		Client:         gs.Client(),
+		Client:         gs.OrchestratorClient(),
 		JobId:          gs.JobId(),
 		OrchestratorId: gs.OrchestratorId(),
 		WorkerId:       gs.OrchestratorId(),

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 )
@@ -37,20 +38,20 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	return &job, nil
 ***REMOVED***
 
-func getOrchestratorClient() *redis.Client ***REMOVED***
-	orchestratorHost := libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost")
+func getOrchestratorOrchestratorClient() *redis.Client ***REMOVED***
+	orchestratorHost := lib.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost")
 
 	options := &redis.Options***REMOVED***
-		Addr:     fmt.Sprintf("%s:%s", orchestratorHost, libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
+		Addr:     fmt.Sprintf("%s:%s", orchestratorHost, lib.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
 		Username: "default",
-		Password: libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
+		Password: lib.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
 	***REMOVED***
 
-	isSecure := libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_IS_SECURE", "false") == "true"
+	isSecure := lib.GetEnvVariable("ORCHESTRATOR_REDIS_IS_SECURE", "false") == "true"
 
 	if isSecure ***REMOVED***
-		clientCert := libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_CERT", "")
-		clientKey := libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_KEY", "")
+		clientCert := lib.GetEnvVariable("ORCHESTRATOR_REDIS_CERT", "")
+		clientKey := lib.GetEnvVariable("ORCHESTRATOR_REDIS_KEY", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil ***REMOVED***
@@ -59,7 +60,7 @@ func getOrchestratorClient() *redis.Client ***REMOVED***
 
 		options.TLSConfig = &tls.Config***REMOVED***
 			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: libOrch.GetEnvVariable("ORCHESTRATOR_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
+			InsecureSkipVerify: lib.GetEnvVariable("ORCHESTRATOR_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
 			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
 		***REMOVED***
 	***REMOVED***
@@ -68,7 +69,7 @@ func getOrchestratorClient() *redis.Client ***REMOVED***
 ***REMOVED***
 
 func getMaxJobs() int ***REMOVED***
-	maxJobs, err := strconv.Atoi(libOrch.GetEnvVariable("ORCHESTRATOR_MAX_JOBS", "1000"))
+	maxJobs, err := strconv.Atoi(lib.GetEnvVariable("ORCHESTRATOR_MAX_JOBS", "1000"))
 	if err != nil ***REMOVED***
 		maxJobs = 1000
 	***REMOVED***
@@ -77,7 +78,7 @@ func getMaxJobs() int ***REMOVED***
 ***REMOVED***
 
 func getMaxManagedVUs() int64 ***REMOVED***
-	maxManagedVUs, err := strconv.ParseInt(libOrch.GetEnvVariable("ORCHESTRATOR_MAX_MANAGED_VUS", "10000"), 10, 64)
+	maxManagedVUs, err := strconv.ParseInt(lib.GetEnvVariable("ORCHESTRATOR_MAX_MANAGED_VUS", "10000"), 10, 64)
 	if err != nil ***REMOVED***
 		maxManagedVUs = 10000
 	***REMOVED***
