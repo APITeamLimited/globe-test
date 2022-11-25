@@ -59,6 +59,11 @@ func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Re
 
 	c.moduleInstance.rootModule.domainLimitsLock.Unlock()
 
+	// Check if enough credits
+	if !c.moduleInstance.rootModule.workerInfo.CreditsManager.UseCredits(1) ***REMOVED***
+		return nil, errors.New("not enough credits")
+	***REMOVED***
+
 	return performRequest(c, method, url, args...)
 ***REMOVED***
 
@@ -74,7 +79,14 @@ func getDomainFromURL(url interface***REMOVED******REMOVED***) (string, error) *
 	domain := domainutil.Domain(u.GetURL().Hostname())
 
 	if domain == "" ***REMOVED***
-		return "", errors.New("could not extract domain from url")
+		// Try and get the ip instead
+		ip := u.GetURL().Hostname()
+
+		if ip == "" ***REMOVED***
+			return "", errors.New("could not extract domain from url")
+		***REMOVED***
+
+		return ip, nil
 	***REMOVED***
 
 	return domain, nil
