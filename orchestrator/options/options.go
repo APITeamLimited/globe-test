@@ -20,7 +20,6 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	// Disable MetricSamplesBufferSize modifications, not sure what it does
 	// TODO: Check if MetricSamplesBufferSize config option is needed
 	options.MetricSamplesBufferSize = null.Int{
 		NullInt64: sql.NullInt64{
