@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -251,11 +250,11 @@ func forceHTTP1() bool {
 }
 
 // Setup runs the setup function if there is one and sets the setupData to the returned value
-func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
+func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	setupCtx, setupCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.SetupFn))
 	defer setupCancel()
 
-	v, err := r.runPart(setupCtx, out, consts.SetupFn, nil)
+	v, err := r.runPart(setupCtx, out, consts.SetupFn, workerInfo, nil)
 	if err != nil {
 		return err
 	}
@@ -284,7 +283,7 @@ func (r *Runner) SetSetupData(data []byte) {
 }
 
 // Teardown runs the teardown function if there is one.
-func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
+func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	teardownCtx, teardownCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.TeardownFn))
 	defer teardownCancel()
 
@@ -296,7 +295,7 @@ func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleCo
 	} else {
 		data = goja.Undefined()
 	}
-	_, err := r.runPart(teardownCtx, out, consts.TeardownFn, data)
+	_, err := r.runPart(teardownCtx, out, consts.TeardownFn, workerInfo, data)
 	return err
 }
 
@@ -318,74 +317,6 @@ func (r *Runner) IsExecutable(name string) bool {
 func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Summary) ([]byte, error) {
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
 	return json.Marshal(summaryDataForJS["metrics"])
-}
-
-// HandleSummary calls the specified summary callback, if supplied.
-func (r *Runner) HandleSummary(ctx context.Context, summary *libWorker.Summary) (map[string]io.Reader, error) {
-	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
-
-	out := make(chan workerMetrics.SampleContainer, 100)
-	defer close(out)
-
-	go func() { // discard all metrics
-		for range out {
-		}
-	}()
-
-	vu, err := r.newVU(0, 0, out, libWorker.GetTestWorkerInfo())
-	if err != nil {
-		return nil, err
-	}
-
-	handleSummaryFn := goja.Undefined()
-	fn := vu.getExported(consts.HandleSummaryFn)
-	if _, ok := goja.AssertFunction(fn); ok {
-		handleSummaryFn = fn
-	} else if fn != nil {
-		return nil, fmt.Errorf("exported identifier %s must be a function", consts.HandleSummaryFn)
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.HandleSummaryFn))
-	defer cancel()
-	go func() {
-		<-ctx.Done()
-		vu.Runtime.Interrupt(context.Canceled)
-	}()
-	vu.moduleVUImpl.ctx = ctx
-
-	wrapper := strings.Replace(summaryWrapperLambdaCode, "/*JSLIB_SUMMARY_CODE*/", jslibSummaryCode, 1)
-	handleSummaryWrapperRaw, err := vu.Runtime.RunString(wrapper)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error while getting the summary wrapper: %w", err)
-	}
-	handleSummaryWrapper, ok := goja.AssertFunction(handleSummaryWrapperRaw)
-	if !ok {
-		return nil, fmt.Errorf("unexpected error did not get a callable summary wrapper")
-	}
-
-	wrapperArgs := []goja.Value{
-		handleSummaryFn,
-		vu.Runtime.ToValue(r.Bundle.RuntimeOptions.SummaryExport.String),
-		vu.Runtime.ToValue(summaryDataForJS),
-	}
-	rawResult, _, _, err := vu.runFn(ctx, false, handleSummaryWrapper, nil, wrapperArgs...)
-
-	// TODO: refactor the whole JS runner to avoid copy-pasting these complicated bits...
-	// deadline is reached so we have timeouted but this might've not been registered correctly
-	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) {
-		// we could have an error that is not context.Canceled in which case we should return it instead
-		if err, ok := err.(*goja.InterruptedError); ok && rawResult != nil && err.Value() != context.Canceled {
-			// TODO: silence this error?
-			return nil, err
-		}
-		// otherwise we have timeouted
-		return nil, newTimeoutError(consts.HandleSummaryFn, r.getTimeoutFor(consts.HandleSummaryFn))
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error while generating the summary: %w", err)
-	}
-	return getSummaryResult(rawResult)
 }
 
 func (r *Runner) SetOptions(opts libWorker.Options) error {
@@ -459,9 +390,10 @@ func (r *Runner) runPart(
 	ctx context.Context,
 	out chan<- workerMetrics.SampleContainer,
 	name string,
+	workerInfo *libWorker.WorkerInfo,
 	arg interface{},
 ) (goja.Value, error) {
-	vu, err := r.newVU(0, 0, out, libWorker.GetTestWorkerInfo())
+	vu, err := r.newVU(0, 0, out, workerInfo)
 	if err != nil {
 		return goja.Undefined(), err
 	}

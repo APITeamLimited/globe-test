@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
@@ -71,7 +71,8 @@ func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string)
 	return &childJob, nil
 }
 
-func startScheduling(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) {
+func startScheduling(ctx context.Context, client *redis.Client, workerId string,
+	executionList *ExecutionList, creditsClient *redis.Client) {
 	jobsCheckScheduler := time.NewTicker(1 * time.Second)
 
 	go func() {
@@ -87,25 +88,26 @@ func startScheduling(ctx context.Context, client *redis.Client, workerId string,
 			client.SAdd(ctx, "workers", workerId)
 
 			// Capacity may have freed up, check for queued jobs
-			checkForQueuedJobs(ctx, client, workerId, executionList)
+			checkForQueuedJobs(ctx, client, workerId, executionList, creditsClient)
 		}
 	}()
 }
 
 func getWorkerClient() *redis.Client {
-	clientHost := libWorker.GetEnvVariable("CLIENT_HOST", "localhost")
+	clientHost := lib.GetEnvVariable("CLIENT_HOST", "localhost")
+	clientPort := lib.GetEnvVariable("CLIENT_PORT", "6978")
 
 	options := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", clientHost, libWorker.GetEnvVariable("CLIENT_PORT", "6978")),
+		Addr:     fmt.Sprintf("%s:%s", clientHost, clientPort),
 		Username: "default",
-		Password: libWorker.GetEnvVariable("CLIENT_PASSWORD", ""),
+		Password: lib.GetEnvVariable("CLIENT_PASSWORD", ""),
 	}
 
-	isSecure := libOrch.GetEnvVariable("CLIENT_IS_SECURE", "false") == "true"
+	isSecure := lib.GetEnvVariable("CLIENT_IS_SECURE", "false") == "true"
 
 	if isSecure {
-		clientCert := libWorker.GetEnvVariable("CLIENT_CERT", "")
-		clientKey := libWorker.GetEnvVariable("CLIENT_KEY", "")
+		clientCert := lib.GetEnvVariable("CLIENT_CERT", "")
+		clientKey := lib.GetEnvVariable("CLIENT_KEY", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil {
@@ -114,7 +116,7 @@ func getWorkerClient() *redis.Client {
 
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: libWorker.GetEnvVariable("CLIENT_INSECURE_SKIP_VERIFY", "false") == "true",
+			InsecureSkipVerify: lib.GetEnvVariable("CLIENT_INSECURE_SKIP_VERIFY", "false") == "true",
 			Certificates:       []tls.Certificate{cert},
 		}
 	}
@@ -123,7 +125,7 @@ func getWorkerClient() *redis.Client {
 }
 
 func getMaxJobs() int {
-	maxJobs, err := strconv.Atoi(libOrch.GetEnvVariable("WORKER_MAX_JOBS", "1000"))
+	maxJobs, err := strconv.Atoi(lib.GetEnvVariable("WORKER_MAX_JOBS", "1000"))
 	if err != nil {
 		panic(err)
 	}
@@ -132,7 +134,7 @@ func getMaxJobs() int {
 }
 
 func getMaxVUs() int64 {
-	maxVUs, err := strconv.ParseInt(libOrch.GetEnvVariable("WORKER_MAX_VUS", "5000"), 10, 64)
+	maxVUs, err := strconv.ParseInt(lib.GetEnvVariable("WORKER_MAX_VUS", "5000"), 10, 64)
 	if err != nil {
 		panic(err)
 	}

@@ -12,6 +12,7 @@ import (
 
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
+// Avoids use of credits as this will cause undesired side effects
 func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, job libOrch.Job,
 	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
@@ -30,8 +31,6 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		(*gs.MetricsStore()).InitMetricsStore(job.Options)
 	}
 
-	scope := job.Scope
-
 	childJobs, err := determineChildJobs(healthy, job, job.Options, workerClients)
 	if err != nil {
 		libOrch.HandleError(gs, err)
@@ -43,13 +42,18 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	result := "FAILURE"
 
 	if healthy {
-		result, err = handleExecution(gs, job.Options, scope, childJobs, job.Id)
+		result, err = handleExecution(gs, job.Options, job.Scope, childJobs, job.Id)
 		if err != nil {
 			libOrch.HandleError(gs, err)
 		}
 	}
 
-	libOrch.UpdateStatus(gs, result)
+	if gs.creditsManager.UseCredits(1) {
+		libOrch.UpdateStatus(gs, result)
+	} else {
+		libOrch.HandleError(gs, err)
+		result = "FAILURE"
+	}
 
 	// Storing and cleaning up
 
@@ -83,10 +87,11 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		libOrch.HandleError(gs, err)
 		return false
 	}
+
 	libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
 
 	// Clean up the job and store result in Mongo
-	err = cleanup(gs, job, childJobs, storeMongoDB, scope, globeTestLogsReceipt, metricsStoreReceipt)
+	err = cleanup(gs, job, childJobs, storeMongoDB, job.Scope, globeTestLogsReceipt, metricsStoreReceipt)
 	if err != nil {
 		fmt.Println("Error cleaning up", err)
 		libOrch.HandleErrorNoSet(gs, err)

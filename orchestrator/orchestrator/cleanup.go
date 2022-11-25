@@ -51,7 +51,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 
 	updatesKey := fmt.Sprintf("%s:updates", job.Id)
 
-	unparsedMessages, err := gs.Client().SMembers(gs.Ctx(), updatesKey).Result()
+	unparsedMessages, err := gs.OrchestratorClient().SMembers(gs.Ctx(), updatesKey).Result()
 	if err != nil {
 		return err
 	}
@@ -145,9 +145,9 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 
 	// Clean up orchestrator
 	// Set types to expire so lagging users can access environment variables
-	gs.Client().Expire(gs.Ctx(), updatesKey, time.Second*10)
-	gs.Client().Expire(gs.Ctx(), job.Id, time.Second*10)
-	gs.Client().SRem(gs.Ctx(), "orchestrator:executionHistory", job.Id)
+	gs.OrchestratorClient().Expire(gs.Ctx(), updatesKey, time.Second*10)
+	gs.OrchestratorClient().Expire(gs.Ctx(), job.Id, time.Second*10)
+	gs.OrchestratorClient().SRem(gs.Ctx(), "orchestrator:executionHistory", job.Id)
 
 	return nil
 }

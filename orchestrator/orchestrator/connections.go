@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,10 +13,10 @@ import (
 )
 
 func tryGetClient(currentIndex int) *libOrch.NamedClient {
-	host := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "NONE", false)
-	port := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "NONE", false)
-	password := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "NONE", false)
-	displayName := libOrch.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "NONE", false)
+	host := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "NONE", false)
+	port := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "NONE", false)
+	password := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "NONE", false)
+	displayName := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "NONE", false)
 
 	if host == "NONE" || port == "NONE" || password == "NONE" || displayName == "NONE" {
 		return nil
@@ -27,11 +28,11 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient {
 		DB:       0,
 	}
 
-	isSecure := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false") == "true"
+	isSecure := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false") == "true"
 
 	if isSecure {
-		clientCert := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_CERT", currentIndex), "")
-		clientKey := libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_KEY", currentIndex), "")
+		clientCert := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_CERT", currentIndex), "")
+		clientKey := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_KEY", currentIndex), "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil {
@@ -40,7 +41,7 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient {
 
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: libOrch.GetEnvVariable(fmt.Sprintf("WORKER_%d_INSECURE_SKIP_VERIFY", currentIndex), "false") == "true",
+			InsecureSkipVerify: lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_INSECURE_SKIP_VERIFY", currentIndex), "false") == "true",
 			Certificates:       []tls.Certificate{cert},
 		}
 	}
@@ -82,11 +83,11 @@ func connectWorkerClients(ctx context.Context) libOrch.WorkerClients {
 }
 
 func getStoreMongoDB(ctx context.Context) *mongo.Database {
-	storeMongoUser := libOrch.GetEnvVariable("STORE_MONGO_USER", "")
-	storeMongoPassword := libOrch.GetEnvVariable("STORE_MONGO_PASSWORD", "")
-	storeMongoHost := libOrch.GetEnvVariable("STORE_MONGO_HOST", "")
-	storeMongoPort := libOrch.GetEnvVariable("STORE_MONGO_PORT", "")
-	storeMongoDatabase := libOrch.GetEnvVariable("STORE_MONGO_DATABASE", "")
+	storeMongoUser := lib.GetEnvVariable("STORE_MONGO_USER", "")
+	storeMongoPassword := lib.GetEnvVariable("STORE_MONGO_PASSWORD", "")
+	storeMongoHost := lib.GetEnvVariable("STORE_MONGO_HOST", "")
+	storeMongoPort := lib.GetEnvVariable("STORE_MONGO_PORT", "")
+	storeMongoDatabase := lib.GetEnvVariable("STORE_MONGO_DATABASE", "")
 
 	storeURI := fmt.Sprintf("mongodb://%s:%s@%s:%s", storeMongoUser, storeMongoPassword, storeMongoHost, storeMongoPort)
 

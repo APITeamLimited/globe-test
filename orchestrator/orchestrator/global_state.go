@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/redis/v9"
@@ -25,10 +26,60 @@ type (
 		metricsStore   libOrch.BaseMetricsStore
 		status         string
 		childJobStates []libOrch.WorkerState
+		creditsManager *lib.CreditsManager
 	}
 )
 
 var _ libOrch.BaseGlobalState = &globalState{}
+
+func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job, orchestratorId string, creditsClient *redis.Client) *globalState {
+	gs := &globalState{
+		ctx:            ctx,
+		client:         orchestratorClient,
+		jobId:          job.Id,
+		orchestratorId: orchestratorId,
+		childJobStates: []libOrch.WorkerState{},
+		creditsManager: lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
+	}
+
+	gs.logger = &logrus.Logger{
+		Out:       &consoleWriter{gs: gs},
+		Formatter: new(logrus.JSONFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	}
+
+	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
+
+	return gs
+}
+
+var _ io.Writer = &consoleWriter{}
+
+func (w *consoleWriter) Write(p []byte) (n int, err error) {
+	origLen := len(p)
+
+	// Intercept the write message so can assess log errors parse json
+	parsed := make(map[string]interface{})
+	if err := json.Unmarshal(p, &parsed); err != nil {
+
+		return origLen, err
+	}
+
+	// Check message level, if error then log error
+	if parsed["level"] == "error" {
+		if parsed["error"] != nil {
+			libOrch.HandleStringError(w.gs, parsed["error"].(string))
+		} else {
+			libOrch.HandleStringError(w.gs, parsed["msg"].(string))
+		}
+		return
+	}
+
+	libOrch.DispatchMessage(w.gs, string(p), "STDOUT")
+
+	return origLen, err
+}
 
 func (g *globalState) Ctx() context.Context {
 	return g.ctx
@@ -38,7 +89,7 @@ func (g *globalState) Logger() *logrus.Logger {
 	return g.logger
 }
 
-func (g *globalState) Client() *redis.Client {
+func (g *globalState) OrchestratorClient() *redis.Client {
 	return g.client
 }
 
@@ -88,50 +139,6 @@ func (g *globalState) SetChildJobState(workerId string, childJobId string, statu
 	}
 }
 
-func NewGlobalState(ctx context.Context, client *redis.Client, jobId string, orchestratorId string) *globalState {
-	gs := &globalState{
-		ctx:            ctx,
-		client:         client,
-		jobId:          jobId,
-		orchestratorId: orchestratorId,
-		childJobStates: []libOrch.WorkerState{},
-	}
-
-	gs.logger = &logrus.Logger{
-		Out:       &consoleWriter{gs: gs},
-		Formatter: new(logrus.JSONFormatter),
-		Hooks:     make(logrus.LevelHooks),
-		Level:     logrus.InfoLevel,
-	}
-
-	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
-
-	return gs
-}
-
-var _ io.Writer = &consoleWriter{}
-
-func (w *consoleWriter) Write(p []byte) (n int, err error) {
-	origLen := len(p)
-
-	// Intercept the write message so can assess log errors parse json
-	parsed := make(map[string]interface{})
-	if err := json.Unmarshal(p, &parsed); err != nil {
-
-		return origLen, err
-	}
-
-	// Check message level, if error then log error
-	if parsed["level"] == "error" {
-		if parsed["error"] != nil {
-			libOrch.HandleStringError(w.gs, parsed["error"].(string))
-		} else {
-			libOrch.HandleStringError(w.gs, parsed["msg"].(string))
-		}
-		return
-	}
-
-	libOrch.DispatchMessage(w.gs, string(p), "STDOUT")
-
-	return origLen, err
+func (g *globalState) CreditsManager() *lib.CreditsManager {
+	return g.creditsManager
 }

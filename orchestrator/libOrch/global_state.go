@@ -3,6 +3,7 @@ package libOrch
 import (
 	"context"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -16,8 +17,7 @@ type WorkerState struct {
 type BaseGlobalState interface {
 	Ctx() context.Context
 	Logger() *logrus.Logger
-	// The orchestrator client
-	Client() *redis.Client
+	OrchestratorClient() *redis.Client
 	JobId() string
 	OrchestratorId() string
 	MetricsStore() *BaseMetricsStore
@@ -26,4 +26,5 @@ type BaseGlobalState interface {
 
 	GetChildJobStates() []WorkerState
 	SetChildJobState(workerId string, childJobId string, status string)
+	CreditsManager() *lib.CreditsManager
 }

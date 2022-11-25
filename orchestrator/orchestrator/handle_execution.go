@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -22,10 +23,14 @@ type jobUserUpdate struct {
 }
 
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
-	libOrch.UpdateStatus(gs, "LOADING")
+	if gs.CreditsManager().UseCredits(1) {
+		libOrch.UpdateStatus(gs, "LOADING")
+	} else {
+		return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+	}
 
 	// Create a handler for aborts
-	jobUserUpdatesChannel := gs.Client().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
+	jobUserUpdatesChannel := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs {
@@ -39,13 +44,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		workerChannels[location] = subscription.Channel()
 	}
 
-	// Update the status
-	libOrch.UpdateStatus(gs, "RUNNING")
-
 	// Check if workerSubscriptions is empty
 	if len(workerSubscriptions) == 0 {
-		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
-		return "SUCCESS", nil
+		if gs.CreditsManager().UseCredits(1) {
+			libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
+			return "SUCCESS", nil
+		} else {
+			return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+		}
 	}
 
 	for _, jobDistribution := range childJobs {
@@ -162,7 +168,11 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 							}
 						}
 
-						libOrch.UpdateStatus(gs, "RUNNING")
+						if gs.CreditsManager().UseCredits(1) {
+							libOrch.UpdateStatus(gs, "RUNNING")
+						} else {
+							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+						}
 					}
 				}
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
@@ -180,15 +190,23 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 						// If one job fails, cancel all other jobs
 						return abortAndFailAll(gs, childJobs, nil)
 					} else {
-						libOrch.UpdateStatus(gs, "SUCCESS")
-						return "SUCCESS", nil
+						if gs.CreditsManager().UseCredits(1) {
+							libOrch.UpdateStatus(gs, "SUCCESS")
+							return "SUCCESS", nil
+						} else {
+							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+						}
 					}
 				}
 			}
 
 			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			if gs.CreditsManager().UseCredits(1) {
+				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			} else {
+				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+			}
 
 			resolutionMutex.Lock()
 			failureCount++
@@ -223,7 +241,11 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			// TODO: make this configurable
 			continue
 		} else {
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			if gs.CreditsManager().UseCredits(1) {
+				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			} else {
+				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
+			}
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/redis/v9"
@@ -19,11 +20,12 @@ func Run() {
 	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 
-	orchestratorClient := getOrchestratorClient()
+	orchestratorClient := getOrchestratorOrchestratorClient()
 	storeMongoDB := getStoreMongoDB(ctx)
 	workerClients := connectWorkerClients(ctx)
 	maxJobs := getMaxJobs()
 	maxManagedVUs := getMaxManagedVUs()
+	creditsClient := lib.GetCreditsClient()
 
 	executionList := &ExecutionList{
 		currentJobs:   make(map[string]libOrch.Job),
@@ -32,10 +34,10 @@ func Run() {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB)
+	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient)
 
 	// Periodically check for and delete offline orchestrators
-	if strings.ToLower(libOrch.GetEnvVariable("IS_MASTER", "false")) == "true" {
+	if strings.ToLower(lib.GetEnvVariable("IS_MASTER", "false")) == "true" {
 		createMasterScheduler(ctx, orchestratorClient, workerClients)
 	}
 
@@ -50,12 +52,15 @@ func Run() {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(), orchestratorId, executionList, storeMongoDB)
+		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(),
+			orchestratorId, executionList, storeMongoDB, creditsClient)
 	}
 }
 
 // Ensures job has no already been assigned and determines if this node has capacity to execute
-func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients,
+	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
+	creditsClient *redis.Client) {
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
@@ -84,7 +89,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.mutex.Unlock()
 
-	gs := NewGlobalState(ctx, orchestratorClient, job.Id, orchestratorId)
+	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient)
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
 	job.Options = options
 
@@ -97,6 +102,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	executionList.mutex.Lock()
 	if !executionList.checkExecutionCapacity(options) {
 		executionList.mutex.Unlock()
+		gs.CreditsManager().StopCreditsCapturing()
 		return
 	}
 
@@ -106,12 +112,14 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	// If result is 0, orchestrator is already assigned
 	if !assignmentResult {
 		executionList.mutex.Unlock()
+		gs.CreditsManager().StopCreditsCapturing()
 		return
 	}
 
 	if err != nil {
 		fmt.Println("Error setting orchestrator")
 		executionList.mutex.Unlock()
+		gs.CreditsManager().StopCreditsCapturing()
 		return
 	}
 
@@ -137,7 +145,9 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 // Check for queued jobs that were deferered as they couldn't be executed when they
 // were queued as no workers were available.
-func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database) {
+func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
+	workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList,
+	storeMongoDB *mongo.Database, creditsClient *redis.Client) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
@@ -145,6 +155,7 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, w
 	}
 
 	for _, jobId := range historyIds {
-		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId, orchestratorId, executionList, storeMongoDB)
+		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId,
+			orchestratorId, executionList, storeMongoDB, creditsClient)
 	}
 }

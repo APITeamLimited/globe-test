@@ -1,4 +1,4 @@
-package libWorker
+package lib
 
 import (
 	"fmt"
@@ -6,6 +6,10 @@ import (
 )
 
 func GetEnvVariable(key, defaultValue string) string {
+	return GetEnvVariableHideError(key, defaultValue, false)
+}
+
+func GetEnvVariableHideError(key, defaultValue string, hideError bool) string {
 	SYSTEM_ENV := os.Getenv("SYSTEM_ENV")
 
 	if SYSTEM_ENV == "" {
@@ -19,7 +23,9 @@ func GetEnvVariable(key, defaultValue string) string {
 
 	if SYSTEM_ENV != "development" {
 		if defaultValue != "" {
-			fmt.Printf("%s is not set, and environment was %s, not development, resorting to default value %s\n", key, SYSTEM_ENV, defaultValue)
+			if !hideError {
+				fmt.Printf("%s is not set, and environment was %s, not development, resorting to default value %s\n", key, SYSTEM_ENV, defaultValue)
+			}
 		} else {
 			panic(fmt.Sprintf("%s is not set, and environment was %s, not development, and no default value was provided", key, SYSTEM_ENV))
 		}

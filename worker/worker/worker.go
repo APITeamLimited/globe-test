@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ func Run() {
 	client := getWorkerClient()
 	maxJobs := getMaxJobs()
 	maxVUs := getMaxVUs()
+	creditsClient := lib.GetCreditsClient()
 
 	executionList := &ExecutionList{
 		currentJobs: make(map[string]libOrch.ChildJob),
@@ -27,7 +29,7 @@ func Run() {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startScheduling(ctx, client, workerId, executionList)
+	startScheduling(ctx, client, workerId, executionList, creditsClient)
 
 	fmt.Printf("Listening for new jobs on %s...\n\n", client.Options().Addr)
 
@@ -40,13 +42,14 @@ func Run() {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		go checkIfCanExecute(ctx, client, childJobId.String(), workerId, executionList)
+		go checkIfCanExecute(ctx, client, childJobId.String(), workerId, executionList, creditsClient)
 	}
 }
 
 // Check for queued jobs that were deferered as they couldn't be executed when they
 // were queued as no workers were available.
-func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string, executionList *ExecutionList) {
+func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string,
+	executionList *ExecutionList, creditsClient *redis.Client) {
 	// Check for job keys in the "worker:executionHistory" set
 	historyIds, err := client.SMembers(ctx, "worker:executionHistory").Result()
 	if err != nil {
@@ -54,11 +57,12 @@ func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId stri
 	}
 
 	for _, childJobId := range historyIds {
-		go checkIfCanExecute(ctx, client, childJobId, workerId, executionList)
+		go checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient)
 	}
 }
 
-func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId string, workerId string, executionList *ExecutionList) {
+func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId string,
+	workerId string, executionList *ExecutionList, creditsClient *redis.Client) {
 	// Try to HGetAll the worker id
 	job, err := fetchChildJob(ctx, client, childJobId)
 	if err != nil || job == nil {
@@ -105,7 +109,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 
 	fmt.Printf("Got child job: %s\n", job.ChildJobId)
 
-	successfullExecution := handleExecution(ctx, client, *job, workerId)
+	successfullExecution := handleExecution(ctx, client, *job, workerId, creditsClient)
 
 	if successfullExecution {
 		fmt.Printf("Completed child job successfully: %s\n", job.ChildJobId)

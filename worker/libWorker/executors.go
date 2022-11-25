@@ -94,6 +94,9 @@ type ExecutorConfig interface {
 	// Scales load options for child jobs proportionately based on their subFraction
 	// Should not modify the original options
 	ScaleOptions(subFraction float64) ExecutorConfig
+
+	// Estimated credits required to run the executor
+	//GetEstimatedRequiredCredits() float64
 }
 
 // ScenarioState holds runtime scenario information returned by the k6/execution
