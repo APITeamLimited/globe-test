@@ -13,19 +13,24 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func Run() ***REMOVED***
+func Run(standalone bool) ***REMOVED***
 	ctx := context.Background()
 	orchestratorId := uuid.NewString()
 
 	fmt.Print("\n\033[1;35mGlobeTest Orchestrator\033[0m\n\n")
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 
-	orchestratorClient := getOrchestratorOrchestratorClient()
-	storeMongoDB := getStoreMongoDB(ctx)
-	workerClients := connectWorkerClients(ctx)
-	maxJobs := getMaxJobs()
-	maxManagedVUs := getMaxManagedVUs()
-	creditsClient := lib.GetCreditsClient()
+	orchestratorClient := getOrchestratorOrchestratorClient(standalone)
+	storeMongoDB := getStoreMongoDB(ctx, standalone)
+	workerClients := connectWorkerClients(ctx, standalone)
+	maxJobs := getMaxJobs(standalone)
+	maxManagedVUs := getMaxManagedVUs(standalone)
+
+	var creditsClient *redis.Client
+
+	if standalone ***REMOVED***
+		lib.GetCreditsClient(standalone)
+	***REMOVED***
 
 	executionList := &ExecutionList***REMOVED***
 		currentJobs:   make(map[string]libOrch.Job),

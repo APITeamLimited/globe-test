@@ -31,9 +31,9 @@ func main() ***REMOVED***
 
 	switch *mode ***REMOVED***
 	case "worker":
-		worker.Run()
+		worker.Run(true)
 	case "orchestrator":
-		orchestrator.Run()
+		orchestrator.Run(true)
 	case "agent":
 		agent.Run()
 	default:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
@@ -38,7 +39,16 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	return &job, nil
 ***REMOVED***
 
-func getOrchestratorOrchestratorClient() *redis.Client ***REMOVED***
+func getOrchestratorOrchestratorClient(standalone bool) *redis.Client ***REMOVED***
+	if standalone ***REMOVED***
+		return redis.NewClient(&redis.Options***REMOVED***
+			Addr:     fmt.Sprintf("%s:%s", libAgent.OrchestratorHost, libAgent.OrchestratorPort),
+			Username: "default",
+			Password: "",
+		***REMOVED***,
+		)
+	***REMOVED***
+
 	orchestratorHost := lib.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost")
 
 	options := &redis.Options***REMOVED***
@@ -68,7 +78,11 @@ func getOrchestratorOrchestratorClient() *redis.Client ***REMOVED***
 	return redis.NewClient(options)
 ***REMOVED***
 
-func getMaxJobs() int ***REMOVED***
+func getMaxJobs(standalone bool) int ***REMOVED***
+	if standalone ***REMOVED***
+		return 5
+	***REMOVED***
+
 	maxJobs, err := strconv.Atoi(lib.GetEnvVariable("ORCHESTRATOR_MAX_JOBS", "1000"))
 	if err != nil ***REMOVED***
 		maxJobs = 1000
@@ -77,7 +91,11 @@ func getMaxJobs() int ***REMOVED***
 	return maxJobs
 ***REMOVED***
 
-func getMaxManagedVUs() int64 ***REMOVED***
+func getMaxManagedVUs(standalone bool) int64 ***REMOVED***
+	if standalone ***REMOVED***
+		return 5000
+	***REMOVED***
+
 	maxManagedVUs, err := strconv.ParseInt(lib.GetEnvVariable("ORCHESTRATOR_MAX_MANAGED_VUS", "10000"), 10, 64)
 	if err != nil ***REMOVED***
 		maxManagedVUs = 10000

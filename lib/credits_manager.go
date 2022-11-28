@@ -14,7 +14,11 @@ import (
 
 const OUT_OF_CREDITS_MESSAGE = "out of credits"
 
-func GetCreditsClient() *redis.Client ***REMOVED***
+func GetCreditsClient(standalone bool) *redis.Client ***REMOVED***
+	if standalone ***REMOVED***
+		return nil
+	***REMOVED***
+
 	enableCreditsSystem := GetEnvVariable("ENABLE_CREDITS_SYSTEM", "false") == "true"
 
 	if !enableCreditsSystem ***REMOVED***

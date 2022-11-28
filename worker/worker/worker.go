@@ -10,17 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func Run() ***REMOVED***
+func Run(standalone bool) ***REMOVED***
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
 	fmt.Print("\n\033[1;35mGlobeTest Worker\033[0m\n\n")
 	fmt.Printf("Starting worker %s\n", workerId)
 
-	client := getWorkerClient()
-	maxJobs := getMaxJobs()
-	maxVUs := getMaxVUs()
-	creditsClient := lib.GetCreditsClient()
+	client := getWorkerClient(standalone)
+	maxJobs := getMaxJobs(standalone)
+	maxVUs := getMaxVUs(standalone)
+	creditsClient := lib.GetCreditsClient(standalone)
 
 	executionList := &ExecutionList***REMOVED***
 		currentJobs: make(map[string]libOrch.ChildJob),

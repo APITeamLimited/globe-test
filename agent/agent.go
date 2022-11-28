@@ -12,7 +12,7 @@ func Run() ***REMOVED***
 	fmt.Println("Running agent")
 
 	systrayContent := func() ***REMOVED***
-		logoIcon, err := os.ReadFile("agent/icon.png")
+		logoIcon, err := os.ReadFile("apiteam-logo.png")
 		if err != nil ***REMOVED***
 			panic(err)
 		***REMOVED***
@@ -49,6 +49,7 @@ func Run() ***REMOVED***
 			***REMOVED***
 		***REMOVED***()
 
+		setupChildProcesses()
 		serverStoppedCh := runAgentServer(mQuit.ClickedCh, mAbortAll.ClickedCh, setJobCountFunc)
 
 		// Wait for the server to stop before exiting

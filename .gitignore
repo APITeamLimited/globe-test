@@ -25,3 +25,7 @@ vendor/
 
 main
 
+*.rdb
+
+build-agent*/
+redis-server*

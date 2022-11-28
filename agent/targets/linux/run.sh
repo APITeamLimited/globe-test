@@ -1,0 +1,1 @@
+./apiteam-agent --mode=agent
