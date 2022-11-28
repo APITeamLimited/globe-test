@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
@@ -93,7 +94,15 @@ func startScheduling(ctx context.Context, client *redis.Client, workerId string,
 	}()
 }
 
-func getWorkerClient() *redis.Client {
+func getWorkerClient(standalone bool) *redis.Client {
+	if standalone {
+		return redis.NewClient(&redis.Options{
+			Addr:     fmt.Sprintf("%s:%s", libAgent.WorkerHost, libAgent.WorkerPort),
+			Username: "default",
+			Password: "",
+		})
+	}
+
 	clientHost := lib.GetEnvVariable("CLIENT_HOST", "localhost")
 	clientPort := lib.GetEnvVariable("CLIENT_PORT", "6978")
 
@@ -124,7 +133,12 @@ func getWorkerClient() *redis.Client {
 	return redis.NewClient(options)
 }
 
-func getMaxJobs() int {
+func getMaxJobs(standalone bool) int {
+	if standalone {
+		// Orchestrator may spit jobs up, so set this high(ish)
+		return 100
+	}
+
 	maxJobs, err := strconv.Atoi(lib.GetEnvVariable("WORKER_MAX_JOBS", "1000"))
 	if err != nil {
 		panic(err)
@@ -133,7 +147,11 @@ func getMaxJobs() int {
 	return maxJobs
 }
 
-func getMaxVUs() int64 {
+func getMaxVUs(standalone bool) int64 {
+	if standalone {
+		return 5000
+	}
+
 	maxVUs, err := strconv.ParseInt(lib.GetEnvVariable("WORKER_MAX_VUS", "5000"), 10, 64)
 	if err != nil {
 		panic(err)

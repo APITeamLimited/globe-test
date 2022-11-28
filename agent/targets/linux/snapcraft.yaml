@@ -1,0 +1,27 @@
+name: apiteam # you probably want to 'snapcraft register <name>'
+base: core20 # the base snap is the execution environment for this snap
+version: '0.0.2' # just for humans, typically '1.2+git' or '1.3.2'
+summary: Local execution agent for APITeam # 79 char long summary
+description: |
+  This is the local execution agent for APITeam. It is used to execute
+  tests and load tests right from your local machine. APITeam Agent integrates seamlessly with
+  the APITeam platform.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: classic # use 'strict' once you have the right plugs and slots
+
+apps:
+  apiteam-agent:
+    command: run.sh
+    plugs:
+      - network
+    desktop: apiteam-agent.desktop
+
+parts:
+  part-apiteam-agent:
+    plugin: dump
+    source: .
+    stage-packages:
+      - libgtk-3-dev
+      - libayatana-appindicator3-dev
+      - libc6-dev

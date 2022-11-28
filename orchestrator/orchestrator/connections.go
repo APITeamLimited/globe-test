@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
@@ -52,9 +53,21 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient {
 	}
 }
 
-func connectWorkerClients(ctx context.Context) libOrch.WorkerClients {
+func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerClients {
 	workerClients := libOrch.WorkerClients{
 		Clients: make(map[string]*libOrch.NamedClient),
+	}
+
+	if !standalone {
+		// Just get a single worker client for the agent
+		workerClients.Clients["worker"] = &libOrch.NamedClient{
+			Name: "worker",
+			Client: redis.NewClient(&redis.Options{
+				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerHost, libAgent.WorkerPort),
+			}),
+		}
+
+		return workerClients
 	}
 
 	currentIndex := 0
@@ -82,7 +95,11 @@ func connectWorkerClients(ctx context.Context) libOrch.WorkerClients {
 	return workerClients
 }
 
-func getStoreMongoDB(ctx context.Context) *mongo.Database {
+func getStoreMongoDB(ctx context.Context, standalone bool) *mongo.Database {
+	if !standalone {
+		return nil
+	}
+
 	storeMongoUser := lib.GetEnvVariable("STORE_MONGO_USER", "")
 	storeMongoPassword := lib.GetEnvVariable("STORE_MONGO_PASSWORD", "")
 	storeMongoHost := lib.GetEnvVariable("STORE_MONGO_HOST", "")
