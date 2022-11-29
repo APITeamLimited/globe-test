@@ -7,11 +7,13 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func handleAbortAllJobs(runningJobs *map[string]libOrch.Job, setJobCount func(int),
-	orchestratorClient *redis.Client, connections *map[string]*net.Conn) {
+func handleAbortAllJobs(runningJobs *map[string]libOrch.Job, conn *net.Conn, setJobCount func(int),
+	orchestratorClient *redis.Client) {
 	// Loop through all running jobs and cancel them
 	for _, job := range *runningJobs {
-		processAbortion(job, runningJobs, setJobCount, orchestratorClient, connections)
+		processAbortion(job, runningJobs, setJobCount, orchestratorClient)
 	}
 	setJobCount(len(*runningJobs))
+
+	displaySuccessMessage(conn, "Stopping all test runs")
 }

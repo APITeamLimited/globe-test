@@ -53,4 +53,19 @@ type (
 		Type    string        `json:"type"` // "runningJobs"
 		Message []libOrch.Job `json:"message"`
 	}
+
+	ServerDisplayableErrorMessage struct {
+		Type    string `json:"type"` // "displayableErrorMessage"
+		Message string `json:"message"`
+	}
+
+	ServerDisplayableSuccessMessage struct {
+		Type    string `json:"type"` // "displayableSuccessMessage"
+		Message string `json:"message"`
+	}
+
+	ServerJobDeletedMessage struct {
+		Type    string `json:"type"` // "jobDeleted"
+		Message string `json:"message"`
+	}
 )
