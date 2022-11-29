@@ -39,11 +39,6 @@ type (
 		Type string `json:"type"`
 	}
 
-	ServerAbortJobMessage struct {
-		Type    string `json:"type"` // "abortJob"
-		Message string `json:"message"`
-	}
-
 	ServerNewJobMessage struct {
 		Type    string      `json:"type"` // "newJob"
 		Message libOrch.Job `json:"message"`
@@ -54,8 +49,8 @@ type (
 		Message string `json:"message"`
 	}
 
-	ServerWrappedJobUserUpdate struct {
-		Type    string                   `json:"type"` // "jobUpdate"
-		Message lib.WrappedJobUserUpdate `json:"message"`
+	ServerRunningJobsMessage struct {
+		Type    string        `json:"type"` // "runningJobs"
+		Message []libOrch.Job `json:"message"`
 	}
 )

@@ -26,52 +26,7 @@ func runAgentServer(
 	})
 
 	runningJobs := make(map[string]libOrch.Job)
-
 	connections := make(map[string]*net.Conn)
-
-	// server := socketio.NewServer(nil)
-
-	// server.OnConnect("/", func(s socketio.Conn) error {
-	// 	s.SetContext("")
-	// 	fmt.Println("connected:", s.ID())
-	// 	// Accept the connection
-
-	// 	s.Emit("message", "Hello, world!")
-
-	// 	return nil
-	// })
-
-	// server.OnEvent("/", "newJob", func(s socketio.Conn, msg string) {
-	// 	fmt.Println("newJob:", msg)
-
-	// 	handleNewJob(msg, conn, runningJobs, setJobCount)
-	// })
-
-	// server.OnEvent("/", "abortJob", func(s socketio.Conn, msg string) {
-	// 	fmt.Println("abortJob:", msg)
-	// 	abortJob(msg, runningJobs, setJobCount)
-	// })
-
-	// server.OnEvent("/", "abortAllJobs", func(s socketio.Conn, msg string) {
-	// 	fmt.Println("abortAllJobs:", msg)
-	// 	abortAllJobs(runningJobs, setJobCount)
-	// })
-
-	// server.OnEvent("/", "jobUpdate", func(s socketio.Conn, msg string) {
-	// 	fmt.Println("jobUpdate:", msg)
-	// 	// TODO
-	// })
-
-	// server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-	// 	fmt.Println("closed", reason)
-	// })
-
-	// go func() {
-	// 	if err := server.Serve(); err != nil {
-	// 		log.Fatalf("socketio listen error: %s\n", err)
-	// 	}
-	// }()
-	// defer server.Close()
 
 	serverAddress := fmt.Sprintf("localhost:%d", libAgent.AgentPort)
 
@@ -84,22 +39,21 @@ func runAgentServer(
 		}
 
 		randId := uuid.New().String()
+		fmt.Printf("New connection %s\n", randId)
 
 		connections[randId] = &conn
 
+		sendRunningJobsToClient(&conn, &runningJobs)
+
 		go func() {
 			defer conn.Close()
+			defer delete(connections, randId)
 
 			for {
 				msg, op, err := wsutil.ReadClientData(conn)
 				if err != nil {
 					fmt.Println("read error:", err)
 					return
-				}
-
-				// Handle closed connections
-				if op == ws.OpClose {
-					delete(connections, randId)
 				}
 
 				// Return ping messages
@@ -117,7 +71,7 @@ func runAgentServer(
 
 				switch parsedMessage.Type {
 				case "newJob":
-					handleNewJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient, &connections)
+					handleNewJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient)
 				case "abortJob":
 					handleAbortJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient, &connections)
 				case "abortAllJobs":

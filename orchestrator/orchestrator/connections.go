@@ -66,6 +66,7 @@ func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerCl
 				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
 			}),
 		}
+		workerClients.DefaultClient = workerClients.Clients["worker"]
 
 		return workerClients
 	}

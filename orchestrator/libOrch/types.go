@@ -96,4 +96,9 @@ type (
 		Name   string
 		Client *redis.Client
 	}
+
+	LocalhostFile struct {
+		FileName string `json:"fileName"`
+		Contents string `json:"content"`
+	}
 )

@@ -19,13 +19,13 @@ func setupChildProcesses() {
 
 // Spawns child redis processes, these are terminated automatically when the agent exits
 func spawnChildServers() {
-	orchestratorRedis := exec.Command(getServerCommandBase(), "--port", libAgent.OrchestratorRedisPort)
+	orchestratorRedis := exec.Command(getServerCommandBase(), "--port", libAgent.OrchestratorRedisPort, "--save", "", "--appendonly", "no")
 	err := orchestratorRedis.Start()
 	if err != nil {
 		panic(err)
 	}
 
-	clientRedis := exec.Command(getServerCommandBase(), "--port", libAgent.WorkerRedisPort)
+	clientRedis := exec.Command(getServerCommandBase(), "--port", libAgent.WorkerRedisPort, "--save", "", "--appendonly", "no")
 	err = clientRedis.Start()
 	if err != nil {
 		panic(err)
