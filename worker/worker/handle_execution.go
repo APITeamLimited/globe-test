@@ -22,14 +22,14 @@ This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
 func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch.ChildJob,
-	workerId string, creditsClient *redis.Client) bool {
+	workerId string, creditsClient *redis.Client, standalone bool) bool {
 	ctx := context.Background()
 
 	gs := newGlobalState(ctx, client, job, workerId)
 
 	libWorker.UpdateStatus(gs, "LOADING")
 
-	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient)
+	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil {
@@ -44,12 +44,13 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 		return false
 	}
 
-	startChannel := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId)).Channel()
+	startSubscription := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
 
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for start message on the channel
-	<-startChannel
+	<-startSubscription.Channel()
+	startSubscription.Close()
 
 	// Don't know if these can be removed easily without unexpected side effects
 
@@ -66,12 +67,18 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
 
+	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
+
+	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
+	childJobUpdatesChannel := childUpdatesSubscription.Channel()
+
 	// Create handler for test aborts
-	childJobUpdatesChannel := client.Subscribe(ctx, fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId)).Channel()
+	defer workerInfo.CreditsManager.StopCreditsCapturing()
+	defer childUpdatesSubscription.Close()
 
 	go func() {
 		for msg := range childJobUpdatesChannel {
-			var abortMessage = jobUserUpdate{}
+			var abortMessage = JobUserUpdate{}
 			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
@@ -80,7 +87,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 			if abortMessage.UpdateType == "CANCEL" {
 				fmt.Println("Aborting child job due to a request from the orchestrator")
 				runCancel()
-				workerInfo.CreditsManager.StopCreditsCapturing()
 				return
 			}
 		}
@@ -89,7 +95,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 
@@ -97,7 +102,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	outputs, err := createOutputs(gs)
 	if err != nil {
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 
@@ -105,7 +109,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil {
 		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 
@@ -116,7 +119,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	err = engine.OutputManager.StartOutputs()
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error starting outputs %s", err.Error()))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 	defer engine.OutputManager.StopOutputs()
@@ -127,7 +129,6 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 
@@ -188,16 +189,13 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 
 	globalCancel() // signal the Engine that it should wind down
 	if interrupt != nil {
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 	if engine.IsTainted() {
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
-		workerInfo.CreditsManager.StopCreditsCapturing()
 		return false
 	}
 
-	workerInfo.CreditsManager.StopCreditsCapturing()
 	return true
 }
 
@@ -218,7 +216,7 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 
 func loadWorkerInfo(ctx context.Context,
 	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState,
-	creditsClient *redis.Client) *libWorker.WorkerInfo {
+	creditsClient *redis.Client, standalone bool) *libWorker.WorkerInfo {
 	workerInfo := &libWorker.WorkerInfo{
 		Client:          client,
 		JobId:           job.Id,
@@ -231,6 +229,7 @@ func loadWorkerInfo(ctx context.Context,
 		VerifiedDomains: job.VerifiedDomains,
 		SubFraction:     job.SubFraction,
 		CreditsManager:  lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
+		Standalone:      standalone,
 	}
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" {

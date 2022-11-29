@@ -14,7 +14,9 @@ func Run(standalone bool) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
-	fmt.Print("\n\033[1;35mGlobeTest Worker\033[0m\n\n")
+	if standalone {
+		fmt.Print("\n\033[1;35mGlobeTest Worker\033[0m\n\n")
+	}
 	fmt.Printf("Starting worker %s\n", workerId)
 
 	client := getWorkerClient(standalone)
@@ -29,9 +31,9 @@ func Run(standalone bool) {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startScheduling(ctx, client, workerId, executionList, creditsClient)
+	startScheduling(ctx, client, workerId, executionList, creditsClient, standalone)
 
-	fmt.Printf("Listening for new jobs on %s...\n\n", client.Options().Addr)
+	fmt.Printf("Worker listening for new jobs on %s...\n", client.Options().Addr)
 
 	// Subscribe to the execution channel
 	channel := client.Subscribe(ctx, "worker:execution").Channel()
@@ -42,14 +44,14 @@ func Run(standalone bool) {
 			fmt.Println("Error, got did not parse job id")
 			return
 		}
-		go checkIfCanExecute(ctx, client, childJobId.String(), workerId, executionList, creditsClient)
+		go checkIfCanExecute(ctx, client, childJobId.String(), workerId, executionList, creditsClient, standalone)
 	}
 }
 
 // Check for queued jobs that were deferered as they couldn't be executed when they
 // were queued as no workers were available.
 func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId string,
-	executionList *ExecutionList, creditsClient *redis.Client) {
+	executionList *ExecutionList, creditsClient *redis.Client, standalone bool) {
 	// Check for job keys in the "worker:executionHistory" set
 	historyIds, err := client.SMembers(ctx, "worker:executionHistory").Result()
 	if err != nil {
@@ -57,12 +59,12 @@ func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId stri
 	}
 
 	for _, childJobId := range historyIds {
-		go checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient)
+		go checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient, standalone)
 	}
 }
 
 func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId string,
-	workerId string, executionList *ExecutionList, creditsClient *redis.Client) {
+	workerId string, executionList *ExecutionList, creditsClient *redis.Client, standalone bool) {
 	// Try to HGetAll the worker id
 	job, err := fetchChildJob(ctx, client, childJobId)
 	if err != nil || job == nil {
@@ -109,7 +111,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 
 	fmt.Printf("Got child job: %s\n", job.ChildJobId)
 
-	successfullExecution := handleExecution(ctx, client, *job, workerId, creditsClient)
+	successfullExecution := handleExecution(ctx, client, *job, workerId, creditsClient, standalone)
 
 	if successfullExecution {
 		fmt.Printf("Completed child job successfully: %s\n", job.ChildJobId)

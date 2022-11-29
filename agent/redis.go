@@ -19,13 +19,13 @@ func setupChildProcesses() {
 
 // Spawns child redis processes, these are terminated automatically when the agent exits
 func spawnChildServers() {
-	orchestratorRedis := exec.Command(getServerCommandBase(), "--port", libAgent.OrchestratorPort)
+	orchestratorRedis := exec.Command(getServerCommandBase(), "--port", libAgent.OrchestratorRedisPort)
 	err := orchestratorRedis.Start()
 	if err != nil {
 		panic(err)
 	}
 
-	clientRedis := exec.Command(getServerCommandBase(), "--port", libAgent.WorkerPort)
+	clientRedis := exec.Command(getServerCommandBase(), "--port", libAgent.WorkerRedisPort)
 	err = clientRedis.Start()
 	if err != nil {
 		panic(err)
@@ -50,8 +50,8 @@ func getServerCommandBase() string {
 
 func runOrchestrator() {
 	// Set some environment variables
-	_ = os.Setenv("ORCHESTRATOR_REDIS_HOST", libAgent.OrchestratorHost)
-	_ = os.Setenv("ORCHESTRATOR_REDIS_PORT", libAgent.OrchestratorPort)
+	_ = os.Setenv("ORCHESTRATOR_REDIS_HOST", libAgent.OrchestratorRedisHost)
+	_ = os.Setenv("ORCHESTRATOR_REDIS_PORT", libAgent.OrchestratorRedisPort)
 	_ = os.Setenv("ORCHESTRATOR_REDIS_PASSWORD", "")
 
 	go orchestrator.Run(false)
@@ -59,8 +59,8 @@ func runOrchestrator() {
 
 func runWorker() {
 	// Set some environment variables
-	_ = os.Setenv("CLIENT_HOST", libAgent.WorkerHost)
-	_ = os.Setenv("CLIENT_PORT", libAgent.WorkerPort)
+	_ = os.Setenv("CLIENT_HOST", libAgent.WorkerRedisHost)
+	_ = os.Setenv("CLIENT_PORT", libAgent.WorkerRedisPort)
 	_ = os.Setenv("CLIENT_PASSWORD", "")
 
 	go worker.Run(false)

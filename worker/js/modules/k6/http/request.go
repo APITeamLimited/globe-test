@@ -39,6 +39,11 @@ func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...go
 
 // Rate limits the number of requests per second to a certain domain
 func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
+	// If running on localhost, don't rate limit
+	if !c.moduleInstance.rootModule.workerInfo.Standalone {
+		return performRequest(c, method, url, args...)
+	}
+
 	domain, err := getDomainFromURL(url)
 	if err != nil {
 		return nil, err

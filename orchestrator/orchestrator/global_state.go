@@ -27,12 +27,14 @@ type (
 		status         string
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
+		standalone     bool
 	}
 )
 
 var _ libOrch.BaseGlobalState = &globalState{}
 
-func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job, orchestratorId string, creditsClient *redis.Client) *globalState {
+func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job,
+	orchestratorId string, creditsClient *redis.Client, standalone bool) *globalState {
 	gs := &globalState{
 		ctx:            ctx,
 		client:         orchestratorClient,
@@ -40,6 +42,7 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		orchestratorId: orchestratorId,
 		childJobStates: []libOrch.WorkerState{},
 		creditsManager: lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
+		standalone:     standalone,
 	}
 
 	gs.logger = &logrus.Logger{
@@ -141,4 +144,8 @@ func (g *globalState) SetChildJobState(workerId string, childJobId string, statu
 
 func (g *globalState) CreditsManager() *lib.CreditsManager {
 	return g.creditsManager
+}
+
+func (g *globalState) Standalone() bool {
+	return g.standalone
 }

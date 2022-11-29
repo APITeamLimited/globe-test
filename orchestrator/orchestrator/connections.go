@@ -63,7 +63,7 @@ func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerCl
 		workerClients.Clients["worker"] = &libOrch.NamedClient{
 			Name: "worker",
 			Client: redis.NewClient(&redis.Options{
-				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerHost, libAgent.WorkerPort),
+				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
 			}),
 		}
 

@@ -40,9 +40,9 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 }
 
 func getOrchestratorOrchestratorClient(standalone bool) *redis.Client {
-	if standalone {
+	if !standalone {
 		return redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", libAgent.OrchestratorHost, libAgent.OrchestratorPort),
+			Addr:     fmt.Sprintf("%s:%s", libAgent.OrchestratorRedisHost, libAgent.OrchestratorRedisPort),
 			Username: "default",
 			Password: "",
 		},
@@ -79,7 +79,7 @@ func getOrchestratorOrchestratorClient(standalone bool) *redis.Client {
 }
 
 func getMaxJobs(standalone bool) int {
-	if standalone {
+	if !standalone {
 		return 5
 	}
 
@@ -92,7 +92,7 @@ func getMaxJobs(standalone bool) int {
 }
 
 func getMaxManagedVUs(standalone bool) int64 {
-	if standalone {
+	if !standalone {
 		return 5000
 	}
 

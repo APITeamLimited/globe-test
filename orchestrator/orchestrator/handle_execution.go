@@ -18,10 +18,6 @@ type locatedMesaage struct {
 	msg      *redis.Message
 }
 
-type jobUserUpdate struct {
-	UpdateType string `json:"updateType"`
-}
-
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
 	if gs.CreditsManager().UseCredits(1) {
 		libOrch.UpdateStatus(gs, "LOADING")
@@ -30,12 +26,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	}
 
 	// Create a handler for aborts
-	jobUserUpdatesChannel := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId)).Channel()
+	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId))
+	defer jobUserUpdatesSubscription.Close()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
 	for location, jobDistribution := range childJobs {
 		if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 {
 			workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+			defer workerSubscriptions[location].Close()
 		}
 	}
 
@@ -81,9 +79,9 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		}(channel)
 	}
 
-	// Add jobUserUpdatesChannel to the unifiedChannel
+	// Add jobUserUpdatesSubscription to the unifiedChannel
 	go func() {
-		for msg := range jobUserUpdatesChannel {
+		for msg := range jobUserUpdatesSubscription.Channel() {
 			newMessage := locatedMesaage{
 				location: "jobUserUpdates",
 				msg:      msg,
@@ -110,14 +108,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	for locatedMessage := range unifiedChannel {
 		// Handle user updates separately
 		if locatedMessage.location == "jobUserUpdates" {
-			var jobUserUpdate = jobUserUpdate{}
+			var JobUserUpdate = lib.JobUserUpdate{}
 
-			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
+			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &JobUserUpdate)
 			if err != nil {
 				return abortAndFailAll(gs, childJobs, err)
 			}
 
-			if jobUserUpdate.UpdateType == "CANCEL" {
+			if JobUserUpdate.UpdateType == "CANCEL" {
 				fmt.Println("Aborting job due to user request")
 
 				// Cancel all child jobs

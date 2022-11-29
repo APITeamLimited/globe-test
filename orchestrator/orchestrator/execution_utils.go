@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 )
 
 func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) error {
 	var err error
 
-	cancelMessage := jobUserUpdate{
+	cancelMessage := lib.JobUserUpdate{
 		UpdateType: "CANCEL",
 	}
 
@@ -22,7 +23,7 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribu
 
 	for _, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			err = jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("childJobUserUpdates:%s", job.ChildJobId), stringMarshalledCancelMessage).Err()
+			err = jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId), stringMarshalledCancelMessage).Err()
 		}
 	}
 

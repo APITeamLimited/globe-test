@@ -70,6 +70,6 @@ type workerLoadedAndConfiguredTest struct {
 
 const testTypeJS = "js"
 
-type jobUserUpdate struct {
+type JobUserUpdate struct {
 	UpdateType string `json:"updateType"`
 }
