@@ -39,11 +39,6 @@ type (
 		Type string `json:"type"`
 	***REMOVED***
 
-	ServerAbortJobMessage struct ***REMOVED***
-		Type    string `json:"type"` // "abortJob"
-		Message string `json:"message"`
-	***REMOVED***
-
 	ServerNewJobMessage struct ***REMOVED***
 		Type    string      `json:"type"` // "newJob"
 		Message libOrch.Job `json:"message"`
@@ -54,8 +49,8 @@ type (
 		Message string `json:"message"`
 	***REMOVED***
 
-	ServerWrappedJobUserUpdate struct ***REMOVED***
-		Type    string                   `json:"type"` // "jobUpdate"
-		Message lib.WrappedJobUserUpdate `json:"message"`
+	ServerRunningJobsMessage struct ***REMOVED***
+		Type    string        `json:"type"` // "runningJobs"
+		Message []libOrch.Job `json:"message"`
 	***REMOVED***
 )

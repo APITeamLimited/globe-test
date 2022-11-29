@@ -48,16 +48,4 @@ func processAbortion(job libOrch.Job, runningJobs *map[string]libOrch.Job, setJo
 
 	marshalledCancel, _ := json.Marshal(cancelMessage)
 	orchestratorClient.Publish(context.Background(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", job.Scope.Variant, job.Scope.VariantTargetId, job.Id), string(marshalledCancel))
-
-	// Notify of abort to any connected agents
-	serverAbortMessage := libAgent.ServerAbortJobMessage***REMOVED***
-		Type:    "abortJob",
-		Message: job.Id,
-	***REMOVED***
-
-	marshalledServerAbort, _ := json.Marshal(serverAbortMessage)
-	broadcastMessage(marshalledServerAbort, connections)
-
-	delete(*runningJobs, job.Id)
-	setJobCount(len(*runningJobs))
 ***REMOVED***

@@ -26,52 +26,7 @@ func runAgentServer(
 	***REMOVED***)
 
 	runningJobs := make(map[string]libOrch.Job)
-
 	connections := make(map[string]*net.Conn)
-
-	// server := socketio.NewServer(nil)
-
-	// server.OnConnect("/", func(s socketio.Conn) error ***REMOVED***
-	// 	s.SetContext("")
-	// 	fmt.Println("connected:", s.ID())
-	// 	// Accept the connection
-
-	// 	s.Emit("message", "Hello, world!")
-
-	// 	return nil
-	// ***REMOVED***)
-
-	// server.OnEvent("/", "newJob", func(s socketio.Conn, msg string) ***REMOVED***
-	// 	fmt.Println("newJob:", msg)
-
-	// 	handleNewJob(msg, conn, runningJobs, setJobCount)
-	// ***REMOVED***)
-
-	// server.OnEvent("/", "abortJob", func(s socketio.Conn, msg string) ***REMOVED***
-	// 	fmt.Println("abortJob:", msg)
-	// 	abortJob(msg, runningJobs, setJobCount)
-	// ***REMOVED***)
-
-	// server.OnEvent("/", "abortAllJobs", func(s socketio.Conn, msg string) ***REMOVED***
-	// 	fmt.Println("abortAllJobs:", msg)
-	// 	abortAllJobs(runningJobs, setJobCount)
-	// ***REMOVED***)
-
-	// server.OnEvent("/", "jobUpdate", func(s socketio.Conn, msg string) ***REMOVED***
-	// 	fmt.Println("jobUpdate:", msg)
-	// 	// TODO
-	// ***REMOVED***)
-
-	// server.OnDisconnect("/", func(s socketio.Conn, reason string) ***REMOVED***
-	// 	fmt.Println("closed", reason)
-	// ***REMOVED***)
-
-	// go func() ***REMOVED***
-	// 	if err := server.Serve(); err != nil ***REMOVED***
-	// 		log.Fatalf("socketio listen error: %s\n", err)
-	// 	***REMOVED***
-	// ***REMOVED***()
-	// defer server.Close()
 
 	serverAddress := fmt.Sprintf("localhost:%d", libAgent.AgentPort)
 
@@ -84,22 +39,21 @@ func runAgentServer(
 		***REMOVED***
 
 		randId := uuid.New().String()
+		fmt.Printf("New connection %s\n", randId)
 
 		connections[randId] = &conn
 
+		sendRunningJobsToClient(&conn, &runningJobs)
+
 		go func() ***REMOVED***
 			defer conn.Close()
+			defer delete(connections, randId)
 
 			for ***REMOVED***
 				msg, op, err := wsutil.ReadClientData(conn)
 				if err != nil ***REMOVED***
 					fmt.Println("read error:", err)
 					return
-				***REMOVED***
-
-				// Handle closed connections
-				if op == ws.OpClose ***REMOVED***
-					delete(connections, randId)
 				***REMOVED***
 
 				// Return ping messages
@@ -117,7 +71,7 @@ func runAgentServer(
 
 				switch parsedMessage.Type ***REMOVED***
 				case "newJob":
-					handleNewJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient, &connections)
+					handleNewJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient)
 				case "abortJob":
 					handleAbortJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient, &connections)
 				case "abortAllJobs":

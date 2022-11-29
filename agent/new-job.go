@@ -13,7 +13,7 @@ import (
 )
 
 func handleNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]libOrch.Job,
-	setJobCount func(int), orchestratorClient *redis.Client, connections *map[string]*net.Conn) ***REMOVED***
+	setJobCount func(int), orchestratorClient *redis.Client) ***REMOVED***
 	parsedMessage := libAgent.ClientNewJobMessage***REMOVED******REMOVED***
 
 	err := json.Unmarshal(rawMessage, &parsedMessage)
@@ -39,14 +39,14 @@ func handleNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]lib
 	***REMOVED***
 
 	marshalledServerNewJob, _ := json.Marshal(serverNewJobMessage)
-	broadcastMessage(marshalledServerNewJob, connections)
+	wsutil.WriteServerText(*conn, marshalledServerNewJob)
 
-	go streamGlobeTestMessages(parsedMessage, orchestratorClient, connections, runningJobs, setJobCount)
+	go streamGlobeTestMessages(parsedMessage, orchestratorClient, conn, runningJobs, setJobCount)
 
 ***REMOVED***
 
 func streamGlobeTestMessages(parsedMessage libAgent.ClientNewJobMessage, orchestratorClient *redis.Client,
-	connections *map[string]*net.Conn, runningJobs *map[string]libOrch.Job, setJobCount func(int)) ***REMOVED***
+	conn *net.Conn, runningJobs *map[string]libOrch.Job, setJobCount func(int)) ***REMOVED***
 	subscriptionKey := fmt.Sprintf("jobUserUpdates:%s:%s:%s", parsedMessage.Message.Scope.Variant, parsedMessage.Message.Scope.VariantTargetId, parsedMessage.Message.Id)
 	subscription := orchestratorClient.Subscribe(context.Background(), subscriptionKey)
 	defer subscription.Close()
@@ -70,6 +70,8 @@ func streamGlobeTestMessages(parsedMessage libAgent.ClientNewJobMessage, orchest
 			***REMOVED***
 		***REMOVED***
 
-		broadcastMessage([]byte(msg.Payload), connections)
+		fmt.Printf("Job %s update: %s", parsedMessage.JobId, parsedMessage.Message)
+
+		wsutil.WriteServerText(*conn, []byte(msg.Payload))
 	***REMOVED***
 ***REMOVED***

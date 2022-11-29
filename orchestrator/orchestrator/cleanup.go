@@ -17,7 +17,6 @@ Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
 func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]jobDistribution, storeMongoDB *mongo.Database,
 	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID, metricsStoreReceipt primitive.ObjectID) error ***REMOVED***
-
 	// Clean up worker
 	// Set job in orchestrator redis
 
@@ -44,9 +43,13 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 
 	// Store results in MongoDB
 	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)
-	jobBucket, err := gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))
-	if err != nil ***REMOVED***
-		return err
+
+	var jobBucket *gridfs.Bucket
+	if gs.Standalone() ***REMOVED***
+		jobBucket, err = gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED***
 
 	updatesKey := fmt.Sprintf("%s:updates", job.Id)
@@ -68,27 +71,6 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 			return err
 		***REMOVED***
 
-		// TODO: make a seperate store datatype for large data
-		/*
-			if message.MessageType == "STORE" ***REMOVED***
-				parsedStoreMessage := storeMessage***REMOVED******REMOVED***
-
-				err := json.Unmarshal([]byte(message.Message), &parsedStoreMessage)
-				if err != nil ***REMOVED***
-					libOrch.HandleStringError(ctx, orchestratorClient, job.Id, orchestratorId, fmt.Sprintf("Error unmarshalling message: %s", err.Error()))
-					return
-				***REMOVED***
-
-				storeTag := fmt.Sprintf("%s:store:%s", job.Id, parsedStoreMessage.Filename)
-
-				setInBucket(jobBucket, storeTag, []byte(parsedStoreMessage.Message))
-
-				// Remove stored value from logs
-				message.MessageType = "STORE_RECEIPT"
-				message.Message = storeTag
-			***REMOVED***
-		*/
-
 		if message.MessageType == "METRICS" ***REMOVED***
 			metrics = append(metrics, message)
 		***REMOVED*** else if message.MessageType == "COLLECTION_VARIABLES" || message.MessageType == "ENVIRONMENT_VARIABLES" ***REMOVED***
@@ -109,11 +91,30 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 			return
 		***REMOVED***
 
-		err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:messages.json", job.Id), globeTestLogsMarshalled, "application/json", globeTestLogsReceipt)
-		if err != nil ***REMOVED***
-			// Can't alert client here, as the client has already been cleaned up
-			channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
-			return
+		globeTestLogsFilename := fmt.Sprintf("GlobeTest:%s:messages.json", job.Id)
+
+		if gs.Standalone() ***REMOVED***
+			err = libOrch.SetInBucket(jobBucket, globeTestLogsFilename, globeTestLogsMarshalled, "application/json", globeTestLogsReceipt)
+			if err != nil ***REMOVED***
+				// Can't alert client here, as the client has already been cleaned up
+				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				return
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			// TODO
+			localhostFile := libOrch.LocalhostFile***REMOVED***
+				FileName: globeTestLogsFilename,
+				Contents: string(globeTestLogsMarshalled),
+			***REMOVED***
+
+			marshalledLocalhostFile, err := json.Marshal(localhostFile)
+			if err != nil ***REMOVED***
+				// Can't alert client here, as the client has already been cleaned up
+				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				return
+			***REMOVED***
+
+			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
 		***REMOVED***
 
 		channel <- nil
@@ -127,10 +128,29 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 			return
 		***REMOVED***
 
-		err = libOrch.SetInBucket(jobBucket, fmt.Sprintf("GlobeTest:%s:metrics.json", job.Id), metricsMarshalled, "application/json", metricsStoreReceipt)
-		if err != nil ***REMOVED***
-			channel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
-			return
+		metricsFilename := fmt.Sprintf("GlobeTest:%s:metrics.json", job.Id)
+
+		if gs.Standalone() ***REMOVED***
+			err = libOrch.SetInBucket(jobBucket, metricsFilename, metricsMarshalled, "application/json", metricsStoreReceipt)
+			if err != nil ***REMOVED***
+				channel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
+				return
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			// TODO
+			localhostFile := libOrch.LocalhostFile***REMOVED***
+				FileName: metricsFilename,
+				Contents: string(metricsMarshalled),
+			***REMOVED***
+
+			marshalledLocalhostFile, err := json.Marshal(localhostFile)
+			if err != nil ***REMOVED***
+				// Can't alert client here, as the client has already been cleaned up
+				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				return
+			***REMOVED***
+
+			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
 		***REMOVED***
 
 		channel <- nil

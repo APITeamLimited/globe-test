@@ -96,4 +96,9 @@ type (
 		Name   string
 		Client *redis.Client
 	***REMOVED***
+
+	LocalhostFile struct ***REMOVED***
+		FileName string `json:"fileName"`
+		Contents string `json:"content"`
+	***REMOVED***
 )
