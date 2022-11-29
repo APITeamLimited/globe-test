@@ -14,11 +14,21 @@ import (
 
 func handleNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]libOrch.Job,
 	setJobCount func(int), orchestratorClient *redis.Client) ***REMOVED***
+	if len(*runningJobs) >= 5 ***REMOVED***
+		displayErrorMessage(conn, "You can run a maximum of 5 localhost jobs at once")
+		return
+	***REMOVED***
+
+	createNewJob(rawMessage, conn, runningJobs, setJobCount, orchestratorClient)
+***REMOVED***
+
+func createNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]libOrch.Job,
+	setJobCount func(int), orchestratorClient *redis.Client) ***REMOVED***
 	parsedMessage := libAgent.ClientNewJobMessage***REMOVED******REMOVED***
 
 	err := json.Unmarshal(rawMessage, &parsedMessage)
 	if err != nil ***REMOVED***
-		wsutil.WriteServerText(*conn, []byte("Error parsing job arguments"))
+		displayErrorMessage(conn, "Error parsing job arguments")
 		return
 	***REMOVED***
 
@@ -38,24 +48,26 @@ func handleNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]lib
 		Message: parsedMessage.Message,
 	***REMOVED***
 
+	fmt.Println(parsedMessage.Message.Id)
+
 	marshalledServerNewJob, _ := json.Marshal(serverNewJobMessage)
 	wsutil.WriteServerText(*conn, marshalledServerNewJob)
 
 	go streamGlobeTestMessages(parsedMessage, orchestratorClient, conn, runningJobs, setJobCount)
-
 ***REMOVED***
 
 func streamGlobeTestMessages(parsedMessage libAgent.ClientNewJobMessage, orchestratorClient *redis.Client,
 	conn *net.Conn, runningJobs *map[string]libOrch.Job, setJobCount func(int)) ***REMOVED***
-	subscriptionKey := fmt.Sprintf("jobUserUpdates:%s:%s:%s", parsedMessage.Message.Scope.Variant, parsedMessage.Message.Scope.VariantTargetId, parsedMessage.Message.Id)
+	subscriptionKey := fmt.Sprintf("orchestrator:executionUpdates:%s", parsedMessage.Message.Id)
 	subscription := orchestratorClient.Subscribe(context.Background(), subscriptionKey)
+
 	defer subscription.Close()
 
 	for msg := range subscription.Channel() ***REMOVED***
 		parsedMessage := libOrch.OrchestratorOrWorkerMessage***REMOVED******REMOVED***
 		err := json.Unmarshal([]byte(msg.Payload), &parsedMessage)
 		if err != nil ***REMOVED***
-			fmt.Println("Error parsing job update message")
+			displayErrorMessage(conn, "Error parsing job update message")
 			continue
 		***REMOVED***
 
@@ -65,12 +77,11 @@ func streamGlobeTestMessages(parsedMessage libAgent.ClientNewJobMessage, orchest
 
 				// Delete the job from the running jobs
 				delete(*runningJobs, parsedMessage.JobId)
+				notifyJobDeleted(conn, parsedMessage.JobId)
 				setJobCount(len(*runningJobs))
 				return
 			***REMOVED***
 		***REMOVED***
-
-		fmt.Printf("Job %s update: %s", parsedMessage.JobId, parsedMessage.Message)
 
 		wsutil.WriteServerText(*conn, []byte(msg.Payload))
 	***REMOVED***

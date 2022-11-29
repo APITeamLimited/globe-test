@@ -73,9 +73,9 @@ func runAgentServer(
 				case "newJob":
 					handleNewJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient)
 				case "abortJob":
-					handleAbortJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient, &connections)
+					handleAbortJob(msg, &conn, &runningJobs, setJobCount, orchestratorClient)
 				case "abortAllJobs":
-					handleAbortAllJobs(&runningJobs, setJobCount, orchestratorClient, &connections)
+					handleAbortAllJobs(&runningJobs, &conn, setJobCount, orchestratorClient)
 				case "jobUpdate":
 					handleJobUpdate(msg, &conn, &runningJobs, orchestratorClient)
 				default:

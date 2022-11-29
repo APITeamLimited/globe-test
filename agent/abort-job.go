@@ -14,7 +14,7 @@ import (
 )
 
 func handleAbortJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]libOrch.Job,
-	setJobCount func(int), orchestratorClient *redis.Client, connections *map[string]*net.Conn) ***REMOVED***
+	setJobCount func(int), orchestratorClient *redis.Client) ***REMOVED***
 	// Parse the rawMessage
 	parsedMessage := libAgent.ClientAbortJobMessage***REMOVED******REMOVED***
 	err := json.Unmarshal(rawMessage, &parsedMessage)
@@ -31,11 +31,12 @@ func handleAbortJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]l
 	***REMOVED***
 
 	// Abort the job
-	processAbortion(job, runningJobs, setJobCount, orchestratorClient, connections)
+	processAbortion(job, runningJobs, setJobCount, orchestratorClient)
+	displaySuccessMessage(conn, "Stopping test run")
 ***REMOVED***
 
 func processAbortion(job libOrch.Job, runningJobs *map[string]libOrch.Job, setJobCount func(int),
-	orchestratorClient *redis.Client, connections *map[string]*net.Conn) ***REMOVED***
+	orchestratorClient *redis.Client) ***REMOVED***
 	_, ok := (*runningJobs)[job.Id]
 	if !ok ***REMOVED***
 		fmt.Println("Attempted to abort job that does not exist")
