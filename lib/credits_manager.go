@@ -15,7 +15,7 @@ import (
 const OUT_OF_CREDITS_MESSAGE = "out of credits"
 
 func GetCreditsClient(standalone bool) *redis.Client ***REMOVED***
-	if standalone ***REMOVED***
+	if !standalone ***REMOVED***
 		return nil
 	***REMOVED***
 

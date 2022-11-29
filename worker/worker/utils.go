@@ -73,7 +73,7 @@ func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string)
 ***REMOVED***
 
 func startScheduling(ctx context.Context, client *redis.Client, workerId string,
-	executionList *ExecutionList, creditsClient *redis.Client) ***REMOVED***
+	executionList *ExecutionList, creditsClient *redis.Client, standalone bool) ***REMOVED***
 	jobsCheckScheduler := time.NewTicker(1 * time.Second)
 
 	go func() ***REMOVED***
@@ -89,15 +89,15 @@ func startScheduling(ctx context.Context, client *redis.Client, workerId string,
 			client.SAdd(ctx, "workers", workerId)
 
 			// Capacity may have freed up, check for queued jobs
-			checkForQueuedJobs(ctx, client, workerId, executionList, creditsClient)
+			checkForQueuedJobs(ctx, client, workerId, executionList, creditsClient, standalone)
 		***REMOVED***
 	***REMOVED***()
 ***REMOVED***
 
 func getWorkerClient(standalone bool) *redis.Client ***REMOVED***
-	if standalone ***REMOVED***
+	if !standalone ***REMOVED***
 		return redis.NewClient(&redis.Options***REMOVED***
-			Addr:     fmt.Sprintf("%s:%s", libAgent.WorkerHost, libAgent.WorkerPort),
+			Addr:     fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
 			Username: "default",
 			Password: "",
 		***REMOVED***)
@@ -134,7 +134,7 @@ func getWorkerClient(standalone bool) *redis.Client ***REMOVED***
 ***REMOVED***
 
 func getMaxJobs(standalone bool) int ***REMOVED***
-	if standalone ***REMOVED***
+	if !standalone ***REMOVED***
 		// Orchestrator may spit jobs up, so set this high(ish)
 		return 100
 	***REMOVED***
@@ -148,7 +148,7 @@ func getMaxJobs(standalone bool) int ***REMOVED***
 ***REMOVED***
 
 func getMaxVUs(standalone bool) int64 ***REMOVED***
-	if standalone ***REMOVED***
+	if !standalone ***REMOVED***
 		return 5000
 	***REMOVED***
 

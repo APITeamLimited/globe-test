@@ -50,13 +50,14 @@ func Run() ***REMOVED***
 		***REMOVED***()
 
 		setupChildProcesses()
-		serverStoppedCh := runAgentServer(mQuit.ClickedCh, mAbortAll.ClickedCh, setJobCountFunc)
+		go runAgentServer(mAbortAll.ClickedCh, setJobCountFunc)
 
 		// Wait for the server to stop before exiting
-		<-serverStoppedCh
+		<-mQuit.ClickedCh
 		systray.Quit()
 	***REMOVED***
 
-	systray.Run(systrayContent, func() ***REMOVED******REMOVED***)
-
+	systray.Run(systrayContent, func() ***REMOVED***
+		os.Exit(0)
+	***REMOVED***)
 ***REMOVED***

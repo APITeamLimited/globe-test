@@ -43,6 +43,7 @@ type (
 		VerifiedDomains   []string
 		SubFraction       float64
 		CreditsManager    *lib.CreditsManager
+		Standalone        bool
 	***REMOVED***
 
 	MarkMessage struct ***REMOVED***
