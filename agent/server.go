@@ -39,7 +39,7 @@ func runAgentServer(
 		}
 
 		randId := uuid.New().String()
-		fmt.Printf("New connection %s\n", randId)
+		fmt.Printf("New connection assigned ID %s\n", randId)
 
 		connections[randId] = &conn
 
