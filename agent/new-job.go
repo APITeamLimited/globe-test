@@ -48,8 +48,6 @@ func createNewJob(rawMessage []byte, conn *net.Conn, runningJobs *map[string]lib
 		Message: parsedMessage.Message,
 	***REMOVED***
 
-	fmt.Println(parsedMessage.Message.Id)
-
 	marshalledServerNewJob, _ := json.Marshal(serverNewJobMessage)
 	wsutil.WriteServerText(*conn, marshalledServerNewJob)
 
@@ -73,16 +71,29 @@ func streamGlobeTestMessages(parsedMessage libAgent.ClientNewJobMessage, orchest
 
 		if parsedMessage.MessageType == "STATUS" ***REMOVED***
 			if parsedMessage.Message == "COMPLETED_SUCCESS" || parsedMessage.Message == "COMPLETED_FAILURE" ***REMOVED***
-				fmt.Printf("Job %s completed with status %s", parsedMessage.JobId, parsedMessage.Message)
+				fmt.Printf("Agent completed job %s with status %s\n", parsedMessage.JobId, parsedMessage.Message)
+
+				writeGlobeTestMessage(conn, msg)
 
 				// Delete the job from the running jobs
 				delete(*runningJobs, parsedMessage.JobId)
 				notifyJobDeleted(conn, parsedMessage.JobId)
 				setJobCount(len(*runningJobs))
+
 				return
 			***REMOVED***
 		***REMOVED***
 
-		wsutil.WriteServerText(*conn, []byte(msg.Payload))
+		writeGlobeTestMessage(conn, msg)
 	***REMOVED***
+***REMOVED***
+
+func writeGlobeTestMessage(conn *net.Conn, msg *redis.Message) ***REMOVED***
+	serverGlobeTestMessage := libAgent.ServerGlobeTestMessage***REMOVED***
+		Type:    "globeTestMessage",
+		Message: msg.Payload,
+	***REMOVED***
+
+	marshalledServerGlobeTestMessage, _ := json.Marshal(serverGlobeTestMessage)
+	wsutil.WriteServerText(*conn, marshalledServerGlobeTestMessage)
 ***REMOVED***

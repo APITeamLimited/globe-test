@@ -99,6 +99,7 @@ type (
 
 	LocalhostFile struct ***REMOVED***
 		FileName string `json:"fileName"`
-		Contents string `json:"content"`
+		Contents string `json:"contents"`
+		Kind     string `json:"kind"`
 	***REMOVED***
 )

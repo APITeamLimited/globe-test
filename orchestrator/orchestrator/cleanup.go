@@ -105,6 +105,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 			localhostFile := libOrch.LocalhostFile***REMOVED***
 				FileName: globeTestLogsFilename,
 				Contents: string(globeTestLogsMarshalled),
+				Kind:     "GLOBETEST_LOGS",
 			***REMOVED***
 
 			marshalledLocalhostFile, err := json.Marshal(localhostFile)
@@ -141,6 +142,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]j
 			localhostFile := libOrch.LocalhostFile***REMOVED***
 				FileName: metricsFilename,
 				Contents: string(metricsMarshalled),
+				Kind:     "GLOBETEST_METRICS",
 			***REMOVED***
 
 			marshalledLocalhostFile, err := json.Marshal(localhostFile)

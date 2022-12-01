@@ -72,7 +72,10 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		libOrch.HandleError(gs, err)
 		return false
 	***REMOVED***
-	libOrch.DispatchMessage(gs, string(marshalledGlobeTestReceipt), "MARK")
+
+	if gs.Standalone() ***REMOVED***
+		libOrch.DispatchMessage(gs, string(marshalledGlobeTestReceipt), "MARK")
+	***REMOVED***
 
 	//Create Metrics Store receipt, note this must be sent after cleanup
 	metricsStoreReceipt := primitive.NewObjectID()
@@ -88,7 +91,9 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		return false
 	***REMOVED***
 
-	libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
+	if gs.Standalone() ***REMOVED***
+		libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
+	***REMOVED***
 
 	// Clean up the job and store result in Mongo
 	err = cleanup(gs, job, childJobs, storeMongoDB, job.Scope, globeTestLogsReceipt, metricsStoreReceipt)

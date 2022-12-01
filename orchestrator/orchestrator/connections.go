@@ -60,13 +60,13 @@ func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerCl
 
 	if !standalone ***REMOVED***
 		// Just get a single worker client for the agent
-		workerClients.Clients["worker"] = &libOrch.NamedClient***REMOVED***
-			Name: "worker",
+		workerClients.Clients[libAgent.AgentWorkerName] = &libOrch.NamedClient***REMOVED***
+			Name: libAgent.AgentWorkerName,
 			Client: redis.NewClient(&redis.Options***REMOVED***
 				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
 			***REMOVED***),
 		***REMOVED***
-		workerClients.DefaultClient = workerClients.Clients["worker"]
+		workerClients.DefaultClient = workerClients.Clients[libAgent.AgentWorkerName]
 
 		return workerClients
 	***REMOVED***
