@@ -17,6 +17,8 @@ func OutputConfig(options *libWorker.Options) error ***REMOVED***
 		return err
 	***REMOVED***
 
+	localhost output config
+
 	return nil
 ***REMOVED***
 

@@ -4,12 +4,21 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
+func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool) error ***REMOVED***
+	if standalone ***REMOVED***
+		return cloudLoadDistribution(options, workerClients)
+	***REMOVED***
+
+	return localLoadDistribution(options)
+***REMOVED***
+
+func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
 	// In case user wants equal distribution
 	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName ***REMOVED***
 		// Check fraction is valid and set to 100
@@ -134,6 +143,36 @@ func checkMultiLoadDistribution(options *libWorker.Options, workerClients libOrc
 
 	if totalFraction != 100 ***REMOVED***
 		return fmt.Errorf("total fraction must be 100, got %d", totalFraction)
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func localLoadDistribution(options *libWorker.Options) error ***REMOVED***
+	// Check single load zone
+
+	if !options.LoadDistribution.Valid ***REMOVED***
+		options.LoadDistribution = types.NullLoadDistribution***REMOVED***
+			Valid: true,
+			Value: []types.LoadZone***REMOVED******REMOVED***
+				Location: libAgent.AgentWorkerName,
+				Fraction: 100,
+			***REMOVED******REMOVED***,
+		***REMOVED***
+
+		return nil
+	***REMOVED***
+
+	if len(options.LoadDistribution.Value) != 1 ***REMOVED***
+		return fmt.Errorf("load distribution must be a single zone when running locally")
+	***REMOVED***
+
+	if options.LoadDistribution.Value[0].Fraction != 100 ***REMOVED***
+		return fmt.Errorf("load distribution fraction must be 100 when running locally")
+	***REMOVED***
+
+	if options.LoadDistribution.Value[0].Location != libAgent.AgentWorkerName ***REMOVED***
+		return fmt.Errorf("load distribution location must be %s when running locally", libAgent.AgentWorkerName)
 	***REMOVED***
 
 	return nil
