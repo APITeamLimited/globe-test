@@ -5,7 +5,13 @@ import (
 	"encoding/json"
 )
 
-func DefaultOutputConfig() NullOutputConfig ***REMOVED***
+func DefaultOutputConfig(standalone bool) NullOutputConfig ***REMOVED***
+	defaultZoneName := "global"
+
+	if standalone ***REMOVED***
+		defaultZoneName = "localhost"
+	***REMOVED***
+
 	return NullOutputConfig***REMOVED***
 		OutputConfig***REMOVED***
 			Graphs: []MetricGraph***REMOVED***
@@ -13,25 +19,25 @@ func DefaultOutputConfig() NullOutputConfig ***REMOVED***
 					Name: "Overview",
 					Series: []MetricGraphSeries***REMOVED***
 						***REMOVED***
-							LoadZone: "global",
+							LoadZone: defaultZoneName,
 							Metric:   "vus",
 							Kind:     AreaGraphSeriesType,
 							Color:    "#808080",
 						***REMOVED***,
 						***REMOVED***
-							LoadZone: "global",
+							LoadZone: defaultZoneName,
 							Metric:   "http_reqs",
 							Kind:     LineGraphSeriesType,
 							Color:    "#0096FF",
 						***REMOVED***,
 						***REMOVED***
-							LoadZone: "global",
+							LoadZone: defaultZoneName,
 							Metric:   "http_req_duration",
 							Kind:     LineGraphSeriesType,
 							Color:    "#FF00FF",
 						***REMOVED***,
 						***REMOVED***
-							LoadZone: "global",
+							LoadZone: defaultZoneName,
 							Metric:   "http_req_failed",
 							Kind:     LineGraphSeriesType,
 							Color:    "#FF0000",
