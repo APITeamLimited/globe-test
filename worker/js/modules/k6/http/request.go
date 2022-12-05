@@ -39,14 +39,35 @@ func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...go
 
 // Rate limits the number of requests per second to a certain domain
 func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	// If running on localhost, don't rate limit
-	if !c.moduleInstance.rootModule.workerInfo.Standalone ***REMOVED***
-		return performRequest(c, method, url, args...)
-	***REMOVED***
-
 	domain, err := getDomainFromURL(url)
 	if err != nil ***REMOVED***
 		return nil, err
+	***REMOVED***
+
+	if !c.moduleInstance.rootModule.workerInfo.Standalone ***REMOVED***
+		return performRequest(c, method, url, args...)
+
+		// This code restricts to private IPs only on localhost
+		//
+		//		if c.moduleInstance.rootModule.isLocalIp[domain] == 0 ***REMOVED***
+		//			isPrivate := lib.IsPrivateIPString(domain)
+		//
+		//			c.moduleInstance.rootModule.isLocalIpLock.Lock()
+		//
+		//			if isPrivate ***REMOVED***
+		//				c.moduleInstance.rootModule.isLocalIp[domain] = IsPrivateIP
+		//			***REMOVED*** else ***REMOVED***
+		//				c.moduleInstance.rootModule.isLocalIp[domain] = IsPublicIP
+		//			***REMOVED***
+		//
+		//			c.moduleInstance.rootModule.isLocalIpLock.Unlock()
+		//		***REMOVED***
+		//
+		//		if c.moduleInstance.rootModule.isLocalIp[domain] == IsPrivateIP ***REMOVED***
+		//			return performRequest(c, method, url, args...)
+		//		***REMOVED***
+		//
+		//return nil, errors.New("cannot make requests to non-local ips from agent")
 	***REMOVED***
 
 	c.moduleInstance.rootModule.domainLimitsLock.Lock()

@@ -14,6 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	IsPrivateIP = 1
+	IsPublicIP  = 2
+)
+
 // RootModule is the global module object type. It is instantiated once per test
 // run and will be used to create HTTP module instances for each VU.
 //
@@ -23,6 +28,8 @@ type RootModule struct ***REMOVED***
 	workerInfo       *libWorker.WorkerInfo
 	domainLimits     map[string]*rate.Limiter
 	domainLimitsLock sync.Mutex
+	isLocalIp        map[string]int
+	isLocalIpLock    sync.Mutex
 ***REMOVED***
 
 // ModuleInstance represents an instance of the HTTP module for every VU.
@@ -44,6 +51,8 @@ func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
 		workerInfo:       workerInfo,
 		domainLimits:     make(map[string]*rate.Limiter),
 		domainLimitsLock: sync.Mutex***REMOVED******REMOVED***,
+		//isLocalIp:        make(map[string]int),
+		//isLocalIpLock:    sync.Mutex***REMOVED******REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
