@@ -79,7 +79,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	err = validators.OutputConfig(options)
+	err = validators.OutputConfig(options, gs.Standalone())
 	if err != nil {
 		return nil, err
 	}

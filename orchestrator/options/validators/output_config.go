@@ -7,17 +7,15 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func OutputConfig(options *libWorker.Options) error {
+func OutputConfig(options *libWorker.Options, standalone bool) error {
 	if !options.OutputConfig.Valid && options.ExecutionMode.Value == types.HTTPMultipleExecutionMode {
-		options.OutputConfig = types.DefaultOutputConfig()
+		options.OutputConfig = types.DefaultOutputConfig(standalone)
 	}
 
 	err := validateMetricGraphs(options.OutputConfig.Value.Graphs)
 	if err != nil {
 		return err
 	}
-
-	localhost output config
 
 	return nil
 }
