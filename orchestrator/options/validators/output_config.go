@@ -17,6 +17,8 @@ func OutputConfig(options *libWorker.Options) error {
 		return err
 	}
 
+	localhost output config
+
 	return nil
 }
 
