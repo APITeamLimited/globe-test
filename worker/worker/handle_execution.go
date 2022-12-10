@@ -33,14 +33,14 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(gs, fmt.Sprintf("failed to load test: %s", err))
+		libWorker.HandleStringError(gs, fmt.Sprintf("failed to load test: %s", err))
 		return false
 	***REMOVED***
 
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
+		libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return false
 	***REMOVED***
 
@@ -94,21 +94,21 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
+		libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return false
 	***REMOVED***
 
 	// Create all outputs.
 	outputs, err := createOutputs(gs)
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
+		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return false
 	***REMOVED***
 
 	// Create the engine.
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
 	if err != nil ***REMOVED***
-		go libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
+		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return false
 	***REMOVED***
 

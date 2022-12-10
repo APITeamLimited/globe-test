@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/APITeamLimited/globe-test/agent/libAgent"
+	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
@@ -155,7 +155,7 @@ func localLoadDistribution(options *libWorker.Options) error ***REMOVED***
 		options.LoadDistribution = types.NullLoadDistribution***REMOVED***
 			Valid: true,
 			Value: []types.LoadZone***REMOVED******REMOVED***
-				Location: libAgent.AgentWorkerName,
+				Location: agent.AgentWorkerName,
 				Fraction: 100,
 			***REMOVED******REMOVED***,
 		***REMOVED***
@@ -171,8 +171,8 @@ func localLoadDistribution(options *libWorker.Options) error ***REMOVED***
 		return fmt.Errorf("load distribution fraction must be 100 when running locally")
 	***REMOVED***
 
-	if options.LoadDistribution.Value[0].Location != libAgent.AgentWorkerName ***REMOVED***
-		return fmt.Errorf("load distribution location must be %s when running locally", libAgent.AgentWorkerName)
+	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName ***REMOVED***
+		return fmt.Errorf("load distribution location must be %s when running locally", agent.AgentWorkerName)
 	***REMOVED***
 
 	return nil

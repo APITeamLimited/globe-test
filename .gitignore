@@ -25,10 +25,5 @@ vendor/
 
 main
 
-*.rdb
-
-build-agent*/
-redis-server*
-
 # In case a go file has private in its name
 !*.go

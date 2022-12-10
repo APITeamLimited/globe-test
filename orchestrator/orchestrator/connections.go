@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,13 +60,13 @@ func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerCl
 
 	if !standalone ***REMOVED***
 		// Just get a single worker client for the agent
-		workerClients.Clients[libAgent.AgentWorkerName] = &libOrch.NamedClient***REMOVED***
-			Name: libAgent.AgentWorkerName,
+		workerClients.Clients[agent.AgentWorkerName] = &libOrch.NamedClient***REMOVED***
+			Name: agent.AgentWorkerName,
 			Client: redis.NewClient(&redis.Options***REMOVED***
-				Addr: fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
+				Addr: fmt.Sprintf("%s:%s", agent.WorkerRedisHost, agent.WorkerRedisPort),
 			***REMOVED***),
 		***REMOVED***
-		workerClients.DefaultClient = workerClients.Clients[libAgent.AgentWorkerName]
+		workerClients.DefaultClient = workerClients.Clients[agent.AgentWorkerName]
 
 		return workerClients
 	***REMOVED***

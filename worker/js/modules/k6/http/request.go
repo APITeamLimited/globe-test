@@ -131,7 +131,7 @@ func (c *Client) createDomainLimiter(domain string) ***REMOVED***
 
 	limit := math.MaxFloat64
 	if !verified ***REMOVED***
-		go libWorker.DispatchMessage(*c.moduleInstance.rootModule.workerInfo.Gs, "UNVERIFIED_DOMAIN_THROTTLED", "MESSAGE")
+		libWorker.DispatchMessage(*c.moduleInstance.rootModule.workerInfo.Gs, "UNVERIFIED_DOMAIN_THROTTLED", "MESSAGE")
 		limit = unverifiedDomainLimit * c.moduleInstance.rootModule.workerInfo.SubFraction
 	***REMOVED***
 
