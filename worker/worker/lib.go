@@ -26,9 +26,9 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
 		if parsed["error"] != nil {
-			go libWorker.HandleStringError(w.gs, parsed["error"].(string))
+			libWorker.HandleStringError(w.gs, parsed["error"].(string))
 		} else {
-			go libWorker.HandleStringError(w.gs, parsed["msg"].(string))
+			libWorker.HandleStringError(w.gs, parsed["msg"].(string))
 		}
 		return
 	}

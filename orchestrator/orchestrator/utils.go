@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 )
@@ -42,7 +42,7 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 func getOrchestratorOrchestratorClient(standalone bool) *redis.Client {
 	if !standalone {
 		return redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", libAgent.OrchestratorRedisHost, libAgent.OrchestratorRedisPort),
+			Addr:     fmt.Sprintf("%s:%s", agent.OrchestratorRedisHost, agent.OrchestratorRedisPort),
 			Username: "default",
 			Password: "",
 		},

@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/agent/libAgent"
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/redis/v9"
@@ -97,7 +97,7 @@ func startScheduling(ctx context.Context, client *redis.Client, workerId string,
 func getWorkerClient(standalone bool) *redis.Client {
 	if !standalone {
 		return redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", libAgent.WorkerRedisHost, libAgent.WorkerRedisPort),
+			Addr:     fmt.Sprintf("%s:%s", agent.WorkerRedisHost, agent.WorkerRedisPort),
 			Username: "default",
 			Password: "",
 		})

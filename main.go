@@ -7,7 +7,6 @@ import (
 
 	"flag"
 
-	"github.com/APITeamLimited/globe-test/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator"
 	"github.com/APITeamLimited/globe-test/worker/worker"
 
@@ -34,8 +33,6 @@ func main() {
 		worker.Run(true)
 	case "orchestrator":
 		orchestrator.Run(true)
-	case "agent":
-		agent.Run()
 	default:
 		fmt.Println("Invalid GlobeTest mode, please specify either worker or orchestrator (default is worker)")
 		os.Exit(1)
