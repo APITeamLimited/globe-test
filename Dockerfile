@@ -1,7 +1,4 @@
-FROM golang:buster
-
-RUN apt-get update
-RUN apt-get install -y gcc libgtk-3-dev libayatana-appindicator3-dev
+FROM golang:alpine
 
 COPY . /app
 WORKDIR /app

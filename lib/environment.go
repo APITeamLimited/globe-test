@@ -24,10 +24,10 @@ func GetEnvVariableHideError(key, defaultValue string, hideError bool) string {
 	if SYSTEM_ENV != "development" {
 		if defaultValue != "" {
 			if !hideError {
-				fmt.Printf("%s is not set, and environment was %s, not development, resorting to default value %s\n", key, SYSTEM_ENV, defaultValue)
+				fmt.Printf("%s is not set, resorting to default value %s\n", key, defaultValue)
 			}
 		} else {
-			panic(fmt.Sprintf("%s is not set, and environment was %s, not development, and no default value was provided", key, SYSTEM_ENV))
+			panic(fmt.Sprintf("%s is not set and no default value was provided\n", key))
 		}
 	}
 
