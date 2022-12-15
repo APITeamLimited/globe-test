@@ -6,8 +6,13 @@ import (
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/google/uuid"
 )
+
+func init() {
+	functions.HTTP("worker", RunGoogleCloud)
+}
 
 func RunGoogleCloud(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
