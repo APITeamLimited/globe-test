@@ -7,15 +7,17 @@ import (
 
 	"flag"
 
-	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator"
-	"github.com/APITeamLimited/globe-test/worker/worker"
-
 	"net/http"
 	_ "net/http/pprof"
+
+	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator"
+	"github.com/APITeamLimited/globe-test/worker/worker"
+	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 )
 
 func main() ***REMOVED***
-	mode := flag.String("mode", "worker", "worker or orchestrator")
+	mode := flag.String("mode", "dev_worker_function", "worker, orchestrator, orchestrator_func_mode, or dev_worker_function")
 	pProfPort := flag.Int("pprof-port", 0, "Enable pprof on the given port")
 
 	flag.Parse()
@@ -32,9 +34,21 @@ func main() ***REMOVED***
 	case "worker":
 		worker.Run(true)
 	case "orchestrator":
-		orchestrator.Run(true)
+		orchestrator.Run(true, false)
+	case "orchestrator_func_mode":
+		orchestrator.Run(true, true)
+	case "dev_worker_function":
+		devWorkerServerPort := lib.GetEnvVariableRaw("DEV_WORKER_FUNCTION_PORT", "8080", true)
+		fmt.Printf("Starting dev worker function on port %s\n", devWorkerServerPort)
+		os.Setenv("FUNCTION_TARGET", "worker")
+
+		funcframework.RegisterHTTPFunction("worker", worker.RunGoogleCloud)
+
+		if err := funcframework.Start(devWorkerServerPort); err != nil ***REMOVED***
+			log.Fatalf("funcframework.Start: %v\n", err)
+		***REMOVED***
 	default:
-		fmt.Println("Invalid GlobeTest mode, please specify either worker or orchestrator (default is worker)")
+		fmt.Println("Invalid GlobeTest mode, please specify one of: worker, orchestrator, orchestrator_func_mode, or dev_worker_function, default is dev_worker_function")
 		os.Exit(1)
 	***REMOVED***
 ***REMOVED***

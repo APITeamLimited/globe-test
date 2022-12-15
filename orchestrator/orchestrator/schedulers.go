@@ -11,7 +11,7 @@ import (
 )
 
 func startJobScheduling(ctx context.Context, orchestratorClient *redis.Client, orchestratorId string, executionList *ExecutionList,
-	workerClients libOrch.WorkerClients, storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool) ***REMOVED***
+	workerClients libOrch.WorkerClients, storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool, funcMode bool) ***REMOVED***
 
 	scheduler := time.NewTicker(1 * time.Second)
 
@@ -28,7 +28,7 @@ func startJobScheduling(ctx context.Context, orchestratorClient *redis.Client, o
 			orchestratorClient.SAdd(ctx, "orchestrators", orchestratorId)
 
 			// Capacity may have freed up, check for queued jobs
-			checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB, creditsClient, standalone)
+			checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcMode)
 		***REMOVED***
 	***REMOVED***()
 

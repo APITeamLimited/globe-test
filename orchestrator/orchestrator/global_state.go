@@ -28,6 +28,7 @@ type (
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
 		standalone     bool
+		funcMode       *lib.FuncModeInfo
 	***REMOVED***
 )
 
@@ -41,8 +42,12 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		jobId:          job.Id,
 		orchestratorId: orchestratorId,
 		childJobStates: []libOrch.WorkerState***REMOVED******REMOVED***,
-		creditsManager: lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
 		standalone:     standalone,
+		funcMode:       job.FuncModeInfo,
+	***REMOVED***
+
+	if creditsClient != nil ***REMOVED***
+		gs.creditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
 	***REMOVED***
 
 	gs.logger = &logrus.Logger***REMOVED***
@@ -148,4 +153,8 @@ func (g *globalState) CreditsManager() *lib.CreditsManager ***REMOVED***
 
 func (g *globalState) Standalone() bool ***REMOVED***
 	return g.standalone
+***REMOVED***
+
+func (g *globalState) FuncModeInfo() *lib.FuncModeInfo ***REMOVED***
+	return g.funcMode
 ***REMOVED***

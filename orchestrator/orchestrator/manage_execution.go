@@ -48,12 +48,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		***REMOVED***
 	***REMOVED***
 
-	if gs.creditsManager.UseCredits(1) ***REMOVED***
-		libOrch.UpdateStatus(gs, result)
-	***REMOVED*** else ***REMOVED***
-		libOrch.HandleError(gs, err)
-		result = "FAILURE"
-	***REMOVED***
+	libOrch.UpdateStatus(gs, result)
 
 	// Storing and cleaning up
 

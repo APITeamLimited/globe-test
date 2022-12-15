@@ -14,10 +14,10 @@ import (
 )
 
 func tryGetClient(currentIndex int) *libOrch.NamedClient ***REMOVED***
-	host := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "NONE", false)
-	port := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "NONE", false)
-	password := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "NONE", false)
-	displayName := lib.GetEnvVariableHideError(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "NONE", false)
+	host := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_HOST", currentIndex), "NONE", true)
+	port := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_PORT", currentIndex), "NONE", true)
+	password := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_PASSWORD", currentIndex), "NONE", true)
+	displayName := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", currentIndex), "NONE", true)
 
 	if host == "NONE" || port == "NONE" || password == "NONE" || displayName == "NONE" ***REMOVED***
 		return nil
@@ -29,7 +29,7 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient ***REMOVED***
 		DB:       0,
 	***REMOVED***
 
-	isSecure := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false") == "true"
+	isSecure := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false", true) == "true"
 
 	if isSecure ***REMOVED***
 		clientCert := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_CERT", currentIndex), "")

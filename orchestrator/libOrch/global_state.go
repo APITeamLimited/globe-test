@@ -28,4 +28,5 @@ type BaseGlobalState interface ***REMOVED***
 	SetChildJobState(workerId string, childJobId string, status string)
 	CreditsManager() *lib.CreditsManager
 	Standalone() bool
+	FuncModeInfo() *lib.FuncModeInfo
 ***REMOVED***

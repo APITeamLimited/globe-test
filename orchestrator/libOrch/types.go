@@ -3,6 +3,7 @@ package libOrch
 import (
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
@@ -39,6 +40,7 @@ type (
 		Scope                Scope                  `json:"scope"`
 		Options              *libWorker.Options     `json:"options"`
 		VerifiedDomains      []string               `json:"verifiedDomains"`
+		FuncModeInfo         *lib.FuncModeInfo      `json:"funcModeInfo"`
 	***REMOVED***
 
 	Scope struct ***REMOVED***

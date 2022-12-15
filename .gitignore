@@ -27,3 +27,5 @@ main
 
 # In case a go file has private in its name
 !*.go
+
+worker_function

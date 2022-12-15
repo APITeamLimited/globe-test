@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -64,7 +65,7 @@ func checkForQueuedJobs(ctx context.Context, client *redis.Client, workerId stri
 ***REMOVED***
 
 func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId string,
-	workerId string, executionList *ExecutionList, creditsClient *redis.Client, standalone bool) ***REMOVED***
+	workerId string, executionList *ExecutionList, creditsClient *redis.Client, standalone bool) error ***REMOVED***
 	// Try to HGetAll the worker id
 	job, err := fetchChildJob(ctx, client, childJobId)
 	if err != nil || job == nil ***REMOVED***
@@ -73,13 +74,15 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 
 			// Remove the job from the history set
 			client.SRem(ctx, "worker:executionHistory", childJobId).Result()
+
+			err = errors.New("error getting child job from worker:executionHistory set, it will be deleted")
 		***REMOVED***
-		return
+		return err
 	***REMOVED***
 
 	assignedWorker, _ := client.HGet(ctx, childJobId, "assignedWorker").Result()
 	if assignedWorker != "" ***REMOVED***
-		return
+		return errors.New("child job already assigned")
 	***REMOVED***
 
 	executionList.mutex.Lock()
@@ -87,7 +90,7 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	// Check if this node has execution capacity for this job
 	if !executionList.checkExecutionCapacity(job.Options) ***REMOVED***
 		executionList.mutex.Unlock()
-		return
+		return errors.New("worker capacity exceeded")
 	***REMOVED***
 
 	// HSetNX assignedWorker to the workerId
@@ -96,12 +99,12 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 	// If result is 0, worker is already assigned
 	if !assignmentResult ***REMOVED***
 		executionList.mutex.Unlock()
-		return
+		return errors.New("child job already assigned")
 	***REMOVED***
 
 	if err != nil ***REMOVED***
 		executionList.mutex.Unlock()
-		return
+		return err
 	***REMOVED***
 
 	// We got the job
@@ -115,8 +118,9 @@ func checkIfCanExecute(ctx context.Context, client *redis.Client, childJobId str
 
 	if successfullExecution ***REMOVED***
 		fmt.Printf("Completed child job successfully: %s\n", job.ChildJobId)
-	***REMOVED*** else ***REMOVED***
-		fmt.Printf("Error executing child job: %s\n", job.ChildJobId)
+		return nil
 	***REMOVED***
 
+	fmt.Printf("Error executing child job: %s\n", job.ChildJobId)
+	return errors.New("error executing child job")
 ***REMOVED***

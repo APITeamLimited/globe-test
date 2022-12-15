@@ -67,16 +67,16 @@ type CreditsManager struct ***REMOVED***
 	oldCredits   int64
 	usedCredits  int64
 	creditsMutex sync.Mutex
+
+	lastBillingTime time.Time
 ***REMOVED***
 
 func CreateCreditsManager(ctx context.Context, variant string, variantTargetId string,
 	creditsClient *redis.Client) *CreditsManager ***REMOVED***
-	workspaceName := fmt.Sprintf("%s:%s", variant, variantTargetId)
-
 	creditsManager := &CreditsManager***REMOVED***
 		ctx:           ctx,
 		creditsClient: creditsClient,
-		workspaceName: workspaceName,
+		workspaceName: fmt.Sprintf("%s:%s", variant, variantTargetId),
 		ticker:        time.NewTicker(1 * time.Second),
 		creditsMutex:  sync.Mutex***REMOVED******REMOVED***,
 	***REMOVED***
@@ -94,7 +94,7 @@ func CreateCreditsManager(ctx context.Context, variant string, variantTargetId s
 ***REMOVED***
 
 func (creditsManager *CreditsManager) GetCredits() int64 ***REMOVED***
-	if creditsManager.creditsClient == nil ***REMOVED***
+	if creditsManager == nil ***REMOVED***
 		return math.MaxInt64
 	***REMOVED***
 
@@ -105,7 +105,7 @@ func (creditsManager *CreditsManager) GetCredits() int64 ***REMOVED***
 ***REMOVED***
 
 func (creditsManager *CreditsManager) StopCreditsCapturing() ***REMOVED***
-	if creditsManager.creditsClient == nil ***REMOVED***
+	if creditsManager == nil ***REMOVED***
 		return
 	***REMOVED***
 
@@ -116,7 +116,7 @@ func (creditsManager *CreditsManager) StopCreditsCapturing() ***REMOVED***
 ***REMOVED***
 
 func (creditsManager *CreditsManager) UseCredits(credits int64) bool ***REMOVED***
-	if creditsManager.creditsClient == nil ***REMOVED***
+	if creditsManager == nil ***REMOVED***
 		return true
 	***REMOVED***
 
@@ -133,9 +133,30 @@ func (creditsManager *CreditsManager) UseCredits(credits int64) bool ***REMOVED*
 	return true
 ***REMOVED***
 
+func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastBillingTime bool) ***REMOVED***
+	if creditsManager == nil ***REMOVED***
+		return
+	***REMOVED***
+
+	creditsManager.creditsMutex.Lock()
+	defer creditsManager.creditsMutex.Unlock()
+
+	creditsManager.usedCredits += credits
+
+	// Check delta is not greater than credits
+	if credits >= creditsManager.oldCredits ***REMOVED***
+		// Just set credits to 0
+		creditsManager.usedCredits = creditsManager.oldCredits
+	***REMOVED***
+
+	if setLastBillingTime ***REMOVED***
+		creditsManager.lastBillingTime = time.Now()
+	***REMOVED***
+***REMOVED***
+
 // captureCredits captures credits from the credits pool and stores them in the credits store
 func (creditsManager *CreditsManager) captureCredits() ***REMOVED***
-	if creditsManager.creditsClient == nil ***REMOVED***
+	if creditsManager == nil ***REMOVED***
 		return
 	***REMOVED***
 
@@ -158,4 +179,12 @@ func (creditsManager *CreditsManager) captureCredits() ***REMOVED***
 	// Add the credits to the credits store
 	creditsManager.oldCredits = newCredits
 	creditsManager.usedCredits = 0
+***REMOVED***
+
+func (creditsManager *CreditsManager) LastBillingTime() time.Time ***REMOVED***
+	if creditsManager == nil ***REMOVED***
+		return time.Now()
+	***REMOVED***
+
+	return creditsManager.lastBillingTime
 ***REMOVED***
