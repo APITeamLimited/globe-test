@@ -1,0 +1,29 @@
+# https://cloud.google.com/sdk/gcloud/reference/functions/deploy
+
+steps:
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  args:
+    - gcloud
+    - functions
+    - deploy
+    - worker-europe-west2
+    - --region=europe-west2
+    - --source=.
+    - --trigger-http
+    - --runtime=go118
+    - --entry-point=WorkerCloud
+    - --timeout=3600s
+    - --stage-bucket=worker-europe-west2
+    - --max-instances=10
+    - --min-instances=0
+    - --memory=512M
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  args:
+    - gcloud
+    - functions
+    - deploy
+    - worker-us-west2
+    - --region=us-west2
+    - --source=.
+    - --trigger-http
+    - --runtime=go118
