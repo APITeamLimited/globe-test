@@ -39,7 +39,7 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	return &job, nil
 }
 
-func getOrchestratorOrchestratorClient(standalone bool) *redis.Client {
+func getOrchestratorClient(standalone bool) *redis.Client {
 	if !standalone {
 		return redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%s", agent.OrchestratorRedisHost, agent.OrchestratorRedisPort),
@@ -57,7 +57,7 @@ func getOrchestratorOrchestratorClient(standalone bool) *redis.Client {
 		Password: lib.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
 	}
 
-	isSecure := lib.GetEnvVariable("ORCHESTRATOR_REDIS_IS_SECURE", "false") == "true"
+	isSecure := lib.GetEnvVariableRaw("ORCHESTRATOR_REDIS_IS_SECURE", "false", true) == "true"
 
 	if isSecure {
 		clientCert := lib.GetEnvVariable("ORCHESTRATOR_REDIS_CERT", "")

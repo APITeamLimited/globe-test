@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -18,12 +19,13 @@ type locatedMesaage struct {
 	msg      *redis.Message
 }
 
+const (
+	JOB_USER_UPDATES_CHANNEL = "jobUserUpdates"
+	NO_CREDITS_ABORT_CHANNEL = "noCreditsAbort"
+)
+
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
-	if gs.CreditsManager().UseCredits(1) {
-		libOrch.UpdateStatus(gs, "LOADING")
-	} else {
-		return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-	}
+	libOrch.UpdateStatus(gs, "LOADING")
 
 	// Create a handler for aborts
 	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId))
@@ -44,21 +46,12 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 	// Check if workerSubscriptions is empty
 	if len(workerSubscriptions) == 0 {
-		if gs.CreditsManager().UseCredits(1) {
-			libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
-			return "SUCCESS", nil
-		} else {
-			return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-		}
+		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
+		return "SUCCESS", nil
 	}
 
-	for _, jobDistribution := range childJobs {
-		for _, job := range jobDistribution.Jobs {
-			err := dispatchJob(gs, jobDistribution.workerClient, job, options)
-			if err != nil {
-				return abortAndFailAll(gs, childJobs, err)
-			}
-		}
+	if err := dispatchChildJobs(gs, options, childJobs); err != nil {
+		return abortAndFailAll(gs, childJobs, err)
 	}
 
 	unifiedChannel := make(chan locatedMesaage)
@@ -79,15 +72,29 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		}(channel)
 	}
 
+	// Every second check credits
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+
+		for range ticker.C {
+			credits := gs.CreditsManager().GetCredits()
+
+			if credits <= 0 {
+				unifiedChannel <- locatedMesaage{
+					location: NO_CREDITS_ABORT_CHANNEL,
+					msg:      nil,
+				}
+			}
+		}
+	}()
+
 	// Add jobUserUpdatesSubscription to the unifiedChannel
 	go func() {
 		for msg := range jobUserUpdatesSubscription.Channel() {
-			newMessage := locatedMesaage{
-				location: "jobUserUpdates",
+			unifiedChannel <- locatedMesaage{
+				location: JOB_USER_UPDATES_CHANNEL,
 				msg:      msg,
 			}
-
-			unifiedChannel <- newMessage
 		}
 	}()
 
@@ -106,8 +113,15 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	summaryBank := orchMetrics.NewSummaryBank(gs, options)
 
 	for locatedMessage := range unifiedChannel {
+		if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
+			fmt.Println("Aborting job due to no credits")
+
+			err := abortChildJobs(gs, childJobs)
+			return abortAndFailAll(gs, childJobs, err)
+		}
+
 		// Handle user updates separately
-		if locatedMessage.location == "jobUserUpdates" {
+		if locatedMessage.location == JOB_USER_UPDATES_CHANNEL {
 			var JobUserUpdate = lib.JobUserUpdate{}
 
 			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &JobUserUpdate)
@@ -166,11 +180,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 							}
 						}
 
-						if gs.CreditsManager().UseCredits(1) {
-							libOrch.UpdateStatus(gs, "RUNNING")
-						} else {
-							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-						}
+						libOrch.UpdateStatus(gs, "RUNNING")
 					}
 				}
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
@@ -188,23 +198,15 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 						// If one job fails, cancel all other jobs
 						return abortAndFailAll(gs, childJobs, nil)
 					} else {
-						if gs.CreditsManager().UseCredits(1) {
-							libOrch.UpdateStatus(gs, "SUCCESS")
-							return "SUCCESS", nil
-						} else {
-							return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-						}
+						libOrch.UpdateStatus(gs, "SUCCESS")
+						return "SUCCESS", nil
 					}
 				}
 			}
 
 			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
-			if gs.CreditsManager().UseCredits(1) {
-				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
-			} else {
-				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-			}
+			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 
 			resolutionMutex.Lock()
 			failureCount++
@@ -215,14 +217,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				return abortAndFailAll(gs, childJobs, nil)
 			}
 		} else if workerMessage.MessageType == "METRICS" {
-			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
+			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
 				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId))
 			}
 
 			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
-			childJob := findChildJob(&childJobs, locatedMessage.location, workerMessage.ChildJobId)
+			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
 				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId))
 			}
@@ -239,11 +241,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			// TODO: make this configurable
 			continue
 		} else {
-			if gs.CreditsManager().UseCredits(1) {
-				libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
-			} else {
-				return abortAndFailAll(gs, childJobs, errors.New(lib.OUT_OF_CREDITS_MESSAGE))
-			}
+			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 		}
 	}
 
@@ -251,23 +249,8 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	return abortAndFailAll(gs, childJobs, errors.New("an unexpected error occurred"))
 }
 
-func dispatchJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, options *libWorker.Options) error {
-	// Convert options to json
-	marshalledChildJob, err := json.Marshal(job)
-	if err != nil {
-		return err
-	}
-
-	workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
-
-	workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
-	workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
-
-	return nil
-}
-
-func findChildJob(childJobs *map[string]jobDistribution, location string, childJobId string) *libOrch.ChildJob {
-	for _, childJob := range (*childJobs)[location].Jobs {
+func findChildJob(childJobs map[string]jobDistribution, location string, childJobId string) *libOrch.ChildJob {
+	for _, childJob := range (childJobs)[location].Jobs {
 		if childJob.ChildJobId == childJobId {
 			return &childJob
 		}

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -21,15 +23,17 @@ import (
 This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
-func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch.ChildJob,
+func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
 	workerId string, creditsClient *redis.Client, standalone bool) bool {
-	ctx := context.Background()
-
-	gs := newGlobalState(ctx, client, job, workerId)
+	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
 	libWorker.UpdateStatus(gs, "LOADING")
 
 	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
+
+	if workerInfo.CreditsManager != nil {
+		monitorCredits(gs, workerInfo.CreditsManager)
+	}
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil {
@@ -68,6 +72,10 @@ func handleExecution(csdasdtx context.Context, client *redis.Client, job libOrch
 	defer runCancel()
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
+
+	if gs.funcModeInfo != nil && workerInfo.CreditsManager != nil {
+		defer billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
+	}
 
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
@@ -228,8 +236,11 @@ func loadWorkerInfo(ctx context.Context,
 		Gs:              &gs,
 		VerifiedDomains: job.VerifiedDomains,
 		SubFraction:     job.SubFraction,
-		CreditsManager:  lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient),
 		Standalone:      standalone,
+	}
+
+	if gs.FuncModeInfo() != nil && creditsClient != nil {
+		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
 	}
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
@@ -262,4 +273,12 @@ func loadWorkerInfo(ctx context.Context,
 	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
+}
+
+func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) {
+	timeSinceLastBilling := time.Since(creditsManager.LastBillingTime())
+	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
+	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
+
+	creditsManager.ForceDeductCredits(fractionCost, false)
 }

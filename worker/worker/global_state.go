@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
@@ -66,6 +67,8 @@ type globalState struct {
 	jobId      string
 	childJobId string
 	status     string
+
+	funcModeInfo *lib.FuncModeInfo
 }
 
 var _ libWorker.BaseGlobalState = &globalState{}
@@ -77,7 +80,7 @@ var _ libWorker.BaseGlobalState = &globalState{}
 
 // Care is needed to prevent leaking system info to malicious actors.
 
-func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string) *globalState {
+func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo) *globalState {
 	gs := &globalState{
 		ctx:          ctx,
 		fs:           afero.NewMemMapFs(),
@@ -92,6 +95,7 @@ func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.Child
 		client:       client,
 		jobId:        job.Id,
 		childJobId:   job.ChildJobId,
+		funcModeInfo: funcModeInfo,
 	}
 
 	gs.stdOut = &consoleWriter{gs}
@@ -154,4 +158,8 @@ func (gs *globalState) GetWorkerStatus() string {
 
 func (gs *globalState) SetWorkerStatus(status string) {
 	gs.status = status
+}
+
+func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
+	return gs.funcModeInfo
 }

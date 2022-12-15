@@ -8,7 +8,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-const maxDurationMinutes = 10
+const maxDurationMinutes = 55
 
 func Duration(options *libWorker.Options) error {
 	// Ensure that user duration is within the allowed range

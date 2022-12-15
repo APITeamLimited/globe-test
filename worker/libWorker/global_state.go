@@ -3,6 +3,7 @@ package libWorker
 import (
 	"context"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/redis/v9"
 )
 
@@ -22,4 +23,6 @@ type BaseGlobalState interface {
 	SetWorkerStatus(status string)
 	// TODO: restrict setters to single exection
 	//SettersEnabled() bool
+
+	FuncModeInfo() *lib.FuncModeInfo
 }

@@ -5,50 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/redis/v9"
 )
-
-// Trap Interrupts, SIGINTs and SIGTERMs and call the given.
-func handleTestAbortSignals(gs *globalState, gracefulStopHandler, onHardStop func(os.Signal)) (stop func()) {
-	sigC := make(chan os.Signal, 2)
-	done := make(chan struct{})
-	gs.signalNotify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		select {
-		case sig := <-sigC:
-			gracefulStopHandler(sig)
-		case <-done:
-			return
-		}
-
-		select {
-		case sig := <-sigC:
-			if onHardStop != nil {
-				onHardStop(sig)
-			}
-			// If we get a second signal, we immediately exit, so something like
-			// https://github.com/k6io/k6/issues/971 never happens again
-			gs.osExit(int(exitcodes.ExternalAbort))
-		case <-done:
-			return
-		}
-	}()
-
-	return func() {
-		close(done)
-		gs.signalStop(sigC)
-	}
-}
 
 func fetchChildJob(ctx context.Context, client *redis.Client, childJobId string) (*libOrch.ChildJob, error) {
 	childJobRaw, err := client.HGet(ctx, childJobId, "job").Result()

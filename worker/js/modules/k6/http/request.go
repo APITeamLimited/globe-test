@@ -85,11 +85,6 @@ func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Re
 
 	c.moduleInstance.rootModule.domainLimitsLock.Unlock()
 
-	// Check if enough credits
-	if !c.moduleInstance.rootModule.workerInfo.CreditsManager.UseCredits(1) {
-		return nil, errors.New("not enough credits")
-	}
-
 	return performRequest(c, method, url, args...)
 }
 

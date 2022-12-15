@@ -67,16 +67,16 @@ type CreditsManager struct {
 	oldCredits   int64
 	usedCredits  int64
 	creditsMutex sync.Mutex
+
+	lastBillingTime time.Time
 }
 
 func CreateCreditsManager(ctx context.Context, variant string, variantTargetId string,
 	creditsClient *redis.Client) *CreditsManager {
-	workspaceName := fmt.Sprintf("%s:%s", variant, variantTargetId)
-
 	creditsManager := &CreditsManager{
 		ctx:           ctx,
 		creditsClient: creditsClient,
-		workspaceName: workspaceName,
+		workspaceName: fmt.Sprintf("%s:%s", variant, variantTargetId),
 		ticker:        time.NewTicker(1 * time.Second),
 		creditsMutex:  sync.Mutex{},
 	}
@@ -94,7 +94,7 @@ func CreateCreditsManager(ctx context.Context, variant string, variantTargetId s
 }
 
 func (creditsManager *CreditsManager) GetCredits() int64 {
-	if creditsManager.creditsClient == nil {
+	if creditsManager == nil {
 		return math.MaxInt64
 	}
 
@@ -105,7 +105,7 @@ func (creditsManager *CreditsManager) GetCredits() int64 {
 }
 
 func (creditsManager *CreditsManager) StopCreditsCapturing() {
-	if creditsManager.creditsClient == nil {
+	if creditsManager == nil {
 		return
 	}
 
@@ -116,7 +116,7 @@ func (creditsManager *CreditsManager) StopCreditsCapturing() {
 }
 
 func (creditsManager *CreditsManager) UseCredits(credits int64) bool {
-	if creditsManager.creditsClient == nil {
+	if creditsManager == nil {
 		return true
 	}
 
@@ -133,9 +133,30 @@ func (creditsManager *CreditsManager) UseCredits(credits int64) bool {
 	return true
 }
 
+func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastBillingTime bool) {
+	if creditsManager == nil {
+		return
+	}
+
+	creditsManager.creditsMutex.Lock()
+	defer creditsManager.creditsMutex.Unlock()
+
+	creditsManager.usedCredits += credits
+
+	// Check delta is not greater than credits
+	if credits >= creditsManager.oldCredits {
+		// Just set credits to 0
+		creditsManager.usedCredits = creditsManager.oldCredits
+	}
+
+	if setLastBillingTime {
+		creditsManager.lastBillingTime = time.Now()
+	}
+}
+
 // captureCredits captures credits from the credits pool and stores them in the credits store
 func (creditsManager *CreditsManager) captureCredits() {
-	if creditsManager.creditsClient == nil {
+	if creditsManager == nil {
 		return
 	}
 
@@ -158,4 +179,12 @@ func (creditsManager *CreditsManager) captureCredits() {
 	// Add the credits to the credits store
 	creditsManager.oldCredits = newCredits
 	creditsManager.usedCredits = 0
+}
+
+func (creditsManager *CreditsManager) LastBillingTime() time.Time {
+	if creditsManager == nil {
+		return time.Now()
+	}
+
+	return creditsManager.lastBillingTime
 }

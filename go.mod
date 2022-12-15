@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/APITeamLimited/redis/v9 v9.0.6
 	github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e
+	github.com/GoogleCloudPlatform/functions-framework-go v1.6.1
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/Soontao/goHttpDigestClient v0.0.0-20170320082612-6d28bb1415c5
 	github.com/andybalholm/brotli v1.0.4
@@ -36,7 +37,7 @@ require (
 )
 
 require (
-	github.com/GoogleCloudPlatform/functions-framework-go v1.6.1 // indirect
+	cloud.google.com/go/functions v1.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.6.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

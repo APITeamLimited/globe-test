@@ -6,10 +6,10 @@ import (
 )
 
 func GetEnvVariable(key, defaultValue string) string {
-	return GetEnvVariableHideError(key, defaultValue, false)
+	return GetEnvVariableRaw(key, defaultValue, false)
 }
 
-func GetEnvVariableHideError(key, defaultValue string, hideError bool) string {
+func GetEnvVariableRaw(key, defaultValue string, hideError bool) string {
 	SYSTEM_ENV := os.Getenv("SYSTEM_ENV")
 
 	if SYSTEM_ENV == "" {
@@ -21,15 +21,13 @@ func GetEnvVariableHideError(key, defaultValue string, hideError bool) string {
 		return value
 	}
 
-	if SYSTEM_ENV != "development" {
-		if defaultValue != "" {
-			if !hideError {
-				fmt.Printf("%s is not set, resorting to default value %s\n", key, defaultValue)
-			}
-		} else {
-			panic(fmt.Sprintf("%s is not set and no default value was provided\n", key))
+	if defaultValue != "" {
+		if !hideError {
+			fmt.Printf("%s is not set, using default value %s\n", key, defaultValue)
 		}
+
+		return defaultValue
 	}
 
-	return defaultValue
+	panic(fmt.Sprintf("%s is not set and no default value was provided\n", key))
 }
