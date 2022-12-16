@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -87,10 +88,19 @@ func getWorkerClient(standalone bool) *redis.Client ***REMOVED***
 			panic(fmt.Errorf("error loading client cert: %s", err))
 		***REMOVED***
 
+		// Load CA cert
+		caCertPool := x509.NewCertPool()
+		caCert := lib.GetEnvVariable("CLIENT_CA_CERT", "")
+		ok := caCertPool.AppendCertsFromPEM([]byte(caCert))
+		if !ok ***REMOVED***
+			panic("failed to parse root certificate")
+		***REMOVED***
+
 		options.TLSConfig = &tls.Config***REMOVED***
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: lib.GetEnvVariable("CLIENT_INSECURE_SKIP_VERIFY", "false") == "true",
 			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
+			RootCAs:            caCertPool,
 		***REMOVED***
 	***REMOVED***
 
