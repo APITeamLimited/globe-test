@@ -38,7 +38,7 @@ func main() ***REMOVED***
 	case "orchestrator_func_mode":
 		orchestrator.Run(true, true)
 	case "dev_worker_function":
-		devWorkerServerPort := lib.GetEnvVariableRaw("DEV_WORKER_FUNCTION_PORT", "8080", true)
+		devWorkerServerPort := lib.GetEnvVariableRaw("DEV_WORKER_FUNCTION_PORT", "8090", true)
 		fmt.Printf("Starting dev worker function on port %s\n", devWorkerServerPort)
 		os.Setenv("FUNCTION_TARGET", "worker")
 
