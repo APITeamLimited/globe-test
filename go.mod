@@ -1,6 +1,6 @@
 module github.com/APITeamLimited/globe-test
 
-go 1.17
+go 1.18
 
 require (
 	github.com/APITeamLimited/redis/v9 v9.0.6
