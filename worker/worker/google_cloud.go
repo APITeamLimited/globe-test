@@ -16,8 +16,7 @@ func RunGoogleCloud(w http.ResponseWriter, r *http.Request) {
 	maxJobs := 1
 	maxVUs := int64(-1) // unlimited
 
-	useCredits := lib.GetEnvVariable("USE_CREDITS", "true") == "true"
-	creditsClient := lib.GetCreditsClient(useCredits)
+	creditsClient := lib.GetCreditsClient(true)
 
 	executionList := &ExecutionList{
 		currentJobs: make(map[string]libOrch.ChildJob),
@@ -34,7 +33,6 @@ func RunGoogleCloud(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient, true)
-
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
