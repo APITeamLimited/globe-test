@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func dispatchChildJobs(gs libOrch.BaseGlobalState, options *libWorker.Options, childJobs map[string]jobDistribution) error {
-	for _, jobDistribution := range childJobs {
+func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) error {
+	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			err := dispatchChildJob(gs, jobDistribution.workerClient, job, options)
+			err := dispatchChildJob(gs, jobDistribution.workerClient, job, location)
 			if err != nil {
 				return err
 			}
@@ -21,7 +20,7 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, options *libWorker.Options, c
 	return nil
 }
 
-func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, options *libWorker.Options) error {
+func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) error {
 	// Convert options to json
 	marshalledChildJob, err := json.Marshal(job)
 	if err != nil {
@@ -35,7 +34,10 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 
 	if gs.FuncModeInfo() != nil {
 		// If we're in function mode, need to create a google cloud function call
-		panic("Not implemented yet")
+		_, err := gs.FuncModeInfo().AuthClient.ExecuteFunction(location)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

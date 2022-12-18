@@ -19,6 +19,7 @@ type (
 
 	globalState struct {
 		ctx            context.Context
+		environment    string
 		logger         *logrus.Logger
 		client         *redis.Client
 		jobId          string
@@ -28,7 +29,7 @@ type (
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
 		standalone     bool
-		funcMode       *lib.FuncModeInfo
+		funcModeInfo   *lib.FuncModeInfo
 	}
 )
 
@@ -43,7 +44,7 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		orchestratorId: orchestratorId,
 		childJobStates: []libOrch.WorkerState{},
 		standalone:     standalone,
-		funcMode:       job.FuncModeInfo,
+		funcModeInfo:   job.FuncModeInfo,
 	}
 
 	if creditsClient != nil {
@@ -156,5 +157,5 @@ func (g *globalState) Standalone() bool {
 }
 
 func (g *globalState) FuncModeInfo() *lib.FuncModeInfo {
-	return g.funcMode
+	return g.funcModeInfo
 }

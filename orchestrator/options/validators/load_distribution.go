@@ -4,18 +4,39 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool) error {
-	if standalone {
+func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool, funcModeInfo *lib.FuncModeInfo) error {
+	if funcModeInfo != nil {
+		err := cloudLoadDistribution(options, workerClients)
+		if err != nil {
+			return err
+		}
+
+		return ensureCloudFunctionsAvailable(options, funcModeInfo.AuthClient)
+	} else if standalone {
 		return cloudLoadDistribution(options, workerClients)
+	} else {
+		return localLoadDistribution(options)
+	}
+}
+
+func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient lib.FunctionAuthClient) error {
+	// For each location in load distribution check if cloud functions are available
+	for _, location := range options.LoadDistribution.Value {
+		// If cloud functions are not available for this location
+		error := authClient.CheckFunctionAvailability(location.Location)
+		if error != nil {
+			return error
+		}
 	}
 
-	return localLoadDistribution(options)
+	return nil
 }
 
 func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {

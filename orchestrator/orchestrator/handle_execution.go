@@ -50,7 +50,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		return "SUCCESS", nil
 	}
 
-	if err := dispatchChildJobs(gs, options, childJobs); err != nil {
+	if err := dispatchChildJobs(gs, childJobs); err != nil {
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
