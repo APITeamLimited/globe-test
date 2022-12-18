@@ -25,188 +25,188 @@ func loadAndConfigureTest(
 	gs *globalState,
 	job libOrch.ChildJob,
 	workerInfo *libWorker.WorkerInfo,
-) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
+) (*workerLoadedAndConfiguredTest, error) {
 	sourceName := job.SourceName
 
-	if sourceName == "" ***REMOVED***
+	if sourceName == "" {
 		return nil, fmt.Errorf("sourceName not found on job, this is probably a bug")
-	***REMOVED***
+	}
 
 	stringSource := job.Source
 
-	if stringSource == "" ***REMOVED***
+	if stringSource == "" {
 		return nil, fmt.Errorf("source not found on job, this is probably a bug")
-	***REMOVED***
+	}
 
-	source := &loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: sourceName***REMOVED***,
+	source := &loader.SourceData{
+		URL:  &url.URL{Path: sourceName},
 		Data: []byte(stringSource),
-	***REMOVED***
+	}
 
-	filesystems := map[string]afero.Fs***REMOVED***
+	filesystems := map[string]afero.Fs{
 		"file": afero.NewMemMapFs(),
-	***REMOVED***
+	}
 
 	f, err := afero.TempFile(filesystems["file"], "", sourceName)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	_, err = f.Write([]byte(stringSource))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// Store the source in the filesystem
 	sourceRootPath := sourceName
 
 	// For now runtime options are constant for all tests
 	// TODO: make this configurable
-	runtimeOptions := libWorker.RuntimeOptions***REMOVED***
+	runtimeOptions := libWorker.RuntimeOptions{
 		TestType:             null.StringFrom(testTypeJS),
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
 		NoThresholds:         null.BoolFrom(false),
 		SummaryExport:        null.StringFrom(""),
 		Env:                  make(map[string]string),
-	***REMOVED***
+	}
 
 	registry := workerMetrics.NewRegistry()
 
-	preInitState := &libWorker.TestPreInitState***REMOVED***
+	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.logger,
 		RuntimeOptions: runtimeOptions,
 		Registry:       registry,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
-	***REMOVED***
+	}
 
-	test := &workerLoadedTest***REMOVED***
+	test := &workerLoadedTest{
 		sourceRootPath: sourceRootPath,
 		source:         source,
 		fs:             gs.fs,
 		pwd:            "",
 		fileSystems:    filesystems,
 		preInitState:   preInitState,
-	***REMOVED***
+	}
 
 	gs.logger.Debugf("Initializing k6 runner for '%s' (%s)...", sourceRootPath)
-	if err := test.initializeFirstRunner(gs, workerInfo); err != nil ***REMOVED***
+	if err := test.initializeFirstRunner(gs, workerInfo); err != nil {
 		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
-	***REMOVED***
+	}
 	gs.logger.Debug("Runner successfully initialized!")
 
 	return test.consolidateDeriveAndValidateConfig(gs, job)
-***REMOVED***
+}
 
-func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo) error ***REMOVED***
+func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo) error {
 	testPath := lt.source.URL.String()
 	logger := gs.logger.WithField("test_path", testPath)
 
-	if lt.preInitState.RuntimeOptions.KeyWriter.Valid ***REMOVED***
+	if lt.preInitState.RuntimeOptions.KeyWriter.Valid {
 
 		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
 			lt.preInitState.RuntimeOptions.KeyWriter.String)
 		keylogFilename := lt.preInitState.RuntimeOptions.KeyWriter.String
 		// if path is absolute - no point doing anything
-		if !filepath.IsAbs(keylogFilename) ***REMOVED***
+		if !filepath.IsAbs(keylogFilename) {
 			// filepath.Abs could be used but it will get the pwd from `os` package instead of what is in lt.pwd
 			// this is against our general approach of not using `os` directly and makes testing harder
 			keylogFilename = filepath.Join(lt.pwd, keylogFilename)
-		***REMOVED***
+		}
 		f, err := lt.fs.OpenFile(keylogFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
-		***REMOVED***
+		}
 		lt.keyLogger = f
-		lt.preInitState.KeyLogger = &consoleWriter***REMOVED***
+		lt.preInitState.KeyLogger = &consoleWriter{
 			gs,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
 	// TODO: should we use common.UnwrapGojaInterruptedError() here?
-	if err != nil ***REMOVED***
+	if err != nil {
 		return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
-	***REMOVED***
+	}
 	lt.initRunner = runner
 	return nil
 
-***REMOVED***
+}
 
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job libOrch.ChildJob,
-) (*workerLoadedAndConfiguredTest, error) ***REMOVED***
+) (*workerLoadedAndConfiguredTest, error) {
 	// Options have already been determined by the orchestrator, just load them
-	consolidatedConfig := Config***REMOVED***
+	consolidatedConfig := Config{
 		Options: job.Options,
-	***REMOVED***
+	}
 
 	// Parse the thresholds, only if the --no-threshold flag is not set.
 	// If parsing the threshold expressions failed, consider it as an
 	// invalid configuration error.
-	if !lt.preInitState.RuntimeOptions.NoThresholds.Bool ***REMOVED***
-		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds ***REMOVED***
+	if !lt.preInitState.RuntimeOptions.NoThresholds.Bool {
+		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds {
 			err := thresholdsDefinition.Parse()
-			if err != nil ***REMOVED***
+			if err != nil {
 				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-			***REMOVED***
+			}
 
 			err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	return &workerLoadedAndConfiguredTest***REMOVED***
+	return &workerLoadedAndConfiguredTest{
 		workerLoadedTest: lt,
 		derivedConfig:    derivedConfig,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 func deriveAndValidateConfig(
 	conf Config, isExecutable func(string) bool,
-) (result Config, err error) ***REMOVED***
+) (result Config, err error) {
 	result = conf
 	err = validateConfig(result, isExecutable)
 	return result, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-***REMOVED***
+}
 
-func validateConfig(conf Config, isExecutable func(string) bool) error ***REMOVED***
+func validateConfig(conf Config, isExecutable func(string) bool) error {
 	errList := conf.Validate()
 
-	for _, ec := range conf.Scenarios ***REMOVED***
-		if err := validateScenarioConfig(ec, isExecutable); err != nil ***REMOVED***
+	for _, ec := range conf.Scenarios {
+		if err := validateScenarioConfig(ec, isExecutable); err != nil {
 			errList = append(errList, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return consolidateErrorMessage(errList, "There were problems with the specified script configuration:")
-***REMOVED***
+}
 
-func consolidateErrorMessage(errList []error, title string) error ***REMOVED***
-	if len(errList) == 0 ***REMOVED***
+func consolidateErrorMessage(errList []error, title string) error {
+	if len(errList) == 0 {
 		return nil
-	***REMOVED***
+	}
 
-	errMsgParts := []string***REMOVED***title***REMOVED***
-	for _, err := range errList ***REMOVED***
+	errMsgParts := []string{title}
+	for _, err := range errList {
 		errMsgParts = append(errMsgParts, fmt.Sprintf("\t- %s", err.Error()))
-	***REMOVED***
+	}
 
 	return errors.New(strings.Join(errMsgParts, "\n"))
-***REMOVED***
+}
 
-func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error ***REMOVED***
+func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
 	execFn := conf.GetExec()
-	if !isExecutable(execFn) ***REMOVED***
+	if !isExecutable(execFn) {
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}

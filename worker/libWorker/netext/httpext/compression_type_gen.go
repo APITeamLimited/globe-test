@@ -9,44 +9,44 @@ import (
 
 const _CompressionTypeName = "gzipdeflatezstdbr"
 
-var _CompressionTypeIndex = [...]uint8***REMOVED***0, 4, 11, 15, 17***REMOVED***
+var _CompressionTypeIndex = [...]uint8{0, 4, 11, 15, 17}
 
-func (i CompressionType) String() string ***REMOVED***
-	if i >= CompressionType(len(_CompressionTypeIndex)-1) ***REMOVED***
+func (i CompressionType) String() string {
+	if i >= CompressionType(len(_CompressionTypeIndex)-1) {
 		return fmt.Sprintf("CompressionType(%d)", i)
-	***REMOVED***
+	}
 	return _CompressionTypeName[_CompressionTypeIndex[i]:_CompressionTypeIndex[i+1]]
-***REMOVED***
+}
 
-var _CompressionTypeValues = []CompressionType***REMOVED***0, 1, 2, 3***REMOVED***
+var _CompressionTypeValues = []CompressionType{0, 1, 2, 3}
 
-var _CompressionTypeNameToValueMap = map[string]CompressionType***REMOVED***
+var _CompressionTypeNameToValueMap = map[string]CompressionType{
 	_CompressionTypeName[0:4]:   0,
 	_CompressionTypeName[4:11]:  1,
 	_CompressionTypeName[11:15]: 2,
 	_CompressionTypeName[15:17]: 3,
-***REMOVED***
+}
 
 // CompressionTypeString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func CompressionTypeString(s string) (CompressionType, error) ***REMOVED***
-	if val, ok := _CompressionTypeNameToValueMap[s]; ok ***REMOVED***
+func CompressionTypeString(s string) (CompressionType, error) {
+	if val, ok := _CompressionTypeNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to CompressionType values", s)
-***REMOVED***
+}
 
 // CompressionTypeValues returns all values of the enum
-func CompressionTypeValues() []CompressionType ***REMOVED***
+func CompressionTypeValues() []CompressionType {
 	return _CompressionTypeValues
-***REMOVED***
+}
 
 // IsACompressionType returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i CompressionType) IsACompressionType() bool ***REMOVED***
-	for _, v := range _CompressionTypeValues ***REMOVED***
-		if i == v ***REMOVED***
+func (i CompressionType) IsACompressionType() bool {
+	for _, v := range _CompressionTypeValues {
+		if i == v {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}

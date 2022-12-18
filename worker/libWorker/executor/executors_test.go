@@ -14,49 +14,49 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-type exp struct ***REMOVED***
+type exp struct {
 	parseError      bool
 	validationError bool
 	custom          func(t *testing.T, cm libWorker.ScenarioConfigs)
-***REMOVED***
+}
 
-type configMapTestCase struct ***REMOVED***
+type configMapTestCase struct {
 	rawJSON  string
 	expected exp
-***REMOVED***
+}
 
 //nolint:gochecknoglobals
-var configMapTestCases = []configMapTestCase***REMOVED***
-	***REMOVED***"", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"1234", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"asdf", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"'adsf'", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"[]", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"***REMOVED******REMOVED***", exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
-		assert.Equal(t, cm, libWorker.ScenarioConfigs***REMOVED******REMOVED***)
-	***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***"***REMOVED******REMOVED***asdf", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***"null", exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+var configMapTestCases = []configMapTestCase{
+	{"", exp{parseError: true}},
+	{"1234", exp{parseError: true}},
+	{"asdf", exp{parseError: true}},
+	{"'adsf'", exp{parseError: true}},
+	{"[]", exp{parseError: true}},
+	{"{}", exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
+		assert.Equal(t, cm, libWorker.ScenarioConfigs{})
+	}}},
+	{"{}asdf", exp{parseError: true}},
+	{"null", exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 		assert.Nil(t, cm)
-	***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"someKey": ***REMOVED******REMOVED******REMOVED***`, exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"someKey": ***REMOVED***"executor": "constant-blah-blah", "vus": 10, "duration": "60s"***REMOVED******REMOVED***`, exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"someKey": ***REMOVED***"executor": "constant-vus", "uknownField": "should_error"***REMOVED******REMOVED***`, exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"someKey": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "60s", "env": 123***REMOVED******REMOVED***`, exp***REMOVED***parseError: true***REMOVED******REMOVED***,
+	}}},
+	{`{"someKey": {}}`, exp{parseError: true}},
+	{`{"someKey": {"executor": "constant-blah-blah", "vus": 10, "duration": "60s"}}`, exp{parseError: true}},
+	{`{"someKey": {"executor": "constant-vus", "uknownField": "should_error"}}`, exp{parseError: true}},
+	{`{"someKey": {"executor": "constant-vus", "vus": 10, "duration": "60s", "env": 123}}`, exp{parseError: true}},
 
 	// Validation errors for constant-vus and the base config
-	***REMOVED***
-		`***REMOVED***"someKey": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "60s",
-		"gracefulStop": "10s", "startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"someKey": {"executor": "constant-vus", "vus": 10, "duration": "60s",
+		"gracefulStop": "10s", "startTime": "70s", "env": {"test": "mest"}, "exec": "someFunc"}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			sched := NewConstantVUsConfig("someKey")
 			sched.VUs = null.IntFrom(10)
 			sched.Duration = types.NullDurationFrom(1 * time.Minute)
 			sched.GracefulStop = types.NullDurationFrom(10 * time.Second)
 			sched.StartTime = types.NullDurationFrom(70 * time.Second)
 			sched.Exec = null.StringFrom("someFunc")
-			sched.Env = map[string]string***REMOVED***"test": "mest"***REMOVED***
-			require.Equal(t, cm, libWorker.ScenarioConfigs***REMOVED***"someKey": sched***REMOVED***)
+			sched.Env = map[string]string{"test": "mest"}
+			require.Equal(t, cm, libWorker.ScenarioConfigs{"someKey": sched})
 			require.Equal(t, sched.BaseConfig.Name, cm["someKey"].GetName())
 			require.Equal(t, sched.BaseConfig.Type, cm["someKey"].GetType())
 			require.Equal(t, sched.BaseConfig.GetGracefulStop(), cm["someKey"].GetGracefulStop())
@@ -86,34 +86,34 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, true, isFinal)
 			assert.Equal(t, uint64(10), libWorker.GetMaxPlannedVUs(schedReqs))
 			assert.Equal(t, uint64(10), libWorker.GetMaxPossibleVUs(schedReqs))
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "duration": "60s"***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "60s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 0.5***REMOVED******REMOVED***`, exp***REMOVED***parseError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 10***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 0, "duration": "60s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": -1, "duration": "60s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "0s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "10s", "startTime": "-10s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "10s", "exec": ""***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "10s", "gracefulStop": "-2s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"aname": {"executor": "constant-vus", "duration": "60s"}}`, exp{}},
+	{`{"": {"executor": "constant-vus", "vus": 10, "duration": "60s"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 0.5}}`, exp{parseError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 10}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 0, "duration": "60s"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": -1, "duration": "60s"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 10, "duration": "0s"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 10, "duration": "10s", "startTime": "-10s"}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 10, "duration": "10s", "exec": ""}}`, exp{validationError: true}},
+	{`{"aname": {"executor": "constant-vus", "vus": 10, "duration": "10s", "gracefulStop": "-2s"}}`, exp{validationError: true}},
 	// ramping-vus
-	***REMOVED***
-		`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 20, "gracefulStop": "15s", "gracefulRampDown": "10s",
-		    "startTime": "23s", "stages": [***REMOVED***"duration": "60s", "target": 30***REMOVED***, ***REMOVED***"duration": "130s", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"varloops": {"executor": "ramping-vus", "startVUs": 20, "gracefulStop": "15s", "gracefulRampDown": "10s",
+		    "startTime": "23s", "stages": [{"duration": "60s", "target": 30}, {"duration": "130s", "target": 10}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			sched := NewRampingVUsConfig("varloops")
 			sched.GracefulStop = types.NullDurationFrom(15 * time.Second)
 			sched.GracefulRampDown = types.NullDurationFrom(10 * time.Second)
 			sched.StartVUs = null.IntFrom(20)
 			sched.StartTime = types.NullDurationFrom(23 * time.Second)
-			sched.Stages = []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(60 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(130 * time.Second)***REMOVED***,
-			***REMOVED***
-			require.Equal(t, cm, libWorker.ScenarioConfigs***REMOVED***"varloops": sched***REMOVED***)
+			sched.Stages = []Stage{
+				{Target: null.IntFrom(30), Duration: types.NullDurationFrom(60 * time.Second)},
+				{Target: null.IntFrom(10), Duration: types.NullDurationFrom(130 * time.Second)},
+			}
+			require.Equal(t, cm, libWorker.ScenarioConfigs{"varloops": sched})
 
 			assert.Empty(t, cm["varloops"].Validate())
 			assert.Empty(t, cm.Validate())
@@ -135,12 +135,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, true, isFinal)
 			assert.Equal(t, uint64(30), libWorker.GetMaxPlannedVUs(schedReqs))
 			assert.Equal(t, uint64(30), libWorker.GetMaxPossibleVUs(schedReqs))
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***
-		`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "10s",
-			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+		}},
+	},
+	{
+		`{"varloops": {"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "10s",
+			"stages": [{"duration": "10s", "target": 10}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			assert.Empty(t, cm["varloops"].Validate())
 			assert.Empty(t, cm.Validate())
 
@@ -151,12 +151,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			schedReqs := cm["varloops"].GetExecutionRequirements(et)
 			assert.Equal(t, uint64(10), libWorker.GetMaxPlannedVUs(schedReqs))
 			assert.Equal(t, uint64(10), libWorker.GetMaxPossibleVUs(schedReqs))
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***
-		`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
-			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***, ***REMOVED***"duration": "0s", "target": 1***REMOVED***, ***REMOVED***"duration": "10s", "target": 5***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+		}},
+	},
+	{
+		`{"varloops": {"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
+			"stages": [{"duration": "10s", "target": 10}, {"duration": "0s", "target": 1}, {"duration": "10s", "target": 5}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			assert.Empty(t, cm["varloops"].Validate())
 			assert.Empty(t, cm.Validate())
 
@@ -167,12 +167,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			schedReqs := cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, uint64(10), libWorker.GetMaxPlannedVUs(schedReqs))
 			assert.Equal(t, uint64(10), libWorker.GetMaxPossibleVUs(schedReqs))
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***
-		`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
-			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***, ***REMOVED***"duration": "0s", "target": 11***REMOVED***,***REMOVED***"duration": "0s", "target": 1***REMOVED***, ***REMOVED***"duration": "10s", "target": 5***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+		}},
+	},
+	{
+		`{"varloops": {"executor": "ramping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
+			"stages": [{"duration": "10s", "target": 10}, {"duration": "0s", "target": 11},{"duration": "0s", "target": 1}, {"duration": "10s", "target": 5}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			assert.Empty(t, cm["varloops"].Validate())
 			assert.Empty(t, cm.Validate())
 
@@ -183,20 +183,20 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			schedReqs := cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, uint64(11), libWorker.GetMaxPlannedVUs(schedReqs))
 			assert.Equal(t, uint64(11), libWorker.GetMaxPossibleVUs(schedReqs))
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 0, "stages": [***REMOVED***"duration": "60s", "target": 0***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": -1, "stages": [***REMOVED***"duration": "60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 2, "stages": [***REMOVED***"duration": "-60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 2, "stages": [***REMOVED***"duration": "60s", "target": -30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "stages": [***REMOVED***"duration": "60s"***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "stages": [***REMOVED***"target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "stages": []***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"varloops": {"executor": "ramping-vus", "startVUs": 0, "stages": [{"duration": "60s", "target": 0}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "startVUs": -1, "stages": [{"duration": "60s", "target": 30}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "startVUs": 2, "stages": [{"duration": "-60s", "target": 30}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "startVUs": 2, "stages": [{"duration": "60s", "target": -30}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "stages": [{"duration": "60s"}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "stages": [{"target": 30}]}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus", "stages": []}}`, exp{validationError: true}},
+	{`{"varloops": {"executor": "ramping-vus"}}`, exp{validationError: true}},
 	// shared-iterations
-	***REMOVED***
-		`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 22, "vus": 12, "maxDuration": "100s"***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"ishared": {"executor": "shared-iterations", "iterations": 22, "vus": 12, "maxDuration": "100s"}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			sched := NewSharedIterationsConfig("ishared")
 			sched.Iterations = null.IntFrom(22)
 			sched.MaxDuration = types.NullDurationFrom(100 * time.Second)
@@ -258,21 +258,21 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 
 			totalReqs = cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, schedReqs, totalReqs)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations"***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***, // Has 1 VU & 1 iter default values
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "vus": 10***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***, // error because VUs are more than iters
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "30m"***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20, "vus": -10***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": -1, "vus": 1***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"executor": "shared-iterations", "iterations": 20, "vus": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"ishared": {"executor": "shared-iterations"}}`, exp{}}, // Has 1 VU & 1 iter default values
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20}}`, exp{}},
+	{`{"ishared": {"executor": "shared-iterations", "vus": 10}}`, exp{validationError: true}}, // error because VUs are more than iters
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "30m"}}`, exp{}},
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"}}`, exp{validationError: true}},
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"}}`, exp{validationError: true}},
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20, "vus": -10}}`, exp{validationError: true}},
+	{`{"ishared": {"executor": "shared-iterations", "iterations": -1, "vus": 1}}`, exp{validationError: true}},
+	{`{"ishared": {"executor": "shared-iterations", "iterations": 20, "vus": 30}}`, exp{validationError: true}},
 	// per-vu-iterations
-	***REMOVED***
-		`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 23, "vus": 13, "gracefulStop": 0***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"ipervu": {"executor": "per-vu-iterations", "iterations": 23, "vus": 13, "gracefulStop": 0}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			sched := NewPerVUIterationsConfig("ipervu")
 			sched.Iterations = null.IntFrom(23)
 			sched.GracefulStop = types.NullDurationFrom(0)
@@ -294,21 +294,21 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 
 			totalReqs := cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, schedReqs, totalReqs)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations"***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***, // Has 1 VU & 1 iter default values
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 20***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "vus": 10***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 20, "vus": 10***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": 20, "vus": -10***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"executor": "per-vu-iterations", "iterations": -1, "vus": 1***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"ipervu": {"executor": "per-vu-iterations"}}`, exp{}}, // Has 1 VU & 1 iter default values
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": 20}}`, exp{}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "vus": 10}}`, exp{}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": 20, "vus": 10}}`, exp{}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"}}`, exp{validationError: true}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"}}`, exp{validationError: true}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": 20, "vus": -10}}`, exp{validationError: true}},
+	{`{"ipervu": {"executor": "per-vu-iterations", "iterations": -1, "vus": 1}}`, exp{validationError: true}},
 
 	// constant-arrival-rate
-	***REMOVED***
-		`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 30, "timeUnit": "1m", "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"carrival": {"executor": "constant-arrival-rate", "rate": 30, "timeUnit": "1m", "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			et, err := libWorker.NewExecutionTuple(nil, nil)
 			require.NoError(t, err)
 			sched := NewConstantArrivalRateConfig("carrival")
@@ -332,40 +332,40 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 
 			totalReqs := cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, schedReqs, totalReqs)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30, "timeUnit": "-1s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***
-		`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+		}},
+	},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30}}`, exp{}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30, "timeUnit": "-1s"}}`, exp{validationError: true}},
+	{
+		`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			assert.Empty(t, cm["carrival"].Validate())
 			require.EqualValues(t, 20, cm["carrival"].(*ConstantArrivalRateConfig).MaxVUs.Int64)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "0m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 0, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 15***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "0s", "preAllocatedVUs": 20, "maxVUs": 25***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": -2, "maxVUs": 25***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "maxVUs": 30}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "preAllocatedVUs": 20, "maxVUs": 30}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "0m", "preAllocatedVUs": 20, "maxVUs": 30}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 0, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 15}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "0s", "preAllocatedVUs": 20, "maxVUs": 25}}`, exp{validationError: true}},
+	{`{"carrival": {"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": -2, "maxVUs": 25}}`, exp{validationError: true}},
 	// ramping-arrival-rate
-	***REMOVED***
-		`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "startRate": 10, "timeUnit": "30s", "preAllocatedVUs": 20,
-		"maxVUs": 50, "stages": [***REMOVED***"duration": "3m", "target": 30***REMOVED***, ***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+	{
+		`{"varrival": {"executor": "ramping-arrival-rate", "startRate": 10, "timeUnit": "30s", "preAllocatedVUs": 20,
+		"maxVUs": 50, "stages": [{"duration": "3m", "target": 30}, {"duration": "5m", "target": 10}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			sched := NewRampingArrivalRateConfig("varrival")
 			sched.StartRate = null.IntFrom(10)
-			sched.Stages = []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(180 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(300 * time.Second)***REMOVED***,
-			***REMOVED***
+			sched.Stages = []Stage{
+				{Target: null.IntFrom(30), Duration: types.NullDurationFrom(180 * time.Second)},
+				{Target: null.IntFrom(10), Duration: types.NullDurationFrom(300 * time.Second)},
+			}
 			sched.TimeUnit = types.NullDurationFrom(30 * time.Second)
 			sched.PreAllocatedVUs = null.IntFrom(20)
 			sched.MaxVUs = null.IntFrom(50)
-			require.Equal(t, cm, libWorker.ScenarioConfigs***REMOVED***"varrival": sched***REMOVED***)
+			require.Equal(t, cm, libWorker.ScenarioConfigs{"varrival": sched})
 
 			assert.Empty(t, cm["varrival"].Validate())
 			assert.Empty(t, cm.Validate())
@@ -383,50 +383,50 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 
 			totalReqs := cm.GetFullExecutionRequirements(et)
 			assert.Equal(t, schedReqs, totalReqs)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": -20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "startRate": -1, "preAllocatedVUs": 20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***
-		`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
-		exp***REMOVED***custom: func(t *testing.T, cm libWorker.ScenarioConfigs) ***REMOVED***
+		}},
+	},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": [{"duration": "5m", "target": 10}]}}`, exp{}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": -20, "maxVUs": 50, "stages": [{"duration": "5m", "target": 10}]}}`, exp{validationError: true}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "startRate": -1, "preAllocatedVUs": 20, "maxVUs": 50, "stages": [{"duration": "5m", "target": 10}]}}`, exp{validationError: true}},
+	{
+		`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "stages": [{"duration": "5m", "target": 10}]}}`,
+		exp{custom: func(t *testing.T, cm libWorker.ScenarioConfigs) {
 			assert.Empty(t, cm["varrival"].Validate())
 			require.EqualValues(t, 20, cm["varrival"].(*RampingArrivalRateConfig).MaxVUs.Int64)
-		***REMOVED******REMOVED***,
-	***REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": []***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***], "timeUnit": "-1s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 30, "maxVUs": 20, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+		}},
+	},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "maxVUs": 50, "stages": [{"duration": "5m", "target": 10}]}}`, exp{validationError: true}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50}}`, exp{validationError: true}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": []}}`, exp{validationError: true}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": [{"duration": "5m", "target": 10}], "timeUnit": "-1s"}}`, exp{validationError: true}},
+	{`{"varrival": {"executor": "ramping-arrival-rate", "preAllocatedVUs": 30, "maxVUs": 20, "stages": [{"duration": "5m", "target": 10}]}}`, exp{validationError: true}},
 	// TODO: more tests of mixed executors and execution plans
-***REMOVED***
+}
 
-func TestConfigMapParsingAndValidation(t *testing.T) ***REMOVED***
+func TestConfigMapParsingAndValidation(t *testing.T) {
 	t.Parallel()
-	for i, tc := range configMapTestCases ***REMOVED***
+	for i, tc := range configMapTestCases {
 		tc := tc
-		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) {
 			t.Parallel()
 			t.Logf(tc.rawJSON)
 			var result libWorker.ScenarioConfigs
 			err := json.Unmarshal([]byte(tc.rawJSON), &result)
-			if tc.expected.parseError ***REMOVED***
+			if tc.expected.parseError {
 				require.Error(t, err)
 				return
-			***REMOVED***
+			}
 			require.NoError(t, err)
 
 			parseErrors := result.Validate()
-			if tc.expected.validationError ***REMOVED***
+			if tc.expected.validationError {
 				assert.NotEmpty(t, parseErrors)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				assert.Empty(t, parseErrors)
-			***REMOVED***
-			if tc.expected.custom != nil ***REMOVED***
+			}
+			if tc.expected.custom != nil {
 				tc.expected.custom(t, result)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}

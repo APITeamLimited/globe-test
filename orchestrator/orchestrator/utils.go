@@ -13,93 +13,103 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId string) (*libOrch.Job, error) ***REMOVED***
+func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId string,
+	functionAuthClient lib.FunctionAuthClient) (*libOrch.Job, error) {
 	jobRaw, err := orchestratorClient.HGet(ctx, jobId, "job").Result()
 
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// Check job not empty
-	if jobRaw == "" ***REMOVED***
+	if jobRaw == "" {
 		return nil, fmt.Errorf("job %s is empty", jobId)
-	***REMOVED***
+	}
 
-	job := libOrch.Job***REMOVED******REMOVED***
+	job := libOrch.Job{}
 	// Parse job as libOrch.Job
 	err = json.Unmarshal([]byte(jobRaw), &job)
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("error unmarshalling job", err)
 		return nil, fmt.Errorf("error unmarshalling job %s", jobId)
-	***REMOVED***
+	}
+
+	if functionAuthClient != nil {
+		// Check funcModeInfo is not nil
+		if job.FuncModeInfo == nil {
+			return nil, fmt.Errorf("functionAuthClient is set but funcModeInfo is nil")
+		}
+
+		job.FuncModeInfo.AuthClient = functionAuthClient
+	}
 
 	// Sensitive field, ensure it is nil
 	job.Options = nil
 
 	return &job, nil
-***REMOVED***
+}
 
-func getOrchestratorClient(standalone bool) *redis.Client ***REMOVED***
-	if !standalone ***REMOVED***
-		return redis.NewClient(&redis.Options***REMOVED***
+func getOrchestratorClient(standalone bool) *redis.Client {
+	if !standalone {
+		return redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%s", agent.OrchestratorRedisHost, agent.OrchestratorRedisPort),
 			Username: "default",
 			Password: "",
-		***REMOVED***,
+		},
 		)
-	***REMOVED***
+	}
 
 	orchestratorHost := lib.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost")
 
-	options := &redis.Options***REMOVED***
+	options := &redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", orchestratorHost, lib.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
 		Username: "default",
 		Password: lib.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
-	***REMOVED***
+	}
 
 	isSecure := lib.GetEnvVariableRaw("ORCHESTRATOR_REDIS_IS_SECURE", "false", true) == "true"
 
-	if isSecure ***REMOVED***
+	if isSecure {
 		clientCert := lib.GetEnvVariable("ORCHESTRATOR_REDIS_CERT", "")
 		clientKey := lib.GetEnvVariable("ORCHESTRATOR_REDIS_KEY", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-		if err != nil ***REMOVED***
+		if err != nil {
 			panic(fmt.Errorf("error loading orchestrator cert: %s", err))
-		***REMOVED***
+		}
 
-		options.TLSConfig = &tls.Config***REMOVED***
+		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: lib.GetEnvVariable("ORCHESTRATOR_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
-			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
-		***REMOVED***
-	***REMOVED***
+			Certificates:       []tls.Certificate{cert},
+		}
+	}
 
 	return redis.NewClient(options)
-***REMOVED***
+}
 
-func getMaxJobs(standalone bool) int ***REMOVED***
-	if !standalone ***REMOVED***
+func getMaxJobs(standalone bool) int {
+	if !standalone {
 		return 5
-	***REMOVED***
+	}
 
 	maxJobs, err := strconv.Atoi(lib.GetEnvVariable("ORCHESTRATOR_MAX_JOBS", "1000"))
-	if err != nil ***REMOVED***
+	if err != nil {
 		maxJobs = 1000
-	***REMOVED***
+	}
 
 	return maxJobs
-***REMOVED***
+}
 
-func getMaxManagedVUs(standalone bool) int64 ***REMOVED***
-	if !standalone ***REMOVED***
+func getMaxManagedVUs(standalone bool) int64 {
+	if !standalone {
 		return 5000
-	***REMOVED***
+	}
 
 	maxManagedVUs, err := strconv.ParseInt(lib.GetEnvVariable("ORCHESTRATOR_MAX_MANAGED_VUS", "10000"), 10, 64)
-	if err != nil ***REMOVED***
+	if err != nil {
 		maxManagedVUs = 10000
-	***REMOVED***
+	}
 
 	return maxManagedVUs
-***REMOVED***
+}

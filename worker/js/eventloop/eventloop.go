@@ -21,39 +21,39 @@ import (
 // but also they need to end when all the instructions are done.
 // Additionally because of this on any error while the event loop will exit it's
 // required to wait on the event loop to be empty before the execution can continue.
-type EventLoop struct ***REMOVED***
+type EventLoop struct {
 	lock                sync.Mutex
 	queue               []func() error
-	wakeupCh            chan struct***REMOVED******REMOVED*** // TODO: maybe use sync.Cond ?
+	wakeupCh            chan struct{} // TODO: maybe use sync.Cond ?
 	registeredCallbacks int
 	vu                  modules.VU
 
 	// pendingPromiseRejections are rejected promises with no handler,
 	// if there is something in this map at an end of an event loop then it will exit with an error.
 	// It's similar to what Deno and Node do.
-	pendingPromiseRejections map[*goja.Promise]struct***REMOVED******REMOVED***
-***REMOVED***
+	pendingPromiseRejections map[*goja.Promise]struct{}
+}
 
 // New returns a new event loop with a few helpers attached to it:
 // - adding setTimeout javascript implementation
 // - reporting (and aborting on) unhandled promise rejections
-func New(vu modules.VU) *EventLoop ***REMOVED***
-	e := &EventLoop***REMOVED***
-		wakeupCh:                 make(chan struct***REMOVED******REMOVED***, 1),
-		pendingPromiseRejections: make(map[*goja.Promise]struct***REMOVED******REMOVED***),
+func New(vu modules.VU) *EventLoop {
+	e := &EventLoop{
+		wakeupCh:                 make(chan struct{}, 1),
+		pendingPromiseRejections: make(map[*goja.Promise]struct{}),
 		vu:                       vu,
-	***REMOVED***
+	}
 	vu.Runtime().SetPromiseRejectionTracker(e.promiseRejectionTracker)
 
 	return e
-***REMOVED***
+}
 
-func (e *EventLoop) wakeup() ***REMOVED***
-	select ***REMOVED***
-	case e.wakeupCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+func (e *EventLoop) wakeup() {
+	select {
+	case e.wakeupCh <- struct{}{}:
 	default:
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // RegisterCallback signals to the event loop that you are going to do some
 // asynchronous work off the main thread and that you may need to execute some
@@ -82,28 +82,28 @@ func (e *EventLoop) wakeup() ***REMOVED***
 //
 // A common pattern for async work is something like this:
 //
-//	func doAsyncWork(vu modules.VU) *goja.Promise ***REMOVED***
+//	func doAsyncWork(vu modules.VU) *goja.Promise {
 //	    enqueueCallback := vu.RegisterCallback()
 //	    p, resolve, reject := vu.Runtime().NewPromise()
 //
 //	    // Do the actual async work in a new independent goroutine, but make
 //	    // sure that the Promise resolution is done on the main thread:
-//	    go func() ***REMOVED***
+//	    go func() {
 //	        // Also make sure to abort early if the context is cancelled, so
 //	        // the VU is not stuck when the scenario ends or Ctrl+C is used:
 //	        result, err := doTheActualAsyncWork(vu.Context())
-//	        enqueueCallback(func() error ***REMOVED***
-//	            if err != nil ***REMOVED***
+//	        enqueueCallback(func() error {
+//	            if err != nil {
 //	                reject(err)
-//	            ***REMOVED*** else ***REMOVED***
+//	            } else {
 //	                resolve(result)
-//	            ***REMOVED***
+//	            }
 //	            return nil  // do not abort the iteration
-//	        ***REMOVED***)
-//	    ***REMOVED***()
+//	        })
+//	    }()
 //
 //	    return p
-//	***REMOVED***
+//	}
 //
 // This ensures that the actual work happens asynchronously, while the Promise
 // is immediately returned and the main thread resumes execution. It also
@@ -111,91 +111,91 @@ func (e *EventLoop) wakeup() ***REMOVED***
 // once the async work is done, as required by goja and all other JS runtimes.
 //
 // TODO: rename to ReservePendingCallback or something more appropriate?
-func (e *EventLoop) RegisterCallback() (enqueueCallback func(func() error)) ***REMOVED***
+func (e *EventLoop) RegisterCallback() (enqueueCallback func(func() error)) {
 	e.lock.Lock()
 	var callbackCalled bool
 	e.registeredCallbacks++
 	e.lock.Unlock()
 
-	return func(f func() error) ***REMOVED***
+	return func(f func() error) {
 		e.lock.Lock()
-		if callbackCalled ***REMOVED*** // this is protected by the lock on the event loop
+		if callbackCalled { // this is protected by the lock on the event loop
 			e.lock.Unlock() // let not lock up the whole event loop, somebody could recover from the panic
 			panic("RegisterCallback called twice")
-		***REMOVED***
+		}
 		callbackCalled = true
 		e.queue = append(e.queue, f)
 		e.registeredCallbacks--
 		e.lock.Unlock()
 		e.wakeup()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (e *EventLoop) promiseRejectionTracker(p *goja.Promise, op goja.PromiseRejectionOperation) ***REMOVED***
+func (e *EventLoop) promiseRejectionTracker(p *goja.Promise, op goja.PromiseRejectionOperation) {
 	// No locking necessary here as the goja runtime will call this synchronously
 	// Read Notes on https://tc39.es/ecma262/#sec-host-promise-rejection-tracker
-	if op == goja.PromiseRejectionReject ***REMOVED***
-		e.pendingPromiseRejections[p] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	***REMOVED*** else ***REMOVED*** // goja.PromiseRejectionHandle so a promise that was previously rejected without handler now got one
+	if op == goja.PromiseRejectionReject {
+		e.pendingPromiseRejections[p] = struct{}{}
+	} else { // goja.PromiseRejectionHandle so a promise that was previously rejected without handler now got one
 		delete(e.pendingPromiseRejections, p)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (e *EventLoop) popAll() (queue []func() error, awaiting bool) ***REMOVED***
+func (e *EventLoop) popAll() (queue []func() error, awaiting bool) {
 	e.lock.Lock()
 	queue = e.queue
 	e.queue = make([]func() error, 0, len(queue))
 	awaiting = e.registeredCallbacks != 0
 	e.lock.Unlock()
 	return
-***REMOVED***
+}
 
 // Start will run the event loop until it's empty and there are no uninvoked registered callbacks
 // or a queued function returns an error. The provided firstCallback will be the first thing executed.
 // After Start returns the event loop can be reused as long as waitOnRegistered is called.
-func (e *EventLoop) Start(firstCallback func() error) error ***REMOVED***
-	e.queue = []func() error***REMOVED***firstCallback***REMOVED***
-	for ***REMOVED***
+func (e *EventLoop) Start(firstCallback func() error) error {
+	e.queue = []func() error{firstCallback}
+	for {
 		queue, awaiting := e.popAll()
 
-		if len(queue) == 0 ***REMOVED***
-			if !awaiting ***REMOVED***
+		if len(queue) == 0 {
+			if !awaiting {
 				return nil
-			***REMOVED***
+			}
 			<-e.wakeupCh
 			continue
-		***REMOVED***
+		}
 
-		for _, f := range queue ***REMOVED***
-			if err := f(); err != nil ***REMOVED***
+		for _, f := range queue {
+			if err := f(); err != nil {
 				return err
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
 		// This will get a random unhandled rejection instead of the first one, for example.
 		// But that seems to be the case in other tools as well so it seems to not be that big of a problem.
-		for promise := range e.pendingPromiseRejections ***REMOVED***
+		for promise := range e.pendingPromiseRejections {
 			// TODO maybe throw the whole promise up and get make a better message outside of the event loop
 			value := promise.Result()
-			if o := value.ToObject(e.vu.Runtime()); o != nil ***REMOVED***
+			if o := value.ToObject(e.vu.Runtime()); o != nil {
 				stack := o.Get("stack")
-				if stack != nil ***REMOVED***
+				if stack != nil {
 					value = stack
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 			// this is the de facto wording in both firefox and deno at least
 			return fmt.Errorf("Uncaught (in promise) %s", value) //nolint:stylecheck
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
 // WaitOnRegistered waits on all registered callbacks so we know nothing is still doing work.
-func (e *EventLoop) WaitOnRegistered() ***REMOVED***
-	for ***REMOVED***
+func (e *EventLoop) WaitOnRegistered() {
+	for {
 		_, awaiting := e.popAll()
-		if !awaiting ***REMOVED***
+		if !awaiting {
 			return
-		***REMOVED***
+		}
 		<-e.wakeupCh
-	***REMOVED***
-***REMOVED***
+	}
+}

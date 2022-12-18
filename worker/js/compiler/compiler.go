@@ -21,32 +21,32 @@ import (
 var babelSrc string //nolint:gochecknoglobals
 
 var (
-	DefaultOpts = map[string]interface***REMOVED******REMOVED******REMOVED***
-		// "presets": []string***REMOVED***"latest"***REMOVED***,
-		"plugins": []interface***REMOVED******REMOVED******REMOVED***
+	DefaultOpts = map[string]interface{}{
+		// "presets": []string{"latest"},
+		"plugins": []interface{}{
 			// es2015 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2015/src/index.js
 			// in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-template-literals", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false, "spec": false***REMOVED******REMOVED***,
+			// []interface{}{"transform-es2015-template-literals", map[string]interface{}{"loose": false, "spec": false}},
 			// "transform-es2015-literals", // in goja
 			// "transform-es2015-function-name", // in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***, // in goja
+			// []interface{}{"transform-es2015-arrow-functions", map[string]interface{}{"spec": false}}, // in goja
 			// "transform-es2015-block-scoped-functions", // in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// []interface{}{"transform-es2015-classes", map[string]interface{}{"loose": false}}, // in goja
 			// "transform-es2015-object-super", // in goja
 			// "transform-es2015-shorthand-properties", // in goja
 			// "transform-es2015-duplicate-keys", // in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// []interface{}{"transform-es2015-computed-properties", map[string]interface{}{"loose": false}}, // in goja
 			// "transform-es2015-for-of", // in goja
 			// "transform-es2015-sticky-regex", // in goja
 			// "transform-es2015-unicode-regex", // in goja
 			// "check-es2015-constants", // in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-spread", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// []interface{}{"transform-es2015-spread", map[string]interface{}{"loose": false}}, // in goja
 			// "transform-es2015-parameters", // in goja
-			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-destructuring", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// []interface{}{"transform-es2015-destructuring", map[string]interface{}{"loose": false}}, // in goja
 			// "transform-es2015-block-scoping", // in goja
 			// "transform-es2015-typeof-symbol", // in goja
 			// all the other module plugins are just dropped
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-modules-commonjs", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			[]interface{}{"transform-es2015-modules-commonjs", map[string]interface{}{"loose": false}},
 			// "transform-regenerator", // Doesn't really work unless regeneratorRuntime is also added
 
 			// es2016 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2016/src/index.js
@@ -55,14 +55,14 @@ var (
 			// es2017 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2017/src/index.js
 			// "syntax-trailing-function-commas", // in goja
 			// "transform-async-to-generator", // Doesn't really work unless regeneratorRuntime is also added
-		***REMOVED***,
+		},
 		"ast":           false,
 		"sourceMaps":    false,
 		"babelrc":       false,
 		"compact":       false,
 		"retainLines":   true,
 		"highlightCode": false,
-	***REMOVED***
+	}
 
 	maxSrcLenForBabelSourceMap     = 250 * 1024 //nolint:gochecknoglobals
 	maxSrcLenForBabelSourceMapOnce sync.Once    //nolint:gochecknoglobals
@@ -80,83 +80,83 @@ const (
 )
 
 // A Compiler compiles JavaScript source code (ES5.1 or ES6) into a goja.Program
-type Compiler struct ***REMOVED***
+type Compiler struct {
 	logger  logrus.FieldLogger
 	babel   *babel
 	Options Options
-***REMOVED***
+}
 
 // New returns a new Compiler
-func New(logger logrus.FieldLogger) *Compiler ***REMOVED***
-	return &Compiler***REMOVED***logger: logger***REMOVED***
-***REMOVED***
+func New(logger logrus.FieldLogger) *Compiler {
+	return &Compiler{logger: logger}
+}
 
 // initializeBabel initializes a separate (non-global) instance of babel specifically for this Compiler.
 // An error is returned only if babel itself couldn't be parsed/run which should never be possible.
-func (c *Compiler) initializeBabel() error ***REMOVED***
+func (c *Compiler) initializeBabel() error {
 	var err error
-	if c.babel == nil ***REMOVED***
+	if c.babel == nil {
 		c.babel, err = newBabel()
-	***REMOVED***
+	}
 	return err
-***REMOVED***
+}
 
 // Transform the given code into ES5
-func (c *Compiler) Transform(src, filename string, inputSrcMap []byte) (code string, srcMap []byte, err error) ***REMOVED***
-	if c.babel == nil ***REMOVED***
-		onceBabel.Do(func() ***REMOVED***
+func (c *Compiler) Transform(src, filename string, inputSrcMap []byte) (code string, srcMap []byte, err error) {
+	if c.babel == nil {
+		onceBabel.Do(func() {
 			globalBabel, err = newBabel()
-		***REMOVED***)
+		})
 		c.babel = globalBabel
-	***REMOVED***
-	if err != nil ***REMOVED***
+	}
+	if err != nil {
 		return
-	***REMOVED***
+	}
 
 	sourceMapEnabled := c.Options.SourceMapLoader != nil
-	maxSrcLenForBabelSourceMapOnce.Do(func() ***REMOVED***
+	maxSrcLenForBabelSourceMapOnce.Do(func() {
 		// TODO: drop this code and everything it's connected to when babel is dropped
 		v := os.Getenv(maxSrcLenForBabelSourceMapVarName)
-		if len(v) > 0 ***REMOVED***
+		if len(v) > 0 {
 			i, err := strconv.Atoi(v) //nolint:govet // we shadow err on purpose
-			if err != nil ***REMOVED***
+			if err != nil {
 				c.logger.Warnf("Tried to parse %q from %s as integer but couldn't %s\n",
 					v, maxSrcLenForBabelSourceMapVarName, err)
 				return
-			***REMOVED***
+			}
 			maxSrcLenForBabelSourceMap = i
-		***REMOVED***
-	***REMOVED***)
-	if sourceMapEnabled && len(src) > maxSrcLenForBabelSourceMap ***REMOVED***
+		}
+	})
+	if sourceMapEnabled && len(src) > maxSrcLenForBabelSourceMap {
 		sourceMapEnabled = false
 		c.logger.Warnf("The source for `%s` needs to go through babel but is over %d bytes. "+
 			"For performance reasons source map support will be disabled for this particular file.",
 			filename, maxSrcLenForBabelSourceMap)
-	***REMOVED***
+	}
 
 	// check that babel will likely be able to parse the inputSrcMap
-	if sourceMapEnabled && len(inputSrcMap) != 0 ***REMOVED***
-		if err = verifySourceMapForBabel(inputSrcMap); err != nil ***REMOVED***
+	if sourceMapEnabled && len(inputSrcMap) != 0 {
+		if err = verifySourceMapForBabel(inputSrcMap); err != nil {
 			sourceMapEnabled = false
 			inputSrcMap = nil
 			c.logger.WithError(err).Warnf(
 				"The source for `%s` needs to be transpiled by Babel, but its source map will"+
 					" not be accepted by Babel, so it was disabled", filename)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	code, srcMap, err = c.babel.transformImpl(c.logger, src, filename, sourceMapEnabled, inputSrcMap)
 	return
-***REMOVED***
+}
 
 // Options are options to the compiler
-type Options struct ***REMOVED***
+type Options struct {
 	CompatibilityMode libWorker.CompatibilityMode
 	SourceMapLoader   func(string) ([]byte, error)
 	Strict            bool
-***REMOVED***
+}
 
 // compilationState is helper struct to keep the state of a compilation
-type compilationState struct ***REMOVED***
+type compilationState struct {
 	// set when we couldn't load external source map so we can try parsing without loading it
 	couldntLoadSourceMap bool
 	// srcMap is the current full sourceMap that has been generated read so far
@@ -165,117 +165,117 @@ type compilationState struct ***REMOVED***
 	wrapped     bool // whether the original source is wrapped in a function to make it a commonjs module
 
 	compiler *Compiler
-***REMOVED***
+}
 
 // Compile the program in the given CompatibilityMode, wrapping it between pre and post code
 // TODO isESM will be used once goja support ESM modules natively
-func (c *Compiler) Compile(src, filename string, isESM bool) (*goja.Program, string, error) ***REMOVED***
+func (c *Compiler) Compile(src, filename string, isESM bool) (*goja.Program, string, error) {
 	return c.compileImpl(src, filename, !isESM, c.Options.CompatibilityMode, nil)
-***REMOVED***
+}
 
 // sourceMapLoader is to be used with goja's WithSourceMapLoader
 // it not only gets the file from disk in the simple case, but also returns it if the map was generated from babel
 // additioanlly it fixes off by one error in commonjs dependencies due to having to wrap them in a function.
-func (c *compilationState) sourceMapLoader(path string) ([]byte, error) ***REMOVED***
-	if path == sourceMapURLFromBabel ***REMOVED***
-		if c.wrapped ***REMOVED***
+func (c *compilationState) sourceMapLoader(path string) ([]byte, error) {
+	if path == sourceMapURLFromBabel {
+		if c.wrapped {
 			return c.increaseMappingsByOne(c.srcMap)
-		***REMOVED***
+		}
 		return c.srcMap, nil
-	***REMOVED***
+	}
 	c.srcMap, c.srcMapError = c.compiler.Options.SourceMapLoader(path)
-	if c.srcMapError != nil ***REMOVED***
+	if c.srcMapError != nil {
 		c.couldntLoadSourceMap = true
 		return nil, c.srcMapError
-	***REMOVED***
+	}
 	_, c.srcMapError = sourcemap.Parse(path, c.srcMap)
-	if c.srcMapError != nil ***REMOVED***
+	if c.srcMapError != nil {
 		c.couldntLoadSourceMap = true
 		c.srcMap = nil
 		return nil, c.srcMapError
-	***REMOVED***
-	if c.wrapped ***REMOVED***
+	}
+	if c.wrapped {
 		return c.increaseMappingsByOne(c.srcMap)
-	***REMOVED***
+	}
 	return c.srcMap, nil
-***REMOVED***
+}
 
 func (c *Compiler) compileImpl(
 	src, filename string, wrap bool, compatibilityMode libWorker.CompatibilityMode, srcMap []byte,
-) (*goja.Program, string, error) ***REMOVED***
+) (*goja.Program, string, error) {
 	code := src
-	state := compilationState***REMOVED***srcMap: srcMap, compiler: c, wrapped: wrap***REMOVED***
-	if wrap ***REMOVED*** // the lines in the sourcemap (if available) will be fixed by increaseMappingsByOne
-		code = "(function(module, exports)***REMOVED***\n" + code + "\n***REMOVED***)\n"
-	***REMOVED***
+	state := compilationState{srcMap: srcMap, compiler: c, wrapped: wrap}
+	if wrap { // the lines in the sourcemap (if available) will be fixed by increaseMappingsByOne
+		code = "(function(module, exports){\n" + code + "\n})\n"
+	}
 	opts := parser.WithDisableSourceMaps
-	if c.Options.SourceMapLoader != nil ***REMOVED***
+	if c.Options.SourceMapLoader != nil {
 		opts = parser.WithSourceMapLoader(state.sourceMapLoader)
-	***REMOVED***
+	}
 	ast, err := parser.ParseFile(nil, filename, code, 0, opts)
 
-	if state.couldntLoadSourceMap ***REMOVED***
+	if state.couldntLoadSourceMap {
 		state.couldntLoadSourceMap = false // reset
 		// we probably don't want to abort scripts which have source maps but they can't be found,
 		// this also will be a breaking change, so if we couldn't we retry with it disabled
 		c.logger.WithError(state.srcMapError).Warnf("Couldn't load source map for %s", filename)
 		ast, err = parser.ParseFile(nil, filename, code, 0, parser.WithDisableSourceMaps)
-	***REMOVED***
-	if err != nil ***REMOVED***
-		if compatibilityMode == libWorker.CompatibilityModeExtended ***REMOVED***
+	}
+	if err != nil {
+		if compatibilityMode == libWorker.CompatibilityModeExtended {
 			code, state.srcMap, err = c.Transform(src, filename, state.srcMap)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return nil, code, err
-			***REMOVED***
+			}
 			// the compatibility mode "decreases" here as we shouldn't transform twice
 			return c.compileImpl(code, filename, wrap, libWorker.CompatibilityModeBase, state.srcMap)
-		***REMOVED***
+		}
 		return nil, code, err
-	***REMOVED***
+	}
 	pgm, err := goja.CompileAST(ast, c.Options.Strict)
 	return pgm, code, err
-***REMOVED***
+}
 
-type babel struct ***REMOVED***
+type babel struct {
 	vm        *goja.Runtime
 	this      goja.Value
 	transform goja.Callable
 	m         sync.Mutex
-***REMOVED***
+}
 
-func newBabel() (*babel, error) ***REMOVED***
-	onceBabelCode.Do(func() ***REMOVED***
+func newBabel() (*babel, error) {
+	onceBabelCode.Do(func() {
 		globalBabelCode, errGlobalBabelCode = goja.Compile("<internal/k6/compiler/lib/babel.min.js>", babelSrc, false)
-	***REMOVED***)
-	if errGlobalBabelCode != nil ***REMOVED***
+	})
+	if errGlobalBabelCode != nil {
 		return nil, errGlobalBabelCode
-	***REMOVED***
+	}
 	vm := goja.New()
 	_, err := vm.RunProgram(globalBabelCode)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	this := vm.Get("Babel")
 	bObj := this.ToObject(vm)
-	result := &babel***REMOVED***vm: vm, this: this***REMOVED***
-	if err = vm.ExportTo(bObj.Get("transform"), &result.transform); err != nil ***REMOVED***
+	result := &babel{vm: vm, this: this}
+	if err = vm.ExportTo(bObj.Get("transform"), &result.transform); err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	return result, err
-***REMOVED***
+}
 
 // increaseMappingsByOne increases the lines in the sourcemap by line so that it fixes the case where we need to wrap a
 // required file in a function to support/emulate commonjs
-func (c *compilationState) increaseMappingsByOne(sourceMap []byte) ([]byte, error) ***REMOVED***
+func (c *compilationState) increaseMappingsByOne(sourceMap []byte) ([]byte, error) {
 	var err error
-	m := make(map[string]interface***REMOVED******REMOVED***)
-	if err = json.Unmarshal(sourceMap, &m); err != nil ***REMOVED***
+	m := make(map[string]interface{})
+	if err = json.Unmarshal(sourceMap, &m); err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	mappings, ok := m["mappings"]
-	if !ok ***REMOVED***
+	if !ok {
 		// no mappings, no idea what this will do, but just return it as technically we can have sourcemap with sections
 		// TODO implement incrementing of `offset` in the sections? to support that case as well
 		// see https://sourcemaps.info/spec.html#h.n05z8dfyl3yh
@@ -283,137 +283,137 @@ func (c *compilationState) increaseMappingsByOne(sourceMap []byte) ([]byte, erro
 		// TODO (kind of alternatively) drop the newline in the "commonjs" wrapping and have only the first line wrong
 		// and drop this whole function
 		return sourceMap, nil
-	***REMOVED***
-	if str, ok := mappings.(string); ok ***REMOVED***
+	}
+	if str, ok := mappings.(string); ok {
 		// ';' is the separator between lines so just adding 1 will make all mappings be for the line after which they were
 		// originally
 		m["mappings"] = ";" + str
-	***REMOVED*** else ***REMOVED***
+	} else {
 		// we have mappings but it's not a string - this is some kind of error
 		// we still won't abort the test but just not load the sourcemap
 		c.couldntLoadSourceMap = true
 		return nil, errors.New(`missing "mappings" in sourcemap`)
-	***REMOVED***
+	}
 
 	return json.Marshal(m)
-***REMOVED***
+}
 
 // transformImpl the given code into ES5, while synchronizing to ensure only a single
 // bundle instance / Goja VM is in use at a time.
 func (b *babel) transformImpl(
 	logger logrus.FieldLogger, src, filename string, sourceMapsEnabled bool, inputSrcMap []byte,
-) (string, []byte, error) ***REMOVED***
+) (string, []byte, error) {
 	b.m.Lock()
 	defer b.m.Unlock()
-	opts := make(map[string]interface***REMOVED******REMOVED***)
-	for k, v := range DefaultOpts ***REMOVED***
+	opts := make(map[string]interface{})
+	for k, v := range DefaultOpts {
 		opts[k] = v
-	***REMOVED***
-	if sourceMapsEnabled ***REMOVED***
+	}
+	if sourceMapsEnabled {
 		// given that the source map should provide accurate lines(and columns), this option isn't needed
 		// it also happens to make very long and awkward lines, especially around import/exports and definitely a lot
 		// less readable overall. Hopefully it also has some performance improvement not trying to keep the same lines
 		opts["retainLines"] = false
 		opts["sourceMaps"] = true
-		if inputSrcMap != nil ***REMOVED***
-			srcMap := new(map[string]interface***REMOVED******REMOVED***)
-			if err := json.Unmarshal(inputSrcMap, &srcMap); err != nil ***REMOVED***
+		if inputSrcMap != nil {
+			srcMap := new(map[string]interface{})
+			if err := json.Unmarshal(inputSrcMap, &srcMap); err != nil {
 				return "", nil, err
-			***REMOVED***
+			}
 			opts["inputSourceMap"] = srcMap
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	opts["filename"] = filename
 
 	startTime := time.Now()
 	v, err := b.transform(b.this, b.vm.ToValue(src), b.vm.ToValue(opts))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return "", nil, err
-	***REMOVED***
+	}
 	logger.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
 
 	vO := v.ToObject(b.vm)
 	var code string
-	if err = b.vm.ExportTo(vO.Get("code"), &code); err != nil ***REMOVED***
+	if err = b.vm.ExportTo(vO.Get("code"), &code); err != nil {
 		return code, nil, err
-	***REMOVED***
-	if !sourceMapsEnabled ***REMOVED***
+	}
+	if !sourceMapsEnabled {
 		return code, nil, nil
-	***REMOVED***
+	}
 
 	// this is to make goja try to load a sourcemap.
 	// it is a special url as it should never leak outside of this code
 	// additionally the alternative support from babel is to embed *the whole* sourcemap at the end
 	code += "\n//# sourceMappingURL=" + sourceMapURLFromBabel
-	stringify, err := b.vm.RunString("(function(m) ***REMOVED*** return JSON.stringify(m)***REMOVED***)")
-	if err != nil ***REMOVED***
+	stringify, err := b.vm.RunString("(function(m) { return JSON.stringify(m)})")
+	if err != nil {
 		return code, nil, err
-	***REMOVED***
+	}
 	c, _ := goja.AssertFunction(stringify)
 	mapAsJSON, err := c(goja.Undefined(), vO.Get("map"))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return code, nil, err
-	***REMOVED***
+	}
 	return code, []byte(mapAsJSON.String()), nil
-***REMOVED***
+}
 
 // Pool is a pool of compilers so it can be used easier in parallel tests as they have their own babel.
-type Pool struct ***REMOVED***
+type Pool struct {
 	c chan *Compiler
-***REMOVED***
+}
 
 // NewPool creates a Pool that will be using the provided logger and will preallocate (in parallel)
 // the count of compilers each with their own babel.
-func NewPool(logger logrus.FieldLogger, count int) *Pool ***REMOVED***
-	c := &Pool***REMOVED***
+func NewPool(logger logrus.FieldLogger, count int) *Pool {
+	c := &Pool{
 		c: make(chan *Compiler, count),
-	***REMOVED***
-	go func() ***REMOVED***
-		for i := 0; i < count; i++ ***REMOVED***
-			go func() ***REMOVED***
+	}
+	go func() {
+		for i := 0; i < count; i++ {
+			go func() {
 				co := New(logger)
 				err := co.initializeBabel()
-				if err != nil ***REMOVED***
+				if err != nil {
 					panic(err)
-				***REMOVED***
+				}
 				c.Put(co)
-			***REMOVED***()
-		***REMOVED***
-	***REMOVED***()
+			}()
+		}
+	}()
 
 	return c
-***REMOVED***
+}
 
 // Get a compiler from the pool.
-func (c *Pool) Get() *Compiler ***REMOVED***
+func (c *Pool) Get() *Compiler {
 	return <-c.c
-***REMOVED***
+}
 
 // Put a compiler back in the pool.
-func (c *Pool) Put(co *Compiler) ***REMOVED***
+func (c *Pool) Put(co *Compiler) {
 	c.c <- co
-***REMOVED***
+}
 
-func verifySourceMapForBabel(srcMap []byte) error ***REMOVED***
+func verifySourceMapForBabel(srcMap []byte) error {
 	// this function exists to do what babel checks in sourcemap before we give it to it.
 	m := make(map[string]json.RawMessage)
 	err := json.Unmarshal(srcMap, &m)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return fmt.Errorf("source map is not valid json: %w", err)
-	***REMOVED***
+	}
 	// there are no checks on it's value in babel
 	// we technically only support v3 though
-	if _, ok := m["version"]; !ok ***REMOVED***
+	if _, ok := m["version"]; !ok {
 		return fmt.Errorf("source map missing required 'version' field")
-	***REMOVED***
+	}
 
 	// This actually gets checked by the go implementation so it's not really necessary
-	if _, ok := m["mappings"]; !ok ***REMOVED***
+	if _, ok := m["mappings"]; !ok {
 		return fmt.Errorf("source map missing required 'mappings' field")
-	***REMOVED***
+	}
 	// the go implementation checks the value even if it doesn't require it exists
-	if _, ok := m["sources"]; !ok ***REMOVED***
+	if _, ok := m["sources"]; !ok {
 		return fmt.Errorf("source map missing required 'sources' field")
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}

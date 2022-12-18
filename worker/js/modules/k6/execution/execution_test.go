@@ -25,23 +25,23 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func setupTagsExecEnv(t *testing.T) *modulestest.Runtime ***REMOVED***
+func setupTagsExecEnv(t *testing.T) *modulestest.Runtime {
 	testRuntime := modulestest.NewRuntime(t)
 	m, ok := New().NewModuleInstance(testRuntime.VU).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, testRuntime.VU.Runtime().Set("exec", m.Exports().Default))
 
 	return testRuntime
-***REMOVED***
+}
 
-func TestVUTags(t *testing.T) ***REMOVED***
+func TestVUTags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Get", func(t *testing.T) ***REMOVED***
+	t.Run("Get", func(t *testing.T) {
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+		tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 		tag, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "42", tag.String())
@@ -50,50 +50,50 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		tag, err = tenv.VU.Runtime().RunString(`exec.vu.tags["not-existing-tag"]`)
 		require.NoError(t, err)
 		assert.Equal(t, "undefined", tag.String())
-	***REMOVED***)
+	})
 
-	t.Run("JSONEncoding", func(t *testing.T) ***REMOVED***
+	t.Run("JSONEncoding", func(t *testing.T) {
 		t.Parallel()
 
 		tenv := setupTagsExecEnv(t)
-		tenv.MoveToVUContext(&libWorker.State***REMOVED***
-			Options: libWorker.Options***REMOVED***
+		tenv.MoveToVUContext(&libWorker.State{
+			Options: libWorker.Options{
 				SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
-			***REMOVED***,
-			Tags: libWorker.NewTagMap(map[string]string***REMOVED***
+			},
+			Tags: libWorker.NewTagMap(map[string]string{
 				"vu": "42",
-			***REMOVED***),
-		***REMOVED***)
+			}),
+		})
 		state := tenv.VU.State()
 		state.Tags.Set("custom-tag", "mytag1")
 
 		encoded, err := tenv.VU.Runtime().RunString(`JSON.stringify(exec.vu.tags)`)
 		require.NoError(t, err)
-		assert.JSONEq(t, `***REMOVED***"vu":"42","custom-tag":"mytag1"***REMOVED***`, encoded.String())
-	***REMOVED***)
+		assert.JSONEq(t, `{"vu":"42","custom-tag":"mytag1"}`, encoded.String())
+	})
 
-	t.Run("Set", func(t *testing.T) ***REMOVED***
+	t.Run("Set", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("SuccessAccetedTypes", func(t *testing.T) ***REMOVED***
+		t.Run("SuccessAccetedTypes", func(t *testing.T) {
 			t.Parallel()
 
 			// bool and numbers are implicitly converted into string
 
-			tests := map[string]struct ***REMOVED***
-				v   interface***REMOVED******REMOVED***
+			tests := map[string]struct {
+				v   interface{}
 				exp string
-			***REMOVED******REMOVED***
-				"string": ***REMOVED***v: `"tag1"`, exp: "tag1"***REMOVED***,
-				"bool":   ***REMOVED***v: true, exp: "true"***REMOVED***,
-				"int":    ***REMOVED***v: 101, exp: "101"***REMOVED***,
-				"float":  ***REMOVED***v: 3.14, exp: "3.14"***REMOVED***,
-			***REMOVED***
+			}{
+				"string": {v: `"tag1"`, exp: "tag1"},
+				"bool":   {v: true, exp: "true"},
+				"int":    {v: 101, exp: "101"},
+				"float":  {v: 3.14, exp: "3.14"},
+			}
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
-			for _, tc := range tests ***REMOVED***
+			for _, tc := range tests {
 				_, err := tenv.VU.Runtime().RunString(fmt.Sprintf(`exec.vu.tags["mytag"] = %v`, tc.v))
 				require.NoError(t, err)
 
@@ -101,120 +101,120 @@ func TestVUTags(t *testing.T) ***REMOVED***
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.exp, val.String())
-			***REMOVED***
-		***REMOVED***)
+			}
+		})
 
-		t.Run("SuccessOverwriteSystemTag", func(t *testing.T) ***REMOVED***
+		t.Run("SuccessOverwriteSystemTag", func(t *testing.T) {
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
 			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"] = "vu101"`)
 			require.NoError(t, err)
 			val, err := tenv.VU.Runtime().RunString(`exec.vu.tags["vu"]`)
 			require.NoError(t, err)
 			assert.Equal(t, "vu101", val.String())
-		***REMOVED***)
+		})
 
-		t.Run("DiscardWrongTypeAndRaisingError", func(t *testing.T) ***REMOVED***
+		t.Run("DiscardWrongTypeAndRaisingError", func(t *testing.T) {
 			t.Parallel()
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&libWorker.State***REMOVED***Tags: libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***)***REMOVED***)
+			tenv.MoveToVUContext(&libWorker.State{Tags: libWorker.NewTagMap(map[string]string{"vu": "42"})})
 
 			state := tenv.VU.State()
 			state.Options.Throw = null.BoolFrom(true)
 			require.NotNil(t, state)
 
-			cases := []string***REMOVED***
+			cases := []string{
 				`[1, 3, 5]`,             // array
-				`***REMOVED***f1: "value1", f2: 4***REMOVED***`, // object
-			***REMOVED***
+				`{f1: "value1", f2: 4}`, // object
+			}
 
-			for _, val := range cases ***REMOVED***
+			for _, val := range cases {
 				_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = ` + val)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "TypeError:")
 				assert.Contains(t, err.Error(), "only String, Boolean and Number")
-			***REMOVED***
-		***REMOVED***)
+			}
+		})
 
-		t.Run("DiscardWrongTypeOnlyWarning", func(t *testing.T) ***REMOVED***
+		t.Run("DiscardWrongTypeOnlyWarning", func(t *testing.T) {
 			t.Parallel()
-			logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+			logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 			testLog := logrus.New()
 			testLog.AddHook(logHook)
 			testLog.SetOutput(ioutil.Discard)
 
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&libWorker.State***REMOVED***
-				Options: libWorker.Options***REMOVED***
+			tenv.MoveToVUContext(&libWorker.State{
+				Options: libWorker.Options{
 					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
-				***REMOVED***,
-				Tags: libWorker.NewTagMap(map[string]string***REMOVED***
+				},
+				Tags: libWorker.NewTagMap(map[string]string{
 					"vu": "42",
-				***REMOVED***),
+				}),
 				Logger: testLog,
-			***REMOVED***)
+			})
 			_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = [1, 3, 5]`)
 			require.NoError(t, err)
 
 			entries := logHook.Drain()
 			require.Len(t, entries, 1)
 			assert.Contains(t, entries[0].Message, "discarded")
-		***REMOVED***)
+		})
 
-		t.Run("DiscardNullOrUndefined", func(t *testing.T) ***REMOVED***
+		t.Run("DiscardNullOrUndefined", func(t *testing.T) {
 			t.Parallel()
 
-			logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+			logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 			testLog := logrus.New()
 			testLog.AddHook(logHook)
 			testLog.SetOutput(ioutil.Discard)
 
-			cases := []string***REMOVED***"null", "undefined"***REMOVED***
+			cases := []string{"null", "undefined"}
 			tenv := setupTagsExecEnv(t)
-			tenv.MoveToVUContext(&libWorker.State***REMOVED***
-				Options: libWorker.Options***REMOVED***
+			tenv.MoveToVUContext(&libWorker.State{
+				Options: libWorker.Options{
 					SystemTags: workerMetrics.NewSystemTagSet(workerMetrics.TagVU),
-				***REMOVED***,
-				Tags:   libWorker.NewTagMap(map[string]string***REMOVED***"vu": "42"***REMOVED***),
+				},
+				Tags:   libWorker.NewTagMap(map[string]string{"vu": "42"}),
 				Logger: testLog,
-			***REMOVED***)
-			for _, val := range cases ***REMOVED***
+			})
+			for _, val := range cases {
 				_, err := tenv.VU.Runtime().RunString(`exec.vu.tags["custom-tag"] = ` + val)
 				require.NoError(t, err)
 
 				entries := logHook.Drain()
 				require.Len(t, entries, 1)
 				assert.Contains(t, entries[0].Message, "discarded")
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+			}
+		})
+	})
+}
 
-func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
+func TestAbortTest(t *testing.T) { //nolint:tparallel
 	t.Parallel()
 
 	var (
 		rt    = goja.New()
-		state = &libWorker.State***REMOVED******REMOVED***
+		state = &libWorker.State{}
 		ctx   = context.Background()
 	)
 
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			InitEnvField: &common.InitEnvironment{},
 			CtxField:     ctx,
 			StateField:   state,
-		***REMOVED***,
+		},
 	).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("exec", m.Exports().Default))
 
-	prove := func(t *testing.T, script, reason string) ***REMOVED***
+	prove := func(t *testing.T, script, reason string) {
 		_, err := rt.RunString(script)
 		require.NotNil(t, err)
 		var x *goja.InterruptedError
@@ -222,55 +222,55 @@ func TestAbortTest(t *testing.T) ***REMOVED*** //nolint:tparallel
 		v, ok := x.Value().(*errext.InterruptError)
 		require.True(t, ok)
 		require.Equal(t, v.Reason, reason)
-	***REMOVED***
+	}
 
-	t.Run("default reason", func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+	t.Run("default reason", func(t *testing.T) { //nolint:paralleltest
 		prove(t, "exec.test.abort()", errext.AbortTest)
-	***REMOVED***)
-	t.Run("custom reason", func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+	})
+	t.Run("custom reason", func(t *testing.T) { //nolint:paralleltest
 		prove(t, `exec.test.abort("mayday")`, fmt.Sprintf("%s: mayday", errext.AbortTest))
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestOptionsTestFull(t *testing.T) ***REMOVED***
+func TestOptionsTestFull(t *testing.T) {
 	t.Parallel()
 
-	expected := `***REMOVED***"paused":true,"scenarios":***REMOVED***"const-vus":***REMOVED***"executor":"constant-vus","startTime":"10s","gracefulStop":"30s","env":***REMOVED***"FOO":"bar"***REMOVED***,"exec":"default","tags":***REMOVED***"tagkey":"tagvalue"***REMOVED***,"vus":50,"duration":"10m0s"***REMOVED******REMOVED***,"executionSegment":"0:1/4","executionSegmentSequence":"0,1/4,1/2,1","noSetup":true,"setupTimeout":"1m0s","noTeardown":true,"teardownTimeout":"5m0s","rps":100,"dns":***REMOVED***"ttl":"1m","select":"roundRobin","policy":"any"***REMOVED***,"maxRedirects":3,"userAgent":"k6-user-agent","batch":15,"batchPerHost":5,"httpDebug":"full","insecureSkipTLSVerify":true,"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"],"tlsVersion":***REMOVED***"min":"tls1.2","max":"tls1.3"***REMOVED***,"tlsAuth":[***REMOVED***"domains":["example.com"],"cert":"mycert.pem","key":"mycert-key.pem","password":"mypwd"***REMOVED***],"throw":true,"thresholds":***REMOVED***"http_req_duration":[***REMOVED***"threshold":"rate>0.01","abortOnFail":true,"delayAbortEval":"10s"***REMOVED***]***REMOVED***,"blacklistIPs":["192.0.2.0/24"],"blockHostnames":["test.k6.io","*.example.com"],"hosts":***REMOVED***"test.k6.io":"1.2.3.4:8443"***REMOVED***,"noConnectionReuse":true,"noVUConnectionReuse":true,"minIterationDuration":"10s","ext":***REMOVED***"ext-one":***REMOVED***"rawkey":"rawvalue"***REMOVED******REMOVED***,"summaryTrendStats":["avg","min","max"],"summaryTimeUnit":"ms","systemTags":["iter","vu"],"tags":null,"metricSamplesBufferSize":8,"noCookiesReset":true,"discardResponseBodies":true,"consoleOutput":"loadtest.log","tags":***REMOVED***"runtag-key":"runtag-value"***REMOVED***,"localIPs":"192.168.20.12-192.168.20.15,192.168.10.0/27"***REMOVED***`
+	expected := `{"paused":true,"scenarios":{"const-vus":{"executor":"constant-vus","startTime":"10s","gracefulStop":"30s","env":{"FOO":"bar"},"exec":"default","tags":{"tagkey":"tagvalue"},"vus":50,"duration":"10m0s"}},"executionSegment":"0:1/4","executionSegmentSequence":"0,1/4,1/2,1","noSetup":true,"setupTimeout":"1m0s","noTeardown":true,"teardownTimeout":"5m0s","rps":100,"dns":{"ttl":"1m","select":"roundRobin","policy":"any"},"maxRedirects":3,"userAgent":"k6-user-agent","batch":15,"batchPerHost":5,"httpDebug":"full","insecureSkipTLSVerify":true,"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"],"tlsVersion":{"min":"tls1.2","max":"tls1.3"},"tlsAuth":[{"domains":["example.com"],"cert":"mycert.pem","key":"mycert-key.pem","password":"mypwd"}],"throw":true,"thresholds":{"http_req_duration":[{"threshold":"rate>0.01","abortOnFail":true,"delayAbortEval":"10s"}]},"blacklistIPs":["192.0.2.0/24"],"blockHostnames":["test.k6.io","*.example.com"],"hosts":{"test.k6.io":"1.2.3.4:8443"},"noConnectionReuse":true,"noVUConnectionReuse":true,"minIterationDuration":"10s","ext":{"ext-one":{"rawkey":"rawvalue"}},"summaryTrendStats":["avg","min","max"],"summaryTimeUnit":"ms","systemTags":["iter","vu"],"tags":null,"metricSamplesBufferSize":8,"noCookiesReset":true,"discardResponseBodies":true,"consoleOutput":"loadtest.log","tags":{"runtag-key":"runtag-value"},"localIPs":"192.168.20.12-192.168.20.15,192.168.10.0/27"}`
 
 	var (
 		rt    = goja.New()
-		state = &libWorker.State***REMOVED***
-			Options: libWorker.Options***REMOVED***
+		state = &libWorker.State{
+			Options: libWorker.Options{
 				Paused: null.BoolFrom(true),
-				Scenarios: map[string]libWorker.ExecutorConfig***REMOVED***
-					"const-vus": executor.ConstantVUsConfig***REMOVED***
-						BaseConfig: executor.BaseConfig***REMOVED***
+				Scenarios: map[string]libWorker.ExecutorConfig{
+					"const-vus": executor.ConstantVUsConfig{
+						BaseConfig: executor.BaseConfig{
 							Name:         "const-vus",
 							Type:         "constant-vus",
 							StartTime:    types.NullDurationFrom(10 * time.Second),
 							GracefulStop: types.NullDurationFrom(30 * time.Second),
-							Env: map[string]string***REMOVED***
+							Env: map[string]string{
 								"FOO": "bar",
-							***REMOVED***,
+							},
 							Exec: null.StringFrom("default"),
-							Tags: map[string]string***REMOVED***
+							Tags: map[string]string{
 								"tagkey": "tagvalue",
-							***REMOVED***,
-						***REMOVED***,
+							},
+						},
 						VUs:      null.IntFrom(50),
 						Duration: types.NullDurationFrom(10 * time.Minute),
-					***REMOVED***,
-				***REMOVED***,
-				ExecutionSegment: func() *libWorker.ExecutionSegment ***REMOVED***
+					},
+				},
+				ExecutionSegment: func() *libWorker.ExecutionSegment {
 					seg, err := libWorker.NewExecutionSegmentFromString("0:1/4")
 					require.NoError(t, err)
 					return seg
-				***REMOVED***(),
-				ExecutionSegmentSequence: func() *libWorker.ExecutionSegmentSequence ***REMOVED***
+				}(),
+				ExecutionSegmentSequence: func() *libWorker.ExecutionSegmentSequence {
 					seq, err := libWorker.NewExecutionSegmentSequenceFromString("0,1/4,1/2,1")
 					require.NoError(t, err)
 					return &seq
-				***REMOVED***(),
+				}(),
 				NoSetup:               null.BoolFrom(true),
 				NoTeardown:            null.BoolFrom(true),
 				NoConnectionReuse:     null.BoolFrom(true),
@@ -288,102 +288,102 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 				TeardownTimeout:       types.NullDurationFrom(5 * time.Minute),
 				MinIterationDuration:  types.NullDurationFrom(10 * time.Second),
 				HTTPDebug:             null.StringFrom("full"),
-				DNS: types.DNSConfig***REMOVED***
+				DNS: types.DNSConfig{
 					TTL:    null.StringFrom("1m"),
-					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSroundRobin, Valid: true***REMOVED***,
-					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
+					Select: types.NullDNSSelect{DNSSelect: types.DNSroundRobin, Valid: true},
+					Policy: types.NullDNSPolicy{DNSPolicy: types.DNSany, Valid: true},
 					Valid:  true,
-				***REMOVED***,
-				TLSVersion: &libWorker.TLSVersions***REMOVED***
+				},
+				TLSVersion: &libWorker.TLSVersions{
 					Min: tls.VersionTLS12,
 					Max: tls.VersionTLS13,
-				***REMOVED***,
-				TLSAuth: []*libWorker.TLSAuth***REMOVED***
-					***REMOVED***
-						TLSAuthFields: libWorker.TLSAuthFields***REMOVED***
+				},
+				TLSAuth: []*libWorker.TLSAuth{
+					{
+						TLSAuthFields: libWorker.TLSAuthFields{
 							Cert:     "mycert.pem",
 							Key:      "mycert-key.pem",
 							Password: null.StringFrom("mypwd"),
-							Domains:  []string***REMOVED***"example.com"***REMOVED***,
-						***REMOVED***,
-					***REMOVED***,
-				***REMOVED***,
-				TLSCipherSuites: &libWorker.TLSCipherSuites***REMOVED***
+							Domains:  []string{"example.com"},
+						},
+					},
+				},
+				TLSCipherSuites: &libWorker.TLSCipherSuites{
 					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				***REMOVED***,
-				BlacklistIPs: []*libWorker.IPNet***REMOVED***
-					***REMOVED***
-						IPNet: func() net.IPNet ***REMOVED***
+				},
+				BlacklistIPs: []*libWorker.IPNet{
+					{
+						IPNet: func() net.IPNet {
 							_, ipv4net, err := net.ParseCIDR("192.0.2.1/24")
 							require.NoError(t, err)
 							return *ipv4net
-						***REMOVED***(),
-					***REMOVED***,
-				***REMOVED***,
-				Thresholds: map[string]workerMetrics.Thresholds***REMOVED***
-					"http_req_duration": ***REMOVED***
-						Thresholds: []*workerMetrics.Threshold***REMOVED***
-							***REMOVED***
+						}(),
+					},
+				},
+				Thresholds: map[string]workerMetrics.Thresholds{
+					"http_req_duration": {
+						Thresholds: []*workerMetrics.Threshold{
+							{
 								Source:           "rate>0.01",
 								LastFailed:       true,
 								AbortOnFail:      true,
 								AbortGracePeriod: types.NullDurationFrom(10 * time.Second),
-							***REMOVED***,
-						***REMOVED***,
-					***REMOVED***,
-				***REMOVED***,
-				BlockedHostnames: func() types.NullHostnameTrie ***REMOVED***
-					bh, err := types.NewNullHostnameTrie([]string***REMOVED***"test.k6.io", "*.example.com"***REMOVED***)
+							},
+						},
+					},
+				},
+				BlockedHostnames: func() types.NullHostnameTrie {
+					bh, err := types.NewNullHostnameTrie([]string{"test.k6.io", "*.example.com"})
 					require.NoError(t, err)
 					return bh
-				***REMOVED***(),
-				Hosts: map[string]*libWorker.HostAddress***REMOVED***
-					"test.k6.io": ***REMOVED***
-						IP:   []byte***REMOVED***0x01, 0x02, 0x03, 0x04***REMOVED***,
+				}(),
+				Hosts: map[string]*libWorker.HostAddress{
+					"test.k6.io": {
+						IP:   []byte{0x01, 0x02, 0x03, 0x04},
 						Port: 8443,
-					***REMOVED***,
-				***REMOVED***,
-				External: map[string]json.RawMessage***REMOVED***
-					"ext-one": json.RawMessage(`***REMOVED***"rawkey":"rawvalue"***REMOVED***`),
-				***REMOVED***,
-				SummaryTrendStats: []string***REMOVED***"avg", "min", "max"***REMOVED***,
+					},
+				},
+				External: map[string]json.RawMessage{
+					"ext-one": json.RawMessage(`{"rawkey":"rawvalue"}`),
+				},
+				SummaryTrendStats: []string{"avg", "min", "max"},
 				SummaryTimeUnit:   null.StringFrom("ms"),
-				SystemTags: func() *workerMetrics.SystemTagSet ***REMOVED***
+				SystemTags: func() *workerMetrics.SystemTagSet {
 					sysm := workerMetrics.TagIter | workerMetrics.TagVU
 					return &sysm
-				***REMOVED***(),
-				RunTags:                 map[string]string***REMOVED***"runtag-key": "runtag-value"***REMOVED***,
+				}(),
+				RunTags:                 map[string]string{"runtag-key": "runtag-value"},
 				MetricSamplesBufferSize: null.IntFrom(8),
 				ConsoleOutput:           null.StringFrom("loadtest.log"),
-				LocalIPs: func() types.NullIPPool ***REMOVED***
-					npool := types.NullIPPool***REMOVED******REMOVED***
+				LocalIPs: func() types.NullIPPool {
+					npool := types.NullIPPool{}
 					err := npool.UnmarshalText([]byte("192.168.20.12-192.168.20.15,192.168.10.0/27"))
 					require.NoError(t, err)
 					return npool
-				***REMOVED***(),
+				}(),
 
 				// The following fields are not expected to be
 				// in the final test.options object
 				VUs:        null.IntFrom(50),
 				Iterations: null.IntFrom(100),
 				Duration:   types.NullDurationFrom(10 * time.Second),
-				Stages: []libWorker.Stage***REMOVED***
-					***REMOVED***
+				Stages: []libWorker.Stage{
+					{
 						Duration: types.NullDurationFrom(2 * time.Second),
 						Target:   null.IntFrom(2),
-					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***
+					},
+				},
+			},
+		}
 		ctx = context.Background()
 	)
 
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
 			CtxField:     ctx,
 			StateField:   state,
-		***REMOVED***,
+		},
 	).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("exec", m.Exports().Default))
@@ -392,22 +392,22 @@ func TestOptionsTestFull(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.NotNil(t, opts)
 	assert.JSONEq(t, expected, opts.String())
-***REMOVED***
+}
 
-func TestOptionsTestSetPropertyDenied(t *testing.T) ***REMOVED***
+func TestOptionsTestSetPropertyDenied(t *testing.T) {
 	t.Parallel()
 
 	rt := goja.New()
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &libWorker.State***REMOVED***
-				Options: libWorker.Options***REMOVED***
+			StateField: &libWorker.State{
+				Options: libWorker.Options{
 					Paused: null.BoolFrom(true),
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
+				},
+			},
+		},
 	).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("exec", m.Exports().Default))
@@ -417,32 +417,32 @@ func TestOptionsTestSetPropertyDenied(t *testing.T) ***REMOVED***
 	paused, err := rt.RunString(`exec.test.options.paused`)
 	require.NoError(t, err)
 	assert.Equal(t, true, rt.ToValue(paused).ToBoolean())
-***REMOVED***
+}
 
-func TestScenarioNoAvailableInInitContext(t *testing.T) ***REMOVED***
+func TestScenarioNoAvailableInInitContext(t *testing.T) {
 	t.Parallel()
 
 	rt := goja.New()
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
 			CtxField:     context.Background(),
-			StateField: &libWorker.State***REMOVED***
-				Options: libWorker.Options***REMOVED***
+			StateField: &libWorker.State{
+				Options: libWorker.Options{
 					Paused: null.BoolFrom(true),
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
+				},
+			},
+		},
 	).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("exec", m.Exports().Default))
 
-	scenarioExportedProps := []string***REMOVED***"name", "executor", "startTime", "progress", "iterationInInstance", "iterationInTest"***REMOVED***
+	scenarioExportedProps := []string{"name", "executor", "startTime", "progress", "iterationInInstance", "iterationInTest"}
 
-	for _, code := range scenarioExportedProps ***REMOVED***
+	for _, code := range scenarioExportedProps {
 		prop := fmt.Sprintf("exec.scenario.%s", code)
 		_, err := rt.RunString(prop)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "getting scenario information outside of the VU context is not supported")
-	***REMOVED***
-***REMOVED***
+	}
+}

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func RunGoogleCloud(w http.ResponseWriter, r *http.Request) ***REMOVED***
+func RunGoogleCloud(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 	client := getWorkerClient(true)
@@ -18,27 +18,27 @@ func RunGoogleCloud(w http.ResponseWriter, r *http.Request) ***REMOVED***
 
 	creditsClient := lib.GetCreditsClient(true)
 
-	executionList := &ExecutionList***REMOVED***
+	executionList := &ExecutionList{
 		currentJobs: make(map[string]libOrch.ChildJob),
 		maxJobs:     maxJobs,
 		maxVUs:      maxVUs,
-	***REMOVED***
+	}
 
 	// Get the childJobId from the request
 
 	childJobId := r.URL.Query().Get("childJobId")
 
-	if childJobId == "" ***REMOVED***
+	if childJobId == "" {
 		panic("childJobId is required")
-	***REMOVED***
+	}
 
 	err := checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient, true)
-	if err != nil ***REMOVED***
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
-	***REMOVED***
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
-***REMOVED***
+}

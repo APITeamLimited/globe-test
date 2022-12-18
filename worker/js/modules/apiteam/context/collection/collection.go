@@ -18,81 +18,81 @@ import (
 type (
 	// CollectionModule is the global module instance that will create module
 	// instances for each VU.
-	CollectionModule struct ***REMOVED***
+	CollectionModule struct {
 		isEnabled        bool
 		setEnabled       bool
 		sharedCollection sharedCollection
-	***REMOVED***
+	}
 
 	// CollectionInstance represents an instance of the collection module.
-	CollectionInstance struct ***REMOVED***
+	CollectionInstance struct {
 		vu            modules.VU
 		module        *CollectionModule
 		defaultExport *goja.Object
-	***REMOVED***
+	}
 
-	sharedCollection struct ***REMOVED***
+	sharedCollection struct {
 		data *libWorker.Collection
 
 		mu *sync.RWMutex
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &CollectionModule***REMOVED******REMOVED***
-	_ modules.Instance = &CollectionInstance***REMOVED******REMOVED***
+	_ modules.Module   = &CollectionModule{}
+	_ modules.Instance = &CollectionInstance{}
 )
 
 // New returns a pointer to a new CollectionModule instance.
-func New(workerInfo *libWorker.WorkerInfo) *CollectionModule ***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *CollectionModule {
 	// Check collection actually exists
-	if workerInfo.Collection != nil ***REMOVED***
-		return &CollectionModule***REMOVED***
+	if workerInfo.Collection != nil {
+		return &CollectionModule{
 			isEnabled: true,
-			sharedCollection: sharedCollection***REMOVED***
+			sharedCollection: sharedCollection{
 				data: workerInfo.Collection,
-				mu:   &sync.RWMutex***REMOVED******REMOVED***,
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		return &CollectionModule***REMOVED***
+				mu:   &sync.RWMutex{},
+			},
+		}
+	} else {
+		return &CollectionModule{
 			isEnabled:        false,
 			setEnabled:       false,
-			sharedCollection: sharedCollection***REMOVED******REMOVED***,
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+			sharedCollection: sharedCollection{},
+		}
+	}
+}
 
 // NewModuleInstance returns an collection module instance for each VU.
-func (module *CollectionModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+func (module *CollectionModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	rt := vu.Runtime()
 
-	mi := &CollectionInstance***REMOVED***
+	mi := &CollectionInstance{
 		vu:            vu,
 		module:        module,
 		defaultExport: rt.NewObject(),
-	***REMOVED***
+	}
 
 	mi.defaultExport.DefineDataProperty(
 		"enabled", rt.ToValue(module.isEnabled), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
 
-	if module.isEnabled ***REMOVED***
+	if module.isEnabled {
 		mi.defaultExport.DefineDataProperty(
 			"name", rt.ToValue(module.sharedCollection.data.Name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE,
 		)
 
-		if err := mi.defaultExport.Set("variables", mi.getVariablesObject()); err != nil ***REMOVED***
+		if err := mi.defaultExport.Set("variables", mi.getVariablesObject()); err != nil {
 			fmt.Println("Error setting collection variables object: ", err)
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return mi
-***REMOVED***
+}
 
 // Exports returns the exports of the collection module.
-func (mi *CollectionInstance) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
+func (mi *CollectionInstance) Exports() modules.Exports {
+	return modules.Exports{
 		Default: mi.defaultExport,
-	***REMOVED***
-***REMOVED***
+	}
+}

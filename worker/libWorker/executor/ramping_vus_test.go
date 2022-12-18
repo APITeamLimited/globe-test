@@ -18,7 +18,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func TestRampingVUsConfigValidation(t *testing.T) ***REMOVED***
+func TestRampingVUsConfigValidation(t *testing.T) {
 	t.Parallel()
 
 	errs := NewRampingVUsConfig("default").Validate()
@@ -26,9 +26,9 @@ func TestRampingVUsConfigValidation(t *testing.T) ***REMOVED***
 	assert.Contains(t, errs[0].Error(), "one stage has to be specified")
 
 	c := NewRampingVUsConfig("stage")
-	c.Stages = []Stage***REMOVED***
-		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(12 * time.Second)***REMOVED***,
-	***REMOVED***
+	c.Stages = []Stage{
+		{Target: null.IntFrom(0), Duration: types.NullDurationFrom(12 * time.Second)},
+	}
 	errs = c.Validate()
 	require.Empty(t, errs) // by default StartVUs is 1
 
@@ -36,106 +36,106 @@ func TestRampingVUsConfigValidation(t *testing.T) ***REMOVED***
 	errs = c.Validate()
 	require.NotEmpty(t, errs)
 	assert.Contains(t, errs[0].Error(), "greater than 0")
-***REMOVED***
+}
 
-func TestRampingVUsRun(t *testing.T) ***REMOVED***
+func TestRampingVUsRun(t *testing.T) {
 	t.Parallel()
 
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(0)***REMOVED***,
+	config := RampingVUsConfig{
+		BaseConfig:       BaseConfig{GracefulStop: types.NullDurationFrom(0)},
 		GracefulRampDown: types.NullDurationFrom(0),
 		StartVUs:         null.IntFrom(5),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(5),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(0),
 				Target:   null.IntFrom(3),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(3),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	var iterCount int64
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		// Sleeping for a weird duration somewhat offset from the
 		// executor ticks to hopefully keep race conditions out of
 		// our control from failing the test.
 		time.Sleep(300 * time.Millisecond)
 		atomic.AddInt64(&iterCount, 1)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	sampleTimes := []time.Duration***REMOVED***
+	sampleTimes := []time.Duration{
 		500 * time.Millisecond,
 		1000 * time.Millisecond,
 		900 * time.Millisecond,
-	***REMOVED***
+	}
 
 	errCh := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		errCh <- test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 
 	result := make([]int64, len(sampleTimes))
-	for i, d := range sampleTimes ***REMOVED***
+	for i, d := range sampleTimes {
 		time.Sleep(d)
 		result[i] = test.state.GetCurrentlyActiveVUsCount()
-	***REMOVED***
+	}
 
 	require.NoError(t, <-errCh)
 
-	assert.Equal(t, []int64***REMOVED***5, 3, 0***REMOVED***, result)
+	assert.Equal(t, []int64{5, 3, 0}, result)
 	assert.Equal(t, int64(29), atomic.LoadInt64(&iterCount))
-***REMOVED***
+}
 
-func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
+func TestRampingVUsGracefulStopWaits(t *testing.T) {
 	t.Parallel()
 
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(time.Second)***REMOVED***,
+	config := RampingVUsConfig{
+		BaseConfig: BaseConfig{GracefulStop: types.NullDurationFrom(time.Second)},
 		StartVUs:   null.IntFrom(1),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	var (
-		started = make(chan struct***REMOVED******REMOVED***) // the iteration started
-		stopped = make(chan struct***REMOVED******REMOVED***) // the iteration stopped
-		stop    = make(chan struct***REMOVED******REMOVED***) // the itearation should stop
+		started = make(chan struct{}) // the iteration started
+		stopped = make(chan struct{}) // the iteration stopped
+		stop    = make(chan struct{}) // the itearation should stop
 	)
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		close(started)
 		defer close(stopped)
-		select ***REMOVED***
+		select {
 		case <-ctx.Done():
 			t.Fatal("The iterations should've ended before the context")
 		case <-stop:
-		***REMOVED***
+		}
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	errCh := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		errCh <- test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 
 	<-started
 	// 500 milliseconds more then the duration and 500 less then the gracefulStop
@@ -144,46 +144,46 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 	<-stopped
 
 	require.NoError(t, <-errCh)
-***REMOVED***
+}
 
-func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
+func TestRampingVUsGracefulStopStops(t *testing.T) {
 	t.Parallel()
 
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(time.Second)***REMOVED***,
+	config := RampingVUsConfig{
+		BaseConfig: BaseConfig{GracefulStop: types.NullDurationFrom(time.Second)},
 		StartVUs:   null.IntFrom(1),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	var (
-		started = make(chan struct***REMOVED******REMOVED***) // the iteration started
-		stopped = make(chan struct***REMOVED******REMOVED***) // the iteration stopped
-		stop    = make(chan struct***REMOVED******REMOVED***) // the itearation should stop
+		started = make(chan struct{}) // the iteration started
+		stopped = make(chan struct{}) // the iteration stopped
+		stop    = make(chan struct{}) // the itearation should stop
 	)
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		close(started)
 		defer close(stopped)
-		select ***REMOVED***
+		select {
 		case <-ctx.Done():
 		case <-stop:
 			t.Fatal("The iterations shouldn't have ended before the context")
-		***REMOVED***
+		}
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	errCh := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		errCh <- test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 
 	<-started
 	// 500 milliseconds more then the gracefulStop + duration
@@ -192,55 +192,55 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 	<-stopped
 
 	require.NoError(t, <-errCh)
-***REMOVED***
+}
 
-func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
+func TestRampingVUsGracefulRampDown(t *testing.T) {
 	t.Parallel()
 
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+	config := RampingVUsConfig{
+		BaseConfig:       BaseConfig{GracefulStop: types.NullDurationFrom(5 * time.Second)},
 		StartVUs:         null.IntFrom(2),
 		GracefulRampDown: types.NullDurationFrom(5 * time.Second),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(2),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(0),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	var (
-		started = make(chan struct***REMOVED******REMOVED***) // the iteration started
-		stopped = make(chan struct***REMOVED******REMOVED***) // the iteration stopped
-		stop    = make(chan struct***REMOVED******REMOVED***) // the itearation should stop
+		started = make(chan struct{}) // the iteration started
+		stopped = make(chan struct{}) // the iteration stopped
+		stop    = make(chan struct{}) // the itearation should stop
 	)
 
-	runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error ***REMOVED***
-		if state.VUID == 1 ***REMOVED*** // the first VU will wait here to do stuff
+	runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error {
+		if state.VUID == 1 { // the first VU will wait here to do stuff
 			close(started)
 			defer close(stopped)
-			select ***REMOVED***
+			select {
 			case <-ctx.Done():
 				t.Fatal("The iterations can't have ended before the context")
 			case <-stop:
-			***REMOVED***
-		***REMOVED*** else ***REMOVED*** // all other (1) VUs will just sleep long enough
+			}
+		} else { // all other (1) VUs will just sleep long enough
 			time.Sleep(2500 * time.Millisecond)
-		***REMOVED***
+		}
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	errCh := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		errCh <- test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 
 	<-started
 	// 500 milliseconds more then the gracefulRampDown + duration
@@ -248,13 +248,13 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 	close(stop)
 	<-stopped
 
-	select ***REMOVED***
+	select {
 	case err := <-errCh:
 		require.NoError(t, err)
 	case <-time.After(time.Second): // way too much time
 		t.Fatal("Execution should've ended already")
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // This test aims to check whether the ramping VU executor interrupts
 // hanging/remaining VUs after the graceful rampdown period finishes.
@@ -267,7 +267,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 //	VU2           *...................X            (20+30=50ms)
 //
 //	✔=Finishes,X=Interrupted,.=Sleeps
-func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
+func TestRampingVUsHandleRemainingVUs(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -277,8 +277,8 @@ func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
 		wantVuInterrupted uint32 = 1                     // one VU should be interrupted
 	)
 
-	cfg := RampingVUsConfig***REMOVED***
-		BaseConfig: BaseConfig***REMOVED***
+	cfg := RampingVUsConfig{
+		BaseConfig: BaseConfig{
 			// Extend the total test duration 50ms more
 			//
 			// test duration = sum(stages) + GracefulStop
@@ -286,40 +286,40 @@ func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
 			// This could have been 30ms but increased it to 50ms
 			// to prevent the test to become flaky.
 			GracefulStop: types.NullDurationFrom(50 * time.Millisecond),
-		***REMOVED***,
+		},
 		// Wait 30ms more for already started iterations
 		// (Happens in the 2nd stage below: Graceful rampdown period)
 		GracefulRampDown: types.NullDurationFrom(30 * time.Millisecond),
 		// Total test duration is 50ms (excluding the GracefulRampdown period)
-		Stages: []Stage***REMOVED***
+		Stages: []Stage{
 			// Activate 2 VUs in 10ms
-			***REMOVED***
+			{
 				Duration: types.NullDurationFrom(10 * time.Millisecond),
 				Target:   null.IntFrom(int64(maxVus)),
-			***REMOVED***,
+			},
 			// Rampdown to 0 VUs in 40ms
-			***REMOVED***
+			{
 				Duration: types.NullDurationFrom(40 * time.Millisecond),
 				Target:   null.IntFrom(int64(0)),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	var (
 		gotVuInterrupted uint32
 		gotVuFinished    uint32
 	)
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
-		select ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
+		select {
 		case <-time.After(vuSleepDuration):
 			atomic.AddUint32(&gotVuFinished, 1)
 		case <-ctx.Done():
 			atomic.AddUint32(&gotVuInterrupted, 1)
-		***REMOVED***
+		}
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, cfg)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, cfg)
 	defer test.cancel()
 
 	// run the executor: this should finish in ~70ms
@@ -328,60 +328,60 @@ func TestRampingVUsHandleRemainingVUs(t *testing.T) ***REMOVED***
 
 	assert.Equal(t, wantVuInterrupted, atomic.LoadUint32(&gotVuInterrupted))
 	assert.Equal(t, wantVuFinished, atomic.LoadUint32(&gotVuFinished))
-***REMOVED***
+}
 
 // Ensure there's no wobble of VUs during graceful ramp-down, without segments.
 // See https://github.com/k6io/k6/issues/1296
-func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
+func TestRampingVUsRampDownNoWobble(t *testing.T) {
 	t.Parallel()
 
-	config := RampingVUsConfig***REMOVED***
-		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(0)***REMOVED***,
+	config := RampingVUsConfig{
+		BaseConfig:       BaseConfig{GracefulStop: types.NullDurationFrom(0)},
 		GracefulRampDown: types.NullDurationFrom(1 * time.Second),
 		StartVUs:         null.IntFrom(0),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(3 * time.Second),
 				Target:   null.IntFrom(10),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(2 * time.Second),
 				Target:   null.IntFrom(0),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		time.Sleep(500 * time.Millisecond)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
-	sampleTimes := []time.Duration***REMOVED***
+	sampleTimes := []time.Duration{
 		100 * time.Millisecond,
 		3000 * time.Millisecond,
-	***REMOVED***
+	}
 	const rampDownSampleTime = 50 * time.Millisecond
 	rampDownSamples := int((config.Stages[len(config.Stages)-1].Duration.TimeDuration() + config.GracefulRampDown.TimeDuration()) / rampDownSampleTime)
 
 	errCh := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		errCh <- test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 
 	result := make([]int64, len(sampleTimes)+rampDownSamples)
-	for i, d := range sampleTimes ***REMOVED***
+	for i, d := range sampleTimes {
 		time.Sleep(d)
 		result[i] = test.state.GetCurrentlyActiveVUsCount()
-	***REMOVED***
+	}
 
 	// Sample ramp-down at a higher rate
-	for i := len(sampleTimes); i < rampDownSamples; i++ ***REMOVED***
+	for i := len(sampleTimes); i < rampDownSamples; i++ {
 		time.Sleep(rampDownSampleTime)
 		result[i] = test.state.GetCurrentlyActiveVUsCount()
-	***REMOVED***
+	}
 
 	require.NoError(t, <-errCh)
 
@@ -390,55 +390,55 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 	assert.Equal(t, int64(10), result[1])
 	assert.Equal(t, int64(0), result[len(result)-1])
 
-	vuChanges := []int64***REMOVED***result[2]***REMOVED***
+	vuChanges := []int64{result[2]}
 	// Check ramp-down consistency
-	for i := 3; i < len(result[2:]); i++ ***REMOVED***
-		if result[i] != result[i-1] ***REMOVED***
+	for i := 3; i < len(result[2:]); i++ {
+		if result[i] != result[i-1] {
 			vuChanges = append(vuChanges, result[i])
-		***REMOVED***
-	***REMOVED***
-	assert.Equal(t, []int64***REMOVED***10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0***REMOVED***, vuChanges)
-***REMOVED***
+		}
+	}
+	assert.Equal(t, []int64{10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}, vuChanges)
+}
 
-func TestRampingVUsConfigExecutionPlanExample(t *testing.T) ***REMOVED***
+func TestRampingVUsConfigExecutionPlanExample(t *testing.T) {
 	t.Parallel()
 	et, err := libWorker.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []Stage***REMOVED***
-		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-	***REMOVED***
+	conf.Stages = []Stage{
+		{Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)},
+		{Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)},
+	}
 
-	expRawStepsNoZeroEnd := []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-		***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 13 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 17 * time.Second, PlannedVUs: 3***REMOVED***,
-		***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
-	***REMOVED***
+	expRawStepsNoZeroEnd := []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+		{TimeOffset: 3 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 4 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 5 * time.Second, PlannedVUs: 3},
+		{TimeOffset: 6 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 7 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 8 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 9 * time.Second, PlannedVUs: 3},
+		{TimeOffset: 10 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 11 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 12 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 13 * time.Second, PlannedVUs: 3},
+		{TimeOffset: 14 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 15 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 16 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 17 * time.Second, PlannedVUs: 3},
+		{TimeOffset: 18 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 20 * time.Second, PlannedVUs: 1},
+	}
 	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsNoZeroEnd)
 	endOffset, isFinal := libWorker.GetEndOffset(rawStepsNoZeroEnd)
@@ -447,7 +447,7 @@ func TestRampingVUsConfigExecutionPlanExample(t *testing.T) ***REMOVED***
 
 	rawStepsZeroEnd := conf.getRawExecutionSteps(et, true)
 	assert.Equal(t,
-		append(expRawStepsNoZeroEnd, libWorker.ExecutionStep***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 0***REMOVED***),
+		append(expRawStepsNoZeroEnd, libWorker.ExecutionStep{TimeOffset: 23 * time.Second, PlannedVUs: 0}),
 		rawStepsZeroEnd,
 	)
 	endOffset, isFinal = libWorker.GetEndOffset(rawStepsZeroEnd)
@@ -455,80 +455,80 @@ func TestRampingVUsConfigExecutionPlanExample(t *testing.T) ***REMOVED***
 	assert.Equal(t, true, isFinal)
 
 	// GracefulStop and GracefulRampDown equal to the default 30 sec
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-		***REMOVED***TimeOffset: 33 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 53 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+		{TimeOffset: 33 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 42 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 50 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 53 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a longer GracefulStop than the GracefulRampDown
 	conf.GracefulStop = types.NullDurationFrom(80 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-		***REMOVED***TimeOffset: 33 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 103 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+		{TimeOffset: 33 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 42 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 50 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 103 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a much shorter GracefulStop than the GracefulRampDown
 	conf.GracefulStop = types.NullDurationFrom(3 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-		***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+		{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a zero GracefulStop
 	conf.GracefulStop = types.NullDurationFrom(0 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-		***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+		{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+		{TimeOffset: 23 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a zero GracefulStop and GracefulRampDown, i.e. raw steps with 0 end cap
 	conf.GracefulRampDown = types.NullDurationFrom(0 * time.Second)
 	assert.Equal(t, rawStepsZeroEnd, conf.GetExecutionRequirements(et))
-***REMOVED***
+}
 
-func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED***
+func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) {
 	t.Parallel()
 	et, err := libWorker.NewExecutionTuple(newExecutionSegmentFromString("0:1/3"), nil)
 	require.NoError(t, err)
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []Stage***REMOVED***
-		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-	***REMOVED***
+	conf.Stages = []Stage{
+		{Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)},
+		{Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)},
+	}
 
-	expRawStepsNoZeroEnd := []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-		***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-		***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***
+	expRawStepsNoZeroEnd := []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+		{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+		{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+	}
 	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsNoZeroEnd)
 	endOffset, isFinal := libWorker.GetEndOffset(rawStepsNoZeroEnd)
@@ -542,64 +542,64 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 	assert.Equal(t, true, isFinal)
 
 	// GracefulStop and GracefulRampDown equal to the default 30 sec
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 42 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 50 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a longer GracefulStop than the GracefulRampDown
 	conf.GracefulStop = types.NullDurationFrom(80 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 42 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 50 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 42 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 50 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a much shorter GracefulStop than the GracefulRampDown
 	conf.GracefulStop = types.NullDurationFrom(3 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a zero GracefulStop
 	conf.GracefulStop = types.NullDurationFrom(0 * time.Second)
-	assert.Equal(t, []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 0***REMOVED***,
-	***REMOVED***, conf.GetExecutionRequirements(et))
+	assert.Equal(t, []libWorker.ExecutionStep{
+		{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+		{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+		{TimeOffset: 23 * time.Second, PlannedVUs: 0},
+	}, conf.GetExecutionRequirements(et))
 
 	// Try a zero GracefulStop and GracefulRampDown, i.e. raw steps with 0 end cap
 	conf.GracefulRampDown = types.NullDurationFrom(0 * time.Second)
 	assert.Equal(t, rawStepsZeroEnd, conf.GetExecutionRequirements(et))
-***REMOVED***
+}
 
-func TestRampingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
+func TestRampingVUsExecutionTupleTests(t *testing.T) {
 	t.Parallel()
 
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []Stage***REMOVED***
-		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
-	***REMOVED***
+	conf.Stages = []Stage{
+		{Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)},
+		{Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)},
+		{Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)},
+		{Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)},
+		{Target: null.IntFrom(5), Duration: types.NullDurationFrom(3 * time.Second)},
+		{Target: null.IntFrom(0), Duration: types.NullDurationFrom(0 * time.Second)},
+		{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+		{Target: null.IntFrom(4), Duration: types.NullDurationFrom(4 * time.Second)},
+	}
 	/*
 
 			Graph of the above:
@@ -617,460 +617,460 @@ func TestRampingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
 
 	*/
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		expectedSteps []libWorker.ExecutionStep
 		et            *libWorker.ExecutionTuple
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			et: mustNewExecutionTuple(nil, nil),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
-				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 13 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 17 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 27 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 30 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 31 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 33 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 34 * time.Second, PlannedVUs: 4***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 6},
+				{TimeOffset: 3 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 6 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 9 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 10 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 13 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 14 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 17 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 18 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 27 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 30 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 31 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 33 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 34 * time.Second, PlannedVUs: 4},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), nil),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 1},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1")),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 1},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), nil),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 1},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), nil),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 1},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 13 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 27 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 30 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 31 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 34 * time.Second, PlannedVUs: 2***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 10 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 13 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 18 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 27 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 30 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 31 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 34 * time.Second, PlannedVUs: 2},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 28 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 29 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 32 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 12 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 16 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 28 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 29 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 32 * time.Second, PlannedVUs: 1},
+			},
+		},
+		{
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 17 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 26 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 33 * time.Second, PlannedVUs: 1***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 3 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 6 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 9 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 14 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 17 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 20 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 26 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 33 * time.Second, PlannedVUs: 1},
+			},
+		},
+	}
 
-	for _, testCase := range testCases ***REMOVED***
+	for _, testCase := range testCases {
 		et := testCase.et
 		expectedSteps := testCase.expectedSteps
 
-		t.Run(et.String(), func(t *testing.T) ***REMOVED***
+		t.Run(et.String(), func(t *testing.T) {
 			t.Parallel()
 			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
+func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		name          string
 		expectedSteps []libWorker.ExecutionStep
 		et            *libWorker.ExecutionTuple
 		stages        []Stage
 		start         int64
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name: "going up then down straight away",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 3***REMOVED***,
-			***REMOVED***,
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(3), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 0 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 3},
+			},
+			stages: []Stage{
+				{Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)},
+				{Target: null.IntFrom(3), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
 			start: 2,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name: "jump up then go up again",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 5***REMOVED***,
-			***REMOVED***,
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 5},
+			},
+			stages: []Stage{
+				{Target: null.IntFrom(5), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
 			start: 3,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name: "up down up down",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 3 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 6 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 0},
+			},
+			stages: []Stage{
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
+		},
+		{
 			name: "up down up down in half",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 0},
+			},
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/2"), nil),
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			stages: []Stage{
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
+		},
+		{
 			name: "up down up down in the other half",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 3 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 6 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 0},
+			},
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/2:1"), nil),
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			stages: []Stage{
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
+		},
+		{
 			name: "up down up down in with nothing",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+			},
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			stages: []Stage{
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
+		},
+		{
 			name: "up down up down in with funky sequence", // panics if there are no localIndex == 0 guards
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 0},
+			},
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1/2,2/3,1")),
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			stages: []Stage{
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)},
+			},
+		},
+		{
 			name: "strange",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 6***REMOVED***,
-				***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 7***REMOVED***,
-				***REMOVED***TimeOffset: 35 * time.Second, PlannedVUs: 8***REMOVED***,
-				***REMOVED***TimeOffset: 44 * time.Second, PlannedVUs: 9***REMOVED***,
-			***REMOVED***,
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 11 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 15 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 18 * time.Second, PlannedVUs: 6},
+				{TimeOffset: 23 * time.Second, PlannedVUs: 7},
+				{TimeOffset: 35 * time.Second, PlannedVUs: 8},
+				{TimeOffset: 44 * time.Second, PlannedVUs: 9},
+			},
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:0.3"), newExecutionSegmentSequenceFromString("0,0.3,0.6,0.9,1")),
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(20), Duration: types.NullDurationFrom(20 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(30 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			stages: []Stage{
+				{Target: null.IntFrom(20), Duration: types.NullDurationFrom(20 * time.Second)},
+				{Target: null.IntFrom(30), Duration: types.NullDurationFrom(30 * time.Second)},
+			},
+		},
+		{
 			name: "more up and down",
-			expectedSteps: []libWorker.ExecutionStep***REMOVED***
-				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
-				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 5***REMOVED***,
-				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 4***REMOVED***,
-				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 3***REMOVED***,
-				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 2***REMOVED***,
-				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 1***REMOVED***,
-				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 0***REMOVED***,
-			***REMOVED***,
-			stages: []Stage***REMOVED***
-				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			expectedSteps: []libWorker.ExecutionStep{
+				{TimeOffset: 0 * time.Second, PlannedVUs: 0},
+				{TimeOffset: 1 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 2 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 3 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 4 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 5 * time.Second, PlannedVUs: 5},
+				{TimeOffset: 6 * time.Second, PlannedVUs: 4},
+				{TimeOffset: 7 * time.Second, PlannedVUs: 3},
+				{TimeOffset: 8 * time.Second, PlannedVUs: 2},
+				{TimeOffset: 9 * time.Second, PlannedVUs: 1},
+				{TimeOffset: 10 * time.Second, PlannedVUs: 0},
+			},
+			stages: []Stage{
+				{Target: null.IntFrom(5), Duration: types.NullDurationFrom(5 * time.Second)},
+				{Target: null.IntFrom(0), Duration: types.NullDurationFrom(5 * time.Second)},
+			},
+		},
+	}
 
-	for _, testCase := range testCases ***REMOVED***
+	for _, testCase := range testCases {
 		testCase := testCase
 		conf := NewRampingVUsConfig("test")
 		conf.StartVUs = null.IntFrom(testCase.start)
 		conf.Stages = testCase.stages
 		et := testCase.et
-		if et == nil ***REMOVED***
+		if et == nil {
 			et = mustNewExecutionTuple(nil, nil)
-		***REMOVED***
+		}
 		expectedSteps := testCase.expectedSteps
 
-		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func BenchmarkRampingVUsGetRawExecutionSteps(b *testing.B) ***REMOVED***
-	testCases := []struct ***REMOVED***
+func BenchmarkRampingVUsGetRawExecutionSteps(b *testing.B) {
+	testCases := []struct {
 		seq string
 		seg string
-	***REMOVED******REMOVED***
-		***REMOVED******REMOVED***,
-		***REMOVED***seg: "0:1"***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3"***REMOVED***,
-		***REMOVED***seq: "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.1"***REMOVED***,
-		***REMOVED***seg: "2/5:4/5"***REMOVED***,
-		***REMOVED***seg: "2235/5213:4/5"***REMOVED***, // just wanted it to be ugly ;D
-	***REMOVED***
+	}{
+		{},
+		{seg: "0:1"},
+		{seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3"},
+		{seq: "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.1"},
+		{seg: "2/5:4/5"},
+		{seg: "2235/5213:4/5"}, // just wanted it to be ugly ;D
+	}
 
-	stageCases := []struct ***REMOVED***
+	stageCases := []struct {
 		name   string
 		stages string
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:   "normal",
-			stages: `[***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":10000***REMOVED***,***REMOVED***"duration":"5m", "target":10000***REMOVED***]`,
-		***REMOVED***, ***REMOVED***
+			stages: `[{"duration":"5m", "target":5000},{"duration":"5m", "target":5000},{"duration":"5m", "target":10000},{"duration":"5m", "target":10000}]`,
+		}, {
 			name: "rollercoaster",
-			stages: `[***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
-				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***]`,
-		***REMOVED***,
-	***REMOVED***
-	for _, tc := range testCases ***REMOVED***
+			stages: `[{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0},
+				{"duration":"5m", "target":5000},{"duration":"5m", "target":0}]`,
+		},
+	}
+	for _, tc := range testCases {
 		tc := tc
-		b.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(b *testing.B) ***REMOVED***
+		b.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(b *testing.B) {
 			ess, err := libWorker.NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(b, err)
 			segment, err := libWorker.NewExecutionSegmentFromString(tc.seg)
 			require.NoError(b, err)
-			if tc.seg == "" ***REMOVED***
+			if tc.seg == "" {
 				segment = nil // specifically for the optimization
-			***REMOVED***
+			}
 			et, err := libWorker.NewExecutionTuple(segment, &ess)
 			require.NoError(b, err)
-			for _, stageCase := range stageCases ***REMOVED***
+			for _, stageCase := range stageCases {
 				var st []Stage
 				require.NoError(b, json.Unmarshal([]byte(stageCase.stages), &st))
-				vlvc := RampingVUsConfig***REMOVED***
+				vlvc := RampingVUsConfig{
 					Stages: st,
-				***REMOVED***
-				b.Run(stageCase.name, func(b *testing.B) ***REMOVED***
-					for i := 0; i < b.N; i++ ***REMOVED***
+				}
+				b.Run(stageCase.name, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
 						_ = vlvc.getRawExecutionSteps(et, false)
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				})
+			}
+		})
+	}
+}
 
 // TODO: delete in favor of libWorker.generateRandomSequence() after
 // https://github.com/k6io/k6/issues/1302 is done (can't import now due to
 // import loops...)
-func generateRandomSequence(t testing.TB, n, m int64, r *rand.Rand) libWorker.ExecutionSegmentSequence ***REMOVED***
+func generateRandomSequence(t testing.TB, n, m int64, r *rand.Rand) libWorker.ExecutionSegmentSequence {
 	var err error
 	ess := libWorker.ExecutionSegmentSequence(make([]*libWorker.ExecutionSegment, n))
 	numerators := make([]int64, n)
 	var denominator int64
-	for i := int64(0); i < n; i++ ***REMOVED***
+	for i := int64(0); i < n; i++ {
 		numerators[i] = 1 + r.Int63n(m)
 		denominator += numerators[i]
-	***REMOVED***
+	}
 	from := big.NewRat(0, 1)
-	for i := int64(0); i < n; i++ ***REMOVED***
+	for i := int64(0); i < n; i++ {
 		to := new(big.Rat).Add(big.NewRat(numerators[i], denominator), from)
 		ess[i], err = libWorker.NewExecutionSegment(from, to)
 		require.NoError(t, err)
 		from = to
-	***REMOVED***
+	}
 
 	return ess
-***REMOVED***
+}
 
-func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
+func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -1082,13 +1082,13 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 		segmentSeqMaxLen = 15
 		maxNumerator     = 300
 	)
-	getTestConfig := func(r *rand.Rand, name string) RampingVUsConfig ***REMOVED***
+	getTestConfig := func(r *rand.Rand, name string) RampingVUsConfig {
 		stagesCount := 1 + r.Int31n(maxStages)
 		stages := make([]Stage, stagesCount)
-		for s := int32(0); s < stagesCount; s++ ***REMOVED***
+		for s := int32(0); s < stagesCount; s++ {
 			dur := (minStageDuration + time.Duration(r.Int63n(int64(maxStageDuration-minStageDuration)))).Round(time.Second)
-			stages[s] = Stage***REMOVED***Duration: types.NullDurationFrom(dur), Target: null.IntFrom(r.Int63n(maxVUs))***REMOVED***
-		***REMOVED***
+			stages[s] = Stage{Duration: types.NullDurationFrom(dur), Target: null.IntFrom(r.Int63n(maxVUs))}
+		}
 
 		c := NewRampingVUsConfig(name)
 		c.GracefulRampDown = types.NullDurationFrom(0)
@@ -1096,38 +1096,38 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 		c.StartVUs = null.IntFrom(r.Int63n(maxVUs))
 		c.Stages = stages
 		return c
-	***REMOVED***
+	}
 
-	subtractChildSteps := func(t *testing.T, parent, child []libWorker.ExecutionStep) ***REMOVED***
+	subtractChildSteps := func(t *testing.T, parent, child []libWorker.ExecutionStep) {
 		t.Logf("subtractChildSteps()")
-		for _, step := range child ***REMOVED***
+		for _, step := range child {
 			t.Logf("	child planned VUs for time offset %s: %d", step.TimeOffset, step.PlannedVUs)
-		***REMOVED***
+		}
 		sub := uint64(0)
 		ci := 0
-		for pi, p := range parent ***REMOVED***
+		for pi, p := range parent {
 			// We iterate over all parent steps and match them to child steps.
 			// Once we have a match, we remove the child step's plannedVUs from
 			// the parent steps until a new match, when we adjust the subtracted
 			// amount again.
-			if p.TimeOffset > child[ci].TimeOffset && ci != len(child)-1 ***REMOVED***
+			if p.TimeOffset > child[ci].TimeOffset && ci != len(child)-1 {
 				t.Errorf("ERR Could not match child offset %s with any parent time offset", child[ci].TimeOffset)
-			***REMOVED***
-			if p.TimeOffset == child[ci].TimeOffset ***REMOVED***
+			}
+			if p.TimeOffset == child[ci].TimeOffset {
 				t.Logf("Setting sub to %d at t=%s", child[ci].PlannedVUs, child[ci].TimeOffset)
 				sub = child[ci].PlannedVUs
-				if ci != len(child)-1 ***REMOVED***
+				if ci != len(child)-1 {
 					ci++
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 			t.Logf("Subtracting %d VUs (out of %d) at t=%s", sub, p.PlannedVUs, p.TimeOffset)
 			parent[pi].PlannedVUs -= sub
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	for i := 0; i < numTests; i++ ***REMOVED***
+	for i := 0; i < numTests; i++ {
 		name := fmt.Sprintf("random%02d", i)
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			seed := time.Now().UnixNano()
 			r := rand.New(rand.NewSource(seed)) //nolint:gosec
@@ -1141,22 +1141,22 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			fullRawSteps := c.getRawExecutionSteps(fullSeg, false)
 
-			for _, step := range fullRawSteps ***REMOVED***
+			for _, step := range fullRawSteps {
 				t.Logf("original planned VUs for time offset %s: %d", step.TimeOffset, step.PlannedVUs)
-			***REMOVED***
+			}
 
-			for s := 0; s < len(randomSequence); s++ ***REMOVED***
+			for s := 0; s < len(randomSequence); s++ {
 				et, err := libWorker.NewExecutionTuple(randomSequence[s], &randomSequence)
 				require.NoError(t, err)
 				segRawSteps := c.getRawExecutionSteps(et, false)
 				subtractChildSteps(t, fullRawSteps, segRawSteps)
-			***REMOVED***
+			}
 
-			for _, step := range fullRawSteps ***REMOVED***
-				if step.PlannedVUs != 0 ***REMOVED***
+			for _, step := range fullRawSteps {
+				if step.PlannedVUs != 0 {
 					t.Errorf("ERR Remaining planned VUs for time offset %s are not 0 but %d", step.TimeOffset, step.PlannedVUs)
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}

@@ -11,56 +11,56 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func BenchmarkMeasureAndEmitMetrics(b *testing.B) ***REMOVED***
+func BenchmarkMeasureAndEmitMetrics(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	samples := make(chan workerMetrics.SampleContainer, 10)
 	defer close(samples)
-	go func() ***REMOVED***
-		for range samples ***REMOVED***
-		***REMOVED***
-	***REMOVED***()
+	go func() {
+		for range samples {
+		}
+	}()
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 
 	registry := workerMetrics.NewRegistry()
-	state := &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED***
+	state := &libWorker.State{
+		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
-		***REMOVED***,
+		},
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Samples:        samples,
 		Logger:         logger,
-	***REMOVED***
-	t := transport***REMOVED***
+	}
+	t := transport{
 		state: state,
 		ctx:   ctx,
-	***REMOVED***
+	}
 
-	unfRequest := &unfinishedRequest***REMOVED***
-		tracer: &Tracer***REMOVED******REMOVED***,
-		response: &http.Response***REMOVED***
+	unfRequest := &unfinishedRequest{
+		tracer: &Tracer{},
+		response: &http.Response{
 			StatusCode: 200,
-		***REMOVED***,
-		request: &http.Request***REMOVED***
-			URL: &url.URL***REMOVED***
+		},
+		request: &http.Request{
+			URL: &url.URL{
 				Host:   "example.com",
 				Scheme: "https",
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
-	b.Run("no responseCallback", func(b *testing.B) ***REMOVED***
-		for i := 0; i < b.N; i++ ***REMOVED***
+	b.Run("no responseCallback", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
 			t.measureAndEmitMetrics(unfRequest)
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 
-	t.responseCallback = func(n int) bool ***REMOVED*** return true ***REMOVED***
+	t.responseCallback = func(n int) bool { return true }
 
-	b.Run("responseCallback", func(b *testing.B) ***REMOVED***
-		for i := 0; i < b.N; i++ ***REMOVED***
+	b.Run("responseCallback", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
 			t.measureAndEmitMetrics(unfRequest)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}

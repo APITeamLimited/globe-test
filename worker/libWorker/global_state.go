@@ -7,12 +7,12 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-type WorkerState struct ***REMOVED***
+type WorkerState struct {
 	Status   string `json:"status"`
 	WorkerId string `json:"workerId"`
-***REMOVED***
+}
 
-type BaseGlobalState interface ***REMOVED***
+type BaseGlobalState interface {
 	Ctx() context.Context
 	// The orchestrator client
 	Client() *redis.Client
@@ -25,4 +25,4 @@ type BaseGlobalState interface ***REMOVED***
 	//SettersEnabled() bool
 
 	FuncModeInfo() *lib.FuncModeInfo
-***REMOVED***
+}

@@ -5,51 +5,51 @@ import (
 	"encoding/json"
 )
 
-func DefaultOutputConfig(standalone bool) NullOutputConfig ***REMOVED***
+func DefaultOutputConfig(standalone bool) NullOutputConfig {
 	defaultZoneName := "global"
 
-	if standalone ***REMOVED***
+	if standalone {
 		defaultZoneName = "localhost"
-	***REMOVED***
+	}
 
-	return NullOutputConfig***REMOVED***
-		OutputConfig***REMOVED***
-			Graphs: []MetricGraph***REMOVED***
-				***REMOVED***
+	return NullOutputConfig{
+		OutputConfig{
+			Graphs: []MetricGraph{
+				{
 					Name: "Overview",
-					Series: []MetricGraphSeries***REMOVED***
-						***REMOVED***
+					Series: []MetricGraphSeries{
+						{
 							LoadZone: defaultZoneName,
 							Metric:   "vus",
 							Kind:     AreaGraphSeriesType,
 							Color:    "#808080",
-						***REMOVED***,
-						***REMOVED***
+						},
+						{
 							LoadZone: defaultZoneName,
 							Metric:   "http_reqs",
 							Kind:     LineGraphSeriesType,
 							Color:    "#0096FF",
-						***REMOVED***,
-						***REMOVED***
+						},
+						{
 							LoadZone: defaultZoneName,
 							Metric:   "http_req_duration",
 							Kind:     LineGraphSeriesType,
 							Color:    "#FF00FF",
-						***REMOVED***,
-						***REMOVED***
+						},
+						{
 							LoadZone: defaultZoneName,
 							Metric:   "http_req_failed",
 							Kind:     LineGraphSeriesType,
 							Color:    "#FF0000",
-						***REMOVED***,
-					***REMOVED***,
+						},
+					},
 					DesiredWidth: 3,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
+				},
+			},
+		},
 		true,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 const (
 	AreaGraphSeriesType   = "area"
@@ -57,62 +57,62 @@ const (
 	ColumnGraphSeriesType = "column"
 )
 
-type MetricGraphSeries struct ***REMOVED***
+type MetricGraphSeries struct {
 	LoadZone string `json:"loadZone"`
 	Metric   string `json:"metric"`
 	Kind     string `json:"kind"`
 	Color    string `json:"color"`
-***REMOVED***
+}
 
-type MetricGraph struct ***REMOVED***
+type MetricGraph struct {
 	Name         string              `json:"name"`
 	Description  string              `json:"description"`
 	Series       []MetricGraphSeries `json:"series"`
 	DesiredWidth int                 `json:"desiredWidth"`
-***REMOVED***
+}
 
-type OutputConfig struct ***REMOVED***
+type OutputConfig struct {
 	Graphs []MetricGraph `json:"graphs"`
-***REMOVED***
+}
 
-type NullOutputConfig struct ***REMOVED***
+type NullOutputConfig struct {
 	Value OutputConfig
 	Valid bool
-***REMOVED***
+}
 
-func NewNullOutputConfig(outputConfig OutputConfig, valid bool) NullOutputConfig ***REMOVED***
-	return NullOutputConfig***REMOVED***outputConfig, valid***REMOVED***
-***REMOVED***
+func NewNullOutputConfig(outputConfig OutputConfig, valid bool) NullOutputConfig {
+	return NullOutputConfig{outputConfig, valid}
+}
 
-func NullOutputConfigFrom(outputConfig OutputConfig) NullOutputConfig ***REMOVED***
-	return NullOutputConfig***REMOVED***outputConfig, true***REMOVED***
-***REMOVED***
+func NullOutputConfigFrom(outputConfig OutputConfig) NullOutputConfig {
+	return NullOutputConfig{outputConfig, true}
+}
 
-func (oc NullOutputConfig) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !oc.Valid ***REMOVED***
+func (oc NullOutputConfig) MarshalJSON() ([]byte, error) {
+	if !oc.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(oc.Value)
-***REMOVED***
+}
 
-func (oc *NullOutputConfig) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (oc *NullOutputConfig) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		oc.Valid = false
 		return nil
-	***REMOVED***
+	}
 
-	if err := json.Unmarshal(data, &oc.Value); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &oc.Value); err != nil {
 		return err
-	***REMOVED***
+	}
 	oc.Valid = true
 	return nil
-***REMOVED***
+}
 
-func IsValidSeriesKind(kind string) bool ***REMOVED***
+func IsValidSeriesKind(kind string) bool {
 	return kind == AreaGraphSeriesType || kind == LineGraphSeriesType || kind == ColumnGraphSeriesType
-***REMOVED***
+}
 
-func IsBuiltinMetric(metricName string) bool ***REMOVED***
+func IsBuiltinMetric(metricName string) bool {
 	return metricName == "data_received" ||
 		metricName == "data_sent" ||
 		metricName == "http_req_blocked" ||
@@ -128,23 +128,23 @@ func IsBuiltinMetric(metricName string) bool ***REMOVED***
 		metricName == "iterations" ||
 		metricName == "vus" ||
 		metricName == "vus_max"
-***REMOVED***
+}
 
 // Ensures color is a valid hex color
-func ValidSeriesColor(color string) bool ***REMOVED***
-	if len(color) != 7 ***REMOVED***
+func ValidSeriesColor(color string) bool {
+	if len(color) != 7 {
 		return false
-	***REMOVED***
+	}
 
-	if color[0] != '#' ***REMOVED***
+	if color[0] != '#' {
 		return false
-	***REMOVED***
+	}
 
-	for _, c := range color[1:] ***REMOVED***
-		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') ***REMOVED***
+	for _, c := range color[1:] {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
 			return false
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return true
-***REMOVED***
+}

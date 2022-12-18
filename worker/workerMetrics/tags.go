@@ -12,47 +12,47 @@ import (
 type EnabledTags map[string]bool
 
 // UnmarshalText converts the tag list to EnabledTags.
-func (i *EnabledTags) UnmarshalText(data []byte) error ***REMOVED***
+func (i *EnabledTags) UnmarshalText(data []byte) error {
 	list := bytes.Split(data, []byte(","))
-	if *i == nil ***REMOVED***
+	if *i == nil {
 		*i = make(EnabledTags, len(list))
-	***REMOVED***
+	}
 
-	for _, key := range list ***REMOVED***
+	for _, key := range list {
 		key := strings.TrimSpace(string(key))
-		if key == "" ***REMOVED***
+		if key == "" {
 			continue
-		***REMOVED***
+		}
 		(*i)[key] = true
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON converts the EnabledTags to a list (JS array).
-func (i *EnabledTags) MarshalJSON() ([]byte, error) ***REMOVED***
+func (i *EnabledTags) MarshalJSON() ([]byte, error) {
 	var tags []string
-	if *i != nil ***REMOVED***
+	if *i != nil {
 		tags = make([]string, 0, len(*i))
-		for tag := range *i ***REMOVED***
+		for tag := range *i {
 			tags = append(tags, tag)
-		***REMOVED***
+		}
 		sort.Strings(tags)
-	***REMOVED***
+	}
 
 	return json.Marshal(tags)
-***REMOVED***
+}
 
 // UnmarshalJSON converts the tag list back to expected tag set.
-func (i *EnabledTags) UnmarshalJSON(data []byte) error ***REMOVED***
+func (i *EnabledTags) UnmarshalJSON(data []byte) error {
 	var tags []string
-	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &tags); err != nil {
 		return err
-	***REMOVED***
+	}
 	*i = make(EnabledTags, len(tags))
-	for _, tag := range tags ***REMOVED***
+	for _, tag := range tags {
 		(*i)[tag] = true
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}

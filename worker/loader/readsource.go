@@ -17,49 +17,49 @@ import (
 // ReadSource Reads a source file from any supported destination.
 func ReadSource(
 	logger logrus.FieldLogger, src, pwd string, filesystems map[string]afero.Fs, stdin io.Reader,
-) (*SourceData, error) ***REMOVED***
-	if src == "-" ***REMOVED***
+) (*SourceData, error) {
+	if src == "-" {
 		data, err := ioutil.ReadAll(stdin)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		// TODO: don't do it in this way ...
 		err = afero.WriteFile(filesystems["file"].(fsext.CacheLayerGetter).GetCachingFs(), "/-", data, 0o644)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, fmt.Errorf("caching data read from -: %w", err)
-		***REMOVED***
-		return &SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/-", Scheme: "file"***REMOVED***, Data: data***REMOVED***, err
-	***REMOVED***
+		}
+		return &SourceData{URL: &url.URL{Path: "/-", Scheme: "file"}, Data: data}, err
+	}
 	var srcLocalPath string
-	if filepath.IsAbs(src) ***REMOVED***
+	if filepath.IsAbs(src) {
 		srcLocalPath = src
-	***REMOVED*** else ***REMOVED***
+	} else {
 		srcLocalPath = filepath.Join(pwd, src)
-	***REMOVED***
+	}
 	// All paths should start with a / in all fses. This is mostly for windows where it will start
 	// with a volume name : C:\something.js
 	srcLocalPath = filepath.Clean(afero.FilePathSeparator + srcLocalPath)
-	if ok, _ := afero.Exists(filesystems["file"], srcLocalPath); ok ***REMOVED***
+	if ok, _ := afero.Exists(filesystems["file"], srcLocalPath); ok {
 		// there is file on the local disk ... lets use it :)
-		return Load(logger, filesystems, &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(srcLocalPath)***REMOVED***, src)
-	***REMOVED***
+		return Load(logger, filesystems, &url.URL{Scheme: "file", Path: filepath.ToSlash(srcLocalPath)}, src)
+	}
 
-	pwdURL := &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(filepath.Clean(pwd)) + "/"***REMOVED***
+	pwdURL := &url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Clean(pwd)) + "/"}
 	srcURL, err := Resolve(pwdURL, filepath.ToSlash(src))
-	if err != nil ***REMOVED***
+	if err != nil {
 		var noSchemeError noSchemeRemoteModuleResolutionError
-		if errors.As(err, &noSchemeError) ***REMOVED***
+		if errors.As(err, &noSchemeError) {
 			// TODO maybe try to wrap the original error here as well, without butchering the message
 			return nil, fmt.Errorf(nothingWorkedLoadedMsg, noSchemeError.moduleSpecifier, noSchemeError.err)
-		***REMOVED***
+		}
 		return nil, err
-	***REMOVED***
+	}
 	result, err := Load(logger, filesystems, srcURL, src)
 	var noSchemeError noSchemeRemoteModuleResolutionError
-	if errors.As(err, &noSchemeError) ***REMOVED***
+	if errors.As(err, &noSchemeError) {
 		// TODO maybe try to wrap the original error here as well, without butchering the message
 		return nil, fmt.Errorf(nothingWorkedLoadedMsg, noSchemeError.moduleSpecifier, noSchemeError.err)
-	***REMOVED***
+	}
 
 	return result, err
-***REMOVED***
+}

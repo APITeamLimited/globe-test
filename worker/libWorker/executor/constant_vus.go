@@ -17,165 +17,165 @@ import (
 
 const constantVUsType = "constant-vus"
 
-func init() ***REMOVED***
+func init() {
 	libWorker.RegisterExecutorConfigType(
 		constantVUsType,
-		func(name string, rawJSON []byte) (libWorker.ExecutorConfig, error) ***REMOVED***
+		func(name string, rawJSON []byte) (libWorker.ExecutorConfig, error) {
 			config := NewConstantVUsConfig(name)
 			err := libWorker.StrictJSONUnmarshal(rawJSON, &config)
 			return config, err
-		***REMOVED***,
+		},
 	)
-***REMOVED***
+}
 
 // The minimum duration we'll allow users to schedule. This doesn't affect the stages
 // configuration, where 0-duration virtual stages are allowed for instantaneous VU jumps
 const minDuration = 1 * time.Second
 
 // ConstantVUsConfig stores VUs and duration
-type ConstantVUsConfig struct ***REMOVED***
+type ConstantVUsConfig struct {
 	BaseConfig
 	VUs      null.Int           `json:"vus"`
 	Duration types.NullDuration `json:"duration"`
-***REMOVED***
+}
 
 // NewConstantVUsConfig returns a ConstantVUsConfig with default values
-func NewConstantVUsConfig(name string) ConstantVUsConfig ***REMOVED***
-	return ConstantVUsConfig***REMOVED***
+func NewConstantVUsConfig(name string) ConstantVUsConfig {
+	return ConstantVUsConfig{
 		BaseConfig: NewBaseConfig(name, constantVUsType),
 		VUs:        null.NewInt(1, false),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Make sure we implement the libWorker.ExecutorConfig interface
-var _ libWorker.ExecutorConfig = &ConstantVUsConfig***REMOVED******REMOVED***
+var _ libWorker.ExecutorConfig = &ConstantVUsConfig{}
 
 // GetVUs returns the scaled VUs for the executor.
-func (clvc ConstantVUsConfig) GetVUs(et *libWorker.ExecutionTuple) int64 ***REMOVED***
+func (clvc ConstantVUsConfig) GetVUs(et *libWorker.ExecutionTuple) int64 {
 	return et.ScaleInt64(clvc.VUs.Int64)
-***REMOVED***
+}
 
 // GetDescription returns a human-readable description of the executor options
-func (clvc ConstantVUsConfig) GetDescription(et *libWorker.ExecutionTuple) string ***REMOVED***
+func (clvc ConstantVUsConfig) GetDescription(et *libWorker.ExecutionTuple) string {
 	return fmt.Sprintf("%d looping VUs for %s%s",
 		clvc.GetVUs(et), clvc.Duration.Duration, clvc.getBaseInfo())
-***REMOVED***
+}
 
 // Validate makes sure all options are configured and valid
-func (clvc ConstantVUsConfig) Validate() []error ***REMOVED***
+func (clvc ConstantVUsConfig) Validate() []error {
 	errors := clvc.BaseConfig.Validate()
-	if clvc.VUs.Int64 <= 0 ***REMOVED***
+	if clvc.VUs.Int64 <= 0 {
 		errors = append(errors, fmt.Errorf("the number of VUs must be more than 0"))
-	***REMOVED***
+	}
 
-	if !clvc.Duration.Valid ***REMOVED***
+	if !clvc.Duration.Valid {
 		errors = append(errors, fmt.Errorf("the duration is unspecified"))
-	***REMOVED*** else if clvc.Duration.TimeDuration() < minDuration ***REMOVED***
+	} else if clvc.Duration.TimeDuration() < minDuration {
 		errors = append(errors, fmt.Errorf(
 			"the duration must be at least %s, but is %s", minDuration, clvc.Duration,
 		))
-	***REMOVED***
+	}
 
 	return errors
-***REMOVED***
+}
 
 // GetExecutionRequirements returns the number of required VUs to run the
 // executor for its whole duration (disregarding any startTime), including the
 // maximum waiting time for any iterations to gracefully stop. This is used by
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
-func (clvc ConstantVUsConfig) GetExecutionRequirements(et *libWorker.ExecutionTuple) []libWorker.ExecutionStep ***REMOVED***
-	return []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***
+func (clvc ConstantVUsConfig) GetExecutionRequirements(et *libWorker.ExecutionTuple) []libWorker.ExecutionStep {
+	return []libWorker.ExecutionStep{
+		{
 			TimeOffset: 0,
 			PlannedVUs: uint64(clvc.GetVUs(et)),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			TimeOffset: clvc.Duration.TimeDuration() + clvc.GracefulStop.TimeDuration(),
 			PlannedVUs: 0,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (clvc ConstantVUsConfig) HasWork(et *libWorker.ExecutionTuple) bool ***REMOVED***
+func (clvc ConstantVUsConfig) HasWork(et *libWorker.ExecutionTuple) bool {
 	return clvc.GetVUs(et) > 0
-***REMOVED***
+}
 
 // NewExecutor creates a new ConstantVUs executor
-func (clvc ConstantVUsConfig) NewExecutor(es *libWorker.ExecutionState, logger *logrus.Entry) (libWorker.Executor, error) ***REMOVED***
-	return ConstantVUs***REMOVED***
+func (clvc ConstantVUsConfig) NewExecutor(es *libWorker.ExecutionState, logger *logrus.Entry) (libWorker.Executor, error) {
+	return ConstantVUs{
 		BaseExecutor: NewBaseExecutor(clvc, es, logger),
 		config:       clvc,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 // ConstantVUs maintains a constant number of VUs running for the
 // specified duration.
-type ConstantVUs struct ***REMOVED***
+type ConstantVUs struct {
 	*BaseExecutor
 	config ConstantVUsConfig
-***REMOVED***
+}
 
 // Make sure we implement the libWorker.Executor interface.
-var _ libWorker.Executor = &ConstantVUs***REMOVED******REMOVED***
+var _ libWorker.Executor = &ConstantVUs{}
 
 // Run constantly loops through as many iterations as possible on a fixed number
 // of VUs for the specified duration.
-func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) ***REMOVED***
+func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	numVUs := clv.config.GetVUs(clv.executionState.ExecutionTuple)
 	duration := clv.config.Duration.TimeDuration()
 	gracefulStop := clv.config.GetGracefulStop()
 
-	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
+	waitOnProgressChannel := make(chan struct{})
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
-	defer func() ***REMOVED***
+	defer func() {
 		cancel()
 		<-waitOnProgressChannel
-	***REMOVED***()
+	}()
 
 	// Make sure the log and the progress bar have accurate information
 	clv.logger.WithFields(
-		logrus.Fields***REMOVED***"vus": numVUs, "duration": duration, "type": clv.config.GetType()***REMOVED***,
+		logrus.Fields{"vus": numVUs, "duration": duration, "type": clv.config.GetType()},
 	).Debug("Starting executor run...")
 
-	progressFn := func() (float64, []string) ***REMOVED***
+	progressFn := func() (float64, []string) {
 		spent := time.Since(startTime)
-		right := []string***REMOVED***fmt.Sprintf("%d VUs", numVUs)***REMOVED***
-		if spent > duration ***REMOVED***
+		right := []string{fmt.Sprintf("%d VUs", numVUs)}
+		if spent > duration {
 			right = append(right, duration.String())
 			return 1, right
-		***REMOVED***
+		}
 		right = append(right, fmt.Sprintf("%s/%s",
 			pb.GetFixedLengthDuration(spent, duration), duration))
 		return float64(spent) / float64(duration), right
-	***REMOVED***
+	}
 	clv.progress.Modify(pb.WithProgress(progressFn))
-	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState***REMOVED***
+	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
 		Name:       clv.config.Name,
 		Executor:   clv.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
-	***REMOVED***)
+	})
 
-	go func() ***REMOVED***
+	go func() {
 		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, clv, progressFn)
 		close(waitOnProgressChannel)
-	***REMOVED***()
+	}()
 
 	// Actually schedule the VUs and iterations...
-	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
+	activeVUs := &sync.WaitGroup{}
 	defer activeVUs.Wait()
 
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(clv.executionState, clv.logger)
 
-	returnVU := func(u libWorker.InitializedVU) ***REMOVED***
+	returnVU := func(u libWorker.InitializedVU) {
 		clv.executionState.ReturnVU(u, true)
 		activeVUs.Done()
-	***REMOVED***
+	}
 
-	handleVU := func(initVU libWorker.InitializedVU) ***REMOVED***
+	handleVU := func(initVU libWorker.InitializedVU) {
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
 
@@ -183,44 +183,44 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.S
 			getVUActivationParams(ctx, clv.config.BaseConfig, returnVU,
 				clv.nextIterationCounters))
 
-		for ***REMOVED***
-			select ***REMOVED***
+		for {
+			select {
 			case <-regDurationDone:
 				return // don't make more iterations
 			default:
 				// continue looping
-			***REMOVED***
+			}
 			runIteration(maxDurationCtx, activeVU)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	for i := int64(0); i < numVUs; i++ ***REMOVED***
+	for i := int64(0); i < numVUs; i++ {
 		initVU, err := clv.executionState.GetPlannedVU(clv.logger, true)
-		if err != nil ***REMOVED***
+		if err != nil {
 			cancel()
 			return err
-		***REMOVED***
+		}
 		activeVUs.Add(1)
 		go handleVU(initVU)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
-func (clvc ConstantVUsConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+func (clvc ConstantVUsConfig) GetMaxExecutorVUs() int64 {
 	return clvc.VUs.Int64
-***REMOVED***
+}
 
-func (clvc ConstantVUsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig ***REMOVED***
+func (clvc ConstantVUsConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
 	newConfig := clvc
 
-	if newConfig.VUs.Valid ***REMOVED***
+	if newConfig.VUs.Valid {
 		newConfig.VUs.Int64 = int64(float64(newConfig.VUs.Int64) * subFraction)
 
-		if newConfig.VUs.Int64 < 1 ***REMOVED***
+		if newConfig.VUs.Int64 < 1 {
 			newConfig.VUs.Int64 = 1
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return newConfig
-***REMOVED***
+}

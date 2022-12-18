@@ -10,7 +10,7 @@ import (
 )
 
 // DNSConfig is the DNS resolver configuration.
-type DNSConfig struct ***REMOVED***
+type DNSConfig struct {
 	// If positive, defines how long DNS lookups should be returned from the cache.
 	TTL null.String `json:"ttl"`
 	// Select specifies the strategy to use when picking a single IP if more than one is returned for a host name.
@@ -21,16 +21,16 @@ type DNSConfig struct ***REMOVED***
 	// libWorker.Options.ForEachSpecified(), otherwise it would panic with
 	// `reflect: call of reflect.Value.Bool on zero Value`.
 	Valid bool `json:"-"`
-***REMOVED***
+}
 
 // DefaultDNSConfig returns the default DNS configuration.
-func DefaultDNSConfig() DNSConfig ***REMOVED***
-	return DNSConfig***REMOVED***
+func DefaultDNSConfig() DNSConfig {
+	return DNSConfig{
 		TTL:    null.NewString("5m", false),
-		Select: NullDNSSelect***REMOVED***DNSrandom, false***REMOVED***,
-		Policy: NullDNSPolicy***REMOVED***DNSpreferIPv4, false***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		Select: NullDNSSelect{DNSrandom, false},
+		Policy: NullDNSPolicy{DNSpreferIPv4, false},
+	}
+}
 
 // DNSPolicy specifies the preference for handling IP versions in DNS resolutions.
 //go:generate enumer -type=DNSPolicy -trimprefix DNS -output dns_policy_gen.go
@@ -52,53 +52,53 @@ const (
 )
 
 // UnmarshalJSON converts JSON data to a valid DNSPolicy
-func (d *DNSPolicy) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *DNSPolicy) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		return nil
-	***REMOVED***
+	}
 	var s string
-	if err := json.Unmarshal(data, &s); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &s); err != nil {
 		return err
-	***REMOVED***
+	}
 	v, err := DNSPolicyString(s)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	*d = v
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d.
-func (d DNSPolicy) MarshalJSON() ([]byte, error) ***REMOVED***
+func (d DNSPolicy) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
-***REMOVED***
+}
 
 // NullDNSPolicy is a nullable wrapper around DNSPolicy, required for the
 // current configuration system.
-type NullDNSPolicy struct ***REMOVED***
+type NullDNSPolicy struct {
 	DNSPolicy
 	Valid bool
-***REMOVED***
+}
 
 // UnmarshalJSON converts JSON data to a valid NullDNSPolicy.
-func (d *NullDNSPolicy) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *NullDNSPolicy) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		return nil
-	***REMOVED***
-	if err := json.Unmarshal(data, &d.DNSPolicy); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &d.DNSPolicy); err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d.
-func (d NullDNSPolicy) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !d.Valid ***REMOVED***
+func (d NullDNSPolicy) MarshalJSON() ([]byte, error) {
+	if !d.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(d.DNSPolicy)
-***REMOVED***
+}
 
 // DNSSelect is the strategy to use when picking a single IP if more than one
 // is returned for a host name.
@@ -117,116 +117,116 @@ const (
 )
 
 // UnmarshalJSON converts JSON data to a valid DNSSelect
-func (d *DNSSelect) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *DNSSelect) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		return nil
-	***REMOVED***
+	}
 	var s string
-	if err := json.Unmarshal(data, &s); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &s); err != nil {
 		return err
-	***REMOVED***
+	}
 	v, err := DNSSelectString(s)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	*d = v
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d.
-func (d DNSSelect) MarshalJSON() ([]byte, error) ***REMOVED***
+func (d DNSSelect) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
-***REMOVED***
+}
 
 // NullDNSSelect is a nullable wrapper around DNSSelect, required for the
 // current configuration system.
-type NullDNSSelect struct ***REMOVED***
+type NullDNSSelect struct {
 	DNSSelect
 	Valid bool
-***REMOVED***
+}
 
 // UnmarshalJSON converts JSON data to a valid NullDNSSelect.
-func (d *NullDNSSelect) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *NullDNSSelect) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		return nil
-	***REMOVED***
-	if err := json.Unmarshal(data, &d.DNSSelect); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &d.DNSSelect); err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d.
-func (d NullDNSSelect) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !d.Valid ***REMOVED***
+func (d NullDNSSelect) MarshalJSON() ([]byte, error) {
+	if !d.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(d.DNSSelect)
-***REMOVED***
+}
 
 // String implements fmt.Stringer.
-func (c DNSConfig) String() string ***REMOVED***
+func (c DNSConfig) String() string {
 	return fmt.Sprintf("ttl=%s,select=%s,policy=%s",
 		c.TTL.String, c.Select.String(), c.Policy.String())
-***REMOVED***
+}
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (c *DNSConfig) UnmarshalJSON(data []byte) error ***REMOVED***
-	var s struct ***REMOVED***
+func (c *DNSConfig) UnmarshalJSON(data []byte) error {
+	var s struct {
 		TTL    null.String   `json:"ttl"`
 		Select NullDNSSelect `json:"select"`
 		Policy NullDNSPolicy `json:"policy"`
-	***REMOVED***
-	if err := json.Unmarshal(data, &s); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &s); err != nil {
 		return err
-	***REMOVED***
+	}
 	c.TTL = s.TTL
 	c.Select = s.Select
 	c.Policy = s.Policy
 	return nil
-***REMOVED***
+}
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (c *DNSConfig) UnmarshalText(text []byte) error ***REMOVED***
-	if string(text) == DefaultDNSConfig().String() ***REMOVED***
+func (c *DNSConfig) UnmarshalText(text []byte) error {
+	if string(text) == DefaultDNSConfig().String() {
 		*c = DefaultDNSConfig()
 		return nil
-	***REMOVED***
+	}
 	values := strings.Split(string(text), ",")
 	params := make(map[string]string, len(values))
-	for _, value := range values ***REMOVED***
+	for _, value := range values {
 		args := strings.SplitN(value, "=", 2)
-		if len(args) != 2 ***REMOVED***
+		if len(args) != 2 {
 			return fmt.Errorf("no value for key %s", value)
-		***REMOVED***
+		}
 		params[args[0]] = args[1]
-	***REMOVED***
+	}
 	return c.unmarshal(params)
-***REMOVED***
+}
 
-func (c *DNSConfig) unmarshal(params map[string]string) error ***REMOVED***
-	for k, v := range params ***REMOVED***
-		switch k ***REMOVED***
+func (c *DNSConfig) unmarshal(params map[string]string) error {
+	for k, v := range params {
+		switch k {
 		case "policy":
 			p, err := DNSPolicyString(v)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return err
-			***REMOVED***
+			}
 			c.Policy.DNSPolicy = p
 			c.Policy.Valid = true
 		case "select":
 			s, err := DNSSelectString(v)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return err
-			***REMOVED***
+			}
 			c.Select.DNSSelect = s
 			c.Select.Valid = true
 		case "ttl":
 			c.TTL = null.StringFrom(v)
 		default:
 			return fmt.Errorf("unknown DNS configuration field: %s", k)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return nil
-***REMOVED***
+}

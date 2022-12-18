@@ -14,42 +14,42 @@ import (
 )
 
 // Runtime is a helper struct that contains what is needed to run a (simple) module test
-type Runtime struct ***REMOVED***
+type Runtime struct {
 	VU             *VU
 	EventLoop      *eventloop.EventLoop
 	CancelContext  func()
 	BuiltinMetrics *workerMetrics.BuiltinMetrics
-***REMOVED***
+}
 
 // NewRuntime will create a new test runtime and will cancel the context on test/benchmark end
-func NewRuntime(t testing.TB) *Runtime ***REMOVED***
+func NewRuntime(t testing.TB) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	vu := &VU***REMOVED***
+	vu := &VU{
 		CtxField:     ctx,
 		RuntimeField: goja.New(),
-	***REMOVED***
-	vu.RuntimeField.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	vu.InitEnvField = &common.InitEnvironment***REMOVED***
+	}
+	vu.RuntimeField.SetFieldNameMapper(common.FieldNameMapper{})
+	vu.InitEnvField = &common.InitEnvironment{
 		Logger:   testutils.NewLogger(t),
 		Registry: workerMetrics.NewRegistry(),
-	***REMOVED***
+	}
 
 	eventloop := eventloop.New(vu)
 	vu.RegisterCallbackField = eventloop.RegisterCallback
-	result := &Runtime***REMOVED***
+	result := &Runtime{
 		VU:             vu,
 		EventLoop:      eventloop,
 		CancelContext:  cancel,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(vu.InitEnvField.Registry),
-	***REMOVED***
+	}
 	// let's cancel again in case it has changed
-	t.Cleanup(func() ***REMOVED*** result.CancelContext() ***REMOVED***)
+	t.Cleanup(func() { result.CancelContext() })
 	return result
-***REMOVED***
+}
 
 // MoveToVUContext will set the state and nil the InitEnv just as a real VU
-func (r *Runtime) MoveToVUContext(state *libWorker.State) ***REMOVED***
+func (r *Runtime) MoveToVUContext(state *libWorker.State) {
 	r.VU.InitEnvField = nil
 	r.VU.StateField = state
-***REMOVED***
+}

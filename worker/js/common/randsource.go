@@ -13,10 +13,10 @@ import (
 // https://github.com/dop251/goja/blob/master/goja/main.go#L44
 // The returned RandSource is NOT safe for concurrent use:
 // https://golang.org/pkg/math/rand/#NewSource
-func NewRandSource() goja.RandSource ***REMOVED***
+func NewRandSource() goja.RandSource {
 	var seed int64
-	if err := binary.Read(crand.Reader, binary.LittleEndian, &seed); err != nil ***REMOVED***
+	if err := binary.Read(crand.Reader, binary.LittleEndian, &seed); err != nil {
 		panic(fmt.Errorf("could not read random bytes: %w", err))
-	***REMOVED***
+	}
 	return rand.New(rand.NewSource(seed)).Float64 //nolint:gosec
-***REMOVED***
+}

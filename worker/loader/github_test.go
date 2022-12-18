@@ -12,7 +12,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 )
 
-func TestGithub(t *testing.T) ***REMOVED***
+func TestGithub(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -20,26 +20,26 @@ func TestGithub(t *testing.T) ***REMOVED***
 	expectedEndSrc := "https://raw.githubusercontent.com/github/gitignore/master/Go.gitignore"
 	name, loader, parts := pickLoader(path)
 	assert.Equal(t, "github", name)
-	assert.Equal(t, []string***REMOVED***"github", "gitignore", "Go.gitignore"***REMOVED***, parts)
+	assert.Equal(t, []string{"github", "gitignore", "Go.gitignore"}, parts)
 	src, err := loader(logger, path, parts)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedEndSrc, src)
 
-	root := &url.URL***REMOVED***Scheme: "https", Host: "example.com", Path: "/something/"***REMOVED***
+	root := &url.URL{Scheme: "https", Host: "example.com", Path: "/something/"}
 	resolvedURL, err := Resolve(root, path)
 	require.NoError(t, err)
 	require.Empty(t, resolvedURL.Scheme)
 	require.Equal(t, path, resolvedURL.Opaque)
-	t.Run("not cached", func(t *testing.T) ***REMOVED***
+	t.Run("not cached", func(t *testing.T) {
 		t.Parallel()
-		data, err := Load(logger, map[string]afero.Fs***REMOVED***"https": afero.NewMemMapFs()***REMOVED***, resolvedURL, path)
+		data, err := Load(logger, map[string]afero.Fs{"https": afero.NewMemMapFs()}, resolvedURL, path)
 		require.NoError(t, err)
 		assert.Equal(t, data.URL, resolvedURL)
 		assert.Equal(t, path, data.URL.String())
 		assert.NotEmpty(t, data.Data)
-	***REMOVED***)
+	})
 
-	t.Run("cached", func(t *testing.T) ***REMOVED***
+	t.Run("cached", func(t *testing.T) {
 		t.Parallel()
 		fs := afero.NewMemMapFs()
 		testData := []byte("test data")
@@ -47,28 +47,28 @@ func TestGithub(t *testing.T) ***REMOVED***
 		err := afero.WriteFile(fs, "/github.com/github/gitignore/Go.gitignore", testData, 0o644)
 		require.NoError(t, err)
 
-		data, err := Load(logger, map[string]afero.Fs***REMOVED***"https": fs***REMOVED***, resolvedURL, path)
+		data, err := Load(logger, map[string]afero.Fs{"https": fs}, resolvedURL, path)
 		require.NoError(t, err)
 		assert.Equal(t, path, data.URL.String())
 		assert.Equal(t, data.Data, testData)
-	***REMOVED***)
+	})
 
-	t.Run("relative", func(t *testing.T) ***REMOVED***
+	t.Run("relative", func(t *testing.T) {
 		t.Parallel()
-		tests := map[string]string***REMOVED***
+		tests := map[string]string{
 			"./something.else":  "github.com/github/gitignore/something.else",
 			"../something.else": "github.com/github/something.else",
 			"/something.else":   "github.com/something.else",
-		***REMOVED***
-		for relative, expected := range tests ***REMOVED***
+		}
+		for relative, expected := range tests {
 			relativeURL, err := Resolve(Dir(resolvedURL), relative)
 			require.NoError(t, err)
 			assert.Equal(t, expected, relativeURL.String())
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 
-	t.Run("dir", func(t *testing.T) ***REMOVED***
+	t.Run("dir", func(t *testing.T) {
 		t.Parallel()
-		require.Equal(t, &url.URL***REMOVED***Opaque: "github.com/github/gitignore"***REMOVED***, Dir(resolvedURL))
-	***REMOVED***)
-***REMOVED***
+		require.Equal(t, &url.URL{Opaque: "github.com/github/gitignore"}, Dir(resolvedURL))
+	})
+}

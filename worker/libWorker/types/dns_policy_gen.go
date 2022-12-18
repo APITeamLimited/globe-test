@@ -9,46 +9,46 @@ import (
 
 const _DNSPolicyName = "preferIPv4preferIPv6onlyIPv4onlyIPv6any"
 
-var _DNSPolicyIndex = [...]uint8***REMOVED***0, 10, 20, 28, 36, 39***REMOVED***
+var _DNSPolicyIndex = [...]uint8{0, 10, 20, 28, 36, 39}
 
-func (i DNSPolicy) String() string ***REMOVED***
+func (i DNSPolicy) String() string {
 	i -= 1
-	if i >= DNSPolicy(len(_DNSPolicyIndex)-1) ***REMOVED***
+	if i >= DNSPolicy(len(_DNSPolicyIndex)-1) {
 		return fmt.Sprintf("DNSPolicy(%d)", i+1)
-	***REMOVED***
+	}
 	return _DNSPolicyName[_DNSPolicyIndex[i]:_DNSPolicyIndex[i+1]]
-***REMOVED***
+}
 
-var _DNSPolicyValues = []DNSPolicy***REMOVED***1, 2, 3, 4, 5***REMOVED***
+var _DNSPolicyValues = []DNSPolicy{1, 2, 3, 4, 5}
 
-var _DNSPolicyNameToValueMap = map[string]DNSPolicy***REMOVED***
+var _DNSPolicyNameToValueMap = map[string]DNSPolicy{
 	_DNSPolicyName[0:10]:  1,
 	_DNSPolicyName[10:20]: 2,
 	_DNSPolicyName[20:28]: 3,
 	_DNSPolicyName[28:36]: 4,
 	_DNSPolicyName[36:39]: 5,
-***REMOVED***
+}
 
 // DNSPolicyString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func DNSPolicyString(s string) (DNSPolicy, error) ***REMOVED***
-	if val, ok := _DNSPolicyNameToValueMap[s]; ok ***REMOVED***
+func DNSPolicyString(s string) (DNSPolicy, error) {
+	if val, ok := _DNSPolicyNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to DNSPolicy values", s)
-***REMOVED***
+}
 
 // DNSPolicyValues returns all values of the enum
-func DNSPolicyValues() []DNSPolicy ***REMOVED***
+func DNSPolicyValues() []DNSPolicy {
 	return _DNSPolicyValues
-***REMOVED***
+}
 
 // IsADNSPolicy returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i DNSPolicy) IsADNSPolicy() bool ***REMOVED***
-	for _, v := range _DNSPolicyValues ***REMOVED***
-		if i == v ***REMOVED***
+func (i DNSPolicy) IsADNSPolicy() bool {
+	for _, v := range _DNSPolicyValues {
+		if i == v {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}

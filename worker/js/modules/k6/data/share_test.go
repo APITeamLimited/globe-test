@@ -15,87 +15,87 @@ import (
 )
 
 const makeArrayScript = `
-var array = new data.SharedArray("shared",function() ***REMOVED***
+var array = new data.SharedArray("shared",function() {
     var n = 50;
     var arr = new Array(n);
-    for (var i = 0 ; i <n; i++) ***REMOVED***
-        arr[i] = ***REMOVED***value: "something" +i***REMOVED***;
-    ***REMOVED***
+    for (var i = 0 ; i <n; i++) {
+        arr[i] = {value: "something" +i};
+    }
 	return arr;
-***REMOVED***);
+});
 `
 
-func newConfiguredRuntime() (*goja.Runtime, error) ***REMOVED***
+func newConfiguredRuntime() (*goja.Runtime, error) {
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			InitEnvField: &common.InitEnvironment{},
 			CtxField:     context.Background(),
 			StateField:   nil,
-		***REMOVED***,
+		},
 	).(*Data)
-	if !ok ***REMOVED***
+	if !ok {
 		return rt, fmt.Errorf("not a Data module instance")
-	***REMOVED***
+	}
 
 	err := rt.Set("data", m.Exports().Named)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return rt, err //nolint:wrapcheck
-	***REMOVED***
+	}
 	_, err = rt.RunString("var SharedArray = data.SharedArray;")
 	return rt, err //nolint:wrapcheck
-***REMOVED***
+}
 
-func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
+func TestSharedArrayConstructorExceptions(t *testing.T) {
 	t.Parallel()
 	rt, err := newConfiguredRuntime()
 	require.NoError(t, err)
-	cases := map[string]struct ***REMOVED***
+	cases := map[string]struct {
 		code, err string
-	***REMOVED******REMOVED***
-		"returning string": ***REMOVED***
-			code: `new SharedArray("wat", function() ***REMOVED***return "whatever"***REMOVED***);`,
+	}{
+		"returning string": {
+			code: `new SharedArray("wat", function() {return "whatever"});`,
 			err:  "only arrays can be made into SharedArray",
-		***REMOVED***,
-		"empty name": ***REMOVED***
-			code: `new SharedArray("", function() ***REMOVED***return []***REMOVED***);`,
+		},
+		"empty name": {
+			code: `new SharedArray("", function() {return []});`,
 			err:  "empty name provided to SharedArray's constructor",
-		***REMOVED***,
-		"function in the data": ***REMOVED***
+		},
+		"function in the data": {
 			code: `
-			var s = new SharedArray("wat2", function() ***REMOVED***return [***REMOVED***s: function() ***REMOVED******REMOVED******REMOVED***]***REMOVED***);
-			if (s[0].s !== undefined) ***REMOVED***
+			var s = new SharedArray("wat2", function() {return [{s: function() {}}]});
+			if (s[0].s !== undefined) {
 				throw "s[0].s should be undefined"
-			***REMOVED***
+			}
 		`,
 			err: "",
-		***REMOVED***,
-		"not a function": ***REMOVED***
+		},
+		"not a function": {
 			code: `var s = new SharedArray("wat3", "astring");`,
 			err:  "a function is expected",
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for name, testCase := range cases ***REMOVED***
+	for name, testCase := range cases {
 		name, testCase := name, testCase
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			_, err := rt.RunString(testCase.code)
-			if testCase.err == "" ***REMOVED***
+			if testCase.err == "" {
 				require.NoError(t, err)
 				return // the t.Run
-			***REMOVED***
+			}
 
 			require.Error(t, err)
 			exc := err.(*goja.Exception)
 			require.Contains(t, exc.Error(), testCase.err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
+func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) {
 	t.Parallel()
 
 	rt, err := newConfiguredRuntime()
@@ -109,53 +109,53 @@ func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	// use strict is required as otherwise just nothing happens
-	cases := map[string]struct ***REMOVED***
+	cases := map[string]struct {
 		code, err string
-	***REMOVED******REMOVED***
-		"setting in for-of": ***REMOVED***
-			code: `'use strict'; for (var v of array) ***REMOVED*** v.data = "bad"; ***REMOVED***`,
+	}{
+		"setting in for-of": {
+			code: `'use strict'; for (var v of array) { v.data = "bad"; }`,
 			err:  "Cannot add property data, object is not extensible",
-		***REMOVED***,
-		"setting from index": ***REMOVED***
+		},
+		"setting from index": {
 			code: `'use strict'; array[2].data2 = "bad2"`,
 			err:  "Cannot add property data2, object is not extensible",
-		***REMOVED***,
-		"setting property on the shared array": ***REMOVED***
+		},
+		"setting property on the shared array": {
 			code: `'use strict'; array.something = "something"`,
 			err:  `Cannot set property "something" on a dynamic array`,
-		***REMOVED***,
-		"setting index on the shared array": ***REMOVED***
+		},
+		"setting index on the shared array": {
 			code: `'use strict'; array[2] = "something"`,
 			err:  "SharedArray is immutable",
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for name, testCase := range cases ***REMOVED***
+	for name, testCase := range cases {
 		name, testCase := name, testCase
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			_, err := rt.RunString(testCase.code)
-			if testCase.err == "" ***REMOVED***
+			if testCase.err == "" {
 				require.NoError(t, err)
 				return // the t.Run
-			***REMOVED***
+			}
 
 			require.Error(t, err)
 			exc := err.(*goja.Exception)
 			require.Contains(t, exc.Error(), testCase.err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
+func TestSharedArrayAnotherRuntimeWorking(t *testing.T) {
 	t.Parallel()
 
 	rt := goja.New()
-	vu := &modulestest.VU***REMOVED***
+	vu := &modulestest.VU{
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+		InitEnvField: &common.InitEnvironment{},
 		CtxField:     context.Background(),
 		StateField:   nil,
-	***REMOVED***
+	}
 	m, ok := New().NewModuleInstance(vu).(*Data)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("data", m.Exports().Named))
@@ -169,71 +169,71 @@ func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 	vu.CtxField = context.Background()
 	require.NoError(t, rt.Set("data", m.Exports().Named))
 
-	_, err = rt.RunString(`var array = new data.SharedArray("shared", function() ***REMOVED***throw "wat";***REMOVED***);`)
+	_, err = rt.RunString(`var array = new data.SharedArray("shared", function() {throw "wat";});`)
 	require.NoError(t, err)
 
 	_, err = rt.RunString(`
-	if (array[2].value !== "something2") ***REMOVED***
+	if (array[2].value !== "something2") {
 		throw new Error("bad array[2]="+array[2].value);
-	***REMOVED***
-	if (array.length != 50) ***REMOVED***
+	}
+	if (array.length != 50) {
 		throw new Error("bad length " +array.length);
-	***REMOVED***
+	}
 
 	var i = 0;
-	for (var v of array) ***REMOVED***
-		if (v.value !== "something"+i) ***REMOVED***
+	for (var v of array) {
+		if (v.value !== "something"+i) {
 			throw new Error("bad v.value="+v.value+" for i="+i);
-		***REMOVED***
+		}
 		i++;
-	***REMOVED***
+	}
 
 	i = 0;
-	array.forEach(function(v)***REMOVED***
-		if (v.value !== "something"+i) ***REMOVED***
+	array.forEach(function(v){
+		if (v.value !== "something"+i) {
 			throw new Error("bad v.value="+v.value+" for i="+i);
-		***REMOVED***
+		}
 		i++;
-	***REMOVED***);
+	});
 
 
 	`)
 	require.NoError(t, err)
-***REMOVED***
+}
 
-func TestSharedArrayRaceInInitialization(t *testing.T) ***REMOVED***
+func TestSharedArrayRaceInInitialization(t *testing.T) {
 	t.Parallel()
 
 	const instances = 10
 	const repeats = 100
-	for i := 0; i < repeats; i++ ***REMOVED***
+	for i := 0; i < repeats; i++ {
 		runtimes := make([]*goja.Runtime, instances)
-		for j := 0; j < instances; j++ ***REMOVED***
+		for j := 0; j < instances; j++ {
 			rt, err := newConfiguredRuntime()
 			require.NoError(t, err)
 			runtimes[j] = rt
-		***REMOVED***
+		}
 		var wg sync.WaitGroup
-		for _, rt := range runtimes ***REMOVED***
+		for _, rt := range runtimes {
 			rt := rt
 			wg.Add(1)
-			go func() ***REMOVED***
+			go func() {
 				defer wg.Done()
-				_, err := rt.RunString(`var array = new data.SharedArray("shared", function() ***REMOVED***return [1,2,3,4,5,6,7,8,9, 10]***REMOVED***);`)
+				_, err := rt.RunString(`var array = new data.SharedArray("shared", function() {return [1,2,3,4,5,6,7,8,9, 10]});`)
 				require.NoError(t, err)
-			***REMOVED***()
-		***REMOVED***
-		ch := make(chan struct***REMOVED******REMOVED***)
-		go func() ***REMOVED***
+			}()
+		}
+		ch := make(chan struct{})
+		go func() {
 			wg.Wait()
 			close(ch)
-		***REMOVED***()
+		}()
 
-		select ***REMOVED***
+		select {
 		case <-ch:
 			// everything is fine
 		case <-time.After(time.Second * 10):
 			t.Fatal("Took too long probably locked up")
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}

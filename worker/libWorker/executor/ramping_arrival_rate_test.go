@@ -19,67 +19,67 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig ***REMOVED***
-	return &RampingArrivalRateConfig***REMOVED***
-		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig {
+	return &RampingArrivalRateConfig{
+		BaseConfig: BaseConfig{GracefulStop: types.NullDurationFrom(1 * time.Second)},
 		TimeUnit:   types.NullDurationFrom(time.Second),
 		StartRate:  null.IntFrom(10),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(time.Second * 1),
 				Target:   null.IntFrom(10),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(time.Second * 1),
 				Target:   null.IntFrom(50),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(time.Second * 1),
 				Target:   null.IntFrom(50),
-			***REMOVED***,
-		***REMOVED***,
+			},
+		},
 		PreAllocatedVUs: null.IntFrom(10),
 		MaxVUs:          null.IntFrom(20),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 	t.Parallel()
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		time.Sleep(time.Second)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, getTestRampingArrivalRateConfig())
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestRampingArrivalRateConfig())
 	defer test.cancel()
 
 	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	entries := test.logHook.Drain()
 	require.NotEmpty(t, entries)
-	for _, entry := range entries ***REMOVED***
+	for _, entry := range entries {
 		require.Equal(t,
 			"Insufficient VUs, reached 20 active VUs and cannot initialize more",
 			entry.Message)
 		require.Equal(t, logrus.WarnLevel, entry.Level)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunCorrectRate(t *testing.T) {
 	t.Parallel()
 	var count int64
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		atomic.AddInt64(&count, 1)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, getTestRampingArrivalRateConfig())
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestRampingArrivalRateConfig())
 	defer test.cancel()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func() ***REMOVED***
+	go func() {
 		defer wg.Done()
 		// check that we got around the amount of VU iterations as we would expect
 		var currentCount int64
@@ -95,49 +95,49 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		time.Sleep(time.Second)
 		currentCount = atomic.SwapInt64(&count, 0)
 		assert.InDelta(t, 50, currentCount, 3)
-	***REMOVED***()
+	}()
 	engineOut := make(chan workerMetrics.SampleContainer, 1000)
 	require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	wg.Wait()
 	require.Empty(t, test.logHook.Drain())
-***REMOVED***
+}
 
-func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) {
 	t.Parallel()
 
-	config := &RampingArrivalRateConfig***REMOVED***
+	config := &RampingArrivalRateConfig{
 		TimeUnit: types.NullDurationFrom(time.Second),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				// the minus one makes it so only 9 iterations will be started instead of 10
 				// as the 10th happens to be just at the end and sometimes doesn't get executed :(
 				Duration: types.NullDurationFrom(time.Second*2 - 1),
 				Target:   null.IntFrom(10),
-			***REMOVED***,
-		***REMOVED***,
+			},
+		},
 		PreAllocatedVUs: null.IntFrom(1),
 		MaxVUs:          null.IntFrom(3),
-	***REMOVED***
+	}
 
 	var count int64
-	ch := make(chan struct***REMOVED******REMOVED***)  // closed when new unplannedVU is started and signal to get to next iterations
-	ch2 := make(chan struct***REMOVED******REMOVED***) // closed when a second iteration was started on an old VU in order to test it won't start a second unplanned VU in parallel or at all
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	ch := make(chan struct{})  // closed when new unplannedVU is started and signal to get to next iterations
+	ch2 := make(chan struct{}) // closed when a second iteration was started on an old VU in order to test it won't start a second unplanned VU in parallel or at all
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		cur := atomic.AddInt64(&count, 1)
-		if cur == 1 ***REMOVED***
+		if cur == 1 {
 			<-ch // wait to start again
-		***REMOVED*** else if cur == 2 ***REMOVED***
+		} else if cur == 2 {
 			<-ch2 // wait to start again
-		***REMOVED***
+		}
 
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	engineOut := make(chan workerMetrics.SampleContainer, 1000)
-	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
+	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
 		time.Sleep(time.Second / 2)
@@ -158,46 +158,46 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 		require.NotEqual(t, cur, int64(2))
 		idl, idg := test.state.GetUniqueVUIdentifiers()
 		return runner.NewVU(idl, idg, engineOut, libWorker.GetTestWorkerInfo())
-	***REMOVED***)
+	})
 
 	assert.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 
 	droppedIters := sumMetricValues(engineOut, workerMetrics.DroppedIterationsName)
 	assert.Equal(t, count+int64(droppedIters), int64(9))
-***REMOVED***
+}
 
-func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) {
 	t.Parallel()
 
-	config := &RampingArrivalRateConfig***REMOVED***
+	config := &RampingArrivalRateConfig{
 		TimeUnit: types.NullDurationFrom(time.Second),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(time.Second * 2),
 				Target:   null.IntFrom(10),
-			***REMOVED***,
-		***REMOVED***,
+			},
+		},
 		PreAllocatedVUs: null.IntFrom(1),
 		MaxVUs:          null.IntFrom(3),
-	***REMOVED***
+	}
 
 	var count int64
-	ch := make(chan struct***REMOVED******REMOVED***) // closed when new unplannedVU is started and signal to get to next iterations
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	ch := make(chan struct{}) // closed when new unplannedVU is started and signal to get to next iterations
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		cur := atomic.AddInt64(&count, 1)
-		if cur == 1 ***REMOVED***
+		if cur == 1 {
 			<-ch // wait to start again
-		***REMOVED***
+		}
 
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	engineOut := make(chan workerMetrics.SampleContainer, 1000)
-	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
+	test.state.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		t.Log("init")
 		cur := atomic.LoadInt64(&count)
 		require.Equal(t, cur, int64(1))
@@ -209,39 +209,39 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 
 		idl, idg := test.state.GetUniqueVUIdentifiers()
 		return runner.NewVU(idl, idg, engineOut, libWorker.GetTestWorkerInfo())
-	***REMOVED***)
+	})
 
 	assert.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 	assert.Empty(t, test.logHook.Drain())
 	assert.Equal(t, int64(0), test.state.GetCurrentlyActiveVUsCount())
 	assert.Equal(t, int64(2), test.state.GetInitializedVUsCount())
-***REMOVED***
+}
 
-func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunGracefulStop(t *testing.T) {
 	t.Parallel()
 
-	config := &RampingArrivalRateConfig***REMOVED***
+	config := &RampingArrivalRateConfig{
 		TimeUnit: types.NullDurationFrom(1 * time.Second),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(2 * time.Second),
 				Target:   null.IntFrom(10),
-			***REMOVED***,
-		***REMOVED***,
+			},
+		},
 		StartRate:       null.IntFrom(10),
 		PreAllocatedVUs: null.IntFrom(10),
 		MaxVUs:          null.IntFrom(10),
-		BaseConfig: BaseConfig***REMOVED***
+		BaseConfig: BaseConfig{
 			GracefulStop: types.NullDurationFrom(5 * time.Second),
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 		time.Sleep(5 * time.Second)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, config)
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, config)
 	defer test.cancel()
 
 	engineOut := make(chan workerMetrics.SampleContainer, 1000)
@@ -251,35 +251,35 @@ func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
 	assert.Equal(t, int64(0), test.state.GetCurrentlyActiveVUsCount())
 	assert.Equal(t, int64(10), test.state.GetInitializedVUsCount())
 	assert.Equal(t, uint64(10), test.state.GetFullIterationCount())
-***REMOVED***
+}
 
-func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
-	tests := []struct ***REMOVED***
+func BenchmarkRampingArrivalRateRun(b *testing.B) {
+	tests := []struct {
 		prealloc null.Int
-	***REMOVED******REMOVED***
-		***REMOVED***prealloc: null.IntFrom(10)***REMOVED***,
-		***REMOVED***prealloc: null.IntFrom(100)***REMOVED***,
-		***REMOVED***prealloc: null.IntFrom(1e3)***REMOVED***,
-		***REMOVED***prealloc: null.IntFrom(10e3)***REMOVED***,
-	***REMOVED***
+	}{
+		{prealloc: null.IntFrom(10)},
+		{prealloc: null.IntFrom(100)},
+		{prealloc: null.IntFrom(1e3)},
+		{prealloc: null.IntFrom(10e3)},
+	}
 
-	for _, tc := range tests ***REMOVED***
-		b.Run(fmt.Sprintf("VUs%d", tc.prealloc.ValueOrZero()), func(b *testing.B) ***REMOVED***
+	for _, tc := range tests {
+		b.Run(fmt.Sprintf("VUs%d", tc.prealloc.ValueOrZero()), func(b *testing.B) {
 			engineOut := make(chan workerMetrics.SampleContainer, 1000)
 			defer close(engineOut)
-			go func() ***REMOVED***
-				for range engineOut ***REMOVED***
+			go func() {
+				for range engineOut {
 					// discard
-				***REMOVED***
-			***REMOVED***()
+				}
+			}()
 
 			var count int64
-			runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error ***REMOVED***
+			runner := simpleRunner(func(ctx context.Context, _ *libWorker.State) error {
 				atomic.AddInt64(&count, 1)
 				return nil
-			***REMOVED***)
+			})
 
-			testRunState := getTestRunState(b, libWorker.Options***REMOVED******REMOVED***, runner)
+			testRunState := getTestRunState(b, libWorker.Options{}, runner)
 			es := libWorker.NewExecutionState(
 				testRunState, mustNewExecutionTuple(nil, nil),
 				uint64(tc.prealloc.Int64), uint64(tc.prealloc.Int64),
@@ -289,21 +289,21 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
 			target := int64(1e9)
 
 			ctx, cancel, executor, _ := setupExecutor(
-				b, &RampingArrivalRateConfig***REMOVED***
+				b, &RampingArrivalRateConfig{
 					TimeUnit: types.NullDurationFrom(1 * time.Second),
-					Stages: []Stage***REMOVED***
-						***REMOVED***
+					Stages: []Stage{
+						{
 							Duration: types.NullDurationFrom(0),
 							Target:   null.IntFrom(target),
-						***REMOVED***,
-						***REMOVED***
+						},
+						{
 							Duration: types.NullDurationFrom(5 * time.Second),
 							Target:   null.IntFrom(target),
-						***REMOVED***,
-					***REMOVED***,
+						},
+					},
 					PreAllocatedVUs: tc.prealloc,
 					MaxVUs:          tc.prealloc,
-				***REMOVED***, es)
+				}, es)
 			defer cancel()
 
 			b.ResetTimer()
@@ -316,240 +316,240 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
 			iterations := float64(atomic.LoadInt64(&count))
 			b.ReportMetric(0, "ns/op")
 			b.ReportMetric(iterations/took.Seconds(), "iterations/s")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func mustNewExecutionTuple(seg *libWorker.ExecutionSegment, seq *libWorker.ExecutionSegmentSequence) *libWorker.ExecutionTuple ***REMOVED***
+func mustNewExecutionTuple(seg *libWorker.ExecutionSegment, seq *libWorker.ExecutionSegmentSequence) *libWorker.ExecutionTuple {
 	et, err := libWorker.NewExecutionTuple(seg, seq)
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
+	}
 	return et
-***REMOVED***
+}
 
-func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateCal(t *testing.T) {
 	t.Parallel()
 
 	var (
 		defaultTimeUnit = time.Second
-		getConfig       = func() RampingArrivalRateConfig ***REMOVED***
-			return RampingArrivalRateConfig***REMOVED***
+		getConfig       = func() RampingArrivalRateConfig {
+			return RampingArrivalRateConfig{
 				StartRate: null.IntFrom(0),
-				Stages: []Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
-					***REMOVED***
+				Stages: []Stage{ // TODO make this even bigger and longer .. will need more time
+					{
 						Duration: types.NullDurationFrom(time.Second * 5),
 						Target:   null.IntFrom(1),
-					***REMOVED***,
-					***REMOVED***
+					},
+					{
 						Duration: types.NullDurationFrom(time.Second * 1),
 						Target:   null.IntFrom(1),
-					***REMOVED***,
-					***REMOVED***
+					},
+					{
 						Duration: types.NullDurationFrom(time.Second * 5),
 						Target:   null.IntFrom(0),
-					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***
-		***REMOVED***
+					},
+				},
+			}
+		}
 	)
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		expectedTimes []time.Duration
 		et            *libWorker.ExecutionTuple
 		timeUnit      time.Duration
-	***REMOVED******REMOVED***
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 3162, time.Millisecond * 4472, time.Millisecond * 5500, time.Millisecond * 6527, time.Millisecond * 7837, time.Second * 11***REMOVED***,
+	}{
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 3162, time.Millisecond * 4472, time.Millisecond * 5500, time.Millisecond * 6527, time.Millisecond * 7837, time.Second * 11},
 			et:            mustNewExecutionTuple(nil, nil),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 4472, time.Millisecond * 7837***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 4472, time.Millisecond * 7837},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), nil),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 4472, time.Millisecond * 7837***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 4472, time.Millisecond * 7837},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1")),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 4472, time.Millisecond * 7837***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 4472, time.Millisecond * 7837},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), nil),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 4472, time.Millisecond * 7837***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 4472, time.Millisecond * 7837},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), nil),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 3162, time.Millisecond * 6527***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 3162, time.Millisecond * 6527},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 4472, time.Millisecond * 7837***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 4472, time.Millisecond * 7837},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***time.Millisecond * 5500, time.Millisecond * 11000***REMOVED***,
+		},
+		{
+			expectedTimes: []time.Duration{time.Millisecond * 5500, time.Millisecond * 11000},
 			et:            mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-		***REMOVED***,
-		***REMOVED***
-			expectedTimes: []time.Duration***REMOVED***
+		},
+		{
+			expectedTimes: []time.Duration{
 				time.Millisecond * 1825, time.Millisecond * 2581, time.Millisecond * 3162, time.Millisecond * 3651, time.Millisecond * 4082, time.Millisecond * 4472,
 				time.Millisecond * 4830, time.Millisecond * 5166, time.Millisecond * 5499, time.Millisecond * 5833, time.Millisecond * 6169, time.Millisecond * 6527,
 				time.Millisecond * 6917, time.Millisecond * 7348, time.Millisecond * 7837, time.Millisecond * 8418, time.Millisecond * 9174, time.Millisecond * 10999,
-			***REMOVED***,
+			},
 			et:       mustNewExecutionTuple(nil, nil),
 			timeUnit: time.Second / 3, // three  times as fast
-		***REMOVED***,
+		},
 		// TODO: extend more
-	***REMOVED***
+	}
 
-	for testNum, testCase := range testCases ***REMOVED***
+	for testNum, testCase := range testCases {
 		et := testCase.et
 		expectedTimes := testCase.expectedTimes
 		config := getConfig()
 		config.TimeUnit = types.NewNullDuration(testCase.timeUnit, true)
-		if testCase.timeUnit == 0 ***REMOVED***
+		if testCase.timeUnit == 0 {
 			config.TimeUnit = types.NewNullDuration(defaultTimeUnit, true)
-		***REMOVED***
+		}
 
-		t.Run(fmt.Sprintf("testNum %d - %s timeunit %s", testNum, et, config.TimeUnit), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("testNum %d - %s timeunit %s", testNum, et, config.TimeUnit), func(t *testing.T) {
 			t.Parallel()
 			ch := make(chan time.Duration)
 			go config.cal(et, ch)
 			changes := make([]time.Duration, 0, len(expectedTimes))
-			for c := range ch ***REMOVED***
+			for c := range ch {
 				changes = append(changes, c)
-			***REMOVED***
+			}
 			assert.Equal(t, len(expectedTimes), len(changes))
-			for i, expectedTime := range expectedTimes ***REMOVED***
+			for i, expectedTime := range expectedTimes {
 				require.True(t, i < len(changes))
 				change := changes[i]
 				assert.InEpsilon(t, expectedTime, change, 0.001, "Expected around %s, got %s", expectedTime, change)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func BenchmarkCal(b *testing.B) ***REMOVED***
-	for _, t := range []time.Duration***REMOVED***
+func BenchmarkCal(b *testing.B) {
+	for _, t := range []time.Duration{
 		time.Second, time.Minute,
-	***REMOVED*** ***REMOVED***
+	} {
 		t := t
-		b.Run(t.String(), func(b *testing.B) ***REMOVED***
-			config := RampingArrivalRateConfig***REMOVED***
+		b.Run(t.String(), func(b *testing.B) {
+			config := RampingArrivalRateConfig{
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
-				Stages: []Stage***REMOVED***
-					***REMOVED***
+				Stages: []Stage{
+					{
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(49),
-					***REMOVED***,
-					***REMOVED***
+					},
+					{
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(50),
-					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***
+					},
+				},
+			}
 			et := mustNewExecutionTuple(nil, nil)
 
 			b.ResetTimer()
-			b.RunParallel(func(pb *testing.PB) ***REMOVED***
-				for pb.Next() ***REMOVED***
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
 					ch := make(chan time.Duration, 20)
 					go config.cal(et, ch)
-					for c := range ch ***REMOVED***
+					for c := range ch {
 						_ = c
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				}
+			})
+		})
+	}
+}
 
-func BenchmarkCalRat(b *testing.B) ***REMOVED***
-	for _, t := range []time.Duration***REMOVED***
+func BenchmarkCalRat(b *testing.B) {
+	for _, t := range []time.Duration{
 		time.Second, time.Minute,
-	***REMOVED*** ***REMOVED***
+	} {
 		t := t
-		b.Run(t.String(), func(b *testing.B) ***REMOVED***
-			config := RampingArrivalRateConfig***REMOVED***
+		b.Run(t.String(), func(b *testing.B) {
+			config := RampingArrivalRateConfig{
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
-				Stages: []Stage***REMOVED***
-					***REMOVED***
+				Stages: []Stage{
+					{
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(49),
-					***REMOVED***,
-					***REMOVED***
+					},
+					{
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(50),
-					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***
+					},
+				},
+			}
 			et := mustNewExecutionTuple(nil, nil)
 
 			b.ResetTimer()
-			b.RunParallel(func(pb *testing.PB) ***REMOVED***
-				for pb.Next() ***REMOVED***
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
 					ch := make(chan time.Duration, 20)
 					go config.calRat(et, ch)
-					for c := range ch ***REMOVED***
+					for c := range ch {
 						_ = c
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				}
+			})
+		})
+	}
+}
 
-func TestCompareCalImplementation(t *testing.T) ***REMOVED***
+func TestCompareCalImplementation(t *testing.T) {
 	t.Parallel()
 	// This test checks that the cal and calRat implementation get roughly similar numbers
 	// in my experiment the difference is 1(nanosecond) in 7 case for the whole test
 	// the duration is 1 second for each stage as calRat takes way longer - a longer better test can
 	// be done when/if it's performance is improved
-	config := RampingArrivalRateConfig***REMOVED***
+	config := RampingArrivalRateConfig{
 		TimeUnit:  types.NullDurationFrom(time.Second),
 		StartRate: null.IntFrom(0),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(200),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(200),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(2000),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(2000),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(300),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(300),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1333),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1334),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1334),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	et := mustNewExecutionTuple(nil, nil)
 	chRat := make(chan time.Duration, 20)
@@ -558,15 +558,15 @@ func TestCompareCalImplementation(t *testing.T) ***REMOVED***
 	go config.cal(et, ch)
 	count := 0
 	var diff int
-	for c := range ch ***REMOVED***
+	for c := range ch {
 		count++
 		cRat := <-chRat
-		if !assert.InDelta(t, c, cRat, 1, "%d", count) ***REMOVED***
+		if !assert.InDelta(t, c, cRat, 1, "%d", count) {
 			diff++
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	require.Equal(t, 0, diff)
-***REMOVED***
+}
 
 // calRat code here is just to check how accurate the cal implemenattion is
 // there are no other tests for it so it depends on the test of cal that it is actually accurate :D
@@ -575,33 +575,33 @@ func TestCompareCalImplementation(t *testing.T) ***REMOVED***
 var two = big.NewRat(2, 1)
 
 // from https://groups.google.com/forum/#!topic/golang-nuts/aIcDf8T-Png
-func sqrtRat(x *big.Rat) *big.Rat ***REMOVED***
+func sqrtRat(x *big.Rat) *big.Rat {
 	var z, a, b big.Rat
 	var ns, ds big.Int
 	ni, di := x.Num(), x.Denom()
 	z.SetFrac(ns.Rsh(ni, uint(ni.BitLen())/2), ds.Rsh(di, uint(di.BitLen())/2))
-	for i := 10; i > 0; i-- ***REMOVED*** // TODO: better termination
+	for i := 10; i > 0; i-- { // TODO: better termination
 		a.Sub(a.Mul(&z, &z), x)
 		f, _ := a.Float64()
-		if f == 0 ***REMOVED***
+		if f == 0 {
 			break
-		***REMOVED***
+		}
 		// fmt.Println(x, z, i)
 		z.Sub(&z, b.Quo(&a, b.Mul(two, &z)))
-	***REMOVED***
+	}
 	return &z
-***REMOVED***
+}
 
 // This implementation is just for reference and accuracy testing
-func (varc RampingArrivalRateConfig) calRat(et *libWorker.ExecutionTuple, ch chan<- time.Duration) ***REMOVED***
+func (varc RampingArrivalRateConfig) calRat(et *libWorker.ExecutionTuple, ch chan<- time.Duration) {
 	defer close(ch)
 
 	start, offsets, _ := et.GetStripedOffsets()
 	li := -1
-	next := func() int64 ***REMOVED***
+	next := func() int64 {
 		li++
 		return offsets[li%len(offsets)]
-	***REMOVED***
+	}
 	iRat := big.NewRat(start+1, 1)
 
 	carry := big.NewRat(0, 1)
@@ -609,9 +609,9 @@ func (varc RampingArrivalRateConfig) calRat(et *libWorker.ExecutionTuple, ch cha
 	endCount := big.NewRat(0, 1)
 	curr := varc.StartRate.ValueOrZero()
 	var base time.Duration
-	for _, stage := range varc.Stages ***REMOVED***
+	for _, stage := range varc.Stages {
 		target := stage.Target.ValueOrZero()
-		if target != curr ***REMOVED***
+		if target != curr {
 			var (
 				from = big.NewRat(curr, int64(time.Second))
 				to   = big.NewRat(target, int64(time.Second))
@@ -628,7 +628,7 @@ func (varc RampingArrivalRateConfig) calRat(et *libWorker.ExecutionTuple, ch cha
 				new(big.Rat).Mul(
 					dur,
 					new(big.Rat).Add(new(big.Rat).Mul(toMinusFrom, big.NewRat(1, 2)), from)))
-			for ; endCount.Cmp(iRat) >= 0; iRat.Add(iRat, big.NewRat(next(), 1)) ***REMOVED***
+			for ; endCount.Cmp(iRat) >= 0; iRat.Add(iRat, big.NewRat(next(), 1)) {
 				// even with all of this optimizations sqrtRat is taking so long this is still
 				// extremely slow ... :(
 				buf := new(big.Rat).Sub(iRat, doneSoFar)
@@ -641,96 +641,96 @@ func (varc RampingArrivalRateConfig) calRat(et *libWorker.ExecutionTuple, ch cha
 
 				r, _ := buf.Float64()
 				ch <- base + time.Duration(-r) // the minus is because we don't deive by from-to but by to-from above
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+			}
+		} else {
 			step := big.NewRat(int64(time.Second), target)
 			first := big.NewRat(0, 1)
 			first.Sub(first, carry)
 			endCount.Add(endCount, new(big.Rat).Mul(big.NewRat(target, 1), big.NewRat(stage.Duration.TimeDuration().Nanoseconds(), varc.TimeUnit.TimeDuration().Nanoseconds())))
 
-			for ; endCount.Cmp(iRat) >= 0; iRat.Add(iRat, big.NewRat(next(), 1)) ***REMOVED***
+			for ; endCount.Cmp(iRat) >= 0; iRat.Add(iRat, big.NewRat(next(), 1)) {
 				res := new(big.Rat).Sub(iRat, doneSoFar) // this can get next added to it but will need to change the above for .. so
 				r, _ := res.Mul(res, step).Float64()
 				ch <- base + time.Duration(r)
 				first.Add(first, step)
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		doneSoFar.Set(endCount) // copy
 		curr = target
 		base += stage.Duration.TimeDuration()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateGlobalIters(t *testing.T) {
 	t.Parallel()
 
-	config := &RampingArrivalRateConfig***REMOVED***
-		BaseConfig:      BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(100 * time.Millisecond)***REMOVED***,
+	config := &RampingArrivalRateConfig{
+		BaseConfig:      BaseConfig{GracefulStop: types.NullDurationFrom(100 * time.Millisecond)},
 		TimeUnit:        types.NullDurationFrom(950 * time.Millisecond),
 		StartRate:       null.IntFrom(0),
 		PreAllocatedVUs: null.IntFrom(4),
 		MaxVUs:          null.IntFrom(5),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(20),
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(0),
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		seq, seg string
 		expIters []uint64
-	***REMOVED******REMOVED***
-		***REMOVED***"0,1/4,3/4,1", "0:1/4", []uint64***REMOVED***1, 6, 11, 16***REMOVED******REMOVED***,
-		***REMOVED***"0,1/4,3/4,1", "1/4:3/4", []uint64***REMOVED***0, 2, 4, 5, 7, 9, 10, 12, 14, 15, 17, 19, 20***REMOVED******REMOVED***,
-		***REMOVED***"0,1/4,3/4,1", "3/4:1", []uint64***REMOVED***3, 8, 13, 18***REMOVED******REMOVED***,
-	***REMOVED***
+	}{
+		{"0,1/4,3/4,1", "0:1/4", []uint64{1, 6, 11, 16}},
+		{"0,1/4,3/4,1", "1/4:3/4", []uint64{0, 2, 4, 5, 7, 9, 10, 12, 14, 15, 17, 19, 20}},
+		{"0,1/4,3/4,1", "3/4:1", []uint64{3, 8, 13, 18}},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("%s_%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("%s_%s", tc.seq, tc.seg), func(t *testing.T) {
 			t.Parallel()
 
-			gotIters := []uint64***REMOVED******REMOVED***
+			gotIters := []uint64{}
 			var mx sync.Mutex
-			runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error ***REMOVED***
+			runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error {
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()
 				return nil
-			***REMOVED***)
+			})
 
-			test := setupExecutorTest(t, tc.seg, tc.seq, libWorker.Options***REMOVED******REMOVED***, runner, config)
+			test := setupExecutorTest(t, tc.seg, tc.seq, libWorker.Options{}, runner, config)
 			defer test.cancel()
 
 			engineOut := make(chan workerMetrics.SampleContainer, 100)
 			require.NoError(t, test.executor.Run(test.ctx, engineOut, libWorker.GetTestWorkerInfo()))
 			assert.Equal(t, tc.expIters, gotIters)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestRampingArrivalRateCornerCase(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateCornerCase(t *testing.T) {
 	t.Parallel()
-	config := &RampingArrivalRateConfig***REMOVED***
+	config := &RampingArrivalRateConfig{
 		TimeUnit:  types.NullDurationFrom(time.Second),
 		StartRate: null.IntFrom(1),
-		Stages: []Stage***REMOVED***
-			***REMOVED***
+		Stages: []Stage{
+			{
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1),
-			***REMOVED***,
-		***REMOVED***,
+			},
+		},
 		MaxVUs: null.IntFrom(2),
-	***REMOVED***
+	}
 
 	et, err := libWorker.NewExecutionTuple(newExecutionSegmentFromString("1/5:2/5"), newExecutionSegmentSequenceFromString("0,1/5,2/5,1"))
 	require.NoError(t, err)
 
 	require.False(t, config.HasWork(et))
-***REMOVED***
+}

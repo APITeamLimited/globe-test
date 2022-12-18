@@ -37,14 +37,14 @@ var (
 	// ignorableTestError = newSymbol(stringEmpty)
 
 	sabStub = goja.MustCompile("sabStub.js", `
-		Object.defineProperty(this, "SharedArrayBuffer", ***REMOVED***
-			get: function() ***REMOVED***
+		Object.defineProperty(this, "SharedArrayBuffer", {
+			get: function() {
 				throw IgnorableTestError;
-			***REMOVED***
-		***REMOVED***);`,
+			}
+		});`,
 		false)
 
-	featuresBlockList = []string***REMOVED***
+	featuresBlockList = []string{
 		"BigInt",                      // not supported at all
 		"IsHTMLDDA",                   // not supported at all
 		"generators",                  // not supported in a meaningful way IMO
@@ -91,9 +91,9 @@ var (
 		"Array.prototype.at",      // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 		"String.prototype.at",     // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 		"TypedArray.prototype.at", // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
-	***REMOVED***
-	skipWords = []string***REMOVED***"yield", "generator", "Generator", "async", "await"***REMOVED***
-	skipList  = map[string]bool***REMOVED***
+	}
+	skipWords = []string{"yield", "generator", "Generator", "async", "await"}
+	skipList  = map[string]bool{
 		"test/built-ins/Function/prototype/toString/AsyncFunction.js": true,
 		"test/built-ins/Object/seal/seal-generatorfunction.js":        true,
 
@@ -151,8 +151,8 @@ var (
 		"test/language/expressions/compound-assignment/S11.13.2_A7.10_T2.js": true,
 		"test/language/expressions/compound-assignment/S11.13.2_A7.10_T1.js": true,
 		"test/language/expressions/assignment/S11.13.1_A7_T3.js":             true,
-	***REMOVED***
-	pathBasedBlock = []string***REMOVED*** // This completely skips any path matching it without any kind of message
+	}
+	pathBasedBlock = []string{ // This completely skips any path matching it without any kind of message
 		"test/annexB/built-ins/Date",
 		"test/annexB/built-ins/RegExp/prototype/Symbol.split",
 		"test/annexB/built-ins/String/prototype/anchor",
@@ -204,23 +204,23 @@ var (
 		"test/built-ins/Object/prototype/__define", // AnnexB defineGetter defineSetter
 
 		"test/language/module-code/", // this requires that we rewrite the js package in a way that it can this tests - which is unlikely to ever happen
-	***REMOVED***
+	}
 )
 
 //nolint:unused,structcheck
-type tc39Test struct ***REMOVED***
+type tc39Test struct {
 	name string
 	f    func(t *testing.T)
-***REMOVED***
+}
 
-type tc39BenchmarkItem struct ***REMOVED***
+type tc39BenchmarkItem struct {
 	name     string
 	duration time.Duration
-***REMOVED***
+}
 
 type tc39BenchmarkData []tc39BenchmarkItem
 
-type tc39TestCtx struct ***REMOVED***
+type tc39TestCtx struct {
 	compilerPool   *compiler.Pool
 	base           string
 	t              *testing.T
@@ -234,13 +234,13 @@ type tc39TestCtx struct ***REMOVED***
 
 	errorsLock sync.Mutex
 	errors     map[string]string
-***REMOVED***
+}
 
-type TC39MetaNegative struct ***REMOVED***
+type TC39MetaNegative struct {
 	Phase, Type string
-***REMOVED***
+}
 
-type tc39Meta struct ***REMOVED***
+type tc39Meta struct {
 	Negative TC39MetaNegative
 	Includes []string
 	Flags    []string
@@ -248,222 +248,222 @@ type tc39Meta struct ***REMOVED***
 	Es5id    string
 	Es6id    string
 	Esid     string
-***REMOVED***
+}
 
-func (m *tc39Meta) hasFlag(flag string) bool ***REMOVED***
-	for _, f := range m.Flags ***REMOVED***
-		if f == flag ***REMOVED***
+func (m *tc39Meta) hasFlag(flag string) bool {
+	for _, f := range m.Flags {
+		if f == flag {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}
 
-func parseTC39File(name string) (*tc39Meta, string, error) ***REMOVED***
+func parseTC39File(name string) (*tc39Meta, string, error) {
 	f, err := os.Open(name) //nolint:gosec
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, "", err
-	***REMOVED***
+	}
 	defer f.Close() //nolint:errcheck,gosec
 
 	b, err := ioutil.ReadAll(f)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, "", err
-	***REMOVED***
+	}
 
 	metaStart := bytes.Index(b, []byte("/*---"))
-	if metaStart == -1 ***REMOVED***
+	if metaStart == -1 {
 		return nil, "", errInvalidFormat
-	***REMOVED***
+	}
 
 	metaStart += 5
 	metaEnd := bytes.Index(b, []byte("---*/"))
-	if metaEnd == -1 || metaEnd <= metaStart ***REMOVED***
+	if metaEnd == -1 || metaEnd <= metaStart {
 		return nil, "", errInvalidFormat
-	***REMOVED***
+	}
 
 	var meta tc39Meta
 	err = yaml.Unmarshal(b[metaStart:metaEnd], &meta)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, "", err
-	***REMOVED***
+	}
 
-	if meta.Negative.Type != "" && meta.Negative.Phase == "" ***REMOVED***
+	if meta.Negative.Type != "" && meta.Negative.Phase == "" {
 		return nil, "", errors.New("negative type is set, but phase isn't")
-	***REMOVED***
+	}
 
 	return &meta, string(b), nil
-***REMOVED***
+}
 
-func (*tc39TestCtx) detachArrayBuffer(call goja.FunctionCall) goja.Value ***REMOVED***
-	if obj, ok := call.Argument(0).(*goja.Object); ok ***REMOVED***
+func (*tc39TestCtx) detachArrayBuffer(call goja.FunctionCall) goja.Value {
+	if obj, ok := call.Argument(0).(*goja.Object); ok {
 		var buf goja.ArrayBuffer
-		if goja.New().ExportTo(obj, &buf) == nil ***REMOVED***
-			// if buf, ok := obj.Export().(goja.ArrayBuffer); ok ***REMOVED***
+		if goja.New().ExportTo(obj, &buf) == nil {
+			// if buf, ok := obj.Export().(goja.ArrayBuffer); ok {
 			buf.Detach()
 			return goja.Undefined()
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	panic(goja.New().NewTypeError("detachArrayBuffer() is called with incompatible argument"))
-***REMOVED***
+}
 
-func (ctx *tc39TestCtx) fail(t testing.TB, name string, strict bool, errStr string) ***REMOVED***
+func (ctx *tc39TestCtx) fail(t testing.TB, name string, strict bool, errStr string) {
 	nameKey := fmt.Sprintf("%s-strict:%v", name, strict)
 	expected, ok := ctx.expectedErrors[nameKey]
-	if index := strings.LastIndex(errStr, " at "); index != -1 ***REMOVED***
+	if index := strings.LastIndex(errStr, " at "); index != -1 {
 		errStr = errStr[:index] + " <at omitted>"
-	***REMOVED***
-	if ok ***REMOVED***
-		if !assert.Equal(t, expected, errStr) ***REMOVED***
+	}
+	if ok {
+		if !assert.Equal(t, expected, errStr) {
 			ctx.errorsLock.Lock()
 			ctx.errors[nameKey] = errStr
 			ctx.errorsLock.Unlock()
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		assert.Empty(t, errStr)
 		ctx.errorsLock.Lock()
 		ctx.errors[nameKey] = errStr
 		ctx.errorsLock.Unlock()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Meta, strict bool) ***REMOVED***
-	if skipList[name] ***REMOVED***
+func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Meta, strict bool) {
+	if skipList[name] {
 		t.Skip("Excluded")
-	***REMOVED***
-	failf := func(str string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	}
+	failf := func(str string, args ...interface{}) {
 		str = fmt.Sprintf(str, args...)
 		ctx.fail(t, name, strict, str)
-	***REMOVED***
-	defer func() ***REMOVED***
-		if x := recover(); x != nil ***REMOVED***
+	}
+	defer func() {
+		if x := recover(); x != nil {
 			failf("panic while running %s: %v", name, x)
-		***REMOVED***
-	***REMOVED***()
+		}
+	}()
 	vm := goja.New()
 	_262 := vm.NewObject()
 	ignorableTestError := vm.NewGoError(fmt.Errorf(""))
 	vm.Set("IgnorableTestError", ignorableTestError)
 	_ = _262.Set("detachArrayBuffer", ctx.detachArrayBuffer)
-	_ = _262.Set("createRealm", func(goja.FunctionCall) goja.Value ***REMOVED***
+	_ = _262.Set("createRealm", func(goja.FunctionCall) goja.Value {
 		panic(ignorableTestError)
-	***REMOVED***)
-	_ = _262.Set("evalScript", func(call goja.FunctionCall) goja.Value ***REMOVED***
+	})
+	_ = _262.Set("evalScript", func(call goja.FunctionCall) goja.Value {
 		script := call.Argument(0).String()
 		result, err := vm.RunString(script)
-		if err != nil ***REMOVED***
+		if err != nil {
 			panic(err)
-		***REMOVED***
+		}
 		return result
-	***REMOVED***)
+	})
 
 	vm.Set("$262", _262)
 	vm.Set("print", t.Log)
 	_, err := vm.RunProgram(sabStub)
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
-	if strict ***REMOVED***
+	}
+	if strict {
 		src = "'use strict';\n" + src
-	***REMOVED***
+	}
 
 	var out []string
 	async := meta.hasFlag("async") //nolint:ifshort // false positive
-	if async ***REMOVED***
+	if async {
 		err = ctx.runFile(ctx.base, path.Join("harness", "doneprintHandle.js"), vm)
-		if err != nil ***REMOVED***
+		if err != nil {
 			t.Fatal(err)
-		***REMOVED***
-		_ = vm.Set("print", func(msg string) ***REMOVED***
+		}
+		_ = vm.Set("print", func(msg string) {
 			out = append(out, msg)
-		***REMOVED***)
-	***REMOVED*** else ***REMOVED***
+		})
+	} else {
 		_ = vm.Set("print", t.Log)
-	***REMOVED***
+	}
 	early, origErr, err := ctx.runTC39Script(name, src, meta.Includes, vm)
 
-	if err == nil ***REMOVED***
-		if meta.Negative.Type != "" ***REMOVED***
+	if err == nil {
+		if meta.Negative.Type != "" {
 			// vm.vm.prg.dumpCode(t.Logf)
 			failf("%s: Expected error: %v", name, err)
 			return
-		***REMOVED***
+		}
 		nameKey := fmt.Sprintf("%s-strict:%v", name, strict)
 		expected, ok := ctx.expectedErrors[nameKey]
 		assert.False(t, ok, "%s passes but and error %q was expected", nameKey, expected)
 		return
-	***REMOVED***
+	}
 
-	if meta.Negative.Type == "" ***REMOVED***
-		if err, ok := err.(*goja.Exception); ok ***REMOVED***
-			if err.Value() == ignorableTestError ***REMOVED***
+	if meta.Negative.Type == "" {
+		if err, ok := err.(*goja.Exception); ok {
+			if err.Value() == ignorableTestError {
 				t.Skip("Test threw IgnorableTestError")
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		failf("%s: %v", name, err)
 		return
-	***REMOVED***
-	if meta.Negative.Phase == "early" && !early || meta.Negative.Phase == "runtime" && early ***REMOVED***
+	}
+	if meta.Negative.Phase == "early" && !early || meta.Negative.Phase == "runtime" && early {
 		failf("%s: error %v happened at the wrong phase (expected %s)", name, err, meta.Negative.Phase)
 		return
-	***REMOVED***
+	}
 	errType := getErrType(name, err, failf)
 
-	if errType != "" && errType != meta.Negative.Type ***REMOVED***
-		if meta.Negative.Type == "SyntaxError" && origErr != nil && getErrType(name, origErr, failf) == meta.Negative.Type ***REMOVED***
+	if errType != "" && errType != meta.Negative.Type {
+		if meta.Negative.Type == "SyntaxError" && origErr != nil && getErrType(name, origErr, failf) == meta.Negative.Type {
 			return
-		***REMOVED***
+		}
 		// vm.vm.prg.dumpCode(t.Logf)
 		failf("%s: unexpected error type (%s), expected (%s)", name, errType, meta.Negative.Type)
 		return
-	***REMOVED***
+	}
 
 	/*
-		if vm.vm.sp != 0 ***REMOVED***
+		if vm.vm.sp != 0 {
 			t.Fatalf("sp: %d", vm.vm.sp)
-		***REMOVED***
+		}
 
-		if l := len(vm.vm.iterStack); l > 0 ***REMOVED***
+		if l := len(vm.vm.iterStack); l > 0 {
 			t.Fatalf("iter stack is not empty: %d", l)
-		***REMOVED***
+		}
 	*/
-	if async ***REMOVED***
+	if async {
 		complete := false
-		for _, line := range out ***REMOVED***
-			if strings.HasPrefix(line, "Test262:AsyncTestFailure:") ***REMOVED***
+		for _, line := range out {
+			if strings.HasPrefix(line, "Test262:AsyncTestFailure:") {
 				t.Fatal(line)
-			***REMOVED*** else if line == "Test262:AsyncTestComplete" ***REMOVED***
+			} else if line == "Test262:AsyncTestComplete" {
 				complete = true
-			***REMOVED***
-		***REMOVED***
-		if !complete ***REMOVED***
-			for _, line := range out ***REMOVED***
+			}
+		}
+		if !complete {
+			for _, line := range out {
 				t.Log(line)
-			***REMOVED***
+			}
 			t.Fatal("Test262:AsyncTestComplete was not printed")
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func getErrType(name string, err error, failf func(str string, args ...interface***REMOVED******REMOVED***)) string ***REMOVED***
-	switch err := err.(type) ***REMOVED***
+func getErrType(name string, err error, failf func(str string, args ...interface{})) string {
+	switch err := err.(type) {
 	case *goja.Exception:
-		if o, ok := err.Value().(*goja.Object); ok ***REMOVED*** //nolint:nestif
-			if c := o.Get("constructor"); c != nil ***REMOVED***
-				if c, ok := c.(*goja.Object); ok ***REMOVED***
+		if o, ok := err.Value().(*goja.Object); ok { //nolint:nestif
+			if c := o.Get("constructor"); c != nil {
+				if c, ok := c.(*goja.Object); ok {
 					return c.Get("name").String()
-				***REMOVED*** else ***REMOVED***
+				} else {
 					failf("%s: error constructor is not an object (%v)", name, o)
 					return ""
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
+				}
+			} else {
 				failf("%s: error does not have a constructor (%v)", name, o)
 				return ""
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+			}
+		} else {
 			failf("%s: error is not an object (%v)", name, err.Value())
 			return ""
-		***REMOVED***
+		}
 	case *goja.CompilerSyntaxError, *parser.Error, parser.ErrorList:
 		return "SyntaxError"
 	case *goja.CompilerReferenceError:
@@ -471,222 +471,222 @@ func getErrType(name string, err error, failf func(str string, args ...interface
 	default:
 		failf("%s: error is not a JS error: %v", name, err)
 		return ""
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func shouldBeSkipped(t testing.TB, meta *tc39Meta) ***REMOVED***
-	for _, feature := range meta.Features ***REMOVED***
-		for _, bl := range featuresBlockList ***REMOVED***
-			if feature == bl ***REMOVED***
+func shouldBeSkipped(t testing.TB, meta *tc39Meta) {
+	for _, feature := range meta.Features {
+		for _, bl := range featuresBlockList {
+			if feature == bl {
 				t.Skipf("Blocklisted feature %s", feature)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+			}
+		}
+	}
+}
 
-func (ctx *tc39TestCtx) runTC39File(name string, t testing.TB) ***REMOVED***
+func (ctx *tc39TestCtx) runTC39File(name string, t testing.TB) {
 	p := path.Join(ctx.base, name)
 	meta, src, err := parseTC39File(p)
-	if err != nil ***REMOVED***
+	if err != nil {
 		// t.Fatalf("Could not parse %s: %v", name, err)
 		t.Errorf("Could not parse %s: %v", name, err)
 		return
-	***REMOVED***
+	}
 
 	shouldBeSkipped(t, meta)
 
 	var startTime time.Time
-	if ctx.enableBench ***REMOVED***
+	if ctx.enableBench {
 		startTime = time.Now()
-	***REMOVED***
+	}
 
 	hasRaw := meta.hasFlag("raw")
 
 	/*
-		if hasRaw || !meta.hasFlag("onlyStrict") ***REMOVED***
+		if hasRaw || !meta.hasFlag("onlyStrict") {
 			// log.Printf("Running normal test: %s", name)
 			// t.Logf("Running normal test: %s", name)
 			ctx.runTC39Test(t, name, src, meta, false)
-		***REMOVED***
+		}
 	*/
 
-	if !hasRaw && !meta.hasFlag("noStrict") ***REMOVED***
+	if !hasRaw && !meta.hasFlag("noStrict") {
 		// log.Printf("Running strict test: %s", name)
 		// t.Logf("Running strict test: %s", name)
 		ctx.runTC39Test(t, name, src, meta, true)
-	***REMOVED*** else ***REMOVED*** // Run test in non strict mode only if we won't run them in strict
+	} else { // Run test in non strict mode only if we won't run them in strict
 		// TODO uncomment the if above and delete this else so we run both parts when the tests
 		// don't take forever
 		ctx.runTC39Test(t, name, src, meta, false)
-	***REMOVED***
+	}
 
-	if ctx.enableBench ***REMOVED***
+	if ctx.enableBench {
 		ctx.benchLock.Lock()
-		ctx.benchmark = append(ctx.benchmark, tc39BenchmarkItem***REMOVED***
+		ctx.benchmark = append(ctx.benchmark, tc39BenchmarkItem{
 			name:     name,
 			duration: time.Since(startTime),
-		***REMOVED***)
+		})
 		ctx.benchLock.Unlock()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (ctx *tc39TestCtx) init() ***REMOVED***
+func (ctx *tc39TestCtx) init() {
 	ctx.prgCache = make(map[string]*goja.Program)
 	ctx.errors = make(map[string]string)
 
 	b, err := ioutil.ReadFile("./breaking_test_errors.json")
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
+	}
 	b = bytes.TrimSpace(b)
-	if len(b) > 0 ***REMOVED***
+	if len(b) > 0 {
 		ctx.expectedErrors = make(map[string]string, 1000)
 		err = json.Unmarshal(b, &ctx.expectedErrors)
-		if err != nil ***REMOVED***
+		if err != nil {
 			panic(err)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func (ctx *tc39TestCtx) compile(base, name string) (*goja.Program, error) ***REMOVED***
+func (ctx *tc39TestCtx) compile(base, name string) (*goja.Program, error) {
 	ctx.prgCacheLock.Lock()
 	defer ctx.prgCacheLock.Unlock()
 
 	prg := ctx.prgCache[name]
-	if prg == nil ***REMOVED***
+	if prg == nil {
 		fname := path.Join(base, name)
 		f, err := os.Open(fname) //nolint:gosec
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		defer f.Close() //nolint:gosec,errcheck
 
 		b, err := ioutil.ReadAll(f)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 
 		str := string(b)
 		comp := ctx.compilerPool.Get()
 		defer ctx.compilerPool.Put(comp)
-		comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: libWorker.CompatibilityModeExtended***REMOVED***
+		comp.Options = compiler.Options{Strict: false, CompatibilityMode: libWorker.CompatibilityModeExtended}
 		prg, _, err = comp.Compile(str, name, true)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		ctx.prgCache[name] = prg
-	***REMOVED***
+	}
 
 	return prg, nil
-***REMOVED***
+}
 
-func (ctx *tc39TestCtx) runFile(base, name string, vm *goja.Runtime) error ***REMOVED***
+func (ctx *tc39TestCtx) runFile(base, name string, vm *goja.Runtime) error {
 	prg, err := ctx.compile(base, name)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	_, err = vm.RunProgram(prg)
 	return err
-***REMOVED***
+}
 
-func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *goja.Runtime) (early bool, origErr, err error) ***REMOVED***
+func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *goja.Runtime) (early bool, origErr, err error) {
 	early = true
 	err = ctx.runFile(ctx.base, path.Join("harness", "assert.js"), vm)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return
-	***REMOVED***
+	}
 
 	err = ctx.runFile(ctx.base, path.Join("harness", "sta.js"), vm)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return
-	***REMOVED***
+	}
 
-	for _, include := range includes ***REMOVED***
+	for _, include := range includes {
 		err = ctx.runFile(ctx.base, path.Join("harness", include), vm)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	var p *goja.Program
 	comp := ctx.compilerPool.Get()
 	defer ctx.compilerPool.Put(comp)
-	comp.Options = compiler.Options***REMOVED***Strict: false, CompatibilityMode: libWorker.CompatibilityModeBase***REMOVED***
+	comp.Options = compiler.Options{Strict: false, CompatibilityMode: libWorker.CompatibilityModeBase}
 	p, _, origErr = comp.Compile(src, name, true)
-	if origErr != nil ***REMOVED***
+	if origErr != nil {
 		src, _, err = comp.Transform(src, name, nil)
-		if err == nil ***REMOVED***
+		if err == nil {
 			p, _, err = comp.Compile(src, name, true)
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		err = origErr
-	***REMOVED***
+	}
 
-	if err != nil ***REMOVED***
+	if err != nil {
 		return
-	***REMOVED***
+	}
 
 	early = false
 	_, err = vm.RunProgram(p)
 
 	return
-***REMOVED***
+}
 
-func (ctx *tc39TestCtx) runTC39Tests(name string) ***REMOVED***
+func (ctx *tc39TestCtx) runTC39Tests(name string) {
 	files, err := ioutil.ReadDir(path.Join(ctx.base, name))
-	if err != nil ***REMOVED***
+	if err != nil {
 		ctx.t.Fatal(err)
-	***REMOVED***
+	}
 
 outer:
-	for _, file := range files ***REMOVED***
-		if file.Name()[0] == '.' ***REMOVED***
+	for _, file := range files {
+		if file.Name()[0] == '.' {
 			continue
-		***REMOVED***
+		}
 		newName := path.Join(name, file.Name())
-		for _, skipWord := range skipWords ***REMOVED***
-			if strings.Contains(newName, skipWord) ***REMOVED***
-				ctx.t.Run(newName, func(t *testing.T) ***REMOVED***
+		for _, skipWord := range skipWords {
+			if strings.Contains(newName, skipWord) {
+				ctx.t.Run(newName, func(t *testing.T) {
 					t.Skipf("Skip %s because %s is not supported", newName, skipWord)
-				***REMOVED***)
+				})
 				continue outer
-			***REMOVED***
-		***REMOVED***
-		for _, path := range pathBasedBlock ***REMOVED*** // TODO: use trie / binary search?
-			if strings.HasPrefix(newName, path) ***REMOVED***
-				ctx.t.Run(newName, func(t *testing.T) ***REMOVED***
+			}
+		}
+		for _, path := range pathBasedBlock { // TODO: use trie / binary search?
+			if strings.HasPrefix(newName, path) {
+				ctx.t.Run(newName, func(t *testing.T) {
 					t.Skipf("Skip %s because of path based block", newName)
-				***REMOVED***)
+				})
 				continue outer
-			***REMOVED***
-		***REMOVED***
-		if file.IsDir() ***REMOVED***
+			}
+		}
+		if file.IsDir() {
 			ctx.runTC39Tests(newName)
-		***REMOVED*** else if strings.HasSuffix(file.Name(), ".js") && !strings.HasSuffix(file.Name(), "_FIXTURE.js") ***REMOVED***
-			ctx.runTest(newName, func(t *testing.T) ***REMOVED***
+		} else if strings.HasSuffix(file.Name(), ".js") && !strings.HasSuffix(file.Name(), "_FIXTURE.js") {
+			ctx.runTest(newName, func(t *testing.T) {
 				ctx.runTC39File(newName, t)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+			})
+		}
+	}
+}
 
-func TestTC39(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
+func TestTC39(t *testing.T) {
+	if testing.Short() {
 		t.Skip()
-	***REMOVED***
+	}
 
-	if _, err := os.Stat(tc39BASE); err != nil ***REMOVED***
+	if _, err := os.Stat(tc39BASE); err != nil {
 		t.Skipf("If you want to run tc39 tests, you need to run the 'checkout.sh` script in the directory to get  https://github.com/tc39/test262 at the correct last tested commit (%v)", err)
-	***REMOVED***
+	}
 
-	ctx := &tc39TestCtx***REMOVED***
+	ctx := &tc39TestCtx{
 		base:         tc39BASE,
 		compilerPool: compiler.NewPool(testutils.NewLogger(t), runtime.GOMAXPROCS(0)),
-	***REMOVED***
+	}
 	ctx.init()
 	// ctx.enableBench = true
 
-	t.Run("test262", func(t *testing.T) ***REMOVED***
+	t.Run("test262", func(t *testing.T) {
 		ctx.t = t
 		ctx.runTC39Tests("test/language")
 		ctx.runTC39Tests("test/built-ins")
@@ -694,24 +694,24 @@ func TestTC39(t *testing.T) ***REMOVED***
 		ctx.runTC39Tests("test/annexB/built-ins")
 
 		ctx.flush()
-	***REMOVED***)
+	})
 
-	if ctx.enableBench ***REMOVED***
-		sort.Slice(ctx.benchmark, func(i, j int) bool ***REMOVED***
+	if ctx.enableBench {
+		sort.Slice(ctx.benchmark, func(i, j int) bool {
 			return ctx.benchmark[i].duration > ctx.benchmark[j].duration
-		***REMOVED***)
+		})
 		bench := ctx.benchmark
-		if len(bench) > 50 ***REMOVED***
+		if len(bench) > 50 {
 			bench = bench[:50]
-		***REMOVED***
-		for _, item := range bench ***REMOVED***
+		}
+		for _, item := range bench {
 			fmt.Printf("%s\t%d\n", item.name, item.duration/time.Millisecond)
-		***REMOVED***
-	***REMOVED***
-	if len(ctx.errors) > 0 ***REMOVED***
+		}
+	}
+	if len(ctx.errors) > 0 {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(ctx.errors)
-	***REMOVED***
-***REMOVED***
+	}
+}

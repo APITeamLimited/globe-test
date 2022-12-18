@@ -27,165 +27,165 @@ import (
 
 type reader func([]byte) (int, error)
 
-func (r reader) Read(a []byte) (int, error) ***REMOVED***
+func (r reader) Read(a []byte) (int, error) {
 	return ((func([]byte) (int, error))(r))(a)
-***REMOVED***
+}
 
 const (
 	badReadMsg  = "bad read error for test"
 	badCloseMsg = "bad close error for test"
 )
 
-func badReadBody() io.Reader ***REMOVED***
-	return reader(func(_ []byte) (int, error) ***REMOVED***
+func badReadBody() io.Reader {
+	return reader(func(_ []byte) (int, error) {
 		return 0, errors.New(badReadMsg)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
 type closer func() error
 
-func (c closer) Close() error ***REMOVED***
+func (c closer) Close() error {
 	return ((func() error)(c))()
-***REMOVED***
+}
 
-func badCloseBody() io.ReadCloser ***REMOVED***
-	return struct ***REMOVED***
+func badCloseBody() io.ReadCloser {
+	return struct {
 		io.Reader
 		io.Closer
-	***REMOVED******REMOVED***
-		Reader: reader(func(_ []byte) (int, error) ***REMOVED***
+	}{
+		Reader: reader(func(_ []byte) (int, error) {
 			return 0, io.EOF
-		***REMOVED***),
-		Closer: closer(func() error ***REMOVED***
+		}),
+		Closer: closer(func() error {
 			return errors.New(badCloseMsg)
-		***REMOVED***),
-	***REMOVED***
-***REMOVED***
+		}),
+	}
+}
 
-func TestCompressionBodyError(t *testing.T) ***REMOVED***
+func TestCompressionBodyError(t *testing.T) {
 	t.Parallel()
-	algos := []CompressionType***REMOVED***CompressionTypeGzip***REMOVED***
-	t.Run("bad read body", func(t *testing.T) ***REMOVED***
+	algos := []CompressionType{CompressionTypeGzip}
+	t.Run("bad read body", func(t *testing.T) {
 		t.Parallel()
 		_, _, err := compressBody(algos, ioutil.NopCloser(badReadBody()))
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badReadMsg)
-	***REMOVED***)
+	})
 
-	t.Run("bad close body", func(t *testing.T) ***REMOVED***
+	t.Run("bad close body", func(t *testing.T) {
 		t.Parallel()
 		_, _, err := compressBody(algos, badCloseBody())
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badCloseMsg)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestMakeRequestError(t *testing.T) ***REMOVED***
+func TestMakeRequestError(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	t.Run("bad compression algorithm body", func(t *testing.T) ***REMOVED***
+	t.Run("bad compression algorithm body", func(t *testing.T) {
 		t.Parallel()
 		req, err := http.NewRequest("GET", "https://wont.be.used", nil)
 
 		require.NoError(t, err)
 		badCompressionType := CompressionType(13)
 		require.False(t, badCompressionType.IsACompressionType())
-		preq := &ParsedHTTPRequest***REMOVED***
+		preq := &ParsedHTTPRequest{
 			Req:          req,
 			Body:         new(bytes.Buffer),
-			Compressions: []CompressionType***REMOVED***badCompressionType***REMOVED***,
-		***REMOVED***
-		state := &libWorker.State***REMOVED***
+			Compressions: []CompressionType{badCompressionType},
+		}
+		state := &libWorker.State{
 			Transport: http.DefaultTransport,
 			Logger:    logrus.New(),
 			Tags:      libWorker.NewTagMap(nil),
-		***REMOVED***
+		}
 		_, err = MakeRequest(ctx, state, preq)
 		require.Error(t, err)
 		require.Equal(t, err.Error(), "unknown compressionType CompressionType(13)")
-	***REMOVED***)
+	})
 
-	t.Run("invalid upgrade response", func(t *testing.T) ***REMOVED***
+	t.Run("invalid upgrade response", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("Connection", "Upgrade")
 			w.Header().Add("Upgrade", "h2c")
 			w.WriteHeader(http.StatusSwitchingProtocols)
-		***REMOVED***))
+		}))
 		defer srv.Close()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		logger := logrus.New()
 		logger.Level = logrus.DebugLevel
-		state := &libWorker.State***REMOVED***
+		state := &libWorker.State{
 			Transport: srv.Client().Transport,
 			Logger:    logger,
 			Tags:      libWorker.NewTagMap(nil),
-		***REMOVED***
+		}
 		req, _ := http.NewRequest("GET", srv.URL, nil)
-		preq := &ParsedHTTPRequest***REMOVED***
+		preq := &ParsedHTTPRequest{
 			Req:     req,
-			URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+			URL:     &URL{u: req.URL},
 			Body:    new(bytes.Buffer),
 			Timeout: 10 * time.Second,
-		***REMOVED***
+		}
 
 		res, err := MakeRequest(ctx, state, preq)
 
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "unsupported response status: 101 Switching Protocols")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestResponseStatus(t *testing.T) ***REMOVED***
+func TestResponseStatus(t *testing.T) {
 	t.Parallel()
-	t.Run("response status", func(t *testing.T) ***REMOVED***
+	t.Run("response status", func(t *testing.T) {
 		t.Parallel()
-		testCases := []struct ***REMOVED***
+		testCases := []struct {
 			name                     string
 			statusCode               int
 			statusCodeExpected       int
 			statusCodeStringExpected string
-		***REMOVED******REMOVED***
-			***REMOVED***"status 200", 200, 200, "200 OK"***REMOVED***,
-			***REMOVED***"status 201", 201, 201, "201 Created"***REMOVED***,
-			***REMOVED***"status 202", 202, 202, "202 Accepted"***REMOVED***,
-			***REMOVED***"status 203", 203, 203, "203 Non-Authoritative Information"***REMOVED***,
-			***REMOVED***"status 204", 204, 204, "204 No Content"***REMOVED***,
-			***REMOVED***"status 205", 205, 205, "205 Reset Content"***REMOVED***,
-		***REMOVED***
+		}{
+			{"status 200", 200, 200, "200 OK"},
+			{"status 201", 201, 201, "201 Created"},
+			{"status 202", 202, 202, "202 Accepted"},
+			{"status 203", 203, 203, "203 Non-Authoritative Information"},
+			{"status 204", 204, 204, "204 No Content"},
+			{"status 205", 205, 205, "205 Reset Content"},
+		}
 
-		for _, tc := range testCases ***REMOVED***
+		for _, tc := range testCases {
 			tc := tc
-			t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(tc.statusCode)
-				***REMOVED***))
+				}))
 				defer server.Close()
 				logger := logrus.New()
 				logger.Level = logrus.DebugLevel
 				samples := make(chan<- workerMetrics.SampleContainer, 1)
 				registry := workerMetrics.NewRegistry()
-				state := &libWorker.State***REMOVED***
+				state := &libWorker.State{
 					Transport:      server.Client().Transport,
 					Logger:         logger,
 					Samples:        samples,
 					BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 					Tags:           libWorker.NewTagMap(nil),
-				***REMOVED***
+				}
 				req, err := http.NewRequest("GET", server.URL, nil)
 				require.NoError(t, err)
 
-				preq := &ParsedHTTPRequest***REMOVED***
+				preq := &ParsedHTTPRequest{
 					Req:          req,
-					URL:          &URL***REMOVED***u: req.URL***REMOVED***,
+					URL:          &URL{u: req.URL},
 					Body:         new(bytes.Buffer),
 					Timeout:      10 * time.Second,
 					ResponseType: ResponseTypeNone,
-				***REMOVED***
+				}
 
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -193,52 +193,52 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 				require.NoError(t, err)
 				assert.Equal(t, tc.statusCodeExpected, res.Status)
 				assert.Equal(t, tc.statusCodeStringExpected, res.StatusText)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+			})
+		}
+	})
+}
 
-func TestURL(t *testing.T) ***REMOVED***
+func TestURL(t *testing.T) {
 	t.Parallel()
-	t.Run("Clean", func(t *testing.T) ***REMOVED***
+	t.Run("Clean", func(t *testing.T) {
 		t.Parallel()
-		testCases := []struct ***REMOVED***
+		testCases := []struct {
 			url      string
 			expected string
-		***REMOVED******REMOVED***
-			***REMOVED***"https://example.com/", "https://example.com/"***REMOVED***,
-			***REMOVED***"https://example.com/$***REMOVED******REMOVED***", "https://example.com/$***REMOVED******REMOVED***"***REMOVED***,
-			***REMOVED***"https://user@example.com/", "https://****@example.com/"***REMOVED***,
-			***REMOVED***"https://user:pass@example.com/", "https://****:****@example.com/"***REMOVED***,
-			***REMOVED***"https://user:pass@example.com/path?a=1&b=2", "https://****:****@example.com/path?a=1&b=2"***REMOVED***,
-			***REMOVED***"https://user:pass@example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***", "https://****:****@example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-			***REMOVED***"@malformed/url", "@malformed/url"***REMOVED***,
-			***REMOVED***"not a url", "not a url"***REMOVED***,
-		***REMOVED***
+		}{
+			{"https://example.com/", "https://example.com/"},
+			{"https://example.com/${}", "https://example.com/${}"},
+			{"https://user@example.com/", "https://****@example.com/"},
+			{"https://user:pass@example.com/", "https://****:****@example.com/"},
+			{"https://user:pass@example.com/path?a=1&b=2", "https://****:****@example.com/path?a=1&b=2"},
+			{"https://user:pass@example.com/${}/${}", "https://****:****@example.com/${}/${}"},
+			{"@malformed/url", "@malformed/url"},
+			{"not a url", "not a url"},
+		}
 
-		for _, tc := range testCases ***REMOVED***
+		for _, tc := range testCases {
 			tc := tc
-			t.Run(tc.url, func(t *testing.T) ***REMOVED***
+			t.Run(tc.url, func(t *testing.T) {
 				t.Parallel()
 				u, err := url.Parse(tc.url)
 				require.NoError(t, err)
-				ut := URL***REMOVED***u: u, URL: tc.url***REMOVED***
+				ut := URL{u: u, URL: tc.url}
 				require.Equal(t, tc.expected, ut.Clean())
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+			})
+		}
+	})
+}
 
-func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
+func TestMakeRequestTimeoutInTheMiddle(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Length", "100000")
 		w.WriteHeader(200)
-		if f, ok := w.(http.Flusher); ok ***REMOVED***
+		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
-		***REMOVED***
+		}
 		time.Sleep(100 * time.Millisecond)
-	***REMOVED***))
+	}))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -246,25 +246,25 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	registry := workerMetrics.NewRegistry()
-	state := &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED***
+	state := &libWorker.State{
+		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
-		***REMOVED***,
+		},
 		Transport:      srv.Client().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
-	***REMOVED***
+	}
 	req, _ := http.NewRequest("GET", srv.URL, nil)
-	preq := &ParsedHTTPRequest***REMOVED***
+	preq := &ParsedHTTPRequest{
 		Req:              req,
-		URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+		URL:              &URL{u: req.URL, URL: srv.URL},
 		Body:             new(bytes.Buffer),
 		Timeout:          50 * time.Millisecond,
-		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
-	***REMOVED***
+		ResponseCallback: func(i int) bool { return i == 0 },
+	}
 
 	res, err := MakeRequest(ctx, state, preq)
 	require.NoError(t, err)
@@ -273,7 +273,7 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 	sampleCont := <-samples
 	allSamples := sampleCont.GetSamples()
 	require.Len(t, allSamples, 9)
-	expTags := map[string]string***REMOVED***
+	expTags := map[string]string{
 		"error":             "request timeout",
 		"error_code":        "1050",
 		"status":            "0",
@@ -281,39 +281,39 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 		"method":            "GET",
 		"url":               srv.URL,
 		"name":              srv.URL,
-	***REMOVED***
-	for _, s := range allSamples ***REMOVED***
+	}
+	for _, s := range allSamples {
 		assert.Equal(t, expTags, s.Tags.CloneTags())
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***
+func BenchmarkWrapDecompressionError(b *testing.B) {
 	err := errors.New("error")
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ ***REMOVED***
+	for i := 0; i < b.N; i++ {
 		_ = wrapDecompressionError(err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestTrailFailed(t *testing.T) ***REMOVED***
+func TestTrailFailed(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewTLSServer(httpbin.New().Handler())
 	t.Cleanup(srv.Close)
 
-	testCases := map[string]struct ***REMOVED***
+	testCases := map[string]struct {
 		responseCallback func(int) bool
 		failed           null.Bool
-	***REMOVED******REMOVED***
-		"null responsecallback": ***REMOVED***responseCallback: nil, failed: null.NewBool(false, false)***REMOVED***,
-		"unexpected response":   ***REMOVED***responseCallback: func(int) bool ***REMOVED*** return false ***REMOVED***, failed: null.NewBool(true, true)***REMOVED***,
-		"expected response":     ***REMOVED***responseCallback: func(int) bool ***REMOVED*** return true ***REMOVED***, failed: null.NewBool(false, true)***REMOVED***,
-	***REMOVED***
-	for name, testCase := range testCases ***REMOVED***
+	}{
+		"null responsecallback": {responseCallback: nil, failed: null.NewBool(false, false)},
+		"unexpected response":   {responseCallback: func(int) bool { return false }, failed: null.NewBool(true, true)},
+		"expected response":     {responseCallback: func(int) bool { return true }, failed: null.NewBool(false, true)},
+	}
+	for name, testCase := range testCases {
 		responseCallback := testCase.responseCallback
 		failed := testCase.failed
 
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
@@ -322,25 +322,25 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			logger := logrus.New()
 			logger.Level = logrus.DebugLevel
 			registry := workerMetrics.NewRegistry()
-			state := &libWorker.State***REMOVED***
-				Options: libWorker.Options***REMOVED***
+			state := &libWorker.State{
+				Options: libWorker.Options{
 					SystemTags: &workerMetrics.DefaultSystemTagSet,
-				***REMOVED***,
+				},
 				Transport:      srv.Client().Transport,
 				Samples:        samples,
 				Logger:         logger,
 				BPool:          bpool.NewBufferPool(2),
 				BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 				Tags:           libWorker.NewTagMap(nil),
-			***REMOVED***
+			}
 			req, _ := http.NewRequest("GET", srv.URL, nil)
-			preq := &ParsedHTTPRequest***REMOVED***
+			preq := &ParsedHTTPRequest{
 				Req:              req,
-				URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+				URL:              &URL{u: req.URL, URL: srv.URL},
 				Body:             new(bytes.Buffer),
 				Timeout:          10 * time.Millisecond,
 				ResponseCallback: responseCallback,
-			***REMOVED***
+			}
 			res, err := MakeRequest(ctx, state, preq)
 
 			require.NoError(t, err)
@@ -351,62 +351,62 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			require.Equal(t, failed, trail.Failed)
 
 			var httpReqFailedSampleValue null.Bool
-			for _, s := range sample.GetSamples() ***REMOVED***
-				if s.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
+			for _, s := range sample.GetSamples() {
+				if s.Metric.Name == workerMetrics.HTTPReqFailedName {
 					httpReqFailedSampleValue.Valid = true
-					if s.Value == 1.0 ***REMOVED***
+					if s.Value == 1.0 {
 						httpReqFailedSampleValue.Bool = true
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
+					}
+				}
+			}
 			require.Equal(t, failed, httpReqFailedSampleValue)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
-	if runtime.GOOS == "windows" ***REMOVED***
+func TestMakeRequestDialTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
 		t.Skipf("dial timeout doesn't get returned on windows") // or we don't match it correctly
-	***REMOVED***
+	}
 	t.Parallel()
 	ln, err := net.Listen("tcp", "localhost:0")
-	if err != nil ***REMOVED***
+	if err != nil {
 		t.Fatal(err)
-	***REMOVED***
+	}
 	addr := ln.Addr()
-	defer func() ***REMOVED***
+	defer func() {
 		require.NoError(t, ln.Close())
-	***REMOVED***()
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	samples := make(chan workerMetrics.SampleContainer, 10)
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	registry := workerMetrics.NewRegistry()
-	state := &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED***
+	state := &libWorker.State{
+		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
-		***REMOVED***,
-		Transport: &http.Transport***REMOVED***
-			DialContext: (&net.Dialer***REMOVED***
+		},
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
 				Timeout: 1 * time.Microsecond,
-			***REMOVED***).DialContext,
-		***REMOVED***,
+			}).DialContext,
+		},
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
-	***REMOVED***
+	}
 
 	req, _ := http.NewRequest("GET", "http://"+addr.String(), nil)
-	preq := &ParsedHTTPRequest***REMOVED***
+	preq := &ParsedHTTPRequest{
 		Req:              req,
-		URL:              &URL***REMOVED***u: req.URL, URL: req.URL.String()***REMOVED***,
+		URL:              &URL{u: req.URL, URL: req.URL.String()},
 		Body:             new(bytes.Buffer),
 		Timeout:          500 * time.Millisecond,
-		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
-	***REMOVED***
+		ResponseCallback: func(i int) bool { return i == 0 },
+	}
 
 	res, err := MakeRequest(ctx, state, preq)
 	require.NoError(t, err)
@@ -415,7 +415,7 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 	sampleCont := <-samples
 	allSamples := sampleCont.GetSamples()
 	require.Len(t, allSamples, 9)
-	expTags := map[string]string***REMOVED***
+	expTags := map[string]string{
 		"error":             "dial: i/o timeout",
 		"error_code":        "1211",
 		"status":            "0",
@@ -423,17 +423,17 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 		"method":            "GET",
 		"url":               req.URL.String(),
 		"name":              req.URL.String(),
-	***REMOVED***
-	for _, s := range allSamples ***REMOVED***
+	}
+	for _, s := range allSamples {
 		assert.Equal(t, expTags, s.Tags.CloneTags())
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
+func TestMakeRequestTimeoutInTheBegining(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
-	***REMOVED***))
+	}))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -441,25 +441,25 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	registry := workerMetrics.NewRegistry()
-	state := &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED***
+	state := &libWorker.State{
+		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
-		***REMOVED***,
+		},
 		Transport:      srv.Client().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		Tags:           libWorker.NewTagMap(nil),
-	***REMOVED***
+	}
 	req, _ := http.NewRequest("GET", srv.URL, nil)
-	preq := &ParsedHTTPRequest***REMOVED***
+	preq := &ParsedHTTPRequest{
 		Req:              req,
-		URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+		URL:              &URL{u: req.URL, URL: srv.URL},
 		Body:             new(bytes.Buffer),
 		Timeout:          50 * time.Millisecond,
-		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
-	***REMOVED***
+		ResponseCallback: func(i int) bool { return i == 0 },
+	}
 
 	res, err := MakeRequest(ctx, state, preq)
 	require.NoError(t, err)
@@ -468,7 +468,7 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 	sampleCont := <-samples
 	allSamples := sampleCont.GetSamples()
 	require.Len(t, allSamples, 9)
-	expTags := map[string]string***REMOVED***
+	expTags := map[string]string{
 		"error":             "request timeout",
 		"error_code":        "1050",
 		"status":            "0",
@@ -476,8 +476,8 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 		"method":            "GET",
 		"url":               srv.URL,
 		"name":              srv.URL,
-	***REMOVED***
-	for _, s := range allSamples ***REMOVED***
+	}
+	for _, s := range allSamples {
 		assert.Equal(t, expTags, s.Tags.CloneTags())
-	***REMOVED***
-***REMOVED***
+	}
+}

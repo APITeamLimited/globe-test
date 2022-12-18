@@ -8,11 +8,11 @@ import (
 
 const maxBatchPerHostSize = 20
 
-func BatchPerHost(options *libWorker.Options) error ***REMOVED***
+func BatchPerHost(options *libWorker.Options) error {
 	// Ensure that the batch size is not too large
-	if options.BatchPerHost.Int64 > maxBatchPerHostSize ***REMOVED***
+	if options.BatchPerHost.Int64 > maxBatchPerHostSize {
 		return fmt.Errorf("batchPerHost size %d is too large, the maximum is %d", options.BatchPerHost.Int64, maxBatchPerHostSize)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}

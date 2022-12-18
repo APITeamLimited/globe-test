@@ -14,79 +14,79 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	EnvironmentModule struct ***REMOVED***
+	EnvironmentModule struct {
 		isEnabled         bool
 		sharedEnvironment sharedEnvironment
-	***REMOVED***
+	}
 
 	// EnvironmentInstance represents an instance of the environment module.
-	EnvironmentInstance struct ***REMOVED***
+	EnvironmentInstance struct {
 		vu            modules.VU
 		module        *EnvironmentModule
 		defaultExport *goja.Object
-	***REMOVED***
+	}
 
-	sharedEnvironment struct ***REMOVED***
+	sharedEnvironment struct {
 		data *libWorker.Environment
 
 		mu *sync.RWMutex
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &EnvironmentModule***REMOVED******REMOVED***
-	_ modules.Instance = &EnvironmentInstance***REMOVED******REMOVED***
+	_ modules.Module   = &EnvironmentModule{}
+	_ modules.Instance = &EnvironmentInstance{}
 )
 
 // New returns a pointer to a new EnvironmentModule instance.
-func New(workerInfo *libWorker.WorkerInfo) *EnvironmentModule ***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *EnvironmentModule {
 	// Check environment actually exists
-	if workerInfo.Environment != nil ***REMOVED***
-		return &EnvironmentModule***REMOVED***
+	if workerInfo.Environment != nil {
+		return &EnvironmentModule{
 			isEnabled: true,
-			sharedEnvironment: sharedEnvironment***REMOVED***
+			sharedEnvironment: sharedEnvironment{
 				data: workerInfo.Environment,
-				mu:   &sync.RWMutex***REMOVED******REMOVED***,
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED***
+				mu:   &sync.RWMutex{},
+			},
+		}
+	}
 
-	return &EnvironmentModule***REMOVED***
+	return &EnvironmentModule{
 		isEnabled:         false,
-		sharedEnvironment: sharedEnvironment***REMOVED******REMOVED***,
-	***REMOVED***
-***REMOVED***
+		sharedEnvironment: sharedEnvironment{},
+	}
+}
 
 // NewModuleInstance returns an environment module instance for each VU.
-func (module *EnvironmentModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+func (module *EnvironmentModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	rt := vu.Runtime()
 
-	mi := &EnvironmentInstance***REMOVED***
+	mi := &EnvironmentInstance{
 		vu:            vu,
 		module:        module,
 		defaultExport: rt.NewObject(),
-	***REMOVED***
+	}
 
 	mi.defaultExport.DefineDataProperty(
 		"enabled", rt.ToValue(module.isEnabled), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE,
 	)
 
-	if mi.module.isEnabled ***REMOVED***
+	if mi.module.isEnabled {
 		mi.defaultExport.DefineDataProperty(
 			"name", rt.ToValue(module.sharedEnvironment.data.Name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE,
 		)
 
-		if err := mi.defaultExport.Set("variables", mi.getVariablesObject()); err != nil ***REMOVED***
+		if err := mi.defaultExport.Set("variables", mi.getVariablesObject()); err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return mi
-***REMOVED***
+}
 
 // Exports returns the JS values this module exports.
-func (mi *EnvironmentInstance) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
+func (mi *EnvironmentInstance) Exports() modules.Exports {
+	return modules.Exports{
 		Default: mi.defaultExport,
-	***REMOVED***
-***REMOVED***
+	}
+}

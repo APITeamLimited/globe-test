@@ -27,12 +27,12 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func TestDefaultError(t *testing.T) ***REMOVED***
+func TestDefaultError(t *testing.T) {
 	t.Parallel()
 	testErrorCode(t, defaultErrorCode, fmt.Errorf("random error"))
-***REMOVED***
+}
 
-func TestDNSErrors(t *testing.T) ***REMOVED***
+func TestDNSErrors(t *testing.T) {
 	t.Parallel()
 	var (
 		defaultDNSError = new(net.DNSError)
@@ -40,33 +40,33 @@ func TestDNSErrors(t *testing.T) ***REMOVED***
 	)
 
 	noSuchHostError.Err = "no such host" // defined as private in go stdlib
-	testTable := map[errCode]error***REMOVED***
+	testTable := map[errCode]error{
 		defaultDNSErrorCode:    defaultDNSError,
 		dnsNoSuchHostErrorCode: noSuchHostError,
-	***REMOVED***
+	}
 	testMapOfErrorCodes(t, testTable)
-***REMOVED***
+}
 
-func TestBlackListedIPError(t *testing.T) ***REMOVED***
+func TestBlackListedIPError(t *testing.T) {
 	t.Parallel()
-	err := netext.BlackListedIPError***REMOVED******REMOVED***
+	err := netext.BlackListedIPError{}
 	testErrorCode(t, blackListedIPErrorCode, err)
 	errorCode, errorMsg := errorCodeForError(err)
 	require.NotEqual(t, err.Error(), errorMsg)
 	require.Equal(t, blackListedIPErrorCode, errorCode)
-***REMOVED***
+}
 
 type timeoutError bool
 
-func (t timeoutError) Timeout() bool ***REMOVED***
+func (t timeoutError) Timeout() bool {
 	return (bool)(t)
-***REMOVED***
+}
 
-func (t timeoutError) Error() string ***REMOVED***
+func (t timeoutError) Error() string {
 	return fmt.Sprintf("%t", t)
-***REMOVED***
+}
 
-func TestUnknownNetErrno(t *testing.T) ***REMOVED***
+func TestUnknownNetErrno(t *testing.T) {
 	t.Parallel()
 	err := new(net.OpError)
 	err.Op = "write"
@@ -78,21 +78,21 @@ func TestUnknownNetErrno(t *testing.T) ***REMOVED***
 	errorCode, errorMsg := errorCodeForError(err)
 	require.Equal(t, expectedError, errorMsg)
 	require.Equal(t, netUnknownErrnoErrorCode, errorCode)
-***REMOVED***
+}
 
-func TestTCPErrors(t *testing.T) ***REMOVED***
+func TestTCPErrors(t *testing.T) {
 	t.Parallel()
 	var (
-		nonTCPError       = &net.OpError***REMOVED***Net: "something", Err: errors.New("non tcp error")***REMOVED***
-		econnreset        = &net.OpError***REMOVED***Net: "tcp", Op: "write", Err: &os.SyscallError***REMOVED***Err: syscall.ECONNRESET***REMOVED******REMOVED***
-		epipeerror        = &net.OpError***REMOVED***Net: "tcp", Op: "write", Err: &os.SyscallError***REMOVED***Err: syscall.EPIPE***REMOVED******REMOVED***
-		econnrefused      = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: &os.SyscallError***REMOVED***Err: syscall.ECONNREFUSED***REMOVED******REMOVED***
-		errnounknown      = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: &os.SyscallError***REMOVED***Err: syscall.E2BIG***REMOVED******REMOVED***
-		tcperror          = &net.OpError***REMOVED***Net: "tcp", Err: errors.New("tcp error")***REMOVED***
-		notTimeoutedError = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: timeoutError(false)***REMOVED***
+		nonTCPError       = &net.OpError{Net: "something", Err: errors.New("non tcp error")}
+		econnreset        = &net.OpError{Net: "tcp", Op: "write", Err: &os.SyscallError{Err: syscall.ECONNRESET}}
+		epipeerror        = &net.OpError{Net: "tcp", Op: "write", Err: &os.SyscallError{Err: syscall.EPIPE}}
+		econnrefused      = &net.OpError{Net: "tcp", Op: "dial", Err: &os.SyscallError{Err: syscall.ECONNREFUSED}}
+		errnounknown      = &net.OpError{Net: "tcp", Op: "dial", Err: &os.SyscallError{Err: syscall.E2BIG}}
+		tcperror          = &net.OpError{Net: "tcp", Err: errors.New("tcp error")}
+		notTimeoutedError = &net.OpError{Net: "tcp", Op: "dial", Err: timeoutError(false)}
 	)
 
-	testTable := map[errCode]error***REMOVED***
+	testTable := map[errCode]error{
 		defaultNetNonTCPErrorCode: nonTCPError,
 		tcpResetByPeerErrorCode:   econnreset,
 		tcpBrokenPipeErrorCode:    epipeerror,
@@ -100,12 +100,12 @@ func TestTCPErrors(t *testing.T) ***REMOVED***
 		tcpDialUnknownErrnoCode:   errnounknown,
 		defaultTCPErrorCode:       tcperror,
 		tcpDialErrorCode:          notTimeoutedError,
-	***REMOVED***
+	}
 
 	testMapOfErrorCodes(t, testTable)
-***REMOVED***
+}
 
-func testErrorCode(t *testing.T, code errCode, err error) ***REMOVED***
+func testErrorCode(t *testing.T, code errCode, err error) {
 	t.Helper()
 	result, _ := errorCodeForError(err)
 	require.Equalf(t, code, result, "Wrong error code for error `%s`", err)
@@ -113,46 +113,46 @@ func testErrorCode(t *testing.T, code errCode, err error) ***REMOVED***
 	result, _ = errorCodeForError(fmt.Errorf("foo: %w", err))
 	require.Equalf(t, code, result, "Wrong error code for error `%s`", err)
 
-	result, _ = errorCodeForError(&url.Error***REMOVED***Err: err***REMOVED***)
+	result, _ = errorCodeForError(&url.Error{Err: err})
 	require.Equalf(t, code, result, "Wrong error code for error `%s`", err)
-***REMOVED***
+}
 
-func testMapOfErrorCodes(t *testing.T, testTable map[errCode]error) ***REMOVED***
+func testMapOfErrorCodes(t *testing.T, testTable map[errCode]error) {
 	t.Helper()
-	for code, err := range testTable ***REMOVED***
+	for code, err := range testTable {
 		testErrorCode(t, code, err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestConnReset(t *testing.T) ***REMOVED***
+func TestConnReset(t *testing.T) {
 	t.Parallel()
 	// based on https://gist.github.com/jpittis/4357d817dc425ae99fbf719828ab1800
 	ln, err := net.Listen("tcp", "localhost:0")
-	if err != nil ***REMOVED***
+	if err != nil {
 		t.Fatal(err)
-	***REMOVED***
+	}
 	addr := ln.Addr()
 	ch := make(chan error, 10)
 
-	go func() ***REMOVED***
+	go func() {
 		defer close(ch)
 		// Accept one connection.
 		conn, innerErr := ln.Accept()
-		if innerErr != nil ***REMOVED***
+		if innerErr != nil {
 			ch <- innerErr
 			return
-		***REMOVED***
+		}
 
 		// Force an RST
 		tcpConn, ok := conn.(*net.TCPConn)
 		require.True(t, ok)
 		innerErr = tcpConn.SetLinger(0)
-		if innerErr != nil ***REMOVED***
+		if innerErr != nil {
 			ch <- innerErr
-		***REMOVED***
+		}
 		time.Sleep(time.Second) // Give time for the http request to start
 		_ = conn.Close()
-	***REMOVED***()
+	}()
 
 	res, err := http.Get("http://" + addr.String()) //nolint:bodyclose,noctx
 	require.Nil(t, res)
@@ -160,12 +160,12 @@ func TestConnReset(t *testing.T) ***REMOVED***
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, tcpResetByPeerErrorCode, code)
 	assert.Contains(t, msg, fmt.Sprintf(tcpResetByPeerErrorCodeMsg, ""))
-	for err := range ch ***REMOVED***
+	for err := range ch {
 		assert.Nil(t, err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestDnsResolve(t *testing.T) ***REMOVED***
+func TestDnsResolve(t *testing.T) {
 	t.Parallel()
 	// this uses the Unwrap path
 	// this is not happening in our current codebase as the resolution in our code
@@ -175,24 +175,24 @@ func TestDnsResolve(t *testing.T) ***REMOVED***
 
 	assert.Equal(t, dnsNoSuchHostErrorCode, code)
 	assert.Equal(t, dnsNoSuchHostErrorCodeMsg, msg)
-***REMOVED***
+}
 
-func TestHTTP2StreamError(t *testing.T) ***REMOVED***
+func TestHTTP2StreamError(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Length", "100000")
 		rw.WriteHeader(200)
 
 		rw.(http.Flusher).Flush()
 		time.Sleep(time.Millisecond * 2)
 		panic("expected internal error")
-	***REMOVED***)
-	client := http.Client***REMOVED***
+	})
+	client := http.Client{
 		Timeout:   time.Second * 3,
 		Transport: tb.HTTPTransport,
-	***REMOVED***
+	}
 
 	res, err := client.Get(tb.Replacer.Replace("HTTP2BIN_URL/tsr")) //nolint:noctx
 	require.NotNil(t, res)
@@ -204,16 +204,16 @@ func TestHTTP2StreamError(t *testing.T) ***REMOVED***
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, unknownHTTP2StreamErrorCode+errCode(http2.ErrCodeInternal)+1, code)
 	assert.Contains(t, msg, fmt.Sprintf(http2StreamErrorCodeMsg, http2.ErrCodeInternal))
-***REMOVED***
+}
 
-func TestX509HostnameError(t *testing.T) ***REMOVED***
+func TestX509HostnameError(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	client := http.Client***REMOVED***
+	client := http.Client{
 		Timeout:   time.Second * 3,
 		Transport: tb.HTTPTransport,
-	***REMOVED***
+	}
 	var err error
 	badHostname := "somewhere.else"
 	tb.Dialer.Hosts[badHostname], err = libWorker.NewHostAddress(net.ParseIP(tb.Replacer.Replace("HTTPSBIN_IP")), "")
@@ -227,18 +227,18 @@ func TestX509HostnameError(t *testing.T) ***REMOVED***
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, x509HostnameErrorCode, code)
 	assert.Contains(t, msg, x509HostnameErrorCodeMsg)
-***REMOVED***
+}
 
-func TestX509UnknownAuthorityError(t *testing.T) ***REMOVED***
+func TestX509UnknownAuthorityError(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	client := http.Client***REMOVED***
+	client := http.Client{
 		Timeout: time.Second * 3,
-		Transport: &http.Transport***REMOVED***
+		Transport: &http.Transport{
 			DialContext: tb.HTTPTransport.DialContext,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	req, err := http.NewRequestWithContext(context.Background(), "GET", tb.Replacer.Replace("HTTPSBIN_URL/get"), nil)
 	require.NoError(t, err)
 	res, err := client.Do(req) //nolint:bodyclose
@@ -248,30 +248,30 @@ func TestX509UnknownAuthorityError(t *testing.T) ***REMOVED***
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, x509UnknownAuthorityErrorCode, code)
 	assert.Contains(t, msg, x509UnknownAuthority)
-***REMOVED***
+}
 
-func TestDefaultTLSError(t *testing.T) ***REMOVED***
+func TestDefaultTLSError(t *testing.T) {
 	t.Parallel()
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	go func() ***REMOVED***
+	go func() {
 		conn, err := l.Accept() //nolint:govet // the shadowing is intentional
 		require.NoError(t, err)
 		_, err = conn.Write([]byte("not tls header")) // we just want to get an error
 		require.NoError(t, err)
 		// wait so it has time to get the tls header error and not the reset socket one
 		time.Sleep(time.Second)
-	***REMOVED***()
+	}()
 
-	client := http.Client***REMOVED***
+	client := http.Client{
 		Timeout: time.Second * 3,
-		Transport: &http.Transport***REMOVED***
-			TLSClientConfig: &tls.Config***REMOVED***
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true, //nolint:gosec
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			},
+		},
+	}
 
 	_, err = client.Get("https://" + l.Addr().String()) //nolint:bodyclose,noctx
 	require.Error(t, err)
@@ -281,43 +281,43 @@ func TestDefaultTLSError(t *testing.T) ***REMOVED***
 	urlError := new(url.Error)
 	require.ErrorAs(t, err, &urlError)
 	assert.Equal(t, urlError.Err.Error(), msg)
-***REMOVED***
+}
 
-func TestHTTP2ConnectionError(t *testing.T) ***REMOVED***
+func TestHTTP2ConnectionError(t *testing.T) {
 	t.Parallel()
 	tb := getHTTP2ServerWithCustomConnContext(t)
 
 	// Pre-configure the HTTP client transport with the dialer and TLS config (incl. HTTP2 support)
-	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) {
 		conn := req.Context().Value(connKey).(*tls.Conn) //nolint:forcetypeassert
 		f := http2.NewFramer(conn, conn)
 		require.NoError(t, f.WriteData(3213, false, []byte("something")))
-	***REMOVED***)
-	client := http.Client***REMOVED***
+	})
+	client := http.Client{
 		Timeout:   time.Second * 5,
 		Transport: tb.HTTPTransport,
-	***REMOVED***
+	}
 
 	_, err := client.Get(tb.Replacer.Replace("HTTP2BIN_URL/tsr")) //nolint:bodyclose,noctx
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, unknownHTTP2ConnectionErrorCode+errCode(http2.ErrCodeProtocol)+1, code)
 	assert.Equal(t, fmt.Sprintf(http2ConnectionErrorCodeMsg, http2.ErrCodeProtocol), msg)
-***REMOVED***
+}
 
-func TestHTTP2GoAwayError(t *testing.T) ***REMOVED***
+func TestHTTP2GoAwayError(t *testing.T) {
 	t.Parallel()
 
 	tb := getHTTP2ServerWithCustomConnContext(t)
-	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+	tb.Mux.HandleFunc("/tsr", func(rw http.ResponseWriter, req *http.Request) {
 		conn := req.Context().Value(connKey).(*tls.Conn) //nolint:forcetypeassert
 		f := http2.NewFramer(conn, conn)
 		require.NoError(t, f.WriteGoAway(4, http2.ErrCodeInadequateSecurity, []byte("whatever")))
 		require.NoError(t, conn.CloseWrite())
-	***REMOVED***)
-	client := http.Client***REMOVED***
+	})
+	client := http.Client{
 		Timeout:   time.Second * 5,
 		Transport: tb.HTTPTransport,
-	***REMOVED***
+	}
 
 	_, err := client.Get(tb.Replacer.Replace("HTTP2BIN_URL/tsr")) //nolint:bodyclose,noctx
 
@@ -325,20 +325,20 @@ func TestHTTP2GoAwayError(t *testing.T) ***REMOVED***
 	code, msg := errorCodeForError(err)
 	assert.Equal(t, unknownHTTP2GoAwayErrorCode+errCode(http2.ErrCodeInadequateSecurity)+1, code)
 	assert.Equal(t, fmt.Sprintf(http2GoAwayErrorCodeMsg, http2.ErrCodeInadequateSecurity), msg)
-***REMOVED***
+}
 
 type connKeyT int32
 
 const connKey connKeyT = 2
 
-func getHTTP2ServerWithCustomConnContext(t *testing.T) *httpmultibin.HTTPMultiBin ***REMOVED***
+func getHTTP2ServerWithCustomConnContext(t *testing.T) *httpmultibin.HTTPMultiBin {
 	const http2Domain = "example.com"
 	mux := http.NewServeMux()
 	http2Srv := httptest.NewUnstartedServer(mux)
 	http2Srv.EnableHTTP2 = true
-	http2Srv.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context ***REMOVED***
+	http2Srv.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
 		return context.WithValue(ctx, connKey, c)
-	***REMOVED***
+	}
 	http2Srv.StartTLS()
 	t.Cleanup(http2Srv.Close)
 	tlsConfig := httpmultibin.GetTLSClientConfig(t, http2Srv)
@@ -351,21 +351,21 @@ func getHTTP2ServerWithCustomConnContext(t *testing.T) *httpmultibin.HTTPMultiBi
 	require.NoError(t, err)
 
 	// Set up the dialer with shorter timeouts and the custom domains
-	dialer := netext.NewDialer(net.Dialer***REMOVED***
+	dialer := netext.NewDialer(net.Dialer{
 		Timeout:   2 * time.Second,
 		KeepAlive: 10 * time.Second,
 		DualStack: true,
-	***REMOVED***, netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4))
-	dialer.Hosts = map[string]*libWorker.HostAddress***REMOVED***
+	}, netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4))
+	dialer.Hosts = map[string]*libWorker.HostAddress{
 		http2Domain: http2DomainValue,
-	***REMOVED***
+	}
 
-	transport := &http.Transport***REMOVED***
+	transport := &http.Transport{
 		DialContext:     dialer.DialContext,
 		TLSClientConfig: tlsConfig,
-	***REMOVED***
+	}
 	require.NoError(t, http2.ConfigureTransport(transport))
-	return &httpmultibin.HTTPMultiBin***REMOVED***
+	return &httpmultibin.HTTPMultiBin{
 		Mux:         mux,
 		ServerHTTP2: http2Srv,
 		Replacer: strings.NewReplacer(
@@ -378,5 +378,5 @@ func getHTTP2ServerWithCustomConnContext(t *testing.T) *httpmultibin.HTTPMultiBi
 		TLSClientConfig: tlsConfig,
 		Dialer:          dialer,
 		HTTPTransport:   transport,
-	***REMOVED***
-***REMOVED***
+	}
+}

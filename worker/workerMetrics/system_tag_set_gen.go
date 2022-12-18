@@ -9,7 +9,7 @@ import (
 
 const _SystemTagSetName = "protosubprotostatusmethodurlnamegroupcheckerrorerror_codetls_versionscenarioserviceexpected_responseitervuocsp_statusip"
 
-var _SystemTagSetMap = map[SystemTagSet]string***REMOVED***
+var _SystemTagSetMap = map[SystemTagSet]string{
 	1:      _SystemTagSetName[0:5],
 	2:      _SystemTagSetName[5:13],
 	4:      _SystemTagSetName[13:19],
@@ -28,18 +28,18 @@ var _SystemTagSetMap = map[SystemTagSet]string***REMOVED***
 	32768:  _SystemTagSetName[104:106],
 	65536:  _SystemTagSetName[106:117],
 	131072: _SystemTagSetName[117:119],
-***REMOVED***
+}
 
-func (i SystemTagSet) String() string ***REMOVED***
-	if str, ok := _SystemTagSetMap[i]; ok ***REMOVED***
+func (i SystemTagSet) String() string {
+	if str, ok := _SystemTagSetMap[i]; ok {
 		return str
-	***REMOVED***
+	}
 	return fmt.Sprintf("SystemTagSet(%d)", i)
-***REMOVED***
+}
 
-var _SystemTagSetValues = []SystemTagSet***REMOVED***1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072***REMOVED***
+var _SystemTagSetValues = []SystemTagSet{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072}
 
-var _SystemTagSetNameToValueMap = map[string]SystemTagSet***REMOVED***
+var _SystemTagSetNameToValueMap = map[string]SystemTagSet{
 	_SystemTagSetName[0:5]:     1,
 	_SystemTagSetName[5:13]:    2,
 	_SystemTagSetName[13:19]:   4,
@@ -58,24 +58,24 @@ var _SystemTagSetNameToValueMap = map[string]SystemTagSet***REMOVED***
 	_SystemTagSetName[104:106]: 32768,
 	_SystemTagSetName[106:117]: 65536,
 	_SystemTagSetName[117:119]: 131072,
-***REMOVED***
+}
 
 // SystemTagSetString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func SystemTagSetString(s string) (SystemTagSet, error) ***REMOVED***
-	if val, ok := _SystemTagSetNameToValueMap[s]; ok ***REMOVED***
+func SystemTagSetString(s string) (SystemTagSet, error) {
+	if val, ok := _SystemTagSetNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to SystemTagSet values", s)
-***REMOVED***
+}
 
 // SystemTagSetValues returns all values of the enum
-func SystemTagSetValues() []SystemTagSet ***REMOVED***
+func SystemTagSetValues() []SystemTagSet {
 	return _SystemTagSetValues
-***REMOVED***
+}
 
 // IsASystemTagSet returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i SystemTagSet) IsASystemTagSet() bool ***REMOVED***
+func (i SystemTagSet) IsASystemTagSet() bool {
 	_, ok := _SystemTagSetMap[i]
 	return ok
-***REMOVED***
+}

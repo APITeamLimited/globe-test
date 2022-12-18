@@ -17,14 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type addTestValue struct ***REMOVED***
+type addTestValue struct {
 	JS     string
 	Float  float64
 	errStr string
 	noTags bool
-***REMOVED***
+}
 
-type addTest struct ***REMOVED***
+type addTest struct {
 	val          addTestValue
 	rt           *goja.Runtime
 	hook         *testutils.SimpleLogrusHook
@@ -34,25 +34,25 @@ type addTest struct ***REMOVED***
 	valueType    workerMetrics.ValueType
 	js           string
 	expectedTags map[string]string
-***REMOVED***
+}
 
-func (a addTest) run(t *testing.T) ***REMOVED***
+func (a addTest) run(t *testing.T) {
 	_, err := a.rt.RunString(a.js)
-	if len(a.val.errStr) != 0 && a.isThrow ***REMOVED***
-		if assert.Error(t, err) ***REMOVED***
+	if len(a.val.errStr) != 0 && a.isThrow {
+		if assert.Error(t, err) {
 			return
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		assert.NoError(t, err)
-		if len(a.val.errStr) != 0 && !a.isThrow ***REMOVED***
+		if len(a.val.errStr) != 0 && !a.isThrow {
 			lines := a.hook.Drain()
 			require.Len(t, lines, 1)
 			assert.Contains(t, lines[0].Message, a.val.errStr)
 			return
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	bufSamples := workerMetrics.GetBufferedSamples(a.samples)
-	if assert.Len(t, bufSamples, 1) ***REMOVED***
+	if assert.Len(t, bufSamples, 1) {
 		sample, ok := bufSamples[0].(workerMetrics.Sample)
 		require.True(t, ok)
 
@@ -62,117 +62,117 @@ func (a addTest) run(t *testing.T) ***REMOVED***
 		assert.Equal(t, "my_metric", sample.Metric.Name)
 		assert.Equal(t, a.mtyp, sample.Metric.Type)
 		assert.Equal(t, a.valueType, sample.Metric.Contains)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestMetrics(t *testing.T) ***REMOVED***
+func TestMetrics(t *testing.T) {
 	t.Parallel()
-	types := map[string]workerMetrics.MetricType***REMOVED***
+	types := map[string]workerMetrics.MetricType{
 		"Counter": workerMetrics.Counter,
 		"Gauge":   workerMetrics.Gauge,
 		"Trend":   workerMetrics.Trend,
 		"Rate":    workerMetrics.Rate,
-	***REMOVED***
-	values := map[string]addTestValue***REMOVED***
-		"Float":                 ***REMOVED***JS: `2.5`, Float: 2.5***REMOVED***,
-		"Int":                   ***REMOVED***JS: `5`, Float: 5.0***REMOVED***,
-		"True":                  ***REMOVED***JS: `true`, Float: 1.0***REMOVED***,
-		"False":                 ***REMOVED***JS: `false`, Float: 0.0***REMOVED***,
-		"null":                  ***REMOVED***JS: `null`, errStr: "is an invalid value for metric"***REMOVED***,
-		"undefined":             ***REMOVED***JS: `undefined`, errStr: "is an invalid value for metric"***REMOVED***,
-		"NaN":                   ***REMOVED***JS: `NaN`, errStr: "is an invalid value for metric"***REMOVED***,
-		"string":                ***REMOVED***JS: `"string"`, errStr: "is an invalid value for metric"***REMOVED***,
-		"string 5":              ***REMOVED***JS: `"5.3"`, Float: 5.3***REMOVED***,
-		"some object":           ***REMOVED***JS: `***REMOVED***something: 3***REMOVED***`, errStr: "is an invalid value for metric"***REMOVED***,
-		"another metric object": ***REMOVED***JS: `m`, errStr: "is an invalid value for metric"***REMOVED***,
-		"no argument":           ***REMOVED***JS: ``, errStr: "no value was provided", noTags: true***REMOVED***,
-	***REMOVED***
-	for fn, mtyp := range types ***REMOVED***
+	}
+	values := map[string]addTestValue{
+		"Float":                 {JS: `2.5`, Float: 2.5},
+		"Int":                   {JS: `5`, Float: 5.0},
+		"True":                  {JS: `true`, Float: 1.0},
+		"False":                 {JS: `false`, Float: 0.0},
+		"null":                  {JS: `null`, errStr: "is an invalid value for metric"},
+		"undefined":             {JS: `undefined`, errStr: "is an invalid value for metric"},
+		"NaN":                   {JS: `NaN`, errStr: "is an invalid value for metric"},
+		"string":                {JS: `"string"`, errStr: "is an invalid value for metric"},
+		"string 5":              {JS: `"5.3"`, Float: 5.3},
+		"some object":           {JS: `{something: 3}`, errStr: "is an invalid value for metric"},
+		"another metric object": {JS: `m`, errStr: "is an invalid value for metric"},
+		"no argument":           {JS: ``, errStr: "no value was provided", noTags: true},
+	}
+	for fn, mtyp := range types {
 		fn, mtyp := fn, mtyp
-		t.Run(fn, func(t *testing.T) ***REMOVED***
+		t.Run(fn, func(t *testing.T) {
 			t.Parallel()
-			for isTime, valueType := range map[bool]workerMetrics.ValueType***REMOVED***false: workerMetrics.Default, true: workerMetrics.Time***REMOVED*** ***REMOVED***
+			for isTime, valueType := range map[bool]workerMetrics.ValueType{false: workerMetrics.Default, true: workerMetrics.Time} {
 				isTime, valueType := isTime, valueType
-				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
+				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) {
 					t.Parallel()
-					test := addTest***REMOVED***
+					test := addTest{
 						mtyp:      mtyp,
 						valueType: valueType,
-					***REMOVED***
+					}
 					test.rt = goja.New()
-					test.rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-					mii := &modulestest.VU***REMOVED***
+					test.rt.SetFieldNameMapper(common.FieldNameMapper{})
+					mii := &modulestest.VU{
 						RuntimeField: test.rt,
-						InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
+						InitEnvField: &common.InitEnvironment{Registry: workerMetrics.NewRegistry()},
 						CtxField:     context.Background(),
-					***REMOVED***
+					}
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
 					require.NoError(t, test.rt.Set("metrics", m.Exports().Named))
 					test.samples = make(chan workerMetrics.SampleContainer, 1000)
-					state := &libWorker.State***REMOVED***
-						Options: libWorker.Options***REMOVED******REMOVED***,
+					state := &libWorker.State{
+						Options: libWorker.Options{},
 						Samples: test.samples,
-						Tags: libWorker.NewTagMap(map[string]string***REMOVED***
+						Tags: libWorker.NewTagMap(map[string]string{
 							"key": "value",
-						***REMOVED***),
-					***REMOVED***
+						}),
+					}
 
 					isTimeString := ""
-					if isTime ***REMOVED***
+					if isTime {
 						isTimeString = `, true`
-					***REMOVED***
+					}
 					_, err := test.rt.RunString(fmt.Sprintf(`var m = new workerMetrics.%s("my_metric"%s)`, fn, isTimeString))
 					require.NoError(t, err)
 
-					t.Run("ExitInit", func(t *testing.T) ***REMOVED***
+					t.Run("ExitInit", func(t *testing.T) {
 						mii.StateField = state
 						mii.InitEnvField = nil
 						_, err := test.rt.RunString(fmt.Sprintf(`new workerMetrics.%s("my_metric")`, fn))
 						assert.Contains(t, err.Error(), "metrics must be declared in the init context")
-					***REMOVED***)
+					})
 					mii.StateField = state
 					logger := logrus.New()
 					logger.Out = ioutil.Discard
-					test.hook = &testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
+					test.hook = &testutils.SimpleLogrusHook{HookedLevels: logrus.AllLevels}
 					logger.AddHook(test.hook)
 					state.Logger = logger
 
-					for name, val := range values ***REMOVED***
+					for name, val := range values {
 						test.val = val
-						for _, isThrow := range []bool***REMOVED***false, true***REMOVED*** ***REMOVED***
+						for _, isThrow := range []bool{false, true} {
 							state.Options.Throw.Bool = isThrow
 							test.isThrow = isThrow
-							t.Run(fmt.Sprintf("%s/isThrow=%v/Simple", name, isThrow), func(t *testing.T) ***REMOVED***
+							t.Run(fmt.Sprintf("%s/isThrow=%v/Simple", name, isThrow), func(t *testing.T) {
 								test.js = fmt.Sprintf(`m.add(%v)`, val.JS)
-								test.expectedTags = map[string]string***REMOVED***"key": "value"***REMOVED***
+								test.expectedTags = map[string]string{"key": "value"}
 								test.run(t)
-							***REMOVED***)
-							if !val.noTags ***REMOVED***
-								t.Run(fmt.Sprintf("%s/isThrow=%v/Tags", name, isThrow), func(t *testing.T) ***REMOVED***
-									test.js = fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS)
-									test.expectedTags = map[string]string***REMOVED***"key": "value", "a": "1"***REMOVED***
+							})
+							if !val.noTags {
+								t.Run(fmt.Sprintf("%s/isThrow=%v/Tags", name, isThrow), func(t *testing.T) {
+									test.js = fmt.Sprintf(`m.add(%v, {a:1})`, val.JS)
+									test.expectedTags = map[string]string{"key": "value", "a": "1"}
 									test.run(t)
-								***REMOVED***)
-							***REMOVED***
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+								})
+							}
+						}
+					}
+				})
+			}
+		})
+	}
+}
 
-func TestMetricGetName(t *testing.T) ***REMOVED***
+func TestMetricGetName(t *testing.T) {
 	t.Parallel()
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
-	mii := &modulestest.VU***REMOVED***
+	mii := &modulestest.VU{
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
+		InitEnvField: &common.InitEnvironment{Registry: workerMetrics.NewRegistry()},
 		CtxField:     context.Background(),
-	***REMOVED***
+	}
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("metrics", m.Exports().Named))
@@ -189,18 +189,18 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 	`)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "TypeError: Cannot assign to read only property 'name'")
-***REMOVED***
+}
 
-func TestMetricDuplicates(t *testing.T) ***REMOVED***
+func TestMetricDuplicates(t *testing.T) {
 	t.Parallel()
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
-	mii := &modulestest.VU***REMOVED***
+	mii := &modulestest.VU{
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***Registry: workerMetrics.NewRegistry()***REMOVED***,
+		InitEnvField: &common.InitEnvironment{Registry: workerMetrics.NewRegistry()},
 		CtxField:     context.Background(),
-	***REMOVED***
+	}
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("metrics", m.Exports().Named))
@@ -230,4 +230,4 @@ func TestMetricDuplicates(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	require.True(t, v.ToBoolean())
-***REMOVED***
+}

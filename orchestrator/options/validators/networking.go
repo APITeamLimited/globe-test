@@ -6,10 +6,10 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
-func BlacklistIPs(options *libWorker.Options, bannedIPNets *[]*net.IPNet) ***REMOVED***
-	for _, ipNet := range *bannedIPNets ***REMOVED***
-		options.BlacklistIPs = append(options.BlacklistIPs, &libWorker.IPNet***REMOVED***
+func BlacklistIPs(options *libWorker.Options, bannedIPNets *[]*net.IPNet) {
+	for _, ipNet := range *bannedIPNets {
+		options.BlacklistIPs = append(options.BlacklistIPs, &libWorker.IPNet{
 			IPNet: *ipNet,
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

@@ -14,41 +14,41 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func getTestConstantVUsConfig() ConstantVUsConfig ***REMOVED***
-	return ConstantVUsConfig***REMOVED***
-		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(100 * time.Millisecond)***REMOVED***,
+func getTestConstantVUsConfig() ConstantVUsConfig {
+	return ConstantVUsConfig{
+		BaseConfig: BaseConfig{GracefulStop: types.NullDurationFrom(100 * time.Millisecond)},
 		VUs:        null.IntFrom(10),
 		Duration:   types.NullDurationFrom(1 * time.Second),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestConstantVUsRun(t *testing.T) ***REMOVED***
+func TestConstantVUsRun(t *testing.T) {
 	t.Parallel()
 	var result sync.Map
 
-	runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error ***REMOVED***
-		select ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, state *libWorker.State) error {
+		select {
 		case <-ctx.Done():
 			return nil
 		default:
-		***REMOVED***
+		}
 		currIter, _ := result.LoadOrStore(state.VUID, uint64(0))
 		result.Store(state.VUID, currIter.(uint64)+1) //nolint:forcetypeassert
 		time.Sleep(210 * time.Millisecond)
 		return nil
-	***REMOVED***)
+	})
 
-	test := setupExecutorTest(t, "", "", libWorker.Options***REMOVED******REMOVED***, runner, getTestConstantVUsConfig())
+	test := setupExecutorTest(t, "", "", libWorker.Options{}, runner, getTestConstantVUsConfig())
 	defer test.cancel()
 
 	require.NoError(t, test.executor.Run(test.ctx, nil, libWorker.GetTestWorkerInfo()))
 
 	var totalIters uint64
-	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***
+	result.Range(func(key, value interface{}) bool {
 		vuIters := value.(uint64)
 		assert.Equal(t, uint64(5), vuIters)
 		totalIters += vuIters
 		return true
-	***REMOVED***)
+	})
 	assert.Equal(t, uint64(50), totalIters)
-***REMOVED***
+}

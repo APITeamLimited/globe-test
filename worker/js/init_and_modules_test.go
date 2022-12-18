@@ -21,25 +21,25 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-type CheckModule struct ***REMOVED***
+type CheckModule struct {
 	t             testing.TB
 	initCtxCalled int
 	vuCtxCalled   int
-***REMOVED***
+}
 
-func (cm *CheckModule) InitCtx(ctx context.Context) ***REMOVED***
+func (cm *CheckModule) InitCtx(ctx context.Context) {
 	cm.initCtxCalled++
-***REMOVED***
+}
 
-func (cm *CheckModule) VuCtx(ctx context.Context) ***REMOVED***
+func (cm *CheckModule) VuCtx(ctx context.Context) {
 	cm.vuCtxCalled++
-***REMOVED***
+}
 
-func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
+func TestNewJSRunnerWithCustomModule(t *testing.T) {
 	t.Parallel()
 
 	var uniqueModuleNumber int64
-	checkModule := &CheckModule***REMOVED***t: t***REMOVED***
+	checkModule := &CheckModule{t: t}
 	moduleName := fmt.Sprintf("k6/x/check-%d", atomic.AddInt64(&uniqueModuleNumber, 1))
 	modules.Register(moduleName, checkModule)
 
@@ -47,28 +47,28 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 		var check = require("%s");
 		check.initCtx();
 
-		module.exports.options = ***REMOVED*** vus: 1, iterations: 1 ***REMOVED***;
-		module.exports.default = function() ***REMOVED***
+		module.exports.options = { vus: 1, iterations: 1 };
+		module.exports.default = function() {
 			check.vuCtx();
-		***REMOVED***;
+		};
 	`, moduleName)
 
 	logger := testutils.NewLogger(t)
-	rtOptions := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
+	rtOptions := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("base")}
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: rtOptions,
-		***REMOVED***,
-		&loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: "blah", Scheme: "file"***REMOVED***,
+		},
+		&loader.SourceData{
+			URL:  &url.URL{Path: "blah", Scheme: "file"},
 			Data: []byte(script),
-		***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs(), "https": afero.NewMemMapFs()***REMOVED***, libWorker.GetTestWorkerInfo(),
+		},
+		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": afero.NewMemMapFs()}, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 1)
@@ -82,7 +82,7 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	vuCtx, vuCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer vuCancel()
 
-	activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: vuCtx***REMOVED***)
+	activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: vuCtx})
 	require.NoError(t, activeVU.RunOnce())
 	assert.Equal(t, checkModule.initCtxCalled, 2)
 	assert.Equal(t, checkModule.vuCtxCalled, 1)
@@ -95,12 +95,12 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
 
 	runnerFromArc, err := js.NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: rtOptions,
-		***REMOVED***, arc, libWorker.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 3) // changes because we need to get the exported functions
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
@@ -108,11 +108,11 @@ func TestNewJSRunnerWithCustomModule(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	assert.Equal(t, checkModule.initCtxCalled, 4)
 	assert.Equal(t, checkModule.vuCtxCalled, 2)
-	activeVUFromArc := vuFromArc.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: vuCtx***REMOVED***)
+	activeVUFromArc := vuFromArc.Activate(&libWorker.VUActivationParams{RunContext: vuCtx})
 	require.NoError(t, activeVUFromArc.RunOnce())
 	assert.Equal(t, checkModule.initCtxCalled, 4)
 	assert.Equal(t, checkModule.vuCtxCalled, 3)
 	require.NoError(t, activeVUFromArc.RunOnce())
 	assert.Equal(t, checkModule.initCtxCalled, 4)
 	assert.Equal(t, checkModule.vuCtxCalled, 4)
-***REMOVED***
+}

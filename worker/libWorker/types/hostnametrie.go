@@ -10,100 +10,100 @@ import (
 
 // NullHostnameTrie is a nullable HostnameTrie, in the same vein as the nullable types provided by
 // package gopkg.in/guregu/null.v3
-type NullHostnameTrie struct ***REMOVED***
+type NullHostnameTrie struct {
 	Trie  *HostnameTrie
 	Valid bool
-***REMOVED***
+}
 
 // UnmarshalText converts text data to a valid NullHostnameTrie
-func (d *NullHostnameTrie) UnmarshalText(data []byte) error ***REMOVED***
-	if len(data) == 0 ***REMOVED***
-		*d = NullHostnameTrie***REMOVED******REMOVED***
+func (d *NullHostnameTrie) UnmarshalText(data []byte) error {
+	if len(data) == 0 {
+		*d = NullHostnameTrie{}
 		return nil
-	***REMOVED***
+	}
 	var err error
 	d.Trie, err = NewHostnameTrie(strings.Split(string(data), ","))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // UnmarshalJSON converts JSON data to a valid NullHostnameTrie
-func (d *NullHostnameTrie) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *NullHostnameTrie) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		d.Valid = false
 		return nil
-	***REMOVED***
+	}
 
 	var m []string
 	var err error
-	if err = json.Unmarshal(data, &m); err != nil ***REMOVED***
+	if err = json.Unmarshal(data, &m); err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Trie, err = NewHostnameTrie(m)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // Source return source hostnames that were used diring the construction
-func (d *NullHostnameTrie) Source() []string ***REMOVED***
-	if d.Trie == nil ***REMOVED***
-		return []string***REMOVED******REMOVED***
-	***REMOVED***
+func (d *NullHostnameTrie) Source() []string {
+	if d.Trie == nil {
+		return []string{}
+	}
 
 	return d.Trie.source
-***REMOVED***
+}
 
 // MarshalJSON implements json.Marshaler interface
-func (d NullHostnameTrie) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !d.Valid ***REMOVED***
+func (d NullHostnameTrie) MarshalJSON() ([]byte, error) {
+	if !d.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(d.Trie.source)
-***REMOVED***
+}
 
 // HostnameTrie is a tree-structured list of hostname matches with support
 // for wildcards exclusively at the start of the pattern. Items may only
 // be inserted and searched. Internationalized hostnames are valid.
-type HostnameTrie struct ***REMOVED***
+type HostnameTrie struct {
 	*trieNode
 	source []string
-***REMOVED***
+}
 
 // NewNullHostnameTrie returns a NullHostnameTrie encapsulating HostnameTrie or an error if the
 // input is incorrect
-func NewNullHostnameTrie(source []string) (NullHostnameTrie, error) ***REMOVED***
+func NewNullHostnameTrie(source []string) (NullHostnameTrie, error) {
 	h, err := NewHostnameTrie(source)
-	if err != nil ***REMOVED***
-		return NullHostnameTrie***REMOVED******REMOVED***, err
-	***REMOVED***
-	return NullHostnameTrie***REMOVED***
+	if err != nil {
+		return NullHostnameTrie{}, err
+	}
+	return NullHostnameTrie{
 		Valid: true,
 		Trie:  h,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 // NewHostnameTrie returns a pointer to a new HostnameTrie or an error if the input is incorrect
-func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
-	h := &HostnameTrie***REMOVED***
+func NewHostnameTrie(source []string) (*HostnameTrie, error) {
+	h := &HostnameTrie{
 		source: source,
-		trieNode: &trieNode***REMOVED***
+		trieNode: &trieNode{
 			isLeaf:   false,
 			children: make(map[rune]*trieNode),
-		***REMOVED***,
-	***REMOVED***
-	for _, s := range h.source ***REMOVED***
-		if err := h.insert(s); err != nil ***REMOVED***
+		},
+	}
+	for _, s := range h.source {
+		if err := h.insert(s); err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return h, nil
-***REMOVED***
+}
 
 // Regex description of hostname pattern to enforce blocks by. Global var
 // to avoid compilation penalty at runtime.
@@ -111,75 +111,75 @@ func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
 //nolint:lll
 var validHostnamePattern *regexp.Regexp = regexp.MustCompile(`^(\*\.?)?((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))?$`)
 
-func isValidHostnamePattern(s string) error ***REMOVED***
-	if len(validHostnamePattern.FindString(s)) != len(s) ***REMOVED***
+func isValidHostnamePattern(s string) error {
+	if len(validHostnamePattern.FindString(s)) != len(s) {
 		return fmt.Errorf("invalid hostname pattern '%s'", s)
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}
 
 // insert a hostname pattern into the given HostnameTrie. Returns an error
 // if hostname pattern is invalid.
-func (t *HostnameTrie) insert(s string) error ***REMOVED***
+func (t *HostnameTrie) insert(s string) error {
 	s = strings.ToLower(s)
-	if err := isValidHostnamePattern(s); err != nil ***REMOVED***
+	if err := isValidHostnamePattern(s); err != nil {
 		return err
-	***REMOVED***
+	}
 
 	return t.trieNode.insert(s)
-***REMOVED***
+}
 
 // Contains returns whether s matches a pattern in the HostnameTrie
 // along with the matching pattern, if one was found.
-func (t *HostnameTrie) Contains(s string) (matchedPattern string, matchFound bool) ***REMOVED***
+func (t *HostnameTrie) Contains(s string) (matchedPattern string, matchFound bool) {
 	return t.trieNode.contains(s)
-***REMOVED***
+}
 
-type trieNode struct ***REMOVED***
+type trieNode struct {
 	isLeaf   bool
 	children map[rune]*trieNode
-***REMOVED***
+}
 
-func (t *trieNode) insert(s string) error ***REMOVED***
-	if len(s) == 0 ***REMOVED***
+func (t *trieNode) insert(s string) error {
+	if len(s) == 0 {
 		t.isLeaf = true
 		return nil
-	***REMOVED***
+	}
 
 	// mask creation of the trie by initializing the root here
-	if t.children == nil ***REMOVED***
+	if t.children == nil {
 		t.children = make(map[rune]*trieNode)
-	***REMOVED***
+	}
 
 	rStr := []rune(s) // need to iterate by runes for intl' names
 	last := len(rStr) - 1
-	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
+	if c, ok := t.children[rStr[last]]; ok {
 		return c.insert(string(rStr[:last]))
-	***REMOVED***
+	}
 
-	t.children[rStr[last]] = &trieNode***REMOVED***children: make(map[rune]*trieNode)***REMOVED***
+	t.children[rStr[last]] = &trieNode{children: make(map[rune]*trieNode)}
 	return t.children[rStr[last]].insert(string(rStr[:last]))
-***REMOVED***
+}
 
-func (t *trieNode) contains(s string) (matchedPattern string, matchFound bool) ***REMOVED***
+func (t *trieNode) contains(s string) (matchedPattern string, matchFound bool) {
 	s = strings.ToLower(s)
-	if len(s) == 0 ***REMOVED***
-		if t.isLeaf ***REMOVED***
+	if len(s) == 0 {
+		if t.isLeaf {
 			return "", true
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		rStr := []rune(s)
 		last := len(rStr) - 1
-		if c, ok := t.children[rStr[last]]; ok ***REMOVED***
-			if match, matched := c.contains(string(rStr[:last])); matched ***REMOVED***
+		if c, ok := t.children[rStr[last]]; ok {
+			if match, matched := c.contains(string(rStr[:last])); matched {
 				return match + string(rStr[last]), true
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
-	if _, wild := t.children['*']; wild ***REMOVED***
+	if _, wild := t.children['*']; wild {
 		return "*", true
-	***REMOVED***
+	}
 
 	return "", false
-***REMOVED***
+}

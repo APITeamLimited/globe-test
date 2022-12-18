@@ -7,55 +7,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_getLevels(t *testing.T) ***REMOVED***
+func Test_getLevels(t *testing.T) {
 	t.Parallel()
 
-	tests := [...]struct ***REMOVED***
+	tests := [...]struct {
 		level  string
 		err    bool
 		levels []logrus.Level
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			level: "info",
 			err:   false,
-			levels: []logrus.Level***REMOVED***
+			levels: []logrus.Level{
 				logrus.PanicLevel,
 				logrus.FatalLevel,
 				logrus.ErrorLevel,
 				logrus.WarnLevel,
 				logrus.InfoLevel,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			},
+		},
+		{
 			level: "error",
 			err:   false,
-			levels: []logrus.Level***REMOVED***
+			levels: []logrus.Level{
 				logrus.PanicLevel,
 				logrus.FatalLevel,
 				logrus.ErrorLevel,
-			***REMOVED***,
-		***REMOVED***,
-		***REMOVED***
+			},
+		},
+		{
 			level:  "tea",
 			err:    true,
 			levels: nil,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, test := range tests ***REMOVED***
+	for _, test := range tests {
 		test := test
-		t.Run(test.level, func(t *testing.T) ***REMOVED***
+		t.Run(test.level, func(t *testing.T) {
 			t.Parallel()
 
 			levels, err := parseLevels(test.level)
 
-			if test.err ***REMOVED***
+			if test.err {
 				require.Error(t, err)
 				return
-			***REMOVED***
+			}
 
 			require.NoError(t, err)
 			require.Equal(t, test.levels, levels)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

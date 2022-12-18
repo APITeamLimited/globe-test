@@ -34,7 +34,7 @@ const (
 )
 
 // BuiltinMetrics represent all the builtin metrics of k6
-type BuiltinMetrics struct ***REMOVED***
+type BuiltinMetrics struct {
 	VUs               *Metric
 	VUsMax            *Metric
 	Iterations        *Metric
@@ -70,11 +70,11 @@ type BuiltinMetrics struct ***REMOVED***
 	// Network-related; used for future protocols as well.
 	DataSent     *Metric
 	DataReceived *Metric
-***REMOVED***
+}
 
 // RegisterBuiltinMetrics register and returns the builtin metrics in the provided registry
-func RegisterBuiltinMetrics(registry *Registry) *BuiltinMetrics ***REMOVED***
-	return &BuiltinMetrics***REMOVED***
+func RegisterBuiltinMetrics(registry *Registry) *BuiltinMetrics {
+	return &BuiltinMetrics{
 		VUs:               registry.MustNewMetric(VUsName, Gauge),
 		VUsMax:            registry.MustNewMetric(VUsMaxName, Gauge),
 		Iterations:        registry.MustNewMetric(IterationsName, Counter),
@@ -105,5 +105,5 @@ func RegisterBuiltinMetrics(registry *Registry) *BuiltinMetrics ***REMOVED***
 
 		DataSent:     registry.MustNewMetric(DataSentName, Counter, Data),
 		DataReceived: registry.MustNewMetric(DataReceivedName, Counter, Data),
-	***REMOVED***
-***REMOVED***
+	}
+}

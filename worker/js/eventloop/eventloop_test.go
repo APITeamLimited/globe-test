@@ -12,66 +12,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBasicEventLoop(t *testing.T) ***REMOVED***
+func TestBasicEventLoop(t *testing.T) {
 	t.Parallel()
-	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU{RuntimeField: goja.New()})
 	var ran int
-	f := func() error ***REMOVED*** //nolint:unparam
+	f := func() error { //nolint:unparam
 		ran++
 		return nil
-	***REMOVED***
+	}
 	require.NoError(t, loop.Start(f))
 	require.Equal(t, 1, ran)
 	require.NoError(t, loop.Start(f))
 	require.Equal(t, 2, ran)
-	require.Error(t, loop.Start(func() error ***REMOVED***
+	require.Error(t, loop.Start(func() error {
 		_ = f()
 		loop.RegisterCallback()(f)
 		return errors.New("something")
-	***REMOVED***))
+	}))
 	require.Equal(t, 3, ran)
-***REMOVED***
+}
 
-func TestEventLoopRegistered(t *testing.T) ***REMOVED***
+func TestEventLoopRegistered(t *testing.T) {
 	t.Parallel()
-	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU{RuntimeField: goja.New()})
 	var ran int
-	f := func() error ***REMOVED***
+	f := func() error {
 		ran++
 		r := loop.RegisterCallback()
-		go func() ***REMOVED***
+		go func() {
 			time.Sleep(time.Second)
-			r(func() error ***REMOVED***
+			r(func() error {
 				ran++
 				return nil
-			***REMOVED***)
-		***REMOVED***()
+			})
+		}()
 		return nil
-	***REMOVED***
+	}
 	start := time.Now()
 	require.NoError(t, loop.Start(f))
 	took := time.Since(start)
 	require.Equal(t, 2, ran)
 	require.Less(t, time.Second, took)
 	require.Greater(t, time.Second+time.Millisecond*100, took)
-***REMOVED***
+}
 
-func TestEventLoopWaitOnRegistered(t *testing.T) ***REMOVED***
+func TestEventLoopWaitOnRegistered(t *testing.T) {
 	t.Parallel()
 	var ran int
-	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
-	f := func() error ***REMOVED***
+	loop := eventloop.New(&modulestest.VU{RuntimeField: goja.New()})
+	f := func() error {
 		ran++
 		r := loop.RegisterCallback()
-		go func() ***REMOVED***
+		go func() {
 			time.Sleep(time.Second)
-			r(func() error ***REMOVED***
+			r(func() error {
 				ran++
 				return nil
-			***REMOVED***)
-		***REMOVED***()
+			})
+		}()
 		return fmt.Errorf("expected")
-	***REMOVED***
+	}
 	start := time.Now()
 	require.Error(t, loop.Start(f))
 	took := time.Since(start)
@@ -81,32 +81,32 @@ func TestEventLoopWaitOnRegistered(t *testing.T) ***REMOVED***
 	require.Greater(t, time.Millisecond*50, took)
 	require.Less(t, time.Second, took2)
 	require.Greater(t, time.Second+time.Millisecond*100, took2)
-***REMOVED***
+}
 
-func TestEventLoopReuse(t *testing.T) ***REMOVED***
+func TestEventLoopReuse(t *testing.T) {
 	t.Parallel()
 	sleepTime := time.Millisecond * 500
-	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
-	f := func() error ***REMOVED***
-		for i := 0; i < 100; i++ ***REMOVED***
+	loop := eventloop.New(&modulestest.VU{RuntimeField: goja.New()})
+	f := func() error {
+		for i := 0; i < 100; i++ {
 			bad := i == 17
 			r := loop.RegisterCallback()
 
-			go func() ***REMOVED***
-				if !bad ***REMOVED***
+			go func() {
+				if !bad {
 					time.Sleep(sleepTime)
-				***REMOVED***
-				r(func() error ***REMOVED***
-					if bad ***REMOVED***
+				}
+				r(func() error {
+					if bad {
 						return errors.New("something")
-					***REMOVED***
+					}
 					panic("this should never execute")
-				***REMOVED***)
-			***REMOVED***()
-		***REMOVED***
+				})
+			}()
+		}
 		return fmt.Errorf("expected")
-	***REMOVED***
-	for i := 0; i < 3; i++ ***REMOVED***
+	}
+	for i := 0; i < 3; i++ {
 		start := time.Now()
 		require.Error(t, loop.Start(f))
 		took := time.Since(start)
@@ -115,31 +115,31 @@ func TestEventLoopReuse(t *testing.T) ***REMOVED***
 		require.Greater(t, time.Millisecond*50, took)
 		require.Less(t, sleepTime, took2)
 		require.Greater(t, sleepTime+time.Millisecond*100, took2)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestEventLoopPanicOnDoubleCallback(t *testing.T) ***REMOVED***
+func TestEventLoopPanicOnDoubleCallback(t *testing.T) {
 	t.Parallel()
-	loop := eventloop.New(&modulestest.VU***REMOVED***RuntimeField: goja.New()***REMOVED***)
+	loop := eventloop.New(&modulestest.VU{RuntimeField: goja.New()})
 	var ran int
-	f := func() error ***REMOVED***
+	f := func() error {
 		ran++
 		r := loop.RegisterCallback()
-		go func() ***REMOVED***
+		go func() {
 			time.Sleep(time.Second)
-			r(func() error ***REMOVED***
+			r(func() error {
 				ran++
 				return nil
-			***REMOVED***)
+			})
 
-			require.Panics(t, func() ***REMOVED*** r(func() error ***REMOVED*** return nil ***REMOVED***) ***REMOVED***)
-		***REMOVED***()
+			require.Panics(t, func() { r(func() error { return nil }) })
+		}()
 		return nil
-	***REMOVED***
+	}
 	start := time.Now()
 	require.NoError(t, loop.Start(f))
 	took := time.Since(start)
 	require.Equal(t, 2, ran)
 	require.Less(t, time.Second, took)
 	require.Greater(t, time.Second+time.Millisecond*100, took)
-***REMOVED***
+}

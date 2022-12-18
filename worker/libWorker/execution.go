@@ -23,7 +23,7 @@ import (
 //
 // TODO: flesh out the interface after actually having more than one
 // implementation...
-type ExecutionScheduler interface ***REMOVED***
+type ExecutionScheduler interface {
 	// Returns the wrapped runner. May return nil if not applicable, eg.
 	// if we're remote controlling a test running on another machine.
 	GetRunner() Runner
@@ -62,7 +62,7 @@ type ExecutionScheduler interface ***REMOVED***
 	// in progress iterations to finish, and it just won't start any new ones
 	// nor will it increment the value returned by GetCurrentTestRunDuration().
 	SetPaused(paused bool) error
-***REMOVED***
+}
 
 // MaxTimeToWaitForPlannedVU specifies the maximum allowable time for an executor
 // to wait for a planned VU to be retrieved from the ExecutionState.PlannedVUs
@@ -120,7 +120,7 @@ const (
 // The only functionality intended for synchronization is the one revolving
 // around pausing, and uninitializedUnplannedVUs for restricting the number of
 // unplanned VUs being initialized.
-type ExecutionState struct ***REMOVED***
+type ExecutionState struct {
 	// A portal to the broader test run state, so the different executors have
 	// access to the test options, built-in metrics, etc.. They will need to
 	// access things like the current execution segment, the per-run metrics
@@ -241,29 +241,29 @@ type ExecutionState struct ***REMOVED***
 	// with 0, a single atomic operation.
 	//
 	// But if we want to wait until a script resumes, or be notified of the
-	// start/resume event from a channel (as part of a select***REMOVED******REMOVED***), we have to
+	// start/resume event from a channel (as part of a select{}), we have to
 	// acquire the pauseStateLock, get the current resumeNotify instance,
 	// release the lock and wait to read from resumeNotify (when it's closed by
 	// Resume()).
 	currentPauseTime    *int64
 	pauseStateLock      sync.RWMutex
 	totalPausedDuration time.Duration // only modified behind the lock
-	resumeNotify        chan struct***REMOVED******REMOVED***
-***REMOVED***
+	resumeNotify        chan struct{}
+}
 
 // NewExecutionState initializes all of the pointers in the ExecutionState
 // with zeros. It also makes sure that the initial state is unpaused, by
 // setting resumeNotify to an already closed channel.
 func NewExecutionState(
 	testRunState *TestRunState, et *ExecutionTuple, maxPlannedVUs, maxPossibleVUs uint64,
-) *ExecutionState ***REMOVED***
-	resumeNotify := make(chan struct***REMOVED******REMOVED***)
+) *ExecutionState {
+	resumeNotify := make(chan struct{})
 	close(resumeNotify) // By default the ExecutionState starts unpaused
 
 	maxUnplannedUninitializedVUs := int64(maxPossibleVUs - maxPlannedVUs)
 
 	segIdx := NewSegmentedIndex(et)
-	return &ExecutionState***REMOVED***
+	return &ExecutionState{
 		Test:           testRunState,
 		ExecutionTuple: et,
 
@@ -280,21 +280,21 @@ func NewExecutionState(
 		startTime:                  new(int64),
 		endTime:                    new(int64),
 		currentPauseTime:           new(int64),
-		pauseStateLock:             sync.RWMutex***REMOVED******REMOVED***,
+		pauseStateLock:             sync.RWMutex{},
 		totalPausedDuration:        0, // Accessed only behind the pauseStateLock
 		resumeNotify:               resumeNotify,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // GetUniqueVUIdentifiers returns the next unique VU IDs, both local (for the
 // current instance, exposed as __VU) and global (across k6 instances, exposed
 // in the k6/execution module). It starts from 1, for backwards compatibility.
-func (es *ExecutionState) GetUniqueVUIdentifiers() (uint64, uint64) ***REMOVED***
+func (es *ExecutionState) GetUniqueVUIdentifiers() (uint64, uint64) {
 	es.vuIDSegIndexMx.Lock()
 	defer es.vuIDSegIndexMx.Unlock()
 	scaled, unscaled := es.vuIDSegIndex.Next()
 	return uint64(scaled), uint64(unscaled)
-***REMOVED***
+}
 
 // GetInitializedVUsCount returns the total number of currently initialized VUs.
 //
@@ -303,120 +303,120 @@ func (es *ExecutionState) GetUniqueVUIdentifiers() (uint64, uint64) ***REMOVED**
 // exported script options and for the execution of setup() and teardown()
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) GetInitializedVUsCount() int64 ***REMOVED***
+func (es *ExecutionState) GetInitializedVUsCount() int64 {
 	return atomic.LoadInt64(es.initializedVUs)
-***REMOVED***
+}
 
 // ModInitializedVUsCount changes the total number of currently initialized VUs.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) ModInitializedVUsCount(mod int64) int64 ***REMOVED***
+func (es *ExecutionState) ModInitializedVUsCount(mod int64) int64 {
 	return atomic.AddInt64(es.initializedVUs, mod)
-***REMOVED***
+}
 
 // GetCurrentlyActiveVUsCount returns the number of VUs that are currently
 // executing the test script. This also includes any VUs that are in the process
 // of gracefully winding down.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) GetCurrentlyActiveVUsCount() int64 ***REMOVED***
+func (es *ExecutionState) GetCurrentlyActiveVUsCount() int64 {
 	return atomic.LoadInt64(es.activeVUs)
-***REMOVED***
+}
 
 // ModCurrentlyActiveVUsCount changes the total number of currently active VUs.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) ModCurrentlyActiveVUsCount(mod int64) int64 ***REMOVED***
+func (es *ExecutionState) ModCurrentlyActiveVUsCount(mod int64) int64 {
 	return atomic.AddInt64(es.activeVUs, mod)
-***REMOVED***
+}
 
 // GetFullIterationCount returns the total of full (i.e uninterrupted) iterations
 // that have been completed so far.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) GetFullIterationCount() uint64 ***REMOVED***
+func (es *ExecutionState) GetFullIterationCount() uint64 {
 	return atomic.LoadUint64(es.fullIterationsCount)
-***REMOVED***
+}
 
 // AddFullIterations increments the number of full (i.e uninterrupted) iterations
 // by the provided amount.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) AddFullIterations(count uint64) uint64 ***REMOVED***
+func (es *ExecutionState) AddFullIterations(count uint64) uint64 {
 	return atomic.AddUint64(es.fullIterationsCount, count)
-***REMOVED***
+}
 
 // GetPartialIterationCount returns the total of partial (i.e interrupted)
 // iterations that have been completed so far.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) GetPartialIterationCount() uint64 ***REMOVED***
+func (es *ExecutionState) GetPartialIterationCount() uint64 {
 	return atomic.LoadUint64(es.interruptedIterationsCount)
-***REMOVED***
+}
 
 // AddInterruptedIterations increments the number of partial (i.e interrupted)
 // iterations by the provided amount.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) AddInterruptedIterations(count uint64) uint64 ***REMOVED***
+func (es *ExecutionState) AddInterruptedIterations(count uint64) uint64 {
 	return atomic.AddUint64(es.interruptedIterationsCount, count)
-***REMOVED***
+}
 
 // SetExecutionStatus changes the current execution status to the supplied value
 // and returns the current value.
-func (es *ExecutionState) SetExecutionStatus(newStatus ExecutionStatus) (oldStatus ExecutionStatus) ***REMOVED***
+func (es *ExecutionState) SetExecutionStatus(newStatus ExecutionStatus) (oldStatus ExecutionStatus) {
 	return ExecutionStatus(atomic.SwapUint32(es.executionStatus, uint32(newStatus)))
-***REMOVED***
+}
 
 // GetCurrentExecutionStatus returns the current execution status. Don't use
 // this for synchronization unless you've made the k6 behavior somewhat
 // predictable with options like --paused.
-func (es *ExecutionState) GetCurrentExecutionStatus() ExecutionStatus ***REMOVED***
+func (es *ExecutionState) GetCurrentExecutionStatus() ExecutionStatus {
 	return ExecutionStatus(atomic.LoadUint32(es.executionStatus))
-***REMOVED***
+}
 
 // MarkStarted saves the current timestamp as the test start time.
 //
 // CAUTION: Calling MarkStarted() a second time for the same execution state will
 // result in a panic!
-func (es *ExecutionState) MarkStarted() ***REMOVED***
-	if !atomic.CompareAndSwapInt64(es.startTime, 0, time.Now().UnixNano()) ***REMOVED***
+func (es *ExecutionState) MarkStarted() {
+	if !atomic.CompareAndSwapInt64(es.startTime, 0, time.Now().UnixNano()) {
 		panic("the execution scheduler was started a second time")
-	***REMOVED***
+	}
 	es.SetExecutionStatus(ExecutionStatusStarted)
-***REMOVED***
+}
 
 // MarkEnded saves the current timestamp as the test end time.
 //
 // CAUTION: Calling MarkEnded() a second time for the same execution state will
 // result in a panic!
-func (es *ExecutionState) MarkEnded() ***REMOVED***
-	if !atomic.CompareAndSwapInt64(es.endTime, 0, time.Now().UnixNano()) ***REMOVED***
+func (es *ExecutionState) MarkEnded() {
+	if !atomic.CompareAndSwapInt64(es.endTime, 0, time.Now().UnixNano()) {
 		panic("the execution scheduler was stopped a second time")
-	***REMOVED***
+	}
 	es.SetExecutionStatus(ExecutionStatusEnded)
-***REMOVED***
+}
 
 // HasStarted returns true if the test has actually started executing.
 // It will return false while a test is in the init phase, or if it has
 // been initially paused. But if will return true if a test is paused
 // midway through its execution (see above for details regarding the
 // feasibility of that pausing for normal executors).
-func (es *ExecutionState) HasStarted() bool ***REMOVED***
+func (es *ExecutionState) HasStarted() bool {
 	return atomic.LoadInt64(es.startTime) != 0
-***REMOVED***
+}
 
 // HasEnded returns true if the test has finished executing. It will return
 // false until MarkEnded() is called.
-func (es *ExecutionState) HasEnded() bool ***REMOVED***
+func (es *ExecutionState) HasEnded() bool {
 	return atomic.LoadInt64(es.endTime) != 0
-***REMOVED***
+}
 
 // IsPaused quickly returns whether the test is currently paused, by reading
 // the atomic currentPauseTime timestamp
-func (es *ExecutionState) IsPaused() bool ***REMOVED***
+func (es *ExecutionState) IsPaused() bool {
 	return atomic.LoadInt64(es.currentPauseTime) != 0
-***REMOVED***
+}
 
 // GetCurrentTestRunDuration returns the duration for which the test has already
 // ran. If the test hasn't started yet, that's 0. If it has started, but has
@@ -424,68 +424,68 @@ func (es *ExecutionState) IsPaused() bool ***REMOVED***
 // And if it's currently running, it will return the time since the start time.
 //
 // IMPORTANT: for UI/information purposes only, don't use for synchronization.
-func (es *ExecutionState) GetCurrentTestRunDuration() time.Duration ***REMOVED***
+func (es *ExecutionState) GetCurrentTestRunDuration() time.Duration {
 	startTime := atomic.LoadInt64(es.startTime)
-	if startTime == 0 ***REMOVED***
+	if startTime == 0 {
 		// The test hasn't started yet
 		return 0
-	***REMOVED***
+	}
 
 	es.pauseStateLock.RLock()
 	endTime := atomic.LoadInt64(es.endTime)
 	pausedDuration := es.totalPausedDuration
 	es.pauseStateLock.RUnlock()
 
-	if endTime == 0 ***REMOVED***
+	if endTime == 0 {
 		pauseTime := atomic.LoadInt64(es.currentPauseTime)
-		if pauseTime != 0 ***REMOVED***
+		if pauseTime != 0 {
 			endTime = pauseTime
-		***REMOVED*** else ***REMOVED***
+		} else {
 			// The test isn't paused or finished, use the current time instead
 			endTime = time.Now().UnixNano()
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return time.Duration(endTime-startTime) - pausedDuration
-***REMOVED***
+}
 
 // Pause pauses the current execution. It acquires the lock, writes
 // the current timestamp in currentPauseTime, and makes a new
 // channel for resumeNotify.
 // Pause can return an error if the test was already paused.
-func (es *ExecutionState) Pause() error ***REMOVED***
+func (es *ExecutionState) Pause() error {
 	es.pauseStateLock.Lock()
 	defer es.pauseStateLock.Unlock()
 
-	if !atomic.CompareAndSwapInt64(es.currentPauseTime, 0, time.Now().UnixNano()) ***REMOVED***
+	if !atomic.CompareAndSwapInt64(es.currentPauseTime, 0, time.Now().UnixNano()) {
 		return errors.New("test execution was already paused")
-	***REMOVED***
-	es.resumeNotify = make(chan struct***REMOVED******REMOVED***)
+	}
+	es.resumeNotify = make(chan struct{})
 	return nil
-***REMOVED***
+}
 
 // Resume unpauses the test execution. Unless the test wasn't
 // yet started, it calculates the duration between now and
 // the old currentPauseTime and adds it to
 // Resume will emit an error if the test wasn't paused.
-func (es *ExecutionState) Resume() error ***REMOVED***
+func (es *ExecutionState) Resume() error {
 	es.pauseStateLock.Lock()
 	defer es.pauseStateLock.Unlock()
 
 	currentPausedTime := atomic.SwapInt64(es.currentPauseTime, 0)
-	if currentPausedTime == 0 ***REMOVED***
+	if currentPausedTime == 0 {
 		return errors.New("test execution wasn't paused")
-	***REMOVED***
+	}
 
 	// Check that it's not the pause before execution actually starts
-	if atomic.LoadInt64(es.startTime) != 0 ***REMOVED***
+	if atomic.LoadInt64(es.startTime) != 0 {
 		es.totalPausedDuration += time.Duration(time.Now().UnixNano() - currentPausedTime)
-	***REMOVED***
+	}
 
 	close(es.resumeNotify)
 
 	return nil
-***REMOVED***
+}
 
 // ResumeNotify returns a channel which will be closed (i.e. could
 // be read from) as soon as the test execution is resumed.
@@ -499,14 +499,14 @@ func (es *ExecutionState) Resume() error ***REMOVED***
 // And, since tests won't be paused most of the time, it's
 // probably better to check for that like this:
 //
-//	if executionState.IsPaused() ***REMOVED***
+//	if executionState.IsPaused() {
 //	    <-executionState.ResumeNotify()
-//	***REMOVED***
-func (es *ExecutionState) ResumeNotify() <-chan struct***REMOVED******REMOVED*** ***REMOVED***
+//	}
+func (es *ExecutionState) ResumeNotify() <-chan struct{} {
 	es.pauseStateLock.RLock()
 	defer es.pauseStateLock.RUnlock()
 	return es.resumeNotify
-***REMOVED***
+}
 
 // GetPlannedVU tries to get a pre-initialized VU from the buffer channel. This
 // shouldn't fail and should generally be an instantaneous action, but if it
@@ -521,33 +521,33 @@ func (es *ExecutionState) ResumeNotify() <-chan struct***REMOVED******REMOVED***
 // executors might have to retrieve their reserved VUs without using them
 // immediately - for example, the externally-controlled executor when the
 // configured maxVUs number is greater than the configured starting VUs.
-func (es *ExecutionState) GetPlannedVU(logger *logrus.Entry, modifyActiveVUCount bool) (InitializedVU, error) ***REMOVED***
-	for i := 1; i <= MaxRetriesGetPlannedVU; i++ ***REMOVED***
-		select ***REMOVED***
+func (es *ExecutionState) GetPlannedVU(logger *logrus.Entry, modifyActiveVUCount bool) (InitializedVU, error) {
+	for i := 1; i <= MaxRetriesGetPlannedVU; i++ {
+		select {
 		case vu := <-es.vus:
-			if modifyActiveVUCount ***REMOVED***
+			if modifyActiveVUCount {
 				es.ModCurrentlyActiveVUsCount(+1)
-			***REMOVED***
+			}
 			// TODO: set environment and exec
 			return vu, nil
 		case <-time.After(MaxTimeToWaitForPlannedVU):
 			logger.Warnf("Could not get a VU from the buffer for %s", time.Duration(i)*MaxTimeToWaitForPlannedVU)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return nil, fmt.Errorf(
 		"could not get a VU from the buffer in %s",
 		MaxRetriesGetPlannedVU*MaxTimeToWaitForPlannedVU,
 	)
-***REMOVED***
+}
 
 // SetInitVUFunc is called by the execution scheduler's init function, and it's
 // used for setting the "constructor" function used for the initializing
 // unplanned VUs.
 //
 // TODO: figure out a better dependency injection method?
-func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) ***REMOVED***
+func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) {
 	es.initVUFunc = initVUFunc
-***REMOVED***
+}
 
 // GetUnplannedVU checks if any unplanned VUs remain to be initialized, and if
 // they do, it initializes one and returns it. If all unplanned VUs have already
@@ -559,44 +559,44 @@ func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) ***REMOVED***
 // Executors are trusted to correctly declare their needs (via their
 // GetExecutionRequirements() methods) and then to never ask for more VUs than
 // they have specified in those requirements.
-func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) ***REMOVED***
+func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) {
 	remVUs := atomic.AddInt64(es.uninitializedUnplannedVUs, -1)
-	if remVUs < 0 ***REMOVED***
+	if remVUs < 0 {
 		logger.Debug("Reusing a previously initialized unplanned VU")
 		atomic.AddInt64(es.uninitializedUnplannedVUs, 1)
 		return es.GetPlannedVU(logger, false)
-	***REMOVED***
+	}
 
 	logger.Debug("Initializing an unplanned VU, this may affect test results")
 	return es.InitializeNewVU(ctx, logger, workerInfo)
-***REMOVED***
+}
 
 // InitializeNewVU creates and returns a brand new VU, updating the relevant
 // tracking counters.
-func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) ***REMOVED***
-	if es.initVUFunc == nil ***REMOVED***
+func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry, workerInfo *WorkerInfo) (InitializedVU, error) {
+	if es.initVUFunc == nil {
 		return nil, fmt.Errorf("initVUFunc wasn't set in the execution state")
-	***REMOVED***
+	}
 	newVU, err := es.initVUFunc(ctx, logger, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	es.ModInitializedVUsCount(+1)
 	return newVU, err
-***REMOVED***
+}
 
 // AddInitializedVU is a helper function that adds VUs into the buffer and
 // increases the initialized VUs counter.
-func (es *ExecutionState) AddInitializedVU(vu InitializedVU) ***REMOVED***
+func (es *ExecutionState) AddInitializedVU(vu InitializedVU) {
 	es.vus <- vu
 	es.ModInitializedVUsCount(+1)
-***REMOVED***
+}
 
 // ReturnVU is a helper function that puts VUs back into the buffer and
 // decreases the active VUs counter.
-func (es *ExecutionState) ReturnVU(vu InitializedVU, wasActive bool) ***REMOVED***
+func (es *ExecutionState) ReturnVU(vu InitializedVU, wasActive bool) {
 	es.vus <- vu
-	if wasActive ***REMOVED***
+	if wasActive {
 		es.ModCurrentlyActiveVUsCount(-1)
-	***REMOVED***
-***REMOVED***
+	}
+}

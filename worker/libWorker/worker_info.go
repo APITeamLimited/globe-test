@@ -11,22 +11,22 @@ import (
 )
 
 type (
-	Collection struct ***REMOVED***
+	Collection struct {
 		Variables map[string]string
 		Name      string
-	***REMOVED***
+	}
 
-	Environment struct ***REMOVED***
+	Environment struct {
 		Variables map[string]string
 		Name      string
-	***REMOVED***
+	}
 
-	KeyValueItem struct ***REMOVED***
+	KeyValueItem struct {
 		Key   string `json:"key"`
 		Value string `json:"value"`
-	***REMOVED***
+	}
 
-	WorkerInfo struct ***REMOVED***
+	WorkerInfo struct {
 		Client            *redis.Client
 		JobId             string
 		ChildJobId        string
@@ -37,67 +37,67 @@ type (
 		Environment       *Environment
 		Collection        *Collection
 		WorkerOptions     Options
-		FinalRequest      map[string]interface***REMOVED******REMOVED***
-		UnderlyingRequest map[string]interface***REMOVED******REMOVED***
+		FinalRequest      map[string]interface{}
+		UnderlyingRequest map[string]interface{}
 		Gs                *BaseGlobalState
 		VerifiedDomains   []string
 		SubFraction       float64
 		CreditsManager    *lib.CreditsManager
 		Standalone        bool
-	***REMOVED***
+	}
 
-	MarkMessage struct ***REMOVED***
+	MarkMessage struct {
 		Mark    string                 `json:"mark"`
-		Message map[string]interface***REMOVED******REMOVED*** `json:"message"`
-	***REMOVED***
+		Message map[string]interface{} `json:"message"`
+	}
 )
 
-type Message struct ***REMOVED***
+type Message struct {
 	JobId       string    `json:"jobId"`
 	ChildJobId  string    `json:"childJobId"`
 	Time        time.Time `json:"time"`
 	WorkerId    string    `json:"workerId"`
 	Message     string    `json:"message"`
 	MessageType string    `json:"messageType"`
-***REMOVED***
+}
 
-func DispatchMessage(gs BaseGlobalState, message string, messageType string) ***REMOVED***
-	var messageStruct = Message***REMOVED***
+func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
+	var messageStruct = Message{
 		JobId:       gs.JobId(),
 		ChildJobId:  gs.ChildJobId(),
 		Time:        time.Now(),
 		WorkerId:    gs.WorkerId(),
 		Message:     message,
 		MessageType: messageType,
-	***REMOVED***
+	}
 
 	messageJson, err := json.Marshal(messageStruct)
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("Error marshalling message")
 		return
-	***REMOVED***
+	}
 
 	// Worker doesn't need to set the message, it's just for the orchestrator and will be
 	// instantly received by the orchestrator
 
 	// Dispatch to channel
 	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), messageJson)
-***REMOVED***
+}
 
-func UpdateStatus(gs BaseGlobalState, status string) ***REMOVED***
-	if gs.GetWorkerStatus() != status ***REMOVED***
+func UpdateStatus(gs BaseGlobalState, status string) {
+	if gs.GetWorkerStatus() != status {
 		gs.Client().HSet(gs.Ctx(), gs.JobId(), "status", status)
 		DispatchMessage(gs, status, "STATUS")
 		gs.SetWorkerStatus(status)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func HandleStringError(gs BaseGlobalState, errString string) ***REMOVED***
+func HandleStringError(gs BaseGlobalState, errString string) {
 	DispatchMessage(gs, errString, "ERROR")
 	UpdateStatus(gs, "FAILURE")
-***REMOVED***
+}
 
-func HandleError(gs BaseGlobalState, err error) ***REMOVED***
+func HandleError(gs BaseGlobalState, err error) {
 	DispatchMessage(gs, err.Error(), "ERROR")
 	UpdateStatus(gs, "FAILURE")
-***REMOVED***
+}

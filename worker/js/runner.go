@@ -34,7 +34,7 @@ import (
 )
 
 // Ensure Runner implements the libWorker.Runner interface
-var _ libWorker.Runner = &Runner***REMOVED******REMOVED***
+var _ libWorker.Runner = &Runner{}
 
 // TODO: https://github.com/grafana/k6/issues/2186
 // An advanced TLS support should cover the rid of the warning
@@ -42,7 +42,7 @@ var _ libWorker.Runner = &Runner***REMOVED******REMOVED***
 //nolint:gochecknoglobals
 var nameToCertWarning sync.Once
 
-type Runner struct ***REMOVED***
+type Runner struct {
 	Bundle       *Bundle
 	preInitState *libWorker.TestPreInitState
 	defaultGroup *libWorker.Group
@@ -55,96 +55,96 @@ type Runner struct ***REMOVED***
 
 	console   *console
 	setupData []byte
-***REMOVED***
+}
 
 // New returns a new Runner for the provided source
-func New(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo) (*Runner, error) ***REMOVED***
+func New(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo) (*Runner, error) {
 	bundle, err := NewBundle(piState, src, filesystems, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	return NewFromBundle(piState, bundle)
-***REMOVED***
+}
 
 // NewFromBundle returns a new Runner from the provided Bundle
-func NewFromBundle(piState *libWorker.TestPreInitState, b *Bundle) (*Runner, error) ***REMOVED***
+func NewFromBundle(piState *libWorker.TestPreInitState, b *Bundle) (*Runner, error) {
 	defaultGroup, err := libWorker.NewGroup("", nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	defDNS := types.DefaultDNSConfig()
-	r := &Runner***REMOVED***
+	r := &Runner{
 		Bundle:       b,
 		preInitState: piState,
 		defaultGroup: defaultGroup,
-		BaseDialer: net.Dialer***REMOVED***
+		BaseDialer: net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
-		***REMOVED***,
+		},
 		console: newConsole(piState.Logger),
 		Resolver: netext.NewResolver(
 			net.LookupIP, 0, defDNS.Select.DNSSelect, defDNS.Policy.DNSPolicy),
 		ActualResolver: net.LookupIP,
-	***REMOVED***
+	}
 
 	err = r.SetOptions(r.Bundle.Options)
 
 	return r, err
-***REMOVED***
+}
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 	vu, err := r.newVU(idLocal, idGlobal, samplesOut, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	return libWorker.InitializedVU(vu), nil
-***REMOVED***
+}
 
 //nolint:funlen
-func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) {
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	var cipherSuites []uint16
-	if r.Bundle.Options.TLSCipherSuites != nil ***REMOVED***
+	if r.Bundle.Options.TLSCipherSuites != nil {
 		cipherSuites = *r.Bundle.Options.TLSCipherSuites
-	***REMOVED***
+	}
 
 	var tlsVersions libWorker.TLSVersions
-	if r.Bundle.Options.TLSVersion != nil ***REMOVED***
+	if r.Bundle.Options.TLSVersion != nil {
 		tlsVersions = *r.Bundle.Options.TLSVersion
-	***REMOVED***
+	}
 
 	tlsAuth := r.Bundle.Options.TLSAuth
 	certs := make([]tls.Certificate, len(tlsAuth))
 	nameToCert := make(map[string]*tls.Certificate)
-	for i, auth := range tlsAuth ***REMOVED***
+	for i, auth := range tlsAuth {
 		cert, errC := auth.Certificate()
-		if errC != nil ***REMOVED***
+		if errC != nil {
 			return nil, errC
-		***REMOVED***
+		}
 		certs[i] = *cert
-		for _, name := range auth.Domains ***REMOVED***
+		for _, name := range auth.Domains {
 			nameToCert[name] = cert
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	dialer := &netext.Dialer***REMOVED***
+	dialer := &netext.Dialer{
 		Dialer:           r.BaseDialer,
 		Resolver:         r.Resolver,
 		Blacklist:        r.Bundle.Options.BlacklistIPs,
 		BlockedHostnames: r.Bundle.Options.BlockedHostnames.Trie,
 		Hosts:            r.Bundle.Options.Hosts,
-	***REMOVED***
+	}
 
-	tlsConfig := &tls.Config***REMOVED***
+	tlsConfig := &tls.Config{
 		InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool, //nolint:gosec
 		CipherSuites:       cipherSuites,
 		MinVersion:         uint16(tlsVersions.Min),
@@ -152,21 +152,21 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 		Certificates:       certs,
 		Renegotiation:      tls.RenegotiateFreelyAsClient,
 		KeyLogWriter:       r.preInitState.KeyLogger,
-	***REMOVED***
+	}
 	// Follow NameToCertificate in https://pkg.go.dev/crypto/tls@go1.17.6#Config, leave this field nil
 	// when it is empty
-	if len(nameToCert) > 0 ***REMOVED***
-		nameToCertWarning.Do(func() ***REMOVED***
+	if len(nameToCert) > 0 {
+		nameToCertWarning.Do(func() {
 			r.preInitState.Logger.Warn(
 				"tlsAuth.domains option could be removed in the next releases, it's recommended to leave it empty " +
 					"and let k6 automatically detect from the provided certificate. It follows the Go's NameToCertificate " +
 					"deprecation - https://pkg.go.dev/crypto/tls@go1.17#Config.",
 			)
-		***REMOVED***)
+		})
 		//nolint:staticcheck // ignore SA1019 we can deprecate it but we have to continue to support the previous code.
 		tlsConfig.NameToCertificate = nameToCert
-	***REMOVED***
-	transport := &http.Transport***REMOVED***
+	}
+	transport := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSClientConfig:     tlsConfig,
 		DialContext:         dialer.DialContext,
@@ -174,20 +174,20 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 		DisableKeepAlives:   r.Bundle.Options.NoConnectionReuse.Bool,
 		MaxIdleConns:        int(r.Bundle.Options.Batch.Int64),
 		MaxIdleConnsPerHost: int(r.Bundle.Options.BatchPerHost.Int64),
-	***REMOVED***
+	}
 
-	if forceHTTP1() ***REMOVED***
+	if forceHTTP1() {
 		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper) // send over h1 protocol
-	***REMOVED*** else ***REMOVED***
+	} else {
 		_ = http2.ConfigureTransport(transport) // send over h2 protocol
-	***REMOVED***
+	}
 
 	cookieJar, err := cookiejar.New(nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	vu := &VU***REMOVED***
+	vu := &VU{
 		ID:             idLocal,
 		IDGlobal:       idGlobal,
 		iteration:      int64(-1),
@@ -201,9 +201,9 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
 		scenarioIter:   make(map[string]uint64),
-	***REMOVED***
+	}
 
-	vu.state = &libWorker.State***REMOVED***
+	vu.state = &libWorker.State{
 		Logger:         vu.Runner.preInitState.Logger,
 		Options:        vu.Runner.Bundle.Options,
 		Transport:      vu.Transport,
@@ -218,113 +218,113 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 		Tags:           libWorker.NewTagMap(copyStringMap(vu.Runner.Bundle.Options.RunTags)),
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.preInitState.BuiltinMetrics,
-	***REMOVED***
+	}
 	vu.moduleVUImpl.state = vu.state
 	_ = vu.Runtime.Set("console", vu.Console)
 
 	// This is here mostly so if someone tries they get a nice message
 	// instead of "Value is not an object: undefined  ..."
 	_ = vu.Runtime.GlobalObject().Set("open",
-		func() ***REMOVED***
+		func() {
 			common.Throw(vu.Runtime, errors.New(openCantBeUsedOutsideInitContextMsg))
-		***REMOVED***)
+		})
 
 	return vu, nil
-***REMOVED***
+}
 
 // forceHTTP1 checks if force http1 env variable has been set in order to force requests to be sent over h1
 // TODO: This feature is temporary until #936 is resolved
-func forceHTTP1() bool ***REMOVED***
+func forceHTTP1() bool {
 	godebug := os.Getenv("GODEBUG")
-	if godebug == "" ***REMOVED***
+	if godebug == "" {
 		return false
-	***REMOVED***
+	}
 	variables := strings.SplitAfter(godebug, ",")
 
-	for _, v := range variables ***REMOVED***
-		if strings.Trim(v, ",") == "http2client=0" ***REMOVED***
+	for _, v := range variables {
+		if strings.Trim(v, ",") == "http2client=0" {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}
 
 // Setup runs the setup function if there is one and sets the setupData to the returned value
-func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error ***REMOVED***
+func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	setupCtx, setupCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.SetupFn))
 	defer setupCancel()
 
 	v, err := r.runPart(setupCtx, out, consts.SetupFn, workerInfo, nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	// r.setupData = nil is special it means undefined from this moment forward
-	if goja.IsUndefined(v) ***REMOVED***
+	if goja.IsUndefined(v) {
 		r.setupData = nil
 		return nil
-	***REMOVED***
+	}
 
 	r.setupData, err = json.Marshal(v.Export())
-	if err != nil ***REMOVED***
+	if err != nil {
 		return fmt.Errorf("error marshaling setup() data to JSON: %w", err)
-	***REMOVED***
-	var tmp interface***REMOVED******REMOVED***
+	}
+	var tmp interface{}
 	return json.Unmarshal(r.setupData, &tmp)
-***REMOVED***
+}
 
 // GetSetupData returns the setup data as json if Setup() was specified and executed, nil otherwise
-func (r *Runner) GetSetupData() []byte ***REMOVED***
+func (r *Runner) GetSetupData() []byte {
 	return r.setupData
-***REMOVED***
+}
 
 // SetSetupData saves the externally supplied setup data as json in the runner, so it can be used in VUs
-func (r *Runner) SetSetupData(data []byte) ***REMOVED***
+func (r *Runner) SetSetupData(data []byte) {
 	r.setupData = data
-***REMOVED***
+}
 
 // Teardown runs the teardown function if there is one.
-func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error ***REMOVED***
+func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	teardownCtx, teardownCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.TeardownFn))
 	defer teardownCancel()
 
-	var data interface***REMOVED******REMOVED***
-	if r.setupData != nil ***REMOVED***
-		if err := json.Unmarshal(r.setupData, &data); err != nil ***REMOVED***
+	var data interface{}
+	if r.setupData != nil {
+		if err := json.Unmarshal(r.setupData, &data); err != nil {
 			return fmt.Errorf("error unmarshaling setup data for teardown() from JSON: %w", err)
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		data = goja.Undefined()
-	***REMOVED***
+	}
 	_, err := r.runPart(teardownCtx, out, consts.TeardownFn, workerInfo, data)
 	return err
-***REMOVED***
+}
 
-func (r *Runner) GetDefaultGroup() *libWorker.Group ***REMOVED***
+func (r *Runner) GetDefaultGroup() *libWorker.Group {
 	return r.defaultGroup
-***REMOVED***
+}
 
-func (r *Runner) GetOptions() libWorker.Options ***REMOVED***
+func (r *Runner) GetOptions() libWorker.Options {
 	return r.Bundle.Options
-***REMOVED***
+}
 
 // IsExecutable returns whether the given name is an exported and
 // executable function in the script.
-func (r *Runner) IsExecutable(name string) bool ***REMOVED***
+func (r *Runner) IsExecutable(name string) bool {
 	_, exists := r.Bundle.exports[name]
 	return exists
-***REMOVED***
+}
 
-func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Summary) ([]byte, error) ***REMOVED***
+func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Summary) ([]byte, error) {
 	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
 	return json.Marshal(summaryDataForJS["metrics"])
-***REMOVED***
+}
 
-func (r *Runner) SetOptions(opts libWorker.Options) error ***REMOVED***
+func (r *Runner) SetOptions(opts libWorker.Options) error {
 	r.Bundle.Options = opts
 	r.RPSLimit = nil
-	if rps := opts.RPS; rps.Valid && rps.Int64 > 0 ***REMOVED***
+	if rps := opts.RPS; rps.Valid && rps.Int64 > 0 {
 		r.RPSLimit = rate.NewLimiter(rate.Limit(rps.Int64), 1)
-	***REMOVED***
+	}
 
 	// FIXME: Resolver probably shouldn't be reset here...
 	// It's done because the js.Runner is created before the full
@@ -336,36 +336,36 @@ func (r *Runner) SetOptions(opts libWorker.Options) error ***REMOVED***
 	// (it needs the actual resolver, not the config), and it would
 	// require an additional field on Bundle to pass the config through,
 	// which is arguably worse than this.
-	if err := r.setResolver(opts.DNS); err != nil ***REMOVED***
+	if err := r.setResolver(opts.DNS); err != nil {
 		return err
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
-func (r *Runner) setResolver(dns types.DNSConfig) error ***REMOVED***
+func (r *Runner) setResolver(dns types.DNSConfig) error {
 	ttl, err := parseTTL(dns.TTL.String)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	dnsSel := dns.Select
-	if !dnsSel.Valid ***REMOVED***
+	if !dnsSel.Valid {
 		dnsSel = types.DefaultDNSConfig().Select
-	***REMOVED***
+	}
 	dnsPol := dns.Policy
-	if !dnsPol.Valid ***REMOVED***
+	if !dnsPol.Valid {
 		dnsPol = types.DefaultDNSConfig().Policy
-	***REMOVED***
+	}
 	r.Resolver = netext.NewResolver(
 		r.ActualResolver, ttl, dnsSel.DNSSelect, dnsPol.DNSPolicy)
 
 	return nil
-***REMOVED***
+}
 
-func parseTTL(ttlS string) (time.Duration, error) ***REMOVED***
+func parseTTL(ttlS string) (time.Duration, error) {
 	ttl := time.Duration(0)
-	switch ttlS ***REMOVED***
+	switch ttlS {
 	case "inf":
 		// cache "infinitely"
 		ttl = time.Hour * 24 * 365
@@ -377,12 +377,12 @@ func parseTTL(ttlS string) (time.Duration, error) ***REMOVED***
 	default:
 		var err error
 		ttl, err = types.ParseExtendedDuration(ttlS)
-		if ttl < 0 || err != nil ***REMOVED***
+		if ttl < 0 || err != nil {
 			return ttl, fmt.Errorf("invalid DNS TTL: %s", ttlS)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return ttl, nil
-***REMOVED***
+}
 
 // Runs an exported function in its own temporary VU, optionally with an argument. Execution is
 // interrupted if the context expires. No error is returned if the part does not exist.
@@ -391,65 +391,65 @@ func (r *Runner) runPart(
 	out chan<- workerMetrics.SampleContainer,
 	name string,
 	workerInfo *libWorker.WorkerInfo,
-	arg interface***REMOVED******REMOVED***,
-) (goja.Value, error) ***REMOVED***
+	arg interface{},
+) (goja.Value, error) {
 	vu, err := r.newVU(0, 0, out, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return goja.Undefined(), err
-	***REMOVED***
+	}
 	fn, ok := goja.AssertFunction(vu.getExported(name))
-	if !ok ***REMOVED***
+	if !ok {
 		return goja.Undefined(), nil
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go func() ***REMOVED***
+	go func() {
 		<-ctx.Done()
 		vu.Runtime.Interrupt(context.Canceled)
-	***REMOVED***()
+	}()
 	vu.moduleVUImpl.ctx = ctx
 
 	group, err := r.GetDefaultGroup().Group(name)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return goja.Undefined(), err
-	***REMOVED***
+	}
 
-	if r.Bundle.Options.SystemTags.Has(workerMetrics.TagGroup) ***REMOVED***
+	if r.Bundle.Options.SystemTags.Has(workerMetrics.TagGroup) {
 		vu.state.Tags.Set("group", group.Path)
-	***REMOVED***
+	}
 	vu.state.Group = group
 
 	v, _, _, err := vu.runFn(ctx, false, fn, nil, vu.Runtime.ToValue(arg))
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
-	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
+	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) {
 		// we could have an error that is not context.Canceled in which case we should return it instead
-		if err, ok := err.(*goja.InterruptedError); ok && v != nil && err.Value() != context.Canceled ***REMOVED***
+		if err, ok := err.(*goja.InterruptedError); ok && v != nil && err.Value() != context.Canceled {
 			// TODO: silence this error?
 			return v, err
-		***REMOVED***
+		}
 		// otherwise we have timeouted
 		return v, newTimeoutError(name, r.getTimeoutFor(name))
-	***REMOVED***
+	}
 	return v, err
-***REMOVED***
+}
 
 // getTimeoutFor returns the timeout duration for given special script function.
-func (r *Runner) getTimeoutFor(stage string) time.Duration ***REMOVED***
+func (r *Runner) getTimeoutFor(stage string) time.Duration {
 	d := time.Duration(0)
-	switch stage ***REMOVED***
+	switch stage {
 	case consts.SetupFn:
 		return r.Bundle.Options.SetupTimeout.TimeDuration()
 	case consts.TeardownFn:
 		return r.Bundle.Options.TeardownTimeout.TimeDuration()
 	case consts.HandleSummaryFn:
 		return 2 * time.Minute // TODO: make configurable
-	***REMOVED***
+	}
 	return d
-***REMOVED***
+}
 
-type VU struct ***REMOVED***
+type VU struct {
 	BundleInstance
 
 	Runner    *Runner
@@ -471,286 +471,286 @@ type VU struct ***REMOVED***
 	state *libWorker.State
 	// count of iterations executed by this VU in each scenario
 	scenarioIter map[string]uint64
-***REMOVED***
+}
 
 // Verify that interfaces are implemented
 var (
-	_ libWorker.ActiveVU      = &ActiveVU***REMOVED******REMOVED***
-	_ libWorker.InitializedVU = &VU***REMOVED******REMOVED***
+	_ libWorker.ActiveVU      = &ActiveVU{}
+	_ libWorker.InitializedVU = &VU{}
 )
 
 // ActiveVU holds a VU and its activation parameters
-type ActiveVU struct ***REMOVED***
+type ActiveVU struct {
 	*VU
 	*libWorker.VUActivationParams
-	busy chan struct***REMOVED******REMOVED***
+	busy chan struct{}
 
 	scenarioName              string
 	getNextIterationCounters  func() (uint64, uint64)
 	scIterLocal, scIterGlobal uint64
-***REMOVED***
+}
 
 // GetID returns the unique VU ID.
-func (u *VU) GetID() uint64 ***REMOVED***
+func (u *VU) GetID() uint64 {
 	return u.ID
-***REMOVED***
+}
 
 // Activate the VU so it will be able to run code.
-func (u *VU) Activate(params *libWorker.VUActivationParams) libWorker.ActiveVU ***REMOVED***
+func (u *VU) Activate(params *libWorker.VUActivationParams) libWorker.ActiveVU {
 	u.Runtime.ClearInterrupt()
 
-	if params.Exec == "" ***REMOVED***
+	if params.Exec == "" {
 		params.Exec = consts.DefaultFn
-	***REMOVED***
+	}
 
 	// Override the preset global env with any custom env vars
 	env := make(map[string]string, len(u.env)+len(params.Env))
-	for key, value := range u.env ***REMOVED***
+	for key, value := range u.env {
 		env[key] = value
-	***REMOVED***
-	for key, value := range params.Env ***REMOVED***
+	}
+	for key, value := range params.Env {
 		env[key] = value
-	***REMOVED***
+	}
 	u.Runtime.Set("__ENV", env)
 
 	opts := u.Runner.Bundle.Options
 	// TODO: maybe we can cache the original tags only clone them and add (if any) new tags on top ?
 	u.state.Tags = libWorker.NewTagMap(copyStringMap(opts.RunTags))
-	for k, v := range params.Tags ***REMOVED***
+	for k, v := range params.Tags {
 		u.state.Tags.Set(k, v)
-	***REMOVED***
-	if opts.SystemTags.Has(workerMetrics.TagVU) ***REMOVED***
+	}
+	if opts.SystemTags.Has(workerMetrics.TagVU) {
 		u.state.Tags.Set("vu", strconv.FormatUint(u.ID, 10))
-	***REMOVED***
-	if opts.SystemTags.Has(workerMetrics.TagIter) ***REMOVED***
+	}
+	if opts.SystemTags.Has(workerMetrics.TagIter) {
 		u.state.Tags.Set("iter", strconv.FormatInt(u.iteration, 10))
-	***REMOVED***
-	if opts.SystemTags.Has(workerMetrics.TagGroup) ***REMOVED***
+	}
+	if opts.SystemTags.Has(workerMetrics.TagGroup) {
 		u.state.Tags.Set("group", u.state.Group.Path)
-	***REMOVED***
-	if opts.SystemTags.Has(workerMetrics.TagScenario) ***REMOVED***
+	}
+	if opts.SystemTags.Has(workerMetrics.TagScenario) {
 		u.state.Tags.Set("scenario", params.Scenario)
-	***REMOVED***
+	}
 
 	ctx := params.RunContext
 	u.moduleVUImpl.ctx = ctx
 
-	u.state.GetScenarioVUIter = func() uint64 ***REMOVED***
+	u.state.GetScenarioVUIter = func() uint64 {
 		return u.scenarioIter[params.Scenario]
-	***REMOVED***
+	}
 
-	avu := &ActiveVU***REMOVED***
+	avu := &ActiveVU{
 		VU:                       u,
 		VUActivationParams:       params,
-		busy:                     make(chan struct***REMOVED******REMOVED***, 1),
+		busy:                     make(chan struct{}, 1),
 		scenarioName:             params.Scenario,
 		scIterLocal:              ^uint64(0),
 		scIterGlobal:             ^uint64(0),
 		getNextIterationCounters: params.GetNextIterationCounters,
-	***REMOVED***
+	}
 
-	u.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
+	u.state.GetScenarioLocalVUIter = func() uint64 {
 		return avu.scIterLocal
-	***REMOVED***
-	u.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
+	}
+	u.state.GetScenarioGlobalVUIter = func() uint64 {
 		return avu.scIterGlobal
-	***REMOVED***
+	}
 
-	go func() ***REMOVED***
+	go func() {
 		// Wait for the run context to be over
 		<-ctx.Done()
 		// Interrupt the JS runtime
 		u.Runtime.Interrupt(context.Canceled)
 		// Wait for the VU to stop running, if it was, and prevent it from
 		// running again for this activation
-		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		avu.busy <- struct{}{}
 
-		if params.DeactivateCallback != nil ***REMOVED***
+		if params.DeactivateCallback != nil {
 			params.DeactivateCallback(u)
-		***REMOVED***
-	***REMOVED***()
+		}
+	}()
 
 	return avu
-***REMOVED***
+}
 
 // RunOnce runs the configured Exec function once.
-func (u *ActiveVU) RunOnce() error ***REMOVED***
-	select ***REMOVED***
+func (u *ActiveVU) RunOnce() error {
+	select {
 	case <-u.RunContext.Done():
 		return u.RunContext.Err() // we are done, return
-	case u.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+	case u.busy <- struct{}{}:
 		// nothing else can run now, and the VU cannot be deactivated
-	***REMOVED***
-	defer func() ***REMOVED***
+	}
+	defer func() {
 		<-u.busy // unlock deactivation again
-	***REMOVED***()
+	}()
 
 	// Unmarshall the setupData only the first time for each VU so that VUs are isolated but we
 	// still don't use too much CPU in the middle test
-	if u.setupData == nil ***REMOVED***
-		if u.Runner.setupData != nil ***REMOVED***
-			var data interface***REMOVED******REMOVED***
-			if err := json.Unmarshal(u.Runner.setupData, &data); err != nil ***REMOVED***
+	if u.setupData == nil {
+		if u.Runner.setupData != nil {
+			var data interface{}
+			if err := json.Unmarshal(u.Runner.setupData, &data); err != nil {
 				return fmt.Errorf("error unmarshaling setup data for the iteration from JSON: %w", err)
-			***REMOVED***
+			}
 			u.setupData = u.Runtime.ToValue(data)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			u.setupData = goja.Undefined()
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	fn, ok := u.exports[u.Exec]
-	if !ok ***REMOVED***
+	if !ok {
 		// Shouldn't happen; this is validated in cmd.validateScenarioConfig()
 		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
-	***REMOVED***
+	}
 
 	u.incrIteration()
-	if err := u.Runtime.Set("__ITER", u.iteration); err != nil ***REMOVED***
+	if err := u.Runtime.Set("__ITER", u.iteration); err != nil {
 		panic(fmt.Errorf("error setting __ITER in goja runtime: %w", err))
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithCancel(u.RunContext)
 	defer cancel()
 	u.moduleVUImpl.ctx = ctx
 	// Call the exported function.
 	_, isFullIteration, totalTime, err := u.runFn(ctx, true, fn, cancel, u.setupData)
-	if err != nil ***REMOVED***
+	if err != nil {
 		var x *goja.InterruptedError
-		if errors.As(err, &x) ***REMOVED***
-			if v, ok := x.Value().(*errext.InterruptError); ok ***REMOVED***
+		if errors.As(err, &x) {
+			if v, ok := x.Value().(*errext.InterruptError); ok {
 				v.Reason = x.Error()
 				err = v
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	// If MinIterationDuration is specified and the iteration wasn't canceled
 	// and was less than it, sleep for the remainder
-	if isFullIteration && u.Runner.Bundle.Options.MinIterationDuration.Valid ***REMOVED***
+	if isFullIteration && u.Runner.Bundle.Options.MinIterationDuration.Valid {
 		durationDiff := u.Runner.Bundle.Options.MinIterationDuration.TimeDuration() - totalTime
-		if durationDiff > 0 ***REMOVED***
-			select ***REMOVED***
+		if durationDiff > 0 {
+			select {
 			case <-time.After(durationDiff):
 			case <-u.RunContext.Done():
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	return err
-***REMOVED***
+}
 
-func (u *VU) getExported(name string) goja.Value ***REMOVED***
+func (u *VU) getExported(name string) goja.Value {
 	return u.BundleInstance.pgm.module.Get("exports").ToObject(u.Runtime).Get(name)
-***REMOVED***
+}
 
 // if isDefault is true, cancel also needs to be provided and it should cancel the provided context
 // TODO remove the need for the above through refactoring of this function and its callees
 func (u *VU) runFn(
 	ctx context.Context, isDefault bool, fn goja.Callable, cancel func(), args ...goja.Value,
-) (v goja.Value, isFullIteration bool, t time.Duration, err error) ***REMOVED***
-	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() ***REMOVED***
+) (v goja.Value, isFullIteration bool, t time.Duration, err error) {
+	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() {
 		u.state.CookieJar, err = cookiejar.New(nil)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return goja.Undefined(), false, time.Duration(0), err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	opts := &u.Runner.Bundle.Options
-	if opts.SystemTags.Has(workerMetrics.TagIter) ***REMOVED***
+	if opts.SystemTags.Has(workerMetrics.TagIter) {
 		u.state.Tags.Set("iter", strconv.FormatInt(u.state.Iteration, 10))
-	***REMOVED***
+	}
 
 	startTime := time.Now()
 
-	if u.moduleVUImpl.eventLoop == nil ***REMOVED***
+	if u.moduleVUImpl.eventLoop == nil {
 		u.moduleVUImpl.eventLoop = eventloop.New(u.moduleVUImpl)
-	***REMOVED***
-	err = common.RunWithPanicCatching(u.state.Logger, u.Runtime, func() error ***REMOVED***
-		return u.moduleVUImpl.eventLoop.Start(func() (err error) ***REMOVED***
+	}
+	err = common.RunWithPanicCatching(u.state.Logger, u.Runtime, func() error {
+		return u.moduleVUImpl.eventLoop.Start(func() (err error) {
 			v, err = fn(goja.Undefined(), args...) // Actually run the JS script
 			return err
-		***REMOVED***)
-	***REMOVED***)
+		})
+	})
 
-	select ***REMOVED***
+	select {
 	case <-ctx.Done():
 		isFullIteration = false
 	default:
 		isFullIteration = true
-	***REMOVED***
+	}
 
-	if cancel != nil ***REMOVED***
+	if cancel != nil {
 		cancel()
 		u.moduleVUImpl.eventLoop.WaitOnRegistered()
-	***REMOVED***
+	}
 	endTime := time.Now()
 	var exception *goja.Exception
-	if errors.As(err, &exception) ***REMOVED***
-		err = &scriptException***REMOVED***inner: exception***REMOVED***
-	***REMOVED***
+	if errors.As(err, &exception) {
+		err = &scriptException{inner: exception}
+	}
 
-	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***
+	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool {
 		u.Transport.CloseIdleConnections()
-	***REMOVED***
+	}
 
 	sampleTags := workerMetrics.NewSampleTags(u.state.CloneTags())
 	u.state.Samples <- u.Dialer.GetTrail(
 		startTime, endTime, isFullIteration, isDefault, sampleTags, u.Runner.preInitState.BuiltinMetrics)
 
 	return v, isFullIteration, endTime.Sub(startTime), err
-***REMOVED***
+}
 
-func (u *ActiveVU) incrIteration() ***REMOVED***
+func (u *ActiveVU) incrIteration() {
 	u.iteration++
 	u.state.Iteration = u.iteration
 
-	if _, ok := u.scenarioIter[u.scenarioName]; ok ***REMOVED***
+	if _, ok := u.scenarioIter[u.scenarioName]; ok {
 		u.scenarioIter[u.scenarioName]++
-	***REMOVED*** else ***REMOVED***
+	} else {
 		u.scenarioIter[u.scenarioName] = 0
-	***REMOVED***
+	}
 	// TODO remove this
-	if u.getNextIterationCounters != nil ***REMOVED***
+	if u.getNextIterationCounters != nil {
 		u.scIterLocal, u.scIterGlobal = u.getNextIterationCounters()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-type scriptException struct ***REMOVED***
+type scriptException struct {
 	inner *goja.Exception
-***REMOVED***
+}
 
 var (
-	_ errext.Exception   = &scriptException***REMOVED******REMOVED***
-	_ errext.HasExitCode = &scriptException***REMOVED******REMOVED***
-	_ errext.HasHint     = &scriptException***REMOVED******REMOVED***
+	_ errext.Exception   = &scriptException{}
+	_ errext.HasExitCode = &scriptException{}
+	_ errext.HasHint     = &scriptException{}
 )
 
-func (s *scriptException) Error() string ***REMOVED***
+func (s *scriptException) Error() string {
 	// this calls String instead of error so that by default if it's printed to print the stacktrace
 	return s.inner.String()
-***REMOVED***
+}
 
-func (s *scriptException) StackTrace() string ***REMOVED***
+func (s *scriptException) StackTrace() string {
 	return s.inner.String()
-***REMOVED***
+}
 
-func (s *scriptException) Unwrap() error ***REMOVED***
+func (s *scriptException) Unwrap() error {
 	return s.inner
-***REMOVED***
+}
 
-func (s *scriptException) Hint() string ***REMOVED***
+func (s *scriptException) Hint() string {
 	return "script exception"
-***REMOVED***
+}
 
-func (s *scriptException) ExitCode() exitcodes.ExitCode ***REMOVED***
+func (s *scriptException) ExitCode() exitcodes.ExitCode {
 	return exitcodes.ScriptException
-***REMOVED***
+}
 
-func copyStringMap(m map[string]string) map[string]string ***REMOVED***
+func copyStringMap(m map[string]string) map[string]string {
 	clone := make(map[string]string, len(m))
-	for ktag, vtag := range m ***REMOVED***
+	for ktag, vtag := range m {
 		clone[ktag] = vtag
-	***REMOVED***
+	}
 	return clone
-***REMOVED***
+}

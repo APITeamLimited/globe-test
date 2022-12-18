@@ -21,7 +21,7 @@ var executorNameWhitelist = regexp.MustCompile(`^[0-9a-zA-Z_-]+$`) //nolint:goch
 const executorNameErr = "the executor name should contain only numbers, latin letters, underscores, and dashes"
 
 // BaseConfig contains the common config fields for all executors
-type BaseConfig struct ***REMOVED***
+type BaseConfig struct {
 	Name         string             `json:"-"` // set via the JS object key
 	Type         string             `json:"executor"`
 	StartTime    types.NullDuration `json:"startTime"`
@@ -31,58 +31,58 @@ type BaseConfig struct ***REMOVED***
 	Tags         map[string]string  `json:"tags"`
 
 	// TODO: future extensions like distribution, others?
-***REMOVED***
+}
 
 // NewBaseConfig returns a default base config with the default values
-func NewBaseConfig(name, configType string) BaseConfig ***REMOVED***
-	return BaseConfig***REMOVED***
+func NewBaseConfig(name, configType string) BaseConfig {
+	return BaseConfig{
 		Name:         name,
 		Type:         configType,
 		GracefulStop: types.NewNullDuration(DefaultGracefulStopValue, false),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Validate checks some basic things like present name, type, and a positive start time
-func (bc BaseConfig) Validate() (errors []error) ***REMOVED***
+func (bc BaseConfig) Validate() (errors []error) {
 	// Some just-in-case checks, since those things are likely checked in other places or
 	// even assigned by us:
-	if bc.Name == "" ***REMOVED***
+	if bc.Name == "" {
 		errors = append(errors, fmt.Errorf("executor name can't be empty"))
-	***REMOVED***
-	if !executorNameWhitelist.MatchString(bc.Name) ***REMOVED***
+	}
+	if !executorNameWhitelist.MatchString(bc.Name) {
 		errors = append(errors, fmt.Errorf(executorNameErr))
-	***REMOVED***
-	if bc.Exec.Valid && bc.Exec.String == "" ***REMOVED***
+	}
+	if bc.Exec.Valid && bc.Exec.String == "" {
 		errors = append(errors, fmt.Errorf("exec value cannot be empty"))
-	***REMOVED***
-	if bc.Type == "" ***REMOVED***
+	}
+	if bc.Type == "" {
 		errors = append(errors, fmt.Errorf("missing or empty type field"))
-	***REMOVED***
+	}
 	// The actually reasonable checks:
-	if bc.StartTime.Duration < 0 ***REMOVED***
+	if bc.StartTime.Duration < 0 {
 		errors = append(errors, fmt.Errorf("the startTime can't be negative"))
-	***REMOVED***
-	if bc.GracefulStop.Duration < 0 ***REMOVED***
+	}
+	if bc.GracefulStop.Duration < 0 {
 		errors = append(errors, fmt.Errorf("the gracefulStop timeout can't be negative"))
-	***REMOVED***
+	}
 	return errors
-***REMOVED***
+}
 
 // GetName returns the name of the executor.
-func (bc BaseConfig) GetName() string ***REMOVED***
+func (bc BaseConfig) GetName() string {
 	return bc.Name
-***REMOVED***
+}
 
 // GetType returns the executor's type as a string ID.
-func (bc BaseConfig) GetType() string ***REMOVED***
+func (bc BaseConfig) GetType() string {
 	return bc.Type
-***REMOVED***
+}
 
 // GetStartTime returns the starting time, relative to the beginning of the
 // actual test, that this executor is supposed to execute.
-func (bc BaseConfig) GetStartTime() time.Duration ***REMOVED***
+func (bc BaseConfig) GetStartTime() time.Duration {
 	return bc.StartTime.TimeDuration()
-***REMOVED***
+}
 
 // GetGracefulStop returns how long k6 is supposed to wait for any still
 // running iterations to finish executing at the end of the normal executor
@@ -90,49 +90,49 @@ func (bc BaseConfig) GetStartTime() time.Duration ***REMOVED***
 //
 // Of course, that doesn't count when the user manually interrupts the test,
 // then iterations are immediately stopped.
-func (bc BaseConfig) GetGracefulStop() time.Duration ***REMOVED***
+func (bc BaseConfig) GetGracefulStop() time.Duration {
 	return bc.GracefulStop.TimeDuration()
-***REMOVED***
+}
 
 // GetEnv returns any specific environment key=value pairs that
 // are configured for the executor.
-func (bc BaseConfig) GetEnv() map[string]string ***REMOVED***
+func (bc BaseConfig) GetEnv() map[string]string {
 	return bc.Env
-***REMOVED***
+}
 
 // GetExec returns the configured custom exec value, if any.
-func (bc BaseConfig) GetExec() string ***REMOVED***
+func (bc BaseConfig) GetExec() string {
 	exec := bc.Exec.ValueOrZero()
-	if exec == "" ***REMOVED***
+	if exec == "" {
 		exec = consts.DefaultFn
-	***REMOVED***
+	}
 	return exec
-***REMOVED***
+}
 
 // GetTags returns any custom tags configured for the executor.
-func (bc BaseConfig) GetTags() map[string]string ***REMOVED***
+func (bc BaseConfig) GetTags() map[string]string {
 	return bc.Tags
-***REMOVED***
+}
 
 // IsDistributable returns true since by default all executors could be run in
 // a distributed manner.
-func (bc BaseConfig) IsDistributable() bool ***REMOVED***
+func (bc BaseConfig) IsDistributable() bool {
 	return true
-***REMOVED***
+}
 
 // getBaseInfo is a helper method for the "parent" String methods.
-func (bc BaseConfig) getBaseInfo(facts ...string) string ***REMOVED***
-	if bc.Exec.Valid ***REMOVED***
+func (bc BaseConfig) getBaseInfo(facts ...string) string {
+	if bc.Exec.Valid {
 		facts = append(facts, fmt.Sprintf("exec: %s", bc.Exec.String))
-	***REMOVED***
-	if bc.StartTime.Duration > 0 ***REMOVED***
+	}
+	if bc.StartTime.Duration > 0 {
 		facts = append(facts, fmt.Sprintf("startTime: %s", bc.StartTime.Duration))
-	***REMOVED***
-	if bc.GracefulStop.Duration > 0 ***REMOVED***
+	}
+	if bc.GracefulStop.Duration > 0 {
 		facts = append(facts, fmt.Sprintf("gracefulStop: %s", bc.GracefulStop.Duration))
-	***REMOVED***
-	if len(facts) == 0 ***REMOVED***
+	}
+	if len(facts) == 0 {
 		return ""
-	***REMOVED***
+	}
 	return " (" + strings.Join(facts, ", ") + ")"
-***REMOVED***
+}

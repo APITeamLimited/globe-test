@@ -22,95 +22,95 @@ const DefaultScenarioName = "default"
 
 // DefaultSummaryTrendStats are the default trend columns shown in the test summary output
 //nolint:gochecknoglobals
-var DefaultSummaryTrendStats = []string***REMOVED***"avg", "min", "med", "max", "p(90)", "p(95)"***REMOVED***
+var DefaultSummaryTrendStats = []string{"avg", "min", "med", "max", "p(90)", "p(95)"}
 
 // Describes a TLS version. Serialised to/from JSON as a string, eg. "tls1.2".
 type TLSVersion int
 
-func (v TLSVersion) MarshalJSON() ([]byte, error) ***REMOVED***
+func (v TLSVersion) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + SupportedTLSVersionsToString[v] + `"`), nil
-***REMOVED***
+}
 
-func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
+func (v *TLSVersion) UnmarshalJSON(data []byte) error {
 	var str string
-	if err := StrictJSONUnmarshal(data, &str); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &str); err != nil {
 		return err
-	***REMOVED***
-	if str == "" ***REMOVED***
+	}
+	if str == "" {
 		*v = 0
 		return nil
-	***REMOVED***
+	}
 	ver, ok := SupportedTLSVersions[str]
-	if !ok ***REMOVED***
+	if !ok {
 		return fmt.Errorf("unknown TLS version '%s'", str)
-	***REMOVED***
+	}
 	*v = ver
 	return nil
-***REMOVED***
+}
 
 // Fields for TLSVersions. Unmarshalling hack.
-type TLSVersionsFields struct ***REMOVED***
+type TLSVersionsFields struct {
 	Min TLSVersion `json:"min" ignored:"true"` // Minimum allowed version, 0 = any.
 	Max TLSVersion `json:"max" ignored:"true"` // Maximum allowed version, 0 = any.
-***REMOVED***
+}
 
 // Describes a set (min/max) of TLS versions.
 type TLSVersions TLSVersionsFields
 
-func (v *TLSVersions) UnmarshalJSON(data []byte) error ***REMOVED***
+func (v *TLSVersions) UnmarshalJSON(data []byte) error {
 	var fields TLSVersionsFields
-	if err := StrictJSONUnmarshal(data, &fields); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &fields); err != nil {
 		var ver TLSVersion
-		if err2 := StrictJSONUnmarshal(data, &ver); err2 != nil ***REMOVED***
+		if err2 := StrictJSONUnmarshal(data, &ver); err2 != nil {
 			return err
-		***REMOVED***
+		}
 		fields.Min = ver
 		fields.Max = ver
-	***REMOVED***
+	}
 	*v = TLSVersions(fields)
 	return nil
-***REMOVED***
+}
 
 // A list of TLS cipher suites.
 // Marshals and unmarshals from a list of names, eg. "TLS_ECDHE_RSA_WITH_RC4_128_SHA".
 type TLSCipherSuites []uint16
 
 // MarshalJSON will return the JSON representation according to supported TLS cipher suites
-func (s *TLSCipherSuites) MarshalJSON() ([]byte, error) ***REMOVED***
+func (s *TLSCipherSuites) MarshalJSON() ([]byte, error) {
 	var suiteNames []string
-	for _, id := range *s ***REMOVED***
-		if suiteName, ok := SupportedTLSCipherSuitesToString[id]; ok ***REMOVED***
+	for _, id := range *s {
+		if suiteName, ok := SupportedTLSCipherSuitesToString[id]; ok {
 			suiteNames = append(suiteNames, suiteName)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			return nil, fmt.Errorf("unknown cipher suite id '%d'", id)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return json.Marshal(suiteNames)
-***REMOVED***
+}
 
-func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
+func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error {
 	var suiteNames []string
-	if err := StrictJSONUnmarshal(data, &suiteNames); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &suiteNames); err != nil {
 		return err
-	***REMOVED***
+	}
 
 	var suiteIDs []uint16
-	for _, name := range suiteNames ***REMOVED***
-		if suiteID, ok := SupportedTLSCipherSuites[name]; ok ***REMOVED***
+	for _, name := range suiteNames {
+		if suiteID, ok := SupportedTLSCipherSuites[name]; ok {
 			suiteIDs = append(suiteIDs, suiteID)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			return fmt.Errorf("unknown cipher suite '%s'", name)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	*s = suiteIDs
 
 	return nil
-***REMOVED***
+}
 
 // Fields for TLSAuth. Unmarshalling hack.
-type TLSAuthFields struct ***REMOVED***
+type TLSAuthFields struct {
 	// Certificate and key as a PEM-encoded string, including "-----BEGIN CERTIFICATE-----".
 	Cert     string      `json:"cert"`
 	Key      string      `json:"key"`
@@ -118,183 +118,183 @@ type TLSAuthFields struct ***REMOVED***
 
 	// Domains to present the certificate to. May contain wildcards, eg. "*.example.com".
 	Domains []string `json:"domains"`
-***REMOVED***
+}
 
 // Defines a TLS client certificate to present to certain hosts.
-type TLSAuth struct ***REMOVED***
+type TLSAuth struct {
 	TLSAuthFields
 	certificate *tls.Certificate
-***REMOVED***
+}
 
-func (c *TLSAuth) UnmarshalJSON(data []byte) error ***REMOVED***
-	if err := StrictJSONUnmarshal(data, &c.TLSAuthFields); err != nil ***REMOVED***
+func (c *TLSAuth) UnmarshalJSON(data []byte) error {
+	if err := StrictJSONUnmarshal(data, &c.TLSAuthFields); err != nil {
 		return err
-	***REMOVED***
-	if _, err := c.Certificate(); err != nil ***REMOVED***
+	}
+	if _, err := c.Certificate(); err != nil {
 		return err
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}
 
-func (c *TLSAuth) Certificate() (*tls.Certificate, error) ***REMOVED***
+func (c *TLSAuth) Certificate() (*tls.Certificate, error) {
 	key := []byte(c.Key)
 	var err error
-	if c.Password.Valid ***REMOVED***
+	if c.Password.Valid {
 		key, err = decryptPrivateKey(c.Key, c.Password.String)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
-	if c.certificate == nil ***REMOVED***
+		}
+	}
+	if c.certificate == nil {
 		cert, err := tls.X509KeyPair([]byte(c.Cert), key)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		c.certificate = &cert
-	***REMOVED***
+	}
 	return c.certificate, nil
-***REMOVED***
+}
 
-func decryptPrivateKey(privKey, password string) ([]byte, error) ***REMOVED***
+func decryptPrivateKey(privKey, password string) ([]byte, error) {
 	key := []byte(privKey)
 
 	block, _ := pem.Decode(key)
-	if block == nil ***REMOVED***
+	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM key")
-	***REMOVED***
+	}
 
 	blockType := block.Type
-	if blockType == "ENCRYPTED PRIVATE KEY" ***REMOVED***
+	if blockType == "ENCRYPTED PRIVATE KEY" {
 		return nil, fmt.Errorf("encrypted pkcs8 formatted key is not supported")
-	***REMOVED***
+	}
 	/*
 	   Even though `DecryptPEMBlock` has been deprecated since 1.16.x it is still
 	   being used here because it is deprecated due to it not supporting *good* crypography
 	   ultimately though we want to support something so we will be using it for now.
 	*/
 	decryptedKey, err := x509.DecryptPEMBlock(block, []byte(password)) //nolint:staticcheck
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
-	key = pem.EncodeToMemory(&pem.Block***REMOVED***
+	}
+	key = pem.EncodeToMemory(&pem.Block{
 		Type:  blockType,
 		Bytes: decryptedKey,
-	***REMOVED***)
+	})
 	return key, nil
-***REMOVED***
+}
 
 // IPNet is a wrapper around net.IPNet for JSON unmarshalling
-type IPNet struct ***REMOVED***
+type IPNet struct {
 	net.IPNet
-***REMOVED***
+}
 
 // UnmarshalText populates the IPNet from the given CIDR
-func (ipnet *IPNet) UnmarshalText(b []byte) error ***REMOVED***
+func (ipnet *IPNet) UnmarshalText(b []byte) error {
 	newIPNet, err := ParseCIDR(string(b))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return fmt.Errorf("failed to parse CIDR '%s': %w", string(b), err)
-	***REMOVED***
+	}
 
 	*ipnet = *newIPNet
 	return nil
-***REMOVED***
+}
 
 // MarshalText encodes the IPNet representation using CIDR notation.
-func (ipnet *IPNet) MarshalText() ([]byte, error) ***REMOVED***
+func (ipnet *IPNet) MarshalText() ([]byte, error) {
 	return []byte(ipnet.String()), nil
-***REMOVED***
+}
 
 // HostAddress stores information about IP and port
 // for a host.
 type HostAddress net.TCPAddr
 
 // NewHostAddress creates a pointer to a new address with an IP object.
-func NewHostAddress(ip net.IP, portString string) (*HostAddress, error) ***REMOVED***
+func NewHostAddress(ip net.IP, portString string) (*HostAddress, error) {
 	var port int
-	if portString != "" ***REMOVED***
+	if portString != "" {
 		var err error
-		if port, err = strconv.Atoi(portString); err != nil ***REMOVED***
+		if port, err = strconv.Atoi(portString); err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	return &HostAddress***REMOVED***
+	return &HostAddress{
 		IP:   ip,
 		Port: port,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 // String converts a HostAddress into a string.
-func (h *HostAddress) String() string ***REMOVED***
+func (h *HostAddress) String() string {
 	return (*net.TCPAddr)(h).String()
-***REMOVED***
+}
 
 // MarshalText implements the encoding.TextMarshaler interface.
 // The encoding is the same as returned by String, with one exception:
 // When len(ip) is zero, it returns an empty slice.
-func (h *HostAddress) MarshalText() ([]byte, error) ***REMOVED***
-	if h == nil || len(h.IP) == 0 ***REMOVED***
+func (h *HostAddress) MarshalText() ([]byte, error) {
+	if h == nil || len(h.IP) == 0 {
 		return []byte(""), nil
-	***REMOVED***
+	}
 
-	if len(h.IP) != net.IPv4len && len(h.IP) != net.IPv6len ***REMOVED***
-		return nil, &net.AddrError***REMOVED***Err: "invalid IP address", Addr: h.IP.String()***REMOVED***
-	***REMOVED***
+	if len(h.IP) != net.IPv4len && len(h.IP) != net.IPv6len {
+		return nil, &net.AddrError{Err: "invalid IP address", Addr: h.IP.String()}
+	}
 
 	return []byte(h.String()), nil
-***REMOVED***
+}
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 // The IP address is expected in a form accepted by ParseIP.
-func (h *HostAddress) UnmarshalText(text []byte) error ***REMOVED***
-	if len(text) == 0 ***REMOVED***
-		return &net.ParseError***REMOVED***Type: "IP address", Text: "<nil>"***REMOVED***
-	***REMOVED***
+func (h *HostAddress) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return &net.ParseError{Type: "IP address", Text: "<nil>"}
+	}
 
 	ip, port, err := splitHostPort(text)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	nh, err := NewHostAddress(ip, port)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	*h = *nh
 
 	return nil
-***REMOVED***
+}
 
-func splitHostPort(text []byte) (net.IP, string, error) ***REMOVED***
+func splitHostPort(text []byte) (net.IP, string, error) {
 	host, port, err := net.SplitHostPort(string(text))
-	if err != nil ***REMOVED***
+	if err != nil {
 		// This error means that there is no port.
 		// Make host the full text.
 		host = string(text)
-	***REMOVED***
+	}
 
 	ip := net.ParseIP(host)
-	if ip == nil ***REMOVED***
-		return nil, "", &net.ParseError***REMOVED***Type: "IP address", Text: host***REMOVED***
-	***REMOVED***
+	if ip == nil {
+		return nil, "", &net.ParseError{Type: "IP address", Text: host}
+	}
 
 	return ip, port, nil
-***REMOVED***
+}
 
 // ParseCIDR creates an IPNet out of a CIDR string
-func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
+func ParseCIDR(s string) (*IPNet, error) {
 	_, ipnet, err := net.ParseCIDR(s)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	parsedIPNet := IPNet***REMOVED***IPNet: *ipnet***REMOVED***
+	parsedIPNet := IPNet{IPNet: *ipnet}
 
 	return &parsedIPNet, nil
-***REMOVED***
+}
 
-type Options struct ***REMOVED***
+type Options struct {
 	ExecutionMode    types.NullExecutionMode    `json:"executionMode"`
 	LoadDistribution types.NullLoadDistribution `json:"loadDistribution"`
 	OutputConfig     types.NullOutputConfig     `json:"outputConfig"`
@@ -359,7 +359,7 @@ type Options struct ***REMOVED***
 
 	// Define thresholds; these take the form of 'metric=["snippet1", "snippet2"]'.
 	// To create a threshold on a derived metric based on tag queries ("submetrics"), create a
-	// metric on a nonexistent metric named 'real_metric***REMOVED***tagA:valueA,tagB:valueB***REMOVED***'.
+	// metric on a nonexistent metric named 'real_metric{tagA:valueA,tagB:valueB}'.
 	Thresholds map[string]workerMetrics.Thresholds `json:"thresholds" envconfig:"K6_THRESHOLDS"`
 
 	// Blacklist IP ranges that tests may not contact. Mainly useful in hosted setups.
@@ -408,21 +408,21 @@ type Options struct ***REMOVED***
 
 	// Discard Http Responses Body
 	DiscardResponseBodies null.Bool `json:"discardResponseBodies" envconfig:"K6_DISCARD_RESPONSE_BODIES"`
-***REMOVED***
+}
 
 // Returns the result of overwriting any fields with any that are set on the argument.
 //
 // Example:
-//   a := Options***REMOVED***VUs: null.IntFrom(10)***REMOVED***
-//   b := Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***
-//   a.Apply(b) // Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***
-func (o Options) Apply(opts Options) Options ***REMOVED***
-	if opts.Paused.Valid ***REMOVED***
+//   a := Options{VUs: null.IntFrom(10)}
+//   b := Options{VUs: null.IntFrom(5)}
+//   a.Apply(b) // Options{VUs: null.IntFrom(5)}
+func (o Options) Apply(opts Options) Options {
+	if opts.Paused.Valid {
 		o.Paused = opts.Paused
-	***REMOVED***
-	if opts.VUs.Valid ***REMOVED***
+	}
+	if opts.VUs.Valid {
 		o.VUs = opts.VUs
-	***REMOVED***
+	}
 
 	// Specifying duration, iterations, stages, or execution in a "higher" config tier
 	// will overwrite all of the the previous execution settings (if any) from any
@@ -430,190 +430,190 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	// Still, if more than one of those options is simultaneously specified in the same
 	// config tier, they will be preserved, so the validation after we've consolidated
 	// all of the options can return an error.
-	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || opts.Scenarios != nil ***REMOVED***
+	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || opts.Scenarios != nil {
 		// TODO: emit a warning or a notice log message if overwrite lower tier config options?
 		o.Duration = types.NewNullDuration(0, false)
 		o.Iterations = null.NewInt(0, false)
 		o.Stages = nil
 		o.Scenarios = nil
-	***REMOVED***
+	}
 
-	if opts.Duration.Valid ***REMOVED***
+	if opts.Duration.Valid {
 		o.Duration = opts.Duration
-	***REMOVED***
-	if opts.Iterations.Valid ***REMOVED***
+	}
+	if opts.Iterations.Valid {
 		o.Iterations = opts.Iterations
-	***REMOVED***
-	if opts.Stages != nil ***REMOVED***
-		o.Stages = []Stage***REMOVED******REMOVED***
-		for _, s := range opts.Stages ***REMOVED***
-			if s.Duration.Valid ***REMOVED***
+	}
+	if opts.Stages != nil {
+		o.Stages = []Stage{}
+		for _, s := range opts.Stages {
+			if s.Duration.Valid {
 				o.Stages = append(o.Stages, s)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 	// o.Execution can also be populated by the duration/iterations/stages config shortcuts, but
 	// that happens after the configuration from the different sources is consolidated. It can't
 	// happen here, because something like `K6_ITERATIONS=10 k6 run --vus 5 script.js` wont't
 	// work correctly at this level.
-	if opts.Scenarios != nil ***REMOVED***
+	if opts.Scenarios != nil {
 		o.Scenarios = opts.Scenarios
-	***REMOVED***
-	if opts.ExecutionSegment != nil ***REMOVED***
+	}
+	if opts.ExecutionSegment != nil {
 		o.ExecutionSegment = opts.ExecutionSegment
-	***REMOVED***
+	}
 
-	if opts.ExecutionSegmentSequence != nil ***REMOVED***
+	if opts.ExecutionSegmentSequence != nil {
 		o.ExecutionSegmentSequence = opts.ExecutionSegmentSequence
-	***REMOVED***
-	if opts.NoSetup.Valid ***REMOVED***
+	}
+	if opts.NoSetup.Valid {
 		o.NoSetup = opts.NoSetup
-	***REMOVED***
-	if opts.SetupTimeout.Valid ***REMOVED***
+	}
+	if opts.SetupTimeout.Valid {
 		o.SetupTimeout = opts.SetupTimeout
-	***REMOVED***
-	if opts.NoTeardown.Valid ***REMOVED***
+	}
+	if opts.NoTeardown.Valid {
 		o.NoTeardown = opts.NoTeardown
-	***REMOVED***
-	if opts.TeardownTimeout.Valid ***REMOVED***
+	}
+	if opts.TeardownTimeout.Valid {
 		o.TeardownTimeout = opts.TeardownTimeout
-	***REMOVED***
-	if opts.RPS.Valid ***REMOVED***
+	}
+	if opts.RPS.Valid {
 		o.RPS = opts.RPS
-	***REMOVED***
-	if opts.MaxRedirects.Valid ***REMOVED***
+	}
+	if opts.MaxRedirects.Valid {
 		o.MaxRedirects = opts.MaxRedirects
-	***REMOVED***
-	if opts.UserAgent.Valid ***REMOVED***
+	}
+	if opts.UserAgent.Valid {
 		o.UserAgent = opts.UserAgent
-	***REMOVED***
-	if opts.Batch.Valid ***REMOVED***
+	}
+	if opts.Batch.Valid {
 		o.Batch = opts.Batch
-	***REMOVED***
-	if opts.BatchPerHost.Valid ***REMOVED***
+	}
+	if opts.BatchPerHost.Valid {
 		o.BatchPerHost = opts.BatchPerHost
-	***REMOVED***
-	if opts.HTTPDebug.Valid ***REMOVED***
+	}
+	if opts.HTTPDebug.Valid {
 		o.HTTPDebug = opts.HTTPDebug
-	***REMOVED***
-	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
+	}
+	if opts.InsecureSkipTLSVerify.Valid {
 		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
-	***REMOVED***
-	if opts.TLSCipherSuites != nil ***REMOVED***
+	}
+	if opts.TLSCipherSuites != nil {
 		o.TLSCipherSuites = opts.TLSCipherSuites
-	***REMOVED***
-	if opts.TLSVersion != nil ***REMOVED***
+	}
+	if opts.TLSVersion != nil {
 		o.TLSVersion = opts.TLSVersion
-	***REMOVED***
-	if opts.TLSAuth != nil ***REMOVED***
+	}
+	if opts.TLSAuth != nil {
 		o.TLSAuth = opts.TLSAuth
-	***REMOVED***
-	if opts.Throw.Valid ***REMOVED***
+	}
+	if opts.Throw.Valid {
 		o.Throw = opts.Throw
-	***REMOVED***
-	if opts.Thresholds != nil ***REMOVED***
+	}
+	if opts.Thresholds != nil {
 		o.Thresholds = opts.Thresholds
-	***REMOVED***
-	if opts.BlacklistIPs != nil ***REMOVED***
+	}
+	if opts.BlacklistIPs != nil {
 		o.BlacklistIPs = opts.BlacklistIPs
-	***REMOVED***
-	if opts.BlockedHostnames.Valid ***REMOVED***
+	}
+	if opts.BlockedHostnames.Valid {
 		o.BlockedHostnames = opts.BlockedHostnames
-	***REMOVED***
-	if opts.Hosts != nil ***REMOVED***
+	}
+	if opts.Hosts != nil {
 		o.Hosts = opts.Hosts
-	***REMOVED***
-	if opts.NoConnectionReuse.Valid ***REMOVED***
+	}
+	if opts.NoConnectionReuse.Valid {
 		o.NoConnectionReuse = opts.NoConnectionReuse
-	***REMOVED***
-	if opts.NoVUConnectionReuse.Valid ***REMOVED***
+	}
+	if opts.NoVUConnectionReuse.Valid {
 		o.NoVUConnectionReuse = opts.NoVUConnectionReuse
-	***REMOVED***
-	if opts.MinIterationDuration.Valid ***REMOVED***
+	}
+	if opts.MinIterationDuration.Valid {
 		o.MinIterationDuration = opts.MinIterationDuration
-	***REMOVED***
-	if opts.NoCookiesReset.Valid ***REMOVED***
+	}
+	if opts.NoCookiesReset.Valid {
 		o.NoCookiesReset = opts.NoCookiesReset
-	***REMOVED***
-	if opts.External != nil ***REMOVED***
+	}
+	if opts.External != nil {
 		o.External = opts.External
-	***REMOVED***
-	if opts.SummaryTrendStats != nil ***REMOVED***
+	}
+	if opts.SummaryTrendStats != nil {
 		o.SummaryTrendStats = opts.SummaryTrendStats
-	***REMOVED***
-	if opts.SummaryTimeUnit.Valid ***REMOVED***
+	}
+	if opts.SummaryTimeUnit.Valid {
 		o.SummaryTimeUnit = opts.SummaryTimeUnit
-	***REMOVED***
-	if opts.SystemTags != nil ***REMOVED***
+	}
+	if opts.SystemTags != nil {
 		o.SystemTags = opts.SystemTags
-	***REMOVED***
-	if len(opts.RunTags) > 0 ***REMOVED***
+	}
+	if len(opts.RunTags) > 0 {
 		o.RunTags = opts.RunTags
-	***REMOVED***
-	//if opts.MetricSamplesBufferSize.Valid ***REMOVED***
+	}
+	//if opts.MetricSamplesBufferSize.Valid {
 	//	o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
-	//***REMOVED***
-	if opts.DiscardResponseBodies.Valid ***REMOVED***
+	//}
+	if opts.DiscardResponseBodies.Valid {
 		o.DiscardResponseBodies = opts.DiscardResponseBodies
-	***REMOVED***
-	if opts.DNS.TTL.Valid ***REMOVED***
+	}
+	if opts.DNS.TTL.Valid {
 		o.DNS.TTL = opts.DNS.TTL
-	***REMOVED***
-	if opts.DNS.Select.Valid ***REMOVED***
+	}
+	if opts.DNS.Select.Valid {
 		o.DNS.Select = opts.DNS.Select
-	***REMOVED***
-	if opts.DNS.Policy.Valid ***REMOVED***
+	}
+	if opts.DNS.Policy.Valid {
 		o.DNS.Policy = opts.DNS.Policy
-	***REMOVED***
+	}
 
 	return o
-***REMOVED***
+}
 
 // Validate checks if all of the specified options make sense
-func (o Options) Validate() []error ***REMOVED***
+func (o Options) Validate() []error {
 	// TODO: validate all of the other options... that we should have already been validating...
 	// TODO: maybe integrate an external validation lib: https://github.com/avelino/awesome-go#validation
 	var errors []error
-	if o.ExecutionSegmentSequence != nil ***REMOVED***
+	if o.ExecutionSegmentSequence != nil {
 		var segmentFound bool
-		for _, segment := range *o.ExecutionSegmentSequence ***REMOVED***
-			if o.ExecutionSegment.Equal(segment) ***REMOVED***
+		for _, segment := range *o.ExecutionSegmentSequence {
+			if o.ExecutionSegment.Equal(segment) {
 				segmentFound = true
 				break
-			***REMOVED***
-		***REMOVED***
-		if !segmentFound ***REMOVED***
+			}
+		}
+		if !segmentFound {
 			errors = append(errors,
 				fmt.Errorf("provided segment %s can't be found in sequence %s",
 					o.ExecutionSegment, o.ExecutionSegmentSequence))
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return append(errors, o.Scenarios.Validate()...)
-***REMOVED***
+}
 
 // ForEachSpecified enumerates all struct fields and calls the supplied function with each
 // element that is valid. It panics for any unfamiliar or unexpected fields, so make sure
 // new fields in Options are accounted for.
-func (o Options) ForEachSpecified(structTag string, callback func(key string, value interface***REMOVED******REMOVED***)) ***REMOVED***
+func (o Options) ForEachSpecified(structTag string, callback func(key string, value interface{})) {
 	structType := reflect.TypeOf(o)
 	structVal := reflect.ValueOf(o)
-	for i := 0; i < structType.NumField(); i++ ***REMOVED***
+	for i := 0; i < structType.NumField(); i++ {
 		fieldType := structType.Field(i)
 		fieldVal := structVal.Field(i)
 		value := fieldVal.Interface()
 
 		shouldCall := false
-		switch fieldType.Type.Kind() ***REMOVED***
+		switch fieldType.Type.Kind() {
 		case reflect.Struct:
 			// Unpack any guregu/null values
 			shouldCall = fieldVal.FieldByName("Valid").Bool()
 			valOrZero := fieldVal.MethodByName("ValueOrZero")
-			if shouldCall && valOrZero.IsValid() ***REMOVED***
-				value = valOrZero.Call([]reflect.Value***REMOVED******REMOVED***)[0].Interface()
-				if v, ok := value.(types.Duration); ok ***REMOVED***
+			if shouldCall && valOrZero.IsValid() {
+				value = valOrZero.Call([]reflect.Value{})[0].Interface()
+				if v, ok := value.(types.Duration); ok {
 					value = v.String()
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		case reflect.Slice:
 			shouldCall = fieldVal.Len() > 0
 		case reflect.Map:
@@ -622,19 +622,19 @@ func (o Options) ForEachSpecified(structTag string, callback func(key string, va
 			shouldCall = !fieldVal.IsNil()
 		default:
 			panic(fmt.Sprintf("Unknown Options field %#v", fieldType))
-		***REMOVED***
+		}
 
-		if shouldCall ***REMOVED***
+		if shouldCall {
 			key, ok := fieldType.Tag.Lookup(structTag)
-			if !ok ***REMOVED***
+			if !ok {
 				key = fieldType.Name
-			***REMOVED***
+			}
 
 			callback(key, value)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func (o Options) Clone() Options ***REMOVED***
+func (o Options) Clone() Options {
 	return o
-***REMOVED***
+}

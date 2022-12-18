@@ -29,365 +29,365 @@ import (
 )
 
 // Client represents a gRPC client that can be used to make RPC requests
-type Client struct ***REMOVED***
+type Client struct {
 	mds  map[string]protoreflect.MethodDescriptor
 	conn *grpcext.Conn
 	vu   modules.VU
 	addr string
-***REMOVED***
+}
 
 // Load will parse the given proto files and make the file descriptors available to request.
-func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) ***REMOVED***
-	if c.vu.State() != nil ***REMOVED***
+func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) {
+	if c.vu.State() != nil {
 		return nil, errors.New("load must be called in the init context")
-	***REMOVED***
+	}
 
 	initEnv := c.vu.InitEnv()
-	if initEnv == nil ***REMOVED***
+	if initEnv == nil {
 		return nil, errors.New("missing init environment")
-	***REMOVED***
+	}
 
 	// If no import paths are specified, use the current working directory
-	if len(importPaths) == 0 ***REMOVED***
+	if len(importPaths) == 0 {
 		importPaths = append(importPaths, initEnv.CWD.Path)
-	***REMOVED***
+	}
 
-	parser := protoparse.Parser***REMOVED***
+	parser := protoparse.Parser{
 		ImportPaths:      importPaths,
 		InferImportPaths: false,
-		Accessor: protoparse.FileAccessor(func(filename string) (io.ReadCloser, error) ***REMOVED***
+		Accessor: protoparse.FileAccessor(func(filename string) (io.ReadCloser, error) {
 			absFilePath := initEnv.GetAbsFilePath(filename)
 			return initEnv.FileSystems["file"].Open(absFilePath)
-		***REMOVED***),
-	***REMOVED***
+		}),
+	}
 
 	fds, err := parser.ParseFiles(filenames...)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
+	fdset := &descriptorpb.FileDescriptorSet{}
 
-	seen := make(map[string]struct***REMOVED******REMOVED***)
-	for _, fd := range fds ***REMOVED***
+	seen := make(map[string]struct{})
+	for _, fd := range fds {
 		fdset.File = append(fdset.File, walkFileDescriptors(seen, fd)...)
-	***REMOVED***
+	}
 	return c.convertToMethodInfo(fdset)
-***REMOVED***
+}
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
-func (c *Client) Connect(addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
+func (c *Client) Connect(addr string, params map[string]interface{}) (bool, error) {
 	state := c.vu.State()
-	if state == nil ***REMOVED***
+	if state == nil {
 		return false, common.NewInitContextError("connecting to a gRPC server in the init context is not supported")
-	***REMOVED***
+	}
 
 	p, err := c.parseConnectParams(params)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return false, err
-	***REMOVED***
+	}
 
 	opts := grpcext.DefaultOptions(c.vu)
 
 	var tcred credentials.TransportCredentials
-	if !p.IsPlaintext ***REMOVED***
+	if !p.IsPlaintext {
 		tlsCfg := state.TLSConfig.Clone()
-		tlsCfg.NextProtos = []string***REMOVED***"h2"***REMOVED***
+		tlsCfg.NextProtos = []string{"h2"}
 
 		// TODO(rogchap): Would be good to add support for custom RootCAs (self signed)
 		tcred = credentials.NewTLS(tlsCfg)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		tcred = insecure.NewCredentials()
-	***REMOVED***
+	}
 	opts = append(opts, grpc.WithTransportCredentials(tcred))
 
-	if ua := state.Options.UserAgent; ua.Valid ***REMOVED***
+	if ua := state.Options.UserAgent; ua.Valid {
 		opts = append(opts, grpc.WithUserAgent(ua.ValueOrZero()))
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithTimeout(c.vu.Context(), p.Timeout)
 	defer cancel()
 
 	c.addr = addr
 	c.conn, err = grpcext.Dial(ctx, addr, opts...)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return false, err
-	***REMOVED***
+	}
 
-	if !p.UseReflectionProtocol ***REMOVED***
+	if !p.UseReflectionProtocol {
 		return true, nil
-	***REMOVED***
+	}
 	fdset, err := c.conn.Reflect(ctx)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return false, err
-	***REMOVED***
+	}
 	_, err = c.convertToMethodInfo(fdset)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return false, fmt.Errorf("can't convert method info: %w", err)
-	***REMOVED***
+	}
 
 	return true, err
-***REMOVED***
+}
 
 // Invoke creates and calls a unary RPC by fully qualified method name
 func (c *Client) Invoke(
 	method string,
 	req goja.Value,
-	params map[string]interface***REMOVED******REMOVED***,
-) (*grpcext.Response, error) ***REMOVED***
+	params map[string]interface{},
+) (*grpcext.Response, error) {
 	state := c.vu.State()
-	if state == nil ***REMOVED***
+	if state == nil {
 		return nil, common.NewInitContextError("invoking RPC methods in the init context is not supported")
-	***REMOVED***
-	if c.conn == nil ***REMOVED***
+	}
+	if c.conn == nil {
 		return nil, errors.New("no gRPC connection, you must call connect first")
-	***REMOVED***
-	if method == "" ***REMOVED***
+	}
+	if method == "" {
 		return nil, errors.New("method to invoke cannot be empty")
-	***REMOVED***
-	if method[0] != '/' ***REMOVED***
+	}
+	if method[0] != '/' {
 		method = "/" + method
-	***REMOVED***
+	}
 	methodDesc := c.mds[method]
-	if methodDesc == nil ***REMOVED***
+	if methodDesc == nil {
 		return nil, fmt.Errorf("method %q not found in file descriptors", method)
-	***REMOVED***
+	}
 
 	p, err := c.parseParams(params)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	b, err := req.ToObject(c.vu.Runtime()).MarshalJSON()
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, fmt.Errorf("unable to serialise request object: %w", err)
-	***REMOVED***
+	}
 
 	md := metadata.New(nil)
-	for param, strval := range p.Metadata ***REMOVED***
+	for param, strval := range p.Metadata {
 		md.Append(param, strval)
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithTimeout(c.vu.Context(), p.Timeout)
 	defer cancel()
 
 	tags := state.CloneTags()
-	for k, v := range p.Tags ***REMOVED***
+	for k, v := range p.Tags {
 		tags[k] = v
-	***REMOVED***
+	}
 
-	if state.Options.SystemTags.Has(workerMetrics.TagURL) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagURL) {
 		tags["url"] = fmt.Sprintf("%s%s", c.addr, method)
-	***REMOVED***
+	}
 	parts := strings.Split(method[1:], "/")
-	if state.Options.SystemTags.Has(workerMetrics.TagService) ***REMOVED***
+	if state.Options.SystemTags.Has(workerMetrics.TagService) {
 		tags["service"] = parts[0]
-	***REMOVED***
-	if state.Options.SystemTags.Has(workerMetrics.TagMethod) ***REMOVED***
+	}
+	if state.Options.SystemTags.Has(workerMetrics.TagMethod) {
 		tags["method"] = parts[1]
-	***REMOVED***
+	}
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(workerMetrics.TagName) ***REMOVED***
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(workerMetrics.TagName) {
 		tags["name"] = method
-	***REMOVED***
+	}
 
-	reqmsg := grpcext.Request***REMOVED***
+	reqmsg := grpcext.Request{
 		MethodDescriptor: methodDesc,
 		Message:          b,
 		Tags:             tags,
-	***REMOVED***
+	}
 
 	return c.conn.Invoke(ctx, method, md, reqmsg)
-***REMOVED***
+}
 
 // Close will close the client gRPC connection
-func (c *Client) Close() error ***REMOVED***
-	if c.conn == nil ***REMOVED***
+func (c *Client) Close() error {
+	if c.conn == nil {
 		return nil
-	***REMOVED***
+	}
 	err := c.conn.Close()
 	c.conn = nil
 
 	return err
-***REMOVED***
+}
 
 // MethodInfo holds information on any parsed method descriptors that can be used by the goja VM
-type MethodInfo struct ***REMOVED***
+type MethodInfo struct {
 	Package         string
 	Service         string
 	FullMethod      string
 	grpc.MethodInfo `json:"-" js:"-"`
-***REMOVED***
+}
 
-func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) ***REMOVED***
+func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) {
 	files, err := protodesc.NewFiles(fdset)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	var rtn []MethodInfo
-	if c.mds == nil ***REMOVED***
+	if c.mds == nil {
 		// This allows us to call load() multiple times, without overwriting the
 		// previously loaded definitions.
 		c.mds = make(map[string]protoreflect.MethodDescriptor)
-	***REMOVED***
+	}
 	appendMethodInfo := func(
 		fd protoreflect.FileDescriptor,
 		sd protoreflect.ServiceDescriptor,
 		md protoreflect.MethodDescriptor,
-	) ***REMOVED***
+	) {
 		name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
 		c.mds[name] = md
-		rtn = append(rtn, MethodInfo***REMOVED***
-			MethodInfo: grpc.MethodInfo***REMOVED***
+		rtn = append(rtn, MethodInfo{
+			MethodInfo: grpc.MethodInfo{
 				Name:           string(md.Name()),
 				IsClientStream: md.IsStreamingClient(),
 				IsServerStream: md.IsStreamingServer(),
-			***REMOVED***,
+			},
 			Package:    string(fd.Package()),
 			Service:    string(sd.Name()),
 			FullMethod: name,
-		***REMOVED***)
-	***REMOVED***
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool ***REMOVED***
+		})
+	}
+	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		sds := fd.Services()
-		for i := 0; i < sds.Len(); i++ ***REMOVED***
+		for i := 0; i < sds.Len(); i++ {
 			sd := sds.Get(i)
 			mds := sd.Methods()
-			for j := 0; j < mds.Len(); j++ ***REMOVED***
+			for j := 0; j < mds.Len(); j++ {
 				md := mds.Get(j)
 				appendMethodInfo(fd, sd, md)
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		messages := fd.Messages()
-		for i := 0; i < messages.Len(); i++ ***REMOVED***
+		for i := 0; i < messages.Len(); i++ {
 			message := messages.Get(i)
 			_, errFind := protoregistry.GlobalTypes.FindMessageByName(message.FullName())
-			if errors.Is(errFind, protoregistry.NotFound) ***REMOVED***
+			if errors.Is(errFind, protoregistry.NotFound) {
 				err = protoregistry.GlobalTypes.RegisterMessage(dynamicpb.NewMessageType(message))
-				if err != nil ***REMOVED***
+				if err != nil {
 					return false
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
+				}
+			}
+		}
 		return true
-	***REMOVED***)
-	if err != nil ***REMOVED***
+	})
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	return rtn, nil
-***REMOVED***
+}
 
-type params struct ***REMOVED***
+type params struct {
 	Metadata map[string]string
 	Tags     map[string]string
 	Timeout  time.Duration
-***REMOVED***
+}
 
-func (c *Client) parseParams(raw map[string]interface***REMOVED******REMOVED***) (params, error) ***REMOVED***
-	p := params***REMOVED***
+func (c *Client) parseParams(raw map[string]interface{}) (params, error) {
+	p := params{
 		Timeout: 1 * time.Minute,
-	***REMOVED***
-	for k, v := range raw ***REMOVED***
-		switch k ***REMOVED***
+	}
+	for k, v := range raw {
+		switch k {
 		case "headers":
 			c.vu.State().Logger.Warn("The headers property is deprecated, replace it with the metadata property, please.")
 			fallthrough
 		case "metadata":
 			p.Metadata = make(map[string]string)
 
-			rawHeaders, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
+			rawHeaders, ok := v.(map[string]interface{})
+			if !ok {
 				return p, errors.New("metadata must be an object with key-value pairs")
-			***REMOVED***
-			for hk, kv := range rawHeaders ***REMOVED***
+			}
+			for hk, kv := range rawHeaders {
 				// TODO(rogchap): Should we manage a string slice?
 				strval, ok := kv.(string)
-				if !ok ***REMOVED***
+				if !ok {
 					return p, fmt.Errorf("metadata %q value must be a string", hk)
-				***REMOVED***
+				}
 				p.Metadata[hk] = strval
-			***REMOVED***
+			}
 		case "tags":
 			p.Tags = make(map[string]string)
 
-			rawTags, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
+			rawTags, ok := v.(map[string]interface{})
+			if !ok {
 				return p, errors.New("tags must be an object with key-value pairs")
-			***REMOVED***
-			for tk, tv := range rawTags ***REMOVED***
+			}
+			for tk, tv := range rawTags {
 				strVal, ok := tv.(string)
-				if !ok ***REMOVED***
+				if !ok {
 					return p, fmt.Errorf("tag %q value must be a string", tk)
-				***REMOVED***
+				}
 				p.Tags[tk] = strVal
-			***REMOVED***
+			}
 		case "timeout":
 			var err error
 			p.Timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return p, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
+			}
 		default:
 			return p, fmt.Errorf("unknown param: %q", k)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return p, nil
-***REMOVED***
+}
 
-type connectParams struct ***REMOVED***
+type connectParams struct {
 	IsPlaintext           bool
 	UseReflectionProtocol bool
 	Timeout               time.Duration
-***REMOVED***
+}
 
-func (c *Client) parseConnectParams(raw map[string]interface***REMOVED******REMOVED***) (connectParams, error) ***REMOVED***
-	params := connectParams***REMOVED***
+func (c *Client) parseConnectParams(raw map[string]interface{}) (connectParams, error) {
+	params := connectParams{
 		IsPlaintext:           false,
 		UseReflectionProtocol: false,
 		Timeout:               time.Minute,
-	***REMOVED***
-	for k, v := range raw ***REMOVED***
-		switch k ***REMOVED***
+	}
+	for k, v := range raw {
+		switch k {
 		case "plaintext":
 			var ok bool
 			params.IsPlaintext, ok = v.(bool)
-			if !ok ***REMOVED***
+			if !ok {
 				return params, fmt.Errorf("invalid plaintext value: '%#v', it needs to be boolean", v)
-			***REMOVED***
+			}
 		case "timeout":
 			var err error
 			params.Timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return params, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
+			}
 		case "reflect":
 			var ok bool
 			params.UseReflectionProtocol, ok = v.(bool)
-			if !ok ***REMOVED***
+			if !ok {
 				return params, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
-			***REMOVED***
+			}
 
 		default:
 			return params, fmt.Errorf("unknown connect param: %q", k)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return params, nil
-***REMOVED***
+}
 
-func walkFileDescriptors(seen map[string]struct***REMOVED******REMOVED***, fd *desc.FileDescriptor) []*descriptorpb.FileDescriptorProto ***REMOVED***
-	fds := []*descriptorpb.FileDescriptorProto***REMOVED******REMOVED***
+func walkFileDescriptors(seen map[string]struct{}, fd *desc.FileDescriptor) []*descriptorpb.FileDescriptorProto {
+	fds := []*descriptorpb.FileDescriptorProto{}
 
-	if _, ok := seen[fd.GetName()]; ok ***REMOVED***
+	if _, ok := seen[fd.GetName()]; ok {
 		return fds
-	***REMOVED***
-	seen[fd.GetName()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	}
+	seen[fd.GetName()] = struct{}{}
 	fds = append(fds, fd.AsFileDescriptorProto())
 
-	for _, dep := range fd.GetDependencies() ***REMOVED***
+	for _, dep := range fd.GetDependencies() {
 		deps := walkFileDescriptors(seen, dep)
 		fds = append(fds, deps...)
-	***REMOVED***
+	}
 
 	return fds
-***REMOVED***
+}

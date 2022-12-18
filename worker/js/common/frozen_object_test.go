@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFrozenObject(t *testing.T) ***REMOVED***
+func TestFrozenObject(t *testing.T) {
 	t.Parallel()
 
 	rt := goja.New()
@@ -21,7 +21,7 @@ func TestFrozenObject(t *testing.T) ***REMOVED***
 	require.Equal(t, "bar", v.String())
 
 	// Set a nested object
-	_, err = rt.RunString(`obj.nested = ***REMOVED***propkey: "value1"***REMOVED***`)
+	_, err = rt.RunString(`obj.nested = {propkey: "value1"}`)
 	require.NoError(t, err)
 
 	// Not yet frozen
@@ -63,4 +63,4 @@ func TestFrozenObject(t *testing.T) ***REMOVED***
 	require.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Cannot assign to read only property 'foo'")
 	assert.Nil(t, v)
-***REMOVED***
+}

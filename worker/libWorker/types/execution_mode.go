@@ -10,41 +10,41 @@ const (
 	HTTPMultipleExecutionMode = "httpMultiple"
 )
 
-type NullExecutionMode struct ***REMOVED***
+type NullExecutionMode struct {
 	Value string
 	Valid bool
-***REMOVED***
+}
 
-func NewNullExecutionMode(s string, valid bool) NullExecutionMode ***REMOVED***
-	return NullExecutionMode***REMOVED***s, valid***REMOVED***
-***REMOVED***
+func NewNullExecutionMode(s string, valid bool) NullExecutionMode {
+	return NullExecutionMode{s, valid}
+}
 
-func NullExecutionModeFrom(s string) NullExecutionMode ***REMOVED***
-	return NullExecutionMode***REMOVED***s, true***REMOVED***
-***REMOVED***
+func NullExecutionModeFrom(s string) NullExecutionMode {
+	return NullExecutionMode{s, true}
+}
 
-func (em NullExecutionMode) ValueOrZero() string ***REMOVED***
-	if !em.Valid ***REMOVED***
+func (em NullExecutionMode) ValueOrZero() string {
+	if !em.Valid {
 		return ""
-	***REMOVED***
+	}
 	return em.Value
-***REMOVED***
+}
 
-func (em NullExecutionMode) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !em.Valid ***REMOVED***
+func (em NullExecutionMode) MarshalJSON() ([]byte, error) {
+	if !em.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(em.Value)
-***REMOVED***
+}
 
-func (em *NullExecutionMode) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (em *NullExecutionMode) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		em.Valid = false
 		return nil
-	***REMOVED***
-	if err := json.Unmarshal(data, &em.Value); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &em.Value); err != nil {
 		return err
-	***REMOVED***
+	}
 	em.Valid = true
 	return nil
-***REMOVED***
+}

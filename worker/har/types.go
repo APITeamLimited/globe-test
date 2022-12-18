@@ -5,12 +5,12 @@ import (
 )
 
 // HAR is the top level object of a HAR log.
-type HAR struct ***REMOVED***
+type HAR struct {
 	Log *Log `json:"log"`
-***REMOVED***
+}
 
 // Log is the HAR HTTP request and response log.
-type Log struct ***REMOVED***
+type Log struct {
 	// Version number of the HAR format.
 	Version string `json:"version"`
 	// Creator holds information about the log creator application.
@@ -23,30 +23,30 @@ type Log struct ***REMOVED***
 	Entries []*Entry `json:"entries"`
 	//
 	Comment string `json:"comment,omitempty"`
-***REMOVED***
+}
 
 // Creator is the program responsible for generating the log. Martian, in this case.
-type Creator struct ***REMOVED***
+type Creator struct {
 	// Name of the log creator application.
 	Name string `json:"name"`
 	// Version of the log creator application.
 	Version string `json:"version"`
-***REMOVED***
+}
 
 // Browser that created the log
-type Browser struct ***REMOVED***
+type Browser struct {
 	// Required. The name of the browser that created the log.
 	Name string `json:"name"`
 	// Required. The version number of the browser that created the log.
 	Version string `json:"version"`
 	// Optional. A comment provided by the user or the browser.
 	Comment string `json:"comment"`
-***REMOVED***
+}
 
 // Page object for every exported web page and one <entry> object for every HTTP request.
 // In case when an HTTP trace tool isn't able to group requests by a page,
 // the <pages> object is empty and individual requests doesn't have a parent page.
-type Page struct ***REMOVED***
+type Page struct {
 	/* There is one <page> object for every exported web page and one <entry>
 	   object for every HTTP request. In case when an HTTP trace tool isn't able to
 	   group requests by a page, the <pages> object is empty and individual
@@ -62,10 +62,10 @@ type Page struct ***REMOVED***
 	Title string `json:"title"`
 	// (new in 1.2) A comment provided by the user or the application.
 	Comment string `json:"comment,omitempty"`
-***REMOVED***
+}
 
 // Entry is a individual log entry for a request or response.
-type Entry struct ***REMOVED***
+type Entry struct {
 	Pageref string `json:"pageref,omitempty"`
 	// ID is the unique ID for the entry.
 	ID string `json:"_id"`
@@ -82,10 +82,10 @@ type Entry struct ***REMOVED***
 	// Timings describes various phases within request-response round trip. All
 	// times are specified in milliseconds.
 	Timings *Timings `json:"timings"`
-***REMOVED***
+}
 
 // Request holds data about an individual HTTP request.
-type Request struct ***REMOVED***
+type Request struct {
 	// Method is the request method (GET, POST, ...).
 	Method string `json:"method"`
 	// URL is the absolute URL of the request (fragments are not included).
@@ -109,10 +109,10 @@ type Request struct ***REMOVED***
 	BodySize int64 `json:"bodySize"`
 	// (new in 1.2) A comment provided by the user or the application.
 	Comment string `json:"comment"`
-***REMOVED***
+}
 
 // Response holds data about an individual HTTP response.
-type Response struct ***REMOVED***
+type Response struct {
 	// Status is the response status code.
 	Status int `json:"status"`
 	// StatusText is the response status description.
@@ -134,27 +134,27 @@ type Response struct ***REMOVED***
 	// BodySize is the size of the request body (POST data payload) in bytes. Set
 	// to -1 if the info is not available.
 	BodySize int64 `json:"bodySize"`
-***REMOVED***
+}
 
 // Cache contains information about a request coming from browser cache.
-type Cache struct ***REMOVED***
+type Cache struct {
 	// Has no fields as they are not supported, but HAR requires the "cache"
 	// object to exist.
-***REMOVED***
+}
 
 // Timings describes various phases within request-response round trip. All
 // times are specified in milliseconds
-type Timings struct ***REMOVED***
+type Timings struct {
 	// Send is the time required to send HTTP request to the server.
 	Send float32 `json:"send"`
 	// Wait is the time spent waiting for a response from the server.
 	Wait float32 `json:"wait"`
 	// Receive is the time required to read entire response from server or cache.
 	Receive float32 `json:"receive"`
-***REMOVED***
+}
 
 // Cookie is the data about a cookie on a request or response.
-type Cookie struct ***REMOVED***
+type Cookie struct {
 	// Name is the cookie name.
 	Name string `json:"name"`
 	// Value is the cookie value.
@@ -172,36 +172,36 @@ type Cookie struct ***REMOVED***
 	// Secure is set to true if the cookie was transmitted over SSL, false
 	// otherwise.
 	Secure bool `json:"secure,omitempty"`
-***REMOVED***
+}
 
 // Header is an HTTP request or response header.
-type Header struct ***REMOVED***
+type Header struct {
 	// Name is the header name.
 	Name string `json:"name"`
 	// Value is the header value.
 	Value string `json:"value"`
-***REMOVED***
+}
 
 // QueryString is a query string parameter on a request.
-type QueryString struct ***REMOVED***
+type QueryString struct {
 	// Name is the query parameter name.
 	Name string `json:"name"`
 	// Value is the query parameter value.
 	Value string `json:"value"`
-***REMOVED***
+}
 
 // PostData describes posted data on a request.
-type PostData struct ***REMOVED***
+type PostData struct {
 	// MimeType is the MIME type of the posted data.
 	MimeType string `json:"mimeType"`
 	// Params is a list of posted parameters (in case of URL encoded parameters).
 	Params []Param `json:"params"`
 	// Text contains the plain text posted data.
 	Text string `json:"text"`
-***REMOVED***
+}
 
 // Param describes an individual posted parameter.
-type Param struct ***REMOVED***
+type Param struct {
 	// Name of the posted parameter.
 	Name string `json:"name"`
 	// Value of the posted parameter.
@@ -210,10 +210,10 @@ type Param struct ***REMOVED***
 	Filename string `json:"fileName,omitempty"`
 	// ContentType is the content type of a posted file.
 	ContentType string `json:"contentType,omitempty"`
-***REMOVED***
+}
 
 // Content describes details about response content.
-type Content struct ***REMOVED***
+type Content struct {
 	// Size is the length of the returned content in bytes. Should be equal to
 	// response.bodySize if there is no compression and bigger when the content
 	// has been compressed.
@@ -231,4 +231,4 @@ type Content struct ***REMOVED***
 	// if the text field is HTTP decoded (decompressed & unchunked), than
 	// trans-coded from its original character set into UTF-8.
 	Encoding string `json:"encoding,omitempty"`
-***REMOVED***
+}

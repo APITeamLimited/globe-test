@@ -15,35 +15,35 @@ import (
 
 const maxJobSize = 500
 
-type jobDistribution struct ***REMOVED***
+type jobDistribution struct {
 	Jobs         []libOrch.ChildJob `json:"jobs"`
 	workerClient *redis.Client
-***REMOVED***
+}
 
 func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options,
-	workerClients libOrch.WorkerClients) (map[string]jobDistribution, error) ***REMOVED***
+	workerClients libOrch.WorkerClients) (map[string]jobDistribution, error) {
 	// Don't run if not healthy
-	if !healthy ***REMOVED***
+	if !healthy {
 		return nil, nil
-	***REMOVED***
+	}
 
 	childJobs := make(map[string]jobDistribution)
 
 	// Loop through options load distribution
-	for _, loadZone := range options.LoadDistribution.Value ***REMOVED***
+	for _, loadZone := range options.LoadDistribution.Value {
 		// Find worker client
 		var workerClient *libOrch.NamedClient
 
-		for _, client := range workerClients.Clients ***REMOVED***
-			if client.Name == loadZone.Location ***REMOVED***
+		for _, client := range workerClients.Clients {
+			if client.Name == loadZone.Location {
 				workerClient = client
 				break
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
-		if workerClient == nil ***REMOVED***
+		if workerClient == nil {
 			return nil, fmt.Errorf("failed to find worker client %s, this is an internal error", loadZone.Location)
-		***REMOVED***
+		}
 
 		subFractions := determineSubFractions(loadZone.Fraction)
 
@@ -54,37 +54,37 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 		jobNoOptions.Options = nil
 
 		// Create child jobs
-		for i, subFraction := range subFractions ***REMOVED***
+		for i, subFraction := range subFractions {
 			// Need to deep copy job, json only way that seems to work
 			childOptions, _ := json.Marshal(job.Options)
-			parsed := libWorker.Options***REMOVED******REMOVED***
+			parsed := libWorker.Options{}
 			json.Unmarshal(childOptions, &parsed)
 
-			zoneChildJobs[i] = libOrch.ChildJob***REMOVED***
+			zoneChildJobs[i] = libOrch.ChildJob{
 				Job:               jobNoOptions,
 				ChildJobId:        uuid.NewString(),
 				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, workerClient, parsed, subFraction),
 				UnderlyingRequest: job.UnderlyingRequest,
 				FinalRequest:      job.FinalRequest,
 				SubFraction:       subFraction,
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
-		childJobs[loadZone.Location] = jobDistribution***REMOVED***
+		childJobs[loadZone.Location] = jobDistribution{
 			Jobs:         zoneChildJobs,
 			workerClient: workerClient.Client,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return childJobs, nil
-***REMOVED***
+}
 
-func determineSubFractions(fraction int) []float64 ***REMOVED***
+func determineSubFractions(fraction int) []float64 {
 	actualFraction := float64(fraction) / 100
 
-	if int(actualFraction*float64(maxJobSize)) <= maxJobSize ***REMOVED***
-		return []float64***REMOVED***actualFraction***REMOVED***
-	***REMOVED***
+	if int(actualFraction*float64(maxJobSize)) <= maxJobSize {
+		return []float64{actualFraction}
+	}
 
 	// Split into multiple jobs, each with a max of 500 vus and one job with the remainder
 
@@ -95,16 +95,16 @@ func determineSubFractions(fraction int) []float64 ***REMOVED***
 	// Calculate sub fractions
 	subFractions := make([]float64, numJobs-1)
 
-	for i := 0; i < numJobs-1; i++ ***REMOVED***
+	for i := 0; i < numJobs-1; i++ {
 		subFractions[i] = actualFraction * float64(maxJobSize) / float64(maxJobSize)
-	***REMOVED***
+	}
 
 	// Add remainder
 	remainingVUs := actualFraction*float64(maxJobSize) - float64(maxJobSize)*float64(numJobs-1)
 
-	if remainingVUs > 0 ***REMOVED***
+	if remainingVUs > 0 {
 		subFractions = append(subFractions, actualFraction*remainingVUs/float64(maxJobSize))
-	***REMOVED***
+	}
 
 	return subFractions
-***REMOVED***
+}

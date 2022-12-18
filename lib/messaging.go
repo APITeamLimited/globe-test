@@ -1,10 +1,10 @@
 package lib
 
-type JobUserUpdate struct ***REMOVED***
+type JobUserUpdate struct {
 	UpdateType string `json:"updateType"`
-***REMOVED***
+}
 
-type WrappedJobUserUpdate struct ***REMOVED***
+type WrappedJobUserUpdate struct {
 	Update JobUserUpdate `json:"update"`
 	JobId  string        `json:"jobId"`
-***REMOVED***
+}

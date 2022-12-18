@@ -14,39 +14,39 @@ import (
 // This is the highest level function with global state
 // Avoids use of credits as this will cause undesired side effects
 func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, job libOrch.Job,
-	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool ***REMOVED***
+	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
 
 	healthy := optionsErr == nil
 
-	if healthy ***REMOVED***
+	if healthy {
 		marshalledOptions, err := json.Marshal(job.Options)
-		if err != nil ***REMOVED***
+		if err != nil {
 			libOrch.HandleStringError(gs, fmt.Sprintf("Error marshalling runtime options: %s", err.Error()))
 			healthy = false
-		***REMOVED***
+		}
 
 		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
 
 		(*gs.MetricsStore()).InitMetricsStore(job.Options)
-	***REMOVED***
+	}
 
 	childJobs, err := determineChildJobs(healthy, job, job.Options, workerClients)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libOrch.HandleError(gs, err)
 		healthy = false
-	***REMOVED***
+	}
 
 	// Run the job
 
 	result := "FAILURE"
 
-	if healthy ***REMOVED***
+	if healthy {
 		result, err = handleExecution(gs, job.Options, job.Scope, childJobs, job.Id)
-		if err != nil ***REMOVED***
+		if err != nil {
 			libOrch.HandleError(gs, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	libOrch.UpdateStatus(gs, result)
 
@@ -56,49 +56,49 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 
 	// Create GlobeTest logs store receipt, note this must be sent after cleanup
 	globeTestLogsReceipt := primitive.NewObjectID()
-	globeTestLogsReceiptMessage := &libOrch.MarkMessage***REMOVED***
+	globeTestLogsReceiptMessage := &libOrch.MarkMessage{
 		Mark:    "GlobeTestLogsStoreReceipt",
 		Message: globeTestLogsReceipt.Hex(),
-	***REMOVED***
+	}
 
 	marshalledGlobeTestReceipt, err := json.Marshal(globeTestLogsReceiptMessage)
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("Error marshalling GlobeTestLogsStoreReceipt", err)
 		libOrch.HandleError(gs, err)
 		return false
-	***REMOVED***
+	}
 
-	if gs.Standalone() ***REMOVED***
+	if gs.Standalone() {
 		libOrch.DispatchMessage(gs, string(marshalledGlobeTestReceipt), "MARK")
-	***REMOVED***
+	}
 
 	//Create Metrics Store receipt, note this must be sent after cleanup
 	metricsStoreReceipt := primitive.NewObjectID()
-	metricsStoreReceiptMessage := &libOrch.MarkMessage***REMOVED***
+	metricsStoreReceiptMessage := &libOrch.MarkMessage{
 		Mark:    "MetricsStoreReceipt",
 		Message: metricsStoreReceipt.Hex(),
-	***REMOVED***
+	}
 
 	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("Error marshalling metrics store receipt", err)
 		libOrch.HandleError(gs, err)
 		return false
-	***REMOVED***
+	}
 
-	if gs.Standalone() ***REMOVED***
+	if gs.Standalone() {
 		libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
-	***REMOVED***
+	}
 
 	// Clean up the job and store result in Mongo
 	err = cleanup(gs, job, childJobs, storeMongoDB, job.Scope, globeTestLogsReceipt, metricsStoreReceipt)
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("Error cleaning up", err)
 		libOrch.HandleErrorNoSet(gs, err)
 		libOrch.UpdateStatusNoSet(gs, result)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		libOrch.UpdateStatusNoSet(gs, fmt.Sprintf("COMPLETED_%s", result))
-	***REMOVED***
+	}
 
 	return healthy
-***REMOVED***
+}

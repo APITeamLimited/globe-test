@@ -3,7 +3,7 @@ package errext
 
 // Exception represents errors that resulted from a script exception and contain
 // a stack trace that lead to them.
-type Exception interface ***REMOVED***
+type Exception interface {
 	error
 	StackTrace() string
-***REMOVED***
+}

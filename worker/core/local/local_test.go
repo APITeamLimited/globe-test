@@ -32,106 +32,106 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState ***REMOVED***
+func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState {
 	reg := workerMetrics.NewRegistry()
-	return &libWorker.TestPreInitState***REMOVED***
+	return &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
-		RuntimeOptions: libWorker.RuntimeOptions***REMOVED******REMOVED***,
+		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 func getTestRunState(
 	tb testing.TB, piState *libWorker.TestPreInitState, options libWorker.Options, runner libWorker.Runner,
-) *libWorker.TestRunState ***REMOVED***
+) *libWorker.TestRunState {
 	require.Empty(tb, options.Validate())
 	require.NoError(tb, runner.SetOptions(options))
-	return &libWorker.TestRunState***REMOVED***
+	return &libWorker.TestRunState{
 		TestPreInitState: piState,
 		Options:          options,
 		Runner:           runner,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 func newTestExecutionScheduler(
 	t *testing.T, runner libWorker.Runner, logger *logrus.Logger, opts libWorker.Options,
-) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan workerMetrics.SampleContainer) ***REMOVED***
-	if runner == nil ***REMOVED***
-		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
-	***REMOVED***
+) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan workerMetrics.SampleContainer) {
+	if runner == nil {
+		runner = &minirunner.MiniRunner{}
+	}
 	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
+	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), nil)
+	}.Apply(runner.GetOptions()).Apply(opts), nil)
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, getTestPreInitState(t), newOpts, runner)
-	if logger != nil ***REMOVED***
+	if logger != nil {
 		testRunState.Logger = logger
-	***REMOVED***
+	}
 
 	execScheduler, err = NewExecutionScheduler(testRunState)
 	require.NoError(t, err)
 
 	samples = make(chan workerMetrics.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
-	go func() ***REMOVED***
-		for ***REMOVED***
-			select ***REMOVED***
+	go func() {
+		for {
+			select {
 			case <-samples:
 			case <-ctx.Done():
 				return
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
+			}
+		}
+	}()
 
 	require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 
 	return ctx, cancel, execScheduler, samples
-***REMOVED***
+}
 
-func TestExecutionSchedulerRun(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRun(t *testing.T) {
 	t.Parallel()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, nil, nil, libWorker.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, nil, nil, libWorker.Options{})
 	defer cancel()
 
 	err := make(chan error, 1)
-	go func() ***REMOVED***
+	go func() {
 		err <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
+	}()
 	assert.NoError(t, <-err)
-***REMOVED***
+}
 
-func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRunNonDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		name, script, expErr string
-	***REMOVED******REMOVED***
-		***REMOVED***"defaultOK", `export default function () ***REMOVED******REMOVED***`, ""***REMOVED***,
-		***REMOVED***"nonDefaultOK", `
-	export let options = ***REMOVED***
-		scenarios: ***REMOVED***
-			per_vu_iters: ***REMOVED***
+	}{
+		{"defaultOK", `export default function () {}`, ""},
+		{"nonDefaultOK", `
+	export let options = {
+		scenarios: {
+			per_vu_iters: {
 				executor: "per-vu-iterations",
 				vus: 1,
 				iterations: 1,
 				exec: "nonDefault",
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED***
-	export function nonDefault() ***REMOVED******REMOVED***`, ""***REMOVED***,
-	***REMOVED***
+			},
+		}
+	}
+	export function nonDefault() {}`, ""},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			piState := getTestPreInitState(t)
 			runner, err := js.New(
-				piState, &loader.SourceData***REMOVED***
-					URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script),
-				***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+				piState, &loader.SourceData{
+					URL: &url.URL{Path: "/script.js"}, Data: []byte(tc.script),
+				}, nil, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
@@ -142,54 +142,54 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			done := make(chan struct***REMOVED******REMOVED***)
+			done := make(chan struct{})
 			samples := make(chan workerMetrics.SampleContainer)
-			go func() ***REMOVED***
+			go func() {
 				err := execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo())
-				if tc.expErr != "" ***REMOVED***
+				if tc.expErr != "" {
 					assert.EqualError(t, err, tc.expErr)
-				***REMOVED*** else ***REMOVED***
+				} else {
 					assert.NoError(t, err)
 					assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
-				***REMOVED***
+				}
 				close(done)
-			***REMOVED***()
-			for ***REMOVED***
-				select ***REMOVED***
+			}()
+			for {
+				select {
 				case <-samples:
 				case <-done:
 					return
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
-func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRunEnv(t *testing.T) {
 	t.Parallel()
 
 	scriptTemplate := `
-	import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+	import { Counter } from "k6/metrics";
 
 	let errors = new Counter("errors");
 
-	export let options = ***REMOVED***
-		scenarios: ***REMOVED***
-			executor: ***REMOVED***
+	export let options = {
+		scenarios: {
+			executor: {
 				executor: "%[1]s",
 				%[2]s
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
-	export default function () ***REMOVED***
-		if (__ENV.TESTVAR !== "%[3]s") ***REMOVED***
+	export default function () {
+		if (__ENV.TESTVAR !== "%[3]s") {
 		    console.error('Wrong env var value. Expected: %[3]s, actual: ', __ENV.TESTVAR);
 			errors.add(1);
-		***REMOVED***
-	***REMOVED***`
+		}
+	}`
 
-	executorConfigs := map[string]string***REMOVED***
+	executorConfigs := map[string]string{
 		"constant-arrival-rate": `
 			rate: 1,
 			timeUnit: "1s",
@@ -217,38 +217,38 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			timeUnit: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,
-			stages: [ ***REMOVED*** target: 1, duration: "1s" ***REMOVED*** ],
+			stages: [ { target: 1, duration: "1s" } ],
 			gracefulStop: "0.5s",`,
 		"ramping-vus": `
 			startVUs: 1,
-			stages: [ ***REMOVED*** target: 1, duration: "1s" ***REMOVED*** ],
+			stages: [ { target: 1, duration: "1s" } ],
 			gracefulStop: "0.5s",`,
-	***REMOVED***
+	}
 
-	testCases := []struct***REMOVED*** name, script string ***REMOVED******REMOVED******REMOVED***
+	testCases := []struct{ name, script string }{}
 
 	// Generate tests using global env and with env override
-	for ename, econf := range executorConfigs ***REMOVED***
-		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
+	for ename, econf := range executorConfigs {
+		testCases = append(testCases, struct{ name, script string }{
 			"global/" + ename, fmt.Sprintf(scriptTemplate, ename, econf, "global"),
-		***REMOVED***)
-		configWithEnvOverride := econf + "env: ***REMOVED*** TESTVAR: 'overridden' ***REMOVED***"
-		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
+		})
+		configWithEnvOverride := econf + "env: { TESTVAR: 'overridden' }"
+		testCases = append(testCases, struct{ name, script string }{
 			"override/" + ename, fmt.Sprintf(scriptTemplate, ename, configWithEnvOverride, "overridden"),
-		***REMOVED***)
-	***REMOVED***
+		})
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			piState := getTestPreInitState(t)
-			piState.RuntimeOptions = libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***
+			piState.RuntimeOptions = libWorker.RuntimeOptions{Env: map[string]string{"TESTVAR": "global"}}
 			runner, err := js.New(
-				piState, &loader.SourceData***REMOVED***
-					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+				piState, &loader.SourceData{
+					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				***REMOVED***, nil, libWorker.GetTestWorkerInfo(),
+				}, nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -259,28 +259,28 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			done := make(chan struct***REMOVED******REMOVED***)
+			done := make(chan struct{})
 			samples := make(chan workerMetrics.SampleContainer)
-			go func() ***REMOVED***
+			go func() {
 				assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 				assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 				close(done)
-			***REMOVED***()
-			for ***REMOVED***
-				select ***REMOVED***
+			}()
+			for {
+				select {
 				case sample := <-samples:
-					if s, ok := sample.(workerMetrics.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
+					if s, ok := sample.(workerMetrics.Sample); ok && s.Metric.Name == "errors" {
 						assert.FailNow(t, "received error sample from test")
-					***REMOVED***
+					}
 				case <-done:
 					return
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
-func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerSystemTags(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	sr := tb.Replacer.Replace
@@ -288,38 +288,38 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	script := sr(`
 	import http from "k6/http";
 
-	export let options = ***REMOVED***
-		scenarios: ***REMOVED***
-			per_vu_test: ***REMOVED***
+	export let options = {
+		scenarios: {
+			per_vu_test: {
 				executor: "per-vu-iterations",
 				gracefulStop: "0s",
 				vus: 1,
 				iterations: 1,
-			***REMOVED***,
-			shared_test: ***REMOVED***
+			},
+			shared_test: {
 				executor: "shared-iterations",
 				gracefulStop: "0s",
 				vus: 1,
 				iterations: 1,
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
-	export default function () ***REMOVED***
+	export default function () {
 		http.get("HTTPBIN_IP_URL/");
-	***REMOVED***`)
+	}`)
 
 	piState := getTestPreInitState(t)
 	runner, err := js.New(
-		piState, &loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+		piState, &loader.SourceData{
+			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(script),
-		***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+		}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(libWorker.Options***REMOVED***
+	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(libWorker.Options{
 		SystemTags: &workerMetrics.DefaultSystemTagSet,
-	***REMOVED***)))
+	})))
 
 	testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
 	execScheduler, err := NewExecutionScheduler(testRunState)
@@ -329,14 +329,14 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	samples := make(chan workerMetrics.SampleContainer)
-	done := make(chan struct***REMOVED******REMOVED***)
-	go func() ***REMOVED***
+	done := make(chan struct{})
+	go func() {
 		defer close(done)
 		require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 		require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
-	***REMOVED***()
+	}()
 
-	expCommonTrailTags := workerMetrics.IntoSampleTags(&map[string]string***REMOVED***
+	expCommonTrailTags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":             "",
 		"method":            "GET",
 		"name":              sr("HTTPBIN_IP_URL/"),
@@ -344,44 +344,44 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		"proto":             "HTTP/1.1",
 		"status":            "200",
 		"expected_response": "true",
-	***REMOVED***)
+	})
 	expTrailPVUTagsRaw := expCommonTrailTags.CloneTags()
 	expTrailPVUTagsRaw["scenario"] = "per_vu_test"
 	expTrailPVUTags := workerMetrics.IntoSampleTags(&expTrailPVUTagsRaw)
 	expTrailSITagsRaw := expCommonTrailTags.CloneTags()
 	expTrailSITagsRaw["scenario"] = "shared_test"
 	expTrailSITags := workerMetrics.IntoSampleTags(&expTrailSITagsRaw)
-	expNetTrailPVUTags := workerMetrics.IntoSampleTags(&map[string]string***REMOVED***
+	expNetTrailPVUTags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":    "",
 		"scenario": "per_vu_test",
-	***REMOVED***)
-	expNetTrailSITags := workerMetrics.IntoSampleTags(&map[string]string***REMOVED***
+	})
+	expNetTrailSITags := workerMetrics.IntoSampleTags(&map[string]string{
 		"group":    "",
 		"scenario": "shared_test",
-	***REMOVED***)
+	})
 
 	var gotCorrectTags int
-	for ***REMOVED***
-		select ***REMOVED***
+	for {
+		select {
 		case sample := <-samples:
-			switch s := sample.(type) ***REMOVED***
+			switch s := sample.(type) {
 			case *httpext.Trail:
-				if s.Tags.IsEqual(expTrailPVUTags) || s.Tags.IsEqual(expTrailSITags) ***REMOVED***
+				if s.Tags.IsEqual(expTrailPVUTags) || s.Tags.IsEqual(expTrailSITags) {
 					gotCorrectTags++
-				***REMOVED***
+				}
 			case *netext.NetTrail:
-				if s.Tags.IsEqual(expNetTrailPVUTags) || s.Tags.IsEqual(expNetTrailSITags) ***REMOVED***
+				if s.Tags.IsEqual(expNetTrailPVUTags) || s.Tags.IsEqual(expNetTrailSITags) {
 					gotCorrectTags++
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		case <-done:
 			require.Equal(t, 4, gotCorrectTags, "received wrong amount of samples with expected tags")
 			return
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRunCustomTags(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	sr := tb.Replacer.Replace
@@ -389,20 +389,20 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 	scriptTemplate := sr(`
 	import http from "k6/http";
 
-	export let options = ***REMOVED***
-		scenarios: ***REMOVED***
-			executor: ***REMOVED***
+	export let options = {
+		scenarios: {
+			executor: {
 				executor: "%s",
 				%s
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
-	export default function () ***REMOVED***
+	export default function () {
 		http.get("HTTPBIN_IP_URL/");
-	***REMOVED***`)
+	}`)
 
-	executorConfigs := map[string]string***REMOVED***
+	executorConfigs := map[string]string{
 		"constant-arrival-rate": `
 			rate: 1,
 			timeUnit: "1s",
@@ -430,34 +430,34 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			timeUnit: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,
-			stages: [ ***REMOVED*** target: 10, duration: "1s" ***REMOVED*** ],
+			stages: [ { target: 10, duration: "1s" } ],
 			gracefulStop: "0.5s",`,
 		"ramping-vus": `
 			startVUs: 1,
-			stages: [ ***REMOVED*** target: 1, duration: "0.5s" ***REMOVED*** ],
+			stages: [ { target: 1, duration: "0.5s" } ],
 			gracefulStop: "0.5s",`,
-	***REMOVED***
+	}
 
-	testCases := []struct***REMOVED*** name, script string ***REMOVED******REMOVED******REMOVED***
+	testCases := []struct{ name, script string }{}
 
 	// Generate tests using custom tags
-	for ename, econf := range executorConfigs ***REMOVED***
-		configWithCustomTag := econf + "tags: ***REMOVED*** customTag: 'value' ***REMOVED***"
-		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
+	for ename, econf := range executorConfigs {
+		configWithCustomTag := econf + "tags: { customTag: 'value' }"
+		testCases = append(testCases, struct{ name, script string }{
 			ename, fmt.Sprintf(scriptTemplate, ename, configWithCustomTag),
-		***REMOVED***)
-	***REMOVED***
+		})
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			piState := getTestPreInitState(t)
 			runner, err := js.New(
-				piState, &loader.SourceData***REMOVED***
-					URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+				piState, &loader.SourceData{
+					URL:  &url.URL{Path: "/script.js"},
 					Data: []byte(tc.script),
-				***REMOVED***, nil, libWorker.GetTestWorkerInfo(),
+				}, nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
@@ -468,70 +468,70 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			done := make(chan struct***REMOVED******REMOVED***)
+			done := make(chan struct{})
 			samples := make(chan workerMetrics.SampleContainer)
-			go func() ***REMOVED***
+			go func() {
 				defer close(done)
 				require.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 				require.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
-			***REMOVED***()
+			}()
 			var gotTrailTag, gotNetTrailTag bool
-			for ***REMOVED***
-				select ***REMOVED***
+			for {
+				select {
 				case sample := <-samples:
-					if trail, ok := sample.(*httpext.Trail); ok && !gotTrailTag ***REMOVED***
+					if trail, ok := sample.(*httpext.Trail); ok && !gotTrailTag {
 						tags := trail.Tags.CloneTags()
-						if v, ok := tags["customTag"]; ok && v == "value" ***REMOVED***
+						if v, ok := tags["customTag"]; ok && v == "value" {
 							gotTrailTag = true
-						***REMOVED***
-					***REMOVED***
-					if netTrail, ok := sample.(*netext.NetTrail); ok && !gotNetTrailTag ***REMOVED***
+						}
+					}
+					if netTrail, ok := sample.(*netext.NetTrail); ok && !gotNetTrailTag {
 						tags := netTrail.Tags.CloneTags()
-						if v, ok := tags["customTag"]; ok && v == "value" ***REMOVED***
+						if v, ok := tags["customTag"]; ok && v == "value" {
 							gotNetTrailTag = true
-						***REMOVED***
-					***REMOVED***
+						}
+					}
 				case <-done:
-					if !gotTrailTag || !gotNetTrailTag ***REMOVED***
+					if !gotTrailTag || !gotNetTrailTag {
 						assert.FailNow(t, "a sample with expected tag wasn't received")
-					***REMOVED***
+					}
 					return
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
 // Ensure that custom executor settings are unique per executor and
 // that there's no "crossover"/"pollution" between executors.
 // Also test that custom tags are properly set on checks and groups workerMetrics.
-func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	script := tb.Replacer.Replace(`
 	import http from "k6/http";
 	import ws from 'k6/ws';
-	import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
-	import ***REMOVED*** check, group ***REMOVED*** from 'k6';
+	import { Counter } from 'k6/metrics';
+	import { check, group } from 'k6';
 
 	let errors = new Counter('errors');
 
-	export let options = ***REMOVED***
+	export let options = {
 		// Required for WS tests
-		hosts: ***REMOVED*** 'httpbin.local': '127.0.0.1' ***REMOVED***,
-		scenarios: ***REMOVED***
-			scenario1: ***REMOVED***
+		hosts: { 'httpbin.local': '127.0.0.1' },
+		scenarios: {
+			scenario1: {
 				executor: 'per-vu-iterations',
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '0s',
 				maxDuration: '1s',
 				exec: 's1func',
-				env: ***REMOVED*** TESTVAR1: 'scenario1' ***REMOVED***,
-				tags: ***REMOVED*** testtag1: 'scenario1' ***REMOVED***,
-			***REMOVED***,
-			scenario2: ***REMOVED***
+				env: { TESTVAR1: 'scenario1' },
+				tags: { testtag1: 'scenario1' },
+			},
+			scenario2: {
 				executor: 'shared-iterations',
 				vus: 1,
 				iterations: 1,
@@ -539,30 +539,30 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				startTime: '0.5s',
 				maxDuration: '2s',
 				exec: 's2func',
-				env: ***REMOVED*** TESTVAR2: 'scenario2' ***REMOVED***,
-				tags: ***REMOVED*** testtag2: 'scenario2' ***REMOVED***,
-			***REMOVED***,
-			scenario3: ***REMOVED***
+				env: { TESTVAR2: 'scenario2' },
+				tags: { testtag2: 'scenario2' },
+			},
+			scenario3: {
 				executor: 'per-vu-iterations',
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '1s',
 				exec: 's3funcWS',
-				env: ***REMOVED*** TESTVAR3: 'scenario3' ***REMOVED***,
-				tags: ***REMOVED*** testtag3: 'scenario3' ***REMOVED***,
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED***
+				env: { TESTVAR3: 'scenario3' },
+				tags: { testtag3: 'scenario3' },
+			},
+		}
+	}
 
-	function checkVar(name, expected) ***REMOVED***
-		if (__ENV[name] !== expected) ***REMOVED***
+	function checkVar(name, expected) {
+		if (__ENV[name] !== expected) {
 		    console.error('Wrong ' + name + " env var value. Expected: '"
 						+ expected + "', actual: '" + __ENV[name] + "'");
 			errors.add(1);
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	export function s1func() ***REMOVED***
+	export function s1func() {
 		checkVar('TESTVAR1', 'scenario1');
 		checkVar('TESTVAR2', undefined);
 		checkVar('TESTVAR3', undefined);
@@ -571,56 +571,56 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		// Intentionally try to pollute the env
 		__ENV.TESTVAR2 = 'overridden';
 
-		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario1' ***REMOVED******REMOVED***);
-	***REMOVED***
+		http.get('HTTPBIN_IP_URL/', { tags: { reqtag: 'scenario1' }});
+	}
 
-	export function s2func() ***REMOVED***
+	export function s2func() {
 		checkVar('TESTVAR1', undefined);
 		checkVar('TESTVAR2', 'scenario2');
 		checkVar('TESTVAR3', undefined);
 		checkVar('TESTGLOBALVAR', 'global');
 
-		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario2' ***REMOVED******REMOVED***);
-	***REMOVED***
+		http.get('HTTPBIN_IP_URL/', { tags: { reqtag: 'scenario2' }});
+	}
 
-	export function s3funcWS() ***REMOVED***
+	export function s3funcWS() {
 		checkVar('TESTVAR1', undefined);
 		checkVar('TESTVAR2', undefined);
 		checkVar('TESTVAR3', 'scenario3');
 		checkVar('TESTGLOBALVAR', 'global');
 
-		const customTags = ***REMOVED*** wstag: 'scenario3' ***REMOVED***;
-		group('wsgroup', function() ***REMOVED***
-			const response = ws.connect('WSBIN_URL/ws-echo', ***REMOVED*** tags: customTags ***REMOVED***,
-				function (socket) ***REMOVED***
-					socket.on('open', function() ***REMOVED***
+		const customTags = { wstag: 'scenario3' };
+		group('wsgroup', function() {
+			const response = ws.connect('WSBIN_URL/ws-echo', { tags: customTags },
+				function (socket) {
+					socket.on('open', function() {
 						socket.send('hello');
-					***REMOVED***);
-					socket.on('message', function(msg) ***REMOVED***
-						if (msg != 'hello') ***REMOVED***
+					});
+					socket.on('message', function(msg) {
+						if (msg != 'hello') {
 						    console.error("Expected to receive 'hello' but got '" + msg + "' instead!");
 							errors.add(1);
-						***REMOVED***
+						}
 						socket.close()
-					***REMOVED***);
-					socket.on('error', function (e) ***REMOVED***
+					});
+					socket.on('error', function (e) {
 						console.log('ws error: ' + e.error());
 						errors.add(1);
-					***REMOVED***);
-				***REMOVED***
+					});
+				}
 			);
-			check(response, ***REMOVED*** 'status is 101': (r) => r && r.status === 101 ***REMOVED***, customTags);
-		***REMOVED***);
-	***REMOVED***
+			check(response, { 'status is 101': (r) => r && r.status === 101 }, customTags);
+		});
+	}
 `)
 
 	piState := getTestPreInitState(t)
-	piState.RuntimeOptions.Env = map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED***
+	piState.RuntimeOptions.Env = map[string]string{"TESTGLOBALVAR": "global"}
 	runner, err := js.New(
-		piState, &loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+		piState, &loader.SourceData{
+			URL:  &url.URL{Path: "/script.js"},
 			Data: []byte(script),
-		***REMOVED***,
+		},
 		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
@@ -633,222 +633,222 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	defer cancel()
 
 	samples := make(chan workerMetrics.SampleContainer)
-	go func() ***REMOVED***
+	go func() {
 		assert.NoError(t, execScheduler.Init(ctx, samples, libWorker.GetTestWorkerInfo()))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 		close(samples)
-	***REMOVED***()
+	}()
 
-	expectedTrailTags := []map[string]string***REMOVED***
-		***REMOVED***"testtag1": "scenario1", "reqtag": "scenario1"***REMOVED***,
-		***REMOVED***"testtag2": "scenario2", "reqtag": "scenario2"***REMOVED***,
-	***REMOVED***
-	expectedNetTrailTags := []map[string]string***REMOVED***
-		***REMOVED***"testtag1": "scenario1"***REMOVED***,
-		***REMOVED***"testtag2": "scenario2"***REMOVED***,
-	***REMOVED***
-	expectedConnSampleTags := map[string]string***REMOVED***
+	expectedTrailTags := []map[string]string{
+		{"testtag1": "scenario1", "reqtag": "scenario1"},
+		{"testtag2": "scenario2", "reqtag": "scenario2"},
+	}
+	expectedNetTrailTags := []map[string]string{
+		{"testtag1": "scenario1"},
+		{"testtag2": "scenario2"},
+	}
+	expectedConnSampleTags := map[string]string{
 		"testtag3": "scenario3", "wstag": "scenario3",
-	***REMOVED***
-	expectedPlainSampleTags := []map[string]string***REMOVED***
-		***REMOVED***"testtag3": "scenario3"***REMOVED***,
-		***REMOVED***"testtag3": "scenario3", "wstag": "scenario3"***REMOVED***,
-	***REMOVED***
+	}
+	expectedPlainSampleTags := []map[string]string{
+		{"testtag3": "scenario3"},
+		{"testtag3": "scenario3", "wstag": "scenario3"},
+	}
 	var gotSampleTags int
-	for sample := range samples ***REMOVED***
-		switch s := sample.(type) ***REMOVED***
+	for sample := range samples {
+		switch s := sample.(type) {
 		case workerMetrics.Sample:
-			if s.Metric.Name == "errors" ***REMOVED***
+			if s.Metric.Name == "errors" {
 				assert.FailNow(t, "received error sample from test")
-			***REMOVED***
-			if s.Metric.Name == "checks" || s.Metric.Name == "group_duration" ***REMOVED***
+			}
+			if s.Metric.Name == "checks" || s.Metric.Name == "group_duration" {
 				tags := s.Tags.CloneTags()
-				for _, expTags := range expectedPlainSampleTags ***REMOVED***
-					if reflect.DeepEqual(expTags, tags) ***REMOVED***
+				for _, expTags := range expectedPlainSampleTags {
+					if reflect.DeepEqual(expTags, tags) {
 						gotSampleTags++
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
+					}
+				}
+			}
 		case *httpext.Trail:
 			tags := s.Tags.CloneTags()
-			for _, expTags := range expectedTrailTags ***REMOVED***
-				if reflect.DeepEqual(expTags, tags) ***REMOVED***
+			for _, expTags := range expectedTrailTags {
+				if reflect.DeepEqual(expTags, tags) {
 					gotSampleTags++
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		case *netext.NetTrail:
 			tags := s.Tags.CloneTags()
-			for _, expTags := range expectedNetTrailTags ***REMOVED***
-				if reflect.DeepEqual(expTags, tags) ***REMOVED***
+			for _, expTags := range expectedNetTrailTags {
+				if reflect.DeepEqual(expTags, tags) {
 					gotSampleTags++
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		case workerMetrics.ConnectedSamples:
-			for _, sm := range s.Samples ***REMOVED***
+			for _, sm := range s.Samples {
 				tags := sm.Tags.CloneTags()
-				if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
+				if reflect.DeepEqual(expectedConnSampleTags, tags) {
 					gotSampleTags++
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+				}
+			}
+		}
+	}
 	require.Equal(t, 8, gotSampleTags, "received wrong amount of samples with expected tags")
-***REMOVED***
+}
 
-func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerSetupTeardownRun(t *testing.T) {
 	t.Parallel()
-	t.Run("Normal", func(t *testing.T) ***REMOVED***
+	t.Run("Normal", func(t *testing.T) {
 		t.Parallel()
-		setupC := make(chan struct***REMOVED******REMOVED***)
-		teardownC := make(chan struct***REMOVED******REMOVED***)
-		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) ***REMOVED***
+		setupC := make(chan struct{})
+		teardownC := make(chan struct{})
+		runner := &minirunner.MiniRunner{
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				close(setupC)
 				return nil, nil
-			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+			},
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				close(teardownC)
 				return nil
-			***REMOVED***,
-		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
+			},
+		}
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{})
 
 		err := make(chan error, 1)
-		go func() ***REMOVED***
+		go func() {
 			err <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
-		***REMOVED***()
+		}()
 		defer cancel()
 		<-setupC
 		<-teardownC
 		assert.NoError(t, <-err)
-	***REMOVED***)
-	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Setup Error", func(t *testing.T) {
 		t.Parallel()
-		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) ***REMOVED***
+		runner := &minirunner.MiniRunner{
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, errors.New("setup error")
-			***REMOVED***,
-		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
+			},
+		}
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{})
 		defer cancel()
 		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "setup error")
-	***REMOVED***)
-	t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Don't Run Setup", func(t *testing.T) {
 		t.Parallel()
-		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) ***REMOVED***
+		runner := &minirunner.MiniRunner{
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, errors.New("setup error")
-			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+			},
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
-			***REMOVED***,
-		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
+			},
+		}
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{
 			NoSetup:    null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***)
+		})
 		defer cancel()
 		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "teardown error")
-	***REMOVED***)
+	})
 
-	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
+	t.Run("Teardown Error", func(t *testing.T) {
 		t.Parallel()
-		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) ***REMOVED***
+		runner := &minirunner.MiniRunner{
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, nil
-			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+			},
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
-			***REMOVED***,
-		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
+			},
+		}
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***)
+		})
 		defer cancel()
 
 		assert.EqualError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()), "teardown error")
-	***REMOVED***)
-	t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Don't Run Teardown", func(t *testing.T) {
 		t.Parallel()
-		runner := &minirunner.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) ***REMOVED***
+		runner := &minirunner.MiniRunner{
+			SetupFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) ([]byte, error) {
 				return nil, nil
-			***REMOVED***,
-			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+			},
+			TeardownFn: func(ctx context.Context, out chan<- workerMetrics.SampleContainer) error {
 				return errors.New("teardown error")
-			***REMOVED***,
-		***REMOVED***
-		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
+			},
+		}
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{
 			NoTeardown: null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***)
+		})
 		defer cancel()
 		assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerStages(t *testing.T) {
 	t.Parallel()
-	testdata := map[string]struct ***REMOVED***
+	testdata := map[string]struct {
 		Duration time.Duration
 		Stages   []libWorker.Stage
-	***REMOVED******REMOVED***
-		"one": ***REMOVED***
+	}{
+		"one": {
 			1 * time.Second,
-			[]libWorker.Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)***REMOVED******REMOVED***,
-		***REMOVED***,
-		"two": ***REMOVED***
+			[]libWorker.Stage{{Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)}},
+		},
+		"two": {
 			2 * time.Second,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(2)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"four": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(1)},
+				{Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(2)},
+			},
+		},
+		"four": {
 			4 * time.Second,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(3 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)},
+				{Duration: types.NullDurationFrom(3 * time.Second), Target: null.IntFrom(10)},
+			},
+		},
+	}
 
-	for name, data := range testdata ***REMOVED***
+	for name, data := range testdata {
 		data := data
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runner := &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+			runner := &minirunner.MiniRunner{
+				Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 					time.Sleep(100 * time.Millisecond)
 					return nil
-				***REMOVED***,
-			***REMOVED***
-			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
+				},
+			}
+			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{
 				VUs:    null.IntFrom(1),
 				Stages: data.Stages,
-			***REMOVED***)
+			})
 			defer cancel()
 			assert.NoError(t, execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo()))
 			assert.True(t, execScheduler.GetState().GetCurrentTestRunDuration() >= data.Duration)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndTime(t *testing.T) {
 	t.Parallel()
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			time.Sleep(100 * time.Millisecond)
 			return nil
-		***REMOVED***,
-	***REMOVED***
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED***
+		},
+	}
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, libWorker.Options{
 		VUs:      null.IntFrom(10),
 		Duration: types.NullDurationFrom(1 * time.Second),
-	***REMOVED***)
+	})
 	defer cancel()
 
 	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
@@ -860,22 +860,22 @@ func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
-***REMOVED***
+}
 
-func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRuntimeErrors(t *testing.T) {
 	t.Parallel()
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			time.Sleep(10 * time.Millisecond)
 			return errors.New("hi")
-		***REMOVED***,
-		Options: libWorker.Options***REMOVED***
+		},
+		Options: libWorker.Options{
 			VUs:      null.IntFrom(10),
 			Duration: types.NullDurationFrom(1 * time.Second),
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 	defer cancel()
 
 	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
@@ -889,12 +889,12 @@ func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
 
 	assert.NotEmpty(t, hook.Entries)
-	for _, e := range hook.Entries ***REMOVED***
+	for _, e := range hook.Entries {
 		assert.Equal(t, "hi", e.Message)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndErrors(t *testing.T) {
 	t.Parallel()
 
 	exec := executor.NewConstantVUsConfig("we_need_hard_stop")
@@ -902,17 +902,17 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	exec.Duration = types.NullDurationFrom(1 * time.Second)
 	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			<-ctx.Done()
 			return errors.New("hi")
-		***REMOVED***,
-		Options: libWorker.Options***REMOVED***
-			Scenarios: libWorker.ScenarioConfigs***REMOVED***exec.GetName(): exec***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+		},
+		Options: libWorker.Options{
+			Scenarios: libWorker.ScenarioConfigs{exec.GetName(): exec},
+		},
+	}
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, libWorker.Options{})
 	defer cancel()
 
 	endTime, isFinal := libWorker.GetEndOffset(execScheduler.GetExecutionPlan())
@@ -926,32 +926,32 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
 
 	assert.Empty(t, hook.Entries)
-***REMOVED***
+}
 
-func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndIterations(t *testing.T) {
 	t.Parallel()
-	metric := &workerMetrics.Metric***REMOVED***Name: "test_metric"***REMOVED***
+	metric := &workerMetrics.Metric{Name: "test_metric"}
 
-	options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
-	***REMOVED***, nil)
+	}, nil)
 	require.NoError(t, err)
 	require.Empty(t, options.Validate())
 
 	var i int64
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-			select ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			select {
 			case <-ctx.Done():
 			default:
 				atomic.AddInt64(&i, 1)
-			***REMOVED***
-			out <- workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***
+			}
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.0}
 			return nil
-		***REMOVED***,
+		},
 		Options: options,
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -968,114 +968,114 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	assert.Equal(t, uint64(0), execScheduler.GetState().GetPartialIterationCount())
 	assert.Equal(t, int64(100), i)
 	require.Equal(t, 100, len(samples)) // TODO: change to 200 https://github.com/k6io/k6/issues/1250
-	for i := 0; i < 100; i++ ***REMOVED***
+	for i := 0; i < 100; i++ {
 		mySample, ok := <-samples
 		require.True(t, ok)
-		assert.Equal(t, workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, mySample)
-	***REMOVED***
-***REMOVED***
+		assert.Equal(t, workerMetrics.Sample{Metric: metric, Value: 1.0}, mySample)
+	}
+}
 
-func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerIsRunning(t *testing.T) {
 	t.Parallel()
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
 			<-ctx.Done()
 			return nil
-		***REMOVED***,
-	***REMOVED***
-	ctx, cancel, execScheduler, _ := newTestExecutionScheduler(t, runner, nil, libWorker.Options***REMOVED******REMOVED***)
+		},
+	}
+	ctx, cancel, execScheduler, _ := newTestExecutionScheduler(t, runner, nil, libWorker.Options{})
 	state := execScheduler.GetState()
 
 	err := make(chan error)
-	go func() ***REMOVED***
+	go func() {
 		err <- execScheduler.Run(ctx, ctx, nil, libWorker.GetTestWorkerInfo())
-	***REMOVED***()
-	for !state.HasStarted() ***REMOVED***
+	}()
+	for !state.HasStarted() {
 		time.Sleep(10 * time.Microsecond)
-	***REMOVED***
+	}
 	cancel()
-	for !state.HasEnded() ***REMOVED***
+	for !state.HasEnded() {
 		time.Sleep(10 * time.Microsecond)
-	***REMOVED***
+	}
 	assert.NoError(t, <-err)
-***REMOVED***
+}
 
 // TestDNSResolver checks the DNS resolution behavior at the ExecutionScheduler level.
-func TestDNSResolver(t *testing.T) ***REMOVED***
+func TestDNSResolver(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	sr := tb.Replacer.Replace
 	script := sr(`
 		import http from "k6/http";
-		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+		import { sleep } from "k6";
 
-		export let options = ***REMOVED***
+		export let options = {
 			vus: 1,
 			iterations: 8,
 			noConnectionReuse: true,
-		***REMOVED***
+		}
 
-		export default function () ***REMOVED***
-			const res = http.get("http://myhost:HTTPBIN_PORT/", ***REMOVED*** timeout: 50 ***REMOVED***);
+		export default function () {
+			const res = http.get("http://myhost:HTTPBIN_PORT/", { timeout: 50 });
 			sleep(0.7);  // somewhat uneven multiple of 0.5 to minimize races with asserts
-		***REMOVED***`)
+		}`)
 
-	t.Run("cache", func(t *testing.T) ***REMOVED***
+	t.Run("cache", func(t *testing.T) {
 		t.Parallel()
-		testCases := map[string]struct ***REMOVED***
+		testCases := map[string]struct {
 			opts          libWorker.Options
 			expLogEntries int
-		***REMOVED******REMOVED***
-			"default": ***REMOVED*** // IPs are cached for 5m
-				libWorker.Options***REMOVED***DNS: types.DefaultDNSConfig()***REMOVED***, 0,
-			***REMOVED***,
-			"0": ***REMOVED*** // cache is disabled, every request does a DNS lookup
-				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+		}{
+			"default": { // IPs are cached for 5m
+				libWorker.Options{DNS: types.DefaultDNSConfig()}, 0,
+			},
+			"0": { // cache is disabled, every request does a DNS lookup
+				libWorker.Options{DNS: types.DNSConfig{
 					TTL:    null.StringFrom("0"),
-					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
-					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
-				***REMOVED******REMOVED***, 5,
-			***REMOVED***,
-			"1000": ***REMOVED*** // cache IPs for 1s, check that unitless values are interpreted as ms
-				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+					Select: types.NullDNSSelect{DNSSelect: types.DNSfirst, Valid: true},
+					Policy: types.NullDNSPolicy{DNSPolicy: types.DNSpreferIPv4, Valid: false},
+				}}, 5,
+			},
+			"1000": { // cache IPs for 1s, check that unitless values are interpreted as ms
+				libWorker.Options{DNS: types.DNSConfig{
 					TTL:    null.StringFrom("1000"),
-					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
-					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
-				***REMOVED******REMOVED***, 4,
-			***REMOVED***,
-			"3s": ***REMOVED***
-				libWorker.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+					Select: types.NullDNSSelect{DNSSelect: types.DNSfirst, Valid: true},
+					Policy: types.NullDNSPolicy{DNSPolicy: types.DNSpreferIPv4, Valid: false},
+				}}, 4,
+			},
+			"3s": {
+				libWorker.Options{DNS: types.DNSConfig{
 					TTL:    null.StringFrom("3s"),
-					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
-					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
-				***REMOVED******REMOVED***, 3,
-			***REMOVED***,
-		***REMOVED***
+					Select: types.NullDNSSelect{DNSSelect: types.DNSfirst, Valid: true},
+					Policy: types.NullDNSPolicy{DNSPolicy: types.DNSpreferIPv4, Valid: false},
+				}}, 3,
+			},
+		}
 
 		expErr := sr(`dial tcp 127.0.0.254:HTTPBIN_PORT: connect: connection refused`)
-		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" ***REMOVED***
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
 			expErr = "request timeout"
-		***REMOVED***
-		for name, tc := range testCases ***REMOVED***
+		}
+		for name, tc := range testCases {
 			tc := tc
-			t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				logger := logrus.New()
 				logger.SetOutput(ioutil.Discard)
-				logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+				logHook := testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 				logger.AddHook(&logHook)
 
 				registry := workerMetrics.NewRegistry()
 				builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 				runner, err := js.New(
-					&libWorker.TestPreInitState***REMOVED***
+					&libWorker.TestPreInitState{
 						Logger:         logger,
 						BuiltinMetrics: builtinMetrics,
 						Registry:       registry,
-					***REMOVED***,
-					&loader.SourceData***REMOVED***
-						URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(script),
-					***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+					},
+					&loader.SourceData{
+						URL: &url.URL{Path: "/script.js"}, Data: []byte(script),
+					}, nil, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 
 				mr := mockresolver.New(nil, net.LookupIP)
@@ -1085,83 +1085,83 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 				defer cancel()
 
 				mr.Set("myhost", sr("HTTPBIN_IP"))
-				time.AfterFunc(1700*time.Millisecond, func() ***REMOVED***
+				time.AfterFunc(1700*time.Millisecond, func() {
 					mr.Set("myhost", "127.0.0.254")
-				***REMOVED***)
+				})
 				defer mr.Unset("myhost")
 
 				errCh := make(chan error, 1)
-				go func() ***REMOVED***
+				go func() {
 					errCh <- execScheduler.Run(ctx, ctx, samples, libWorker.GetTestWorkerInfo())
-				***REMOVED***()
+				}()
 
-				select ***REMOVED***
+				select {
 				case err := <-errCh:
 					require.NoError(t, err)
 					entries := logHook.Drain()
 					require.Len(t, entries, tc.expLogEntries)
-					for _, entry := range entries ***REMOVED***
-						require.IsType(t, &url.Error***REMOVED******REMOVED***, entry.Data["error"])
+					for _, entry := range entries {
+						require.IsType(t, &url.Error{}, entry.Data["error"])
 						assert.EqualError(t, entry.Data["error"].(*url.Error).Err, expErr)
-					***REMOVED***
+					}
 				case <-time.After(10 * time.Second):
 					t.Fatal("timed out")
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+				}
+			})
+		}
+	})
+}
 
-func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
+func TestRealTimeAndSetupTeardownMetrics(t *testing.T) {
 	t.Parallel()
 	script := []byte(`
-	import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
-	import ***REMOVED*** sleep ***REMOVED*** from "k6";
+	import { Counter } from "k6/metrics";
+	import { sleep } from "k6";
 
 	var counter = new Counter("test_counter");
 
-	export function setup() ***REMOVED***
+	export function setup() {
 		console.log("setup(), sleeping for 1 second");
-		counter.add(1, ***REMOVED*** place: "setupBeforeSleep" ***REMOVED***);
+		counter.add(1, { place: "setupBeforeSleep" });
 		sleep(1);
 		console.log("setup sleep is done");
-		counter.add(2, ***REMOVED*** place: "setupAfterSleep" ***REMOVED***);
-		return ***REMOVED*** "some": ["data"], "v": 1 ***REMOVED***;
-	***REMOVED***
+		counter.add(2, { place: "setupAfterSleep" });
+		return { "some": ["data"], "v": 1 };
+	}
 
-	export function teardown(data) ***REMOVED***
+	export function teardown(data) {
 		console.log("teardown(" + JSON.stringify(data) + "), sleeping for 1 second");
-		counter.add(3, ***REMOVED*** place: "teardownBeforeSleep" ***REMOVED***);
+		counter.add(3, { place: "teardownBeforeSleep" });
 		sleep(1);
-		if (!data || data.v != 1) ***REMOVED***
+		if (!data || data.v != 1) {
 			throw new Error("incorrect data: " + JSON.stringify(data));
-		***REMOVED***
+		}
 		console.log("teardown sleep is done");
-		counter.add(4, ***REMOVED*** place: "teardownAfterSleep" ***REMOVED***);
-	***REMOVED***
+		counter.add(4, { place: "teardownAfterSleep" });
+	}
 
-	export default function (data) ***REMOVED***
+	export default function (data) {
 		console.log("default(" + JSON.stringify(data) + ") with ENV=" + JSON.stringify(__ENV) + " for in ITER " + __ITER + " and VU " + __VU);
-		counter.add(5, ***REMOVED*** place: "defaultBeforeSleep" ***REMOVED***);
-		if (!data || data.v != 1) ***REMOVED***
+		counter.add(5, { place: "defaultBeforeSleep" });
+		if (!data || data.v != 1) {
 			throw new Error("incorrect data: " + JSON.stringify(data));
-		***REMOVED***
+		}
 		sleep(1);
 		console.log("default() for in ITER " + __ITER + " and VU " + __VU + " done!");
-		counter.add(6, ***REMOVED*** place: "defaultAfterSleep" ***REMOVED***);
-	***REMOVED***`)
+		counter.add(6, { place: "defaultAfterSleep" });
+	}`)
 
 	piState := getTestPreInitState(t)
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(libWorker.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(libWorker.Options{
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
 		SystemTags:      &workerMetrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(4 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(4 * time.Second),
-	***REMOVED***), nil)
+	}), nil)
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, piState, options, runner)
@@ -1171,86 +1171,86 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct***REMOVED******REMOVED***)
+	done := make(chan struct{})
 	sampleContainers := make(chan workerMetrics.SampleContainer)
-	go func() ***REMOVED***
+	go func() {
 		require.NoError(t, execScheduler.Init(ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, sampleContainers, libWorker.GetTestWorkerInfo()))
 		close(done)
-	***REMOVED***()
+	}()
 
-	expectIn := func(from, to time.Duration, expected workerMetrics.SampleContainer) ***REMOVED***
+	expectIn := func(from, to time.Duration, expected workerMetrics.SampleContainer) {
 		start := time.Now()
 		from *= time.Millisecond
 		to *= time.Millisecond
-		for ***REMOVED***
-			select ***REMOVED***
+		for {
+			select {
 			case sampleContainer := <-sampleContainers:
 				gotVus := false
-				for _, s := range sampleContainer.GetSamples() ***REMOVED***
-					if s.Metric == piState.BuiltinMetrics.VUs || s.Metric == piState.BuiltinMetrics.VUsMax ***REMOVED***
+				for _, s := range sampleContainer.GetSamples() {
+					if s.Metric == piState.BuiltinMetrics.VUs || s.Metric == piState.BuiltinMetrics.VUsMax {
 						gotVus = true
 						break
-					***REMOVED***
-				***REMOVED***
-				if gotVus ***REMOVED***
+					}
+				}
+				if gotVus {
 					continue
-				***REMOVED***
+				}
 
 				now := time.Now()
 				elapsed := now.Sub(start)
-				if elapsed < from ***REMOVED***
+				if elapsed < from {
 					t.Errorf("Received sample earlier (%s) than expected (%s)", elapsed, from)
 					return
-				***REMOVED***
+				}
 				assert.IsType(t, expected, sampleContainer)
 				expSamples := expected.GetSamples()
 				gotSamples := sampleContainer.GetSamples()
-				if assert.Len(t, gotSamples, len(expSamples)) ***REMOVED***
-					for i, s := range gotSamples ***REMOVED***
+				if assert.Len(t, gotSamples, len(expSamples)) {
+					for i, s := range gotSamples {
 						expS := expSamples[i]
-						if s.Metric.Name != workerMetrics.IterationDurationName ***REMOVED***
+						if s.Metric.Name != workerMetrics.IterationDurationName {
 							assert.Equal(t, expS.Value, s.Value)
-						***REMOVED***
+						}
 						assert.Equal(t, expS.Metric.Name, s.Metric.Name)
 						assert.Equal(t, expS.Tags.CloneTags(), s.Tags.CloneTags())
 						assert.InDelta(t, 0, now.Sub(s.Time), float64(50*time.Millisecond))
-					***REMOVED***
-				***REMOVED***
+					}
+				}
 				return
 			case <-time.After(to):
 				t.Errorf("Did not receive sample in the maximum allotted time (%s)", to)
 				return
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
-	getTags := func(args ...string) *workerMetrics.SampleTags ***REMOVED***
-		tags := map[string]string***REMOVED******REMOVED***
-		for i := 0; i < len(args)-1; i += 2 ***REMOVED***
+	getTags := func(args ...string) *workerMetrics.SampleTags {
+		tags := map[string]string{}
+		for i := 0; i < len(args)-1; i += 2 {
 			tags[args[i]] = args[i+1]
-		***REMOVED***
+		}
 		return workerMetrics.IntoSampleTags(&tags)
-	***REMOVED***
+	}
 	testCounter, err := piState.Registry.NewMetric("test_counter", workerMetrics.Counter)
 	require.NoError(t, err)
-	getSample := func(expValue float64, expMetric *workerMetrics.Metric, expTags ...string) workerMetrics.SampleContainer ***REMOVED***
-		return workerMetrics.Sample***REMOVED***
+	getSample := func(expValue float64, expMetric *workerMetrics.Metric, expTags ...string) workerMetrics.SampleContainer {
+		return workerMetrics.Sample{
 			Metric: expMetric,
 			Time:   time.Now(),
 			Tags:   getTags(expTags...),
 			Value:  expValue,
-		***REMOVED***
-	***REMOVED***
-	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) workerMetrics.SampleContainer ***REMOVED***
-		expTags := []string***REMOVED***"group", group***REMOVED***
+		}
+	}
+	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) workerMetrics.SampleContainer {
+		expTags := []string{"group", group}
 		expTags = append(expTags, addExpTags...)
 		return netext.NewDialer(
-			net.Dialer***REMOVED******REMOVED***,
+			net.Dialer{},
 			netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
 		).GetTrail(time.Now(), time.Now(),
 			true, emitIterations, getTags(expTags...), piState.BuiltinMetrics)
-	***REMOVED***
+	}
 
 	// Initially give a long time (5s) for the execScheduler to start
 	expectIn(0, 5000, getSample(1, testCounter, "group", "::setup", "place", "setupBeforeSleep"))
@@ -1269,86 +1269,86 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	expectIn(900, 1100, getSample(4, testCounter, "group", "::teardown", "place", "teardownAfterSleep"))
 	expectIn(0, 100, getDummyTrail("::teardown", false))
 
-	for ***REMOVED***
-		select ***REMOVED***
+	for {
+		select {
 		case s := <-sampleContainers:
 			t.Fatalf("Did not expect anything in the sample channel bug got %#v", s)
 		case <-time.After(3 * time.Second):
 			t.Fatalf("Local execScheduler took way to long to finish")
 		case <-done:
 			return // Exit normally
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
 // Just a libWorker.PausableExecutor implementation that can return an error
-type pausableExecutor struct ***REMOVED***
+type pausableExecutor struct {
 	libWorker.Executor
 	err error
-***REMOVED***
+}
 
-func (p pausableExecutor) SetPaused(bool) error ***REMOVED***
+func (p pausableExecutor) SetPaused(bool) error {
 	return p.err
-***REMOVED***
+}
 
-func TestSetPaused(t *testing.T) ***REMOVED***
+func TestSetPaused(t *testing.T) {
 	t.Parallel()
-	t.Run("second pause is an error", func(t *testing.T) ***REMOVED***
+	t.Run("second pause is an error", func(t *testing.T) {
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options{}, &minirunner.MiniRunner{})
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor{pausableExecutor{err: nil}}
 
 		require.NoError(t, sched.SetPaused(true))
 		err = sched.SetPaused(true)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "execution is already paused")
-	***REMOVED***)
+	})
 
-	t.Run("unpause at the start is an error", func(t *testing.T) ***REMOVED***
+	t.Run("unpause at the start is an error", func(t *testing.T) {
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options{}, &minirunner.MiniRunner{})
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor{pausableExecutor{err: nil}}
 		err = sched.SetPaused(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "execution wasn't paused")
-	***REMOVED***)
+	})
 
-	t.Run("second unpause is an error", func(t *testing.T) ***REMOVED***
+	t.Run("second unpause is an error", func(t *testing.T) {
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options{}, &minirunner.MiniRunner{})
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
-		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: nil***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor{pausableExecutor{err: nil}}
 		require.NoError(t, sched.SetPaused(true))
 		require.NoError(t, sched.SetPaused(false))
 		err = sched.SetPaused(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "execution wasn't paused")
-	***REMOVED***)
+	})
 
-	t.Run("an error on pausing is propagated", func(t *testing.T) ***REMOVED***
+	t.Run("an error on pausing is propagated", func(t *testing.T) {
 		t.Parallel()
-		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options***REMOVED******REMOVED***, &minirunner.MiniRunner***REMOVED******REMOVED***)
+		testRunState := getTestRunState(t, getTestPreInitState(t), libWorker.Options{}, &minirunner.MiniRunner{})
 		sched, err := NewExecutionScheduler(testRunState)
 		require.NoError(t, err)
 		expectedErr := errors.New("testing pausable executor error")
-		sched.executors = []libWorker.Executor***REMOVED***pausableExecutor***REMOVED***err: expectedErr***REMOVED******REMOVED***
+		sched.executors = []libWorker.Executor{pausableExecutor{err: expectedErr}}
 		err = sched.SetPaused(true)
 		require.Error(t, err)
 		require.Equal(t, err, expectedErr)
-	***REMOVED***)
+	})
 
-	t.Run("can't pause unpausable executor", func(t *testing.T) ***REMOVED***
+	t.Run("can't pause unpausable executor", func(t *testing.T) {
 		t.Parallel()
-		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
-		options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
+		runner := &minirunner.MiniRunner{}
+		options, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 			Iterations: null.IntFrom(2),
 			VUs:        null.IntFrom(1),
-		***REMOVED***.Apply(runner.GetOptions()), nil)
+		}.Apply(runner.GetOptions()), nil)
 		require.NoError(t, err)
 
 		testRunState := getTestRunState(t, getTestPreInitState(t), options, runner)
@@ -1357,53 +1357,53 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		err = sched.SetPaused(true)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "doesn't support pause and resume operations after its start")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
+func TestNewExecutionSchedulerHasWork(t *testing.T) {
 	t.Parallel()
 	script := []byte(`
 		import http from 'k6/http';
 
-		export let options = ***REMOVED***
+		export let options = {
 			executionSegment: "3/4:1",
 			executionSegmentSequence: "0,1/4,2/4,3/4,1",
-			scenarios: ***REMOVED***
-				shared_iters1: ***REMOVED***
+			scenarios: {
+				shared_iters1: {
 					executor: "shared-iterations",
 					vus: 3,
 					iterations: 3,
-				***REMOVED***,
-				shared_iters2: ***REMOVED***
+				},
+				shared_iters2: {
 					executor: "shared-iterations",
 					vus: 4,
 					iterations: 4,
-				***REMOVED***,
-				constant_arr_rate: ***REMOVED***
+				},
+				constant_arr_rate: {
 					executor: "constant-arrival-rate",
 					rate: 3,
 					timeUnit: "1s",
 					duration: "20s",
 					preAllocatedVUs: 4,
 					maxVUs: 4,
-				***REMOVED***,
-		    ***REMOVED***,
-		***REMOVED***;
+				},
+		    },
+		};
 
-		export default function() ***REMOVED***
+		export default function() {
 			const response = http.get("http://test.loadimpact.com");
-		***REMOVED***;
+		};
 `)
 
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	registry := workerMetrics.NewRegistry()
-	piState := &libWorker.TestPreInitState***REMOVED***
+	piState := &libWorker.TestPreInitState{
 		Logger:         logger,
 		Registry:       registry,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
-	***REMOVED***
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+	}
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, piState, runner.GetOptions(), runner)
@@ -1412,4 +1412,4 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 
 	assert.Len(t, execScheduler.executors, 2)
 	assert.Len(t, execScheduler.executorConfigs, 3)
-***REMOVED***
+}

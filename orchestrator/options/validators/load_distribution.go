@@ -4,27 +4,48 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool) error ***REMOVED***
-	if standalone ***REMOVED***
+func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool, funcModeInfo *lib.FuncModeInfo) error {
+	if funcModeInfo != nil {
+		err := cloudLoadDistribution(options, workerClients)
+		if err != nil {
+			return err
+		}
+
+		return ensureCloudFunctionsAvailable(options, funcModeInfo.AuthClient)
+	} else if standalone {
 		return cloudLoadDistribution(options, workerClients)
-	***REMOVED***
+	} else {
+		return localLoadDistribution(options)
+	}
+}
 
-	return localLoadDistribution(options)
-***REMOVED***
+func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient lib.FunctionAuthClient) error {
+	// For each location in load distribution check if cloud functions are available
+	for _, location := range options.LoadDistribution.Value {
+		// If cloud functions are not available for this location
+		error := authClient.CheckFunctionAvailability(location.Location)
+		if error != nil {
+			return error
+		}
+	}
 
-func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
+	return nil
+}
+
+func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
 	// In case user wants equal distribution
-	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName ***REMOVED***
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName {
 		// Check fraction is valid and set to 100
-		if options.LoadDistribution.Value[0].Fraction != 100 ***REMOVED***
+		if options.LoadDistribution.Value[0].Fraction != 100 {
 			return fmt.Errorf("fraction must be 100 when using global distribution")
-		***REMOVED***
+		}
 
 		clientCount := len(workerClients.Clients)
 
@@ -37,143 +58,143 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 
 		currentIndex := 0
 
-		for _, workerClient := range workerClients.Clients ***REMOVED***
-			if currentIndex == clientCount-1 ***REMOVED***
-				options.LoadDistribution.Value[currentIndex] = types.LoadZone***REMOVED***
+		for _, workerClient := range workerClients.Clients {
+			if currentIndex == clientCount-1 {
+				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
 					Location: workerClient.Name,
 					Fraction: remainderSize,
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				options.LoadDistribution.Value[currentIndex] = types.LoadZone***REMOVED***
+				}
+			} else {
+				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
 					Location: workerClient.Name,
 					Fraction: floorSize,
-				***REMOVED***
+				}
 				currentIndex++
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	// In case user just wants default load distribution
-	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == "Default" ***REMOVED***
-		options.LoadDistribution = types.NullLoadDistribution***REMOVED***
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == "Default" {
+		options.LoadDistribution = types.NullLoadDistribution{
 			Valid: true,
-			Value: []types.LoadZone***REMOVED******REMOVED***
+			Value: []types.LoadZone{{
 				Location: workerClients.DefaultClient.Name,
 				Fraction: 100,
-			***REMOVED******REMOVED***,
-		***REMOVED***
-	***REMOVED***
+			}},
+		}
+	}
 
-	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode ***REMOVED***
-		if !options.LoadDistribution.Valid ***REMOVED***
-			options.LoadDistribution = types.NullLoadDistribution***REMOVED***
+	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
+		if !options.LoadDistribution.Valid {
+			options.LoadDistribution = types.NullLoadDistribution{
 				Valid: true,
-				Value: []types.LoadZone***REMOVED******REMOVED***
+				Value: []types.LoadZone{{
 					Location: workerClients.DefaultClient.Name,
 					Fraction: 100,
-				***REMOVED******REMOVED***,
-			***REMOVED***
+				}},
+			}
 
 			return nil
-		***REMOVED***
+		}
 
 		return checkSingleLoadDistribution(options, workerClients)
-	***REMOVED*** else if options.ExecutionMode.ValueOrZero() == types.HTTPMultipleExecutionMode ***REMOVED***
-		if !options.LoadDistribution.Valid ***REMOVED***
-			options.LoadDistribution = types.NullLoadDistribution***REMOVED***
+	} else if options.ExecutionMode.ValueOrZero() == types.HTTPMultipleExecutionMode {
+		if !options.LoadDistribution.Valid {
+			options.LoadDistribution = types.NullLoadDistribution{
 				Valid: true,
-				Value: []types.LoadZone***REMOVED******REMOVED***
+				Value: []types.LoadZone{{
 					Location: workerClients.DefaultClient.Name,
 					Fraction: 100,
-				***REMOVED******REMOVED***,
-			***REMOVED***
+				}},
+			}
 
 			return nil
-		***REMOVED***
+		}
 
 		return checkMultiLoadDistribution(options, workerClients)
-	***REMOVED***
+	}
 
 	return fmt.Errorf("invalid execution mode %s", options.ExecutionMode.ValueOrZero())
-***REMOVED***
+}
 
-func checkSingleLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
-	if len(options.LoadDistribution.Value) != 1 ***REMOVED***
+func checkSingleLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+	if len(options.LoadDistribution.Value) != 1 {
 		return fmt.Errorf("load distribution must be a single zone when execution mode is %s", types.HTTPSingleExecutionMode)
-	***REMOVED***
+	}
 
-	if options.LoadDistribution.Value[0].Fraction != 100 ***REMOVED***
+	if options.LoadDistribution.Value[0].Fraction != 100 {
 		return fmt.Errorf("load distribution fraction must be 100 when execution mode is %s", types.HTTPSingleExecutionMode)
-	***REMOVED***
+	}
 
 	// Check valid location
-	for _, workerClient := range workerClients.Clients ***REMOVED***
-		if options.LoadDistribution.Value[0].Location == workerClient.Name ***REMOVED***
+	for _, workerClient := range workerClients.Clients {
+		if options.LoadDistribution.Value[0].Location == workerClient.Name {
 			return nil
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return fmt.Errorf("invalid location %s", options.LoadDistribution.Value[0].Location)
-***REMOVED***
+}
 
-func checkMultiLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error ***REMOVED***
+func checkMultiLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
 	// Check all names valid and fractions add up to 100
 	var totalFraction int
 
-	for _, loadZone := range options.LoadDistribution.Value ***REMOVED***
+	for _, loadZone := range options.LoadDistribution.Value {
 		// Check valid location
 		validLoadZone := false
-		for _, workerClient := range workerClients.Clients ***REMOVED***
-			if loadZone.Location == workerClient.Name ***REMOVED***
+		for _, workerClient := range workerClients.Clients {
+			if loadZone.Location == workerClient.Name {
 				validLoadZone = true
 				break
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
-		if !validLoadZone ***REMOVED***
+		if !validLoadZone {
 			return fmt.Errorf("invalid location %s", loadZone.Location)
-		***REMOVED***
+		}
 
-		if loadZone.Fraction < 1 || loadZone.Fraction > 100 ***REMOVED***
+		if loadZone.Fraction < 1 || loadZone.Fraction > 100 {
 			return fmt.Errorf("invalid fraction %d", loadZone.Fraction)
-		***REMOVED***
+		}
 
 		totalFraction += loadZone.Fraction
-	***REMOVED***
+	}
 
-	if totalFraction != 100 ***REMOVED***
+	if totalFraction != 100 {
 		return fmt.Errorf("total fraction must be 100, got %d", totalFraction)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
-func localLoadDistribution(options *libWorker.Options) error ***REMOVED***
+func localLoadDistribution(options *libWorker.Options) error {
 	// Check single load zone
 
-	if !options.LoadDistribution.Valid ***REMOVED***
-		options.LoadDistribution = types.NullLoadDistribution***REMOVED***
+	if !options.LoadDistribution.Valid {
+		options.LoadDistribution = types.NullLoadDistribution{
 			Valid: true,
-			Value: []types.LoadZone***REMOVED******REMOVED***
+			Value: []types.LoadZone{{
 				Location: agent.AgentWorkerName,
 				Fraction: 100,
-			***REMOVED******REMOVED***,
-		***REMOVED***
+			}},
+		}
 
 		return nil
-	***REMOVED***
+	}
 
-	if len(options.LoadDistribution.Value) != 1 ***REMOVED***
+	if len(options.LoadDistribution.Value) != 1 {
 		return fmt.Errorf("load distribution must be a single zone when running locally")
-	***REMOVED***
+	}
 
-	if options.LoadDistribution.Value[0].Fraction != 100 ***REMOVED***
+	if options.LoadDistribution.Value[0].Fraction != 100 {
 		return fmt.Errorf("load distribution fraction must be 100 when running locally")
-	***REMOVED***
+	}
 
-	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName ***REMOVED***
+	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName {
 		return fmt.Errorf("load distribution location must be %s when running locally", agent.AgentWorkerName)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}

@@ -18,43 +18,43 @@ import (
 var ErrJarForbiddenInInitContext = common.NewInitContextError("Making cookie jars in the init context is not supported")
 
 // CookieJar is cookiejar.Jar wrapper to be used in js scripts
-type CookieJar struct ***REMOVED***
+type CookieJar struct {
 	moduleInstance *ModuleInstance
 	// js is to make it not be accessible from inside goja/js, the json is
 	// for when it is returned from setup().
 	Jar *cookiejar.Jar `js:"-" json:"-"`
-***REMOVED***
+}
 
 // CookiesForURL return the cookies for a given url as a map of key and values
-func (j CookieJar) CookiesForURL(url string) map[string][]string ***REMOVED***
+func (j CookieJar) CookiesForURL(url string) map[string][]string {
 	u, err := neturl.Parse(url)
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
+	}
 
 	cookies := j.Jar.Cookies(u)
 	objs := make(map[string][]string, len(cookies))
-	for _, c := range cookies ***REMOVED***
+	for _, c := range cookies {
 		objs[c.Name] = append(objs[c.Name], c.Value)
-	***REMOVED***
+	}
 	return objs
-***REMOVED***
+}
 
 // Set sets a cookie for a particular url with the given name value and additional opts
-func (j CookieJar) Set(url, name, value string, opts goja.Value) (bool, error) ***REMOVED***
+func (j CookieJar) Set(url, name, value string, opts goja.Value) (bool, error) {
 	rt := j.moduleInstance.vu.Runtime()
 
 	u, err := neturl.Parse(url)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return false, err
-	***REMOVED***
+	}
 
-	c := http.Cookie***REMOVED***Name: name, Value: value***REMOVED***
+	c := http.Cookie{Name: name, Value: value}
 	paramsV := opts
-	if paramsV != nil && !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) ***REMOVED***
+	if paramsV != nil && !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) {
 		params := paramsV.ToObject(rt)
-		for _, k := range params.Keys() ***REMOVED***
-			switch strings.ToLower(k) ***REMOVED***
+		for _, k := range params.Keys() {
+			switch strings.ToLower(k) {
 			case "path":
 				c.Path = params.Get(k).String()
 			case "domain":
@@ -62,12 +62,12 @@ func (j CookieJar) Set(url, name, value string, opts goja.Value) (bool, error) *
 			case "expires":
 				var t time.Time
 				expires := params.Get(k).String()
-				if expires != "" ***REMOVED***
+				if expires != "" {
 					t, err = time.Parse(time.RFC1123, expires)
-					if err != nil ***REMOVED***
+					if err != nil {
 						return false, fmt.Errorf(`unable to parse "expires" date string "%s": %w`, expires, err)
-					***REMOVED***
-				***REMOVED***
+					}
+				}
 				c.Expires = t
 			case "max_age":
 				c.MaxAge = int(params.Get(k).ToInteger())
@@ -75,42 +75,42 @@ func (j CookieJar) Set(url, name, value string, opts goja.Value) (bool, error) *
 				c.Secure = params.Get(k).ToBoolean()
 			case "http_only":
 				c.HttpOnly = params.Get(k).ToBoolean()
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	j.Jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
+			}
+		}
+	}
+	j.Jar.SetCookies(u, []*http.Cookie{&c})
 	return true, nil
-***REMOVED***
+}
 
 // Clear all cookies for a particular URL
-func (j CookieJar) Clear(url string) error ***REMOVED***
+func (j CookieJar) Clear(url string) error {
 	u, err := neturl.Parse(url)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	cookies := j.Jar.Cookies(u)
-	for _, c := range cookies ***REMOVED***
+	for _, c := range cookies {
 		c.MaxAge = -1
-	***REMOVED***
+	}
 	j.Jar.SetCookies(u, cookies)
 
 	return nil
-***REMOVED***
+}
 
 // Delete cookies for a particular URL
-func (j CookieJar) Delete(url, name string) error ***REMOVED***
-	if name == "" ***REMOVED***
+func (j CookieJar) Delete(url, name string) error {
+	if name == "" {
 		return errors.New("cookie: is null")
-	***REMOVED***
+	}
 
 	u, err := neturl.Parse(url)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
-	c := http.Cookie***REMOVED***Name: name, MaxAge: -1***REMOVED***
-	j.Jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
+	c := http.Cookie{Name: name, MaxAge: -1}
+	j.Jar.SetCookies(u, []*http.Cookie{&c})
 
 	return nil
-***REMOVED***
+}

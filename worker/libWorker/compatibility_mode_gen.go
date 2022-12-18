@@ -9,43 +9,43 @@ import (
 
 const _CompatibilityModeName = "extendedbase"
 
-var _CompatibilityModeIndex = [...]uint8***REMOVED***0, 8, 12***REMOVED***
+var _CompatibilityModeIndex = [...]uint8{0, 8, 12}
 
-func (i CompatibilityMode) String() string ***REMOVED***
+func (i CompatibilityMode) String() string {
 	i -= 1
-	if i >= CompatibilityMode(len(_CompatibilityModeIndex)-1) ***REMOVED***
+	if i >= CompatibilityMode(len(_CompatibilityModeIndex)-1) {
 		return fmt.Sprintf("CompatibilityMode(%d)", i+1)
-	***REMOVED***
+	}
 	return _CompatibilityModeName[_CompatibilityModeIndex[i]:_CompatibilityModeIndex[i+1]]
-***REMOVED***
+}
 
-var _CompatibilityModeValues = []CompatibilityMode***REMOVED***1, 2***REMOVED***
+var _CompatibilityModeValues = []CompatibilityMode{1, 2}
 
-var _CompatibilityModeNameToValueMap = map[string]CompatibilityMode***REMOVED***
+var _CompatibilityModeNameToValueMap = map[string]CompatibilityMode{
 	_CompatibilityModeName[0:8]:  1,
 	_CompatibilityModeName[8:12]: 2,
-***REMOVED***
+}
 
 // CompatibilityModeString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func CompatibilityModeString(s string) (CompatibilityMode, error) ***REMOVED***
-	if val, ok := _CompatibilityModeNameToValueMap[s]; ok ***REMOVED***
+func CompatibilityModeString(s string) (CompatibilityMode, error) {
+	if val, ok := _CompatibilityModeNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to CompatibilityMode values", s)
-***REMOVED***
+}
 
 // CompatibilityModeValues returns all values of the enum
-func CompatibilityModeValues() []CompatibilityMode ***REMOVED***
+func CompatibilityModeValues() []CompatibilityMode {
 	return _CompatibilityModeValues
-***REMOVED***
+}
 
 // IsACompatibilityMode returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i CompatibilityMode) IsACompatibilityMode() bool ***REMOVED***
-	for _, v := range _CompatibilityModeValues ***REMOVED***
-		if i == v ***REMOVED***
+func (i CompatibilityMode) IsACompatibilityMode() bool {
+	for _, v := range _CompatibilityModeValues {
+		if i == v {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}

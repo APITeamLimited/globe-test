@@ -21,7 +21,7 @@ const testHTML = `
 <body>
 	<h1 id="top" data-test="dataval" data-num-a="123" data-num-b="1.5" data-not-num-a="1.50" data-not-num-b="1.1e02">Lorem ipsum</h1>
 
-	<p data-test-b="true" data-opts='***REMOVED***"id":101***REMOVED***' data-test-empty="">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac dui erat. Pellentesque eu euismod odio, eget fringilla ante. In vitae nulla at est tincidunt gravida sit amet maximus arcu. Sed accumsan tristique massa, blandit sodales quam malesuada eu. Morbi vitae luctus augue. Nunc nec ligula quam. Cras fringilla nulla leo, at dignissim enim accumsan vitae. Sed eu cursus sapien, a rhoncus lorem. Etiam sed massa egestas, bibendum quam sit amet, eleifend ipsum. Maecenas mi ante, consectetur at tincidunt id, suscipit nec sem. Integer congue elit vel ligula commodo ultricies. Suspendisse condimentum laoreet ligula at aliquet.</p>
+	<p data-test-b="true" data-opts='{"id":101}' data-test-empty="">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac dui erat. Pellentesque eu euismod odio, eget fringilla ante. In vitae nulla at est tincidunt gravida sit amet maximus arcu. Sed accumsan tristique massa, blandit sodales quam malesuada eu. Morbi vitae luctus augue. Nunc nec ligula quam. Cras fringilla nulla leo, at dignissim enim accumsan vitae. Sed eu cursus sapien, a rhoncus lorem. Etiam sed massa egestas, bibendum quam sit amet, eleifend ipsum. Maecenas mi ante, consectetur at tincidunt id, suscipit nec sem. Integer congue elit vel ligula commodo ultricies. Suspendisse condimentum laoreet ligula at aliquet.</p>
 	<p>Nullam id nisi eget ex pharetra imperdiet. Maecenas augue ligula, aliquet sit amet maximus ut, vestibulum et magna. Nam in arcu sed tortor volutpat porttitor sed eget dolor. Duis rhoncus est id dui porttitor, id molestie ex imperdiet. Proin purus ligula, pretium eleifend felis a, tempor feugiat mi. Cras rutrum pulvinar neque, eu dictum arcu. Cras purus metus, fermentum eget malesuada sit amet, dignissim non dui.</p>
 
 	<form id="form1">
@@ -65,31 +65,31 @@ const testXML = `
 </ListAllMyBucketsResult>
 `
 
-func getTestModuleInstance(t testing.TB) (*goja.Runtime, *ModuleInstance) ***REMOVED***
+func getTestModuleInstance(t testing.TB) (*goja.Runtime, *ModuleInstance) {
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	root := New()
-	mockVU := &modulestest.VU***REMOVED***
+	mockVU := &modulestest.VU{
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***
+		InitEnvField: &common.InitEnvironment{
 			Registry: workerMetrics.NewRegistry(),
-		***REMOVED***,
+		},
 		CtxField:   ctx,
 		StateField: nil,
-	***REMOVED***
+	}
 	mi, ok := root.NewModuleInstance(mockVU).(*ModuleInstance)
 	require.True(t, ok)
 
 	require.NoError(t, rt.Set("html", mi.Exports().Default))
 
 	return rt, mi
-***REMOVED***
+}
 
-func getTestRuntimeAndModuleInstanceWithDoc(t testing.TB, html string) (*goja.Runtime, *ModuleInstance) ***REMOVED***
+func getTestRuntimeAndModuleInstanceWithDoc(t testing.TB, html string) (*goja.Runtime, *ModuleInstance) {
 	t.Helper()
 
 	rt, mi := getTestModuleInstance(t)
@@ -98,747 +98,747 @@ func getTestRuntimeAndModuleInstanceWithDoc(t testing.TB, html string) (*goja.Ru
 	_, err := rt.RunString(`var doc = html.parseHTML(src)`)
 
 	require.NoError(t, err)
-	require.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
+	require.IsType(t, Selection{}, rt.Get("doc").Export())
 
 	return rt, mi
-***REMOVED***
+}
 
-func getTestRuntimeWithDoc(t testing.TB, html string) *goja.Runtime ***REMOVED***
+func getTestRuntimeWithDoc(t testing.TB, html string) *goja.Runtime {
 	t.Helper()
 
 	rt, _ := getTestRuntimeAndModuleInstanceWithDoc(t, html)
 
 	return rt
-***REMOVED***
+}
 
-func TestParseHTML(t *testing.T) ***REMOVED***
+func TestParseHTML(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Find", func(t *testing.T) ***REMOVED***
+	t.Run("Find", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("h1")`)
-		if assert.NoError(t, err) && assert.IsType(t, Selection***REMOVED******REMOVED***, v.Export()) ***REMOVED***
+		if assert.NoError(t, err) && assert.IsType(t, Selection{}, v.Export()) {
 			sel := v.Export().(Selection).sel
 			assert.Equal(t, 1, sel.Length())
 			assert.Equal(t, "Lorem ipsum", sel.Text())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Add", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Add", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("Selector", func(t *testing.T) ***REMOVED***
+		t.Run("Selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").add("footer")`)
-			if assert.NoError(t, err) && assert.IsType(t, Selection***REMOVED******REMOVED***, v.Export()) ***REMOVED***
+			if assert.NoError(t, err) && assert.IsType(t, Selection{}, v.Export()) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
 				assert.Equal(t, "Lorem ipsumThis is the footer.", sel.Text())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").add(doc.find("footer"))`)
-			if assert.NoError(t, err) && assert.IsType(t, Selection***REMOVED******REMOVED***, v.Export()) ***REMOVED***
+			if assert.NoError(t, err) && assert.IsType(t, Selection{}, v.Export()) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
 				assert.Equal(t, "Lorem ipsumThis is the footer.", sel.Text())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Text", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Text", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("h1").text()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "Lorem ipsum", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Attr", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Attr", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("h1").attr("id")`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "top", v.Export())
-		***REMOVED***
-		t.Run("Default", func(t *testing.T) ***REMOVED***
+		}
+		t.Run("Default", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").attr("id", "default")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "top", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Unset", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Unset", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").attr("class")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.True(t, goja.IsUndefined(v), "v is not undefined: %v", v)
-			***REMOVED***
+			}
 
-			t.Run("Default", func(t *testing.T) ***REMOVED***
+			t.Run("Default", func(t *testing.T) {
 				v, err := rt.RunString(`doc.find("h1").attr("class", "default")`)
-				if assert.NoError(t, err) ***REMOVED***
+				if assert.NoError(t, err) {
 					assert.Equal(t, "default", v.Export())
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Html", func(t *testing.T) ***REMOVED***
+				}
+			})
+		})
+	})
+	t.Run("Html", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("h1").html()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "Lorem ipsum", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Val", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Val", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("Input", func(t *testing.T) ***REMOVED***
+		t.Run("Input", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#text_input").val()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "input-text-value", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Select option[selected]", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Select option[selected]", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#select_one option[selected]").val()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "yes this option", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Select Option Attr", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Select Option Attr", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#select_one").val()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "yes this option", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Select Option Text", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Select Option Text", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#select_text").val()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "yes text", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Select Option Multiple", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Select Option Multiple", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#select_multi").val()`)
 			var opts []string
-			if assert.NoError(t, err) && rt.ExportTo(v, &opts) == nil ***REMOVED***
+			if assert.NoError(t, err) && rt.ExportTo(v, &opts) == nil {
 				assert.Equal(t, 2, len(opts))
 				assert.Equal(t, "option 2", opts[0])
 				assert.Equal(t, "option 3", opts[1])
-			***REMOVED***
-		***REMOVED***)
-		t.Run("TextArea", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("TextArea", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("#textarea").val()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "Lorem ipsum dolor sit amet", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Children", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Children", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("All", func(t *testing.T) ***REMOVED***
+		t.Run("All", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("head").children()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 1, sel.Length())
 				assert.True(t, sel.Is("title"))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("With selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("With selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children("p")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
 				assert.Equal(t, "Nullam id nisi", sel.Last().Text()[0:14])
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Closest", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Closest", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("textarea").closest("form").attr("id")`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "form1", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Contents", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Contents", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("head").contents()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			sel := v.Export().(Selection).sel
 			assert.Equal(t, 3, sel.Length())
 			assert.Equal(t, "\n\t", sel.First().Text())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Each", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Each", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("Func arg", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, elem) ***REMOVED*** elems[idx] = elem.innerHTML(); ***REMOVED***); elems ***REMOVED***`)
+		t.Run("Func arg", func(t *testing.T) {
+			v, err := rt.RunString(`{ var elems = []; doc.find("#select_multi option").each(function(idx, elem) { elems[idx] = elem.innerHTML(); }); elems }`)
 			var elems []string
-			if assert.NoError(t, err) && rt.ExportTo(v, &elems) == nil ***REMOVED***
+			if assert.NoError(t, err) && rt.ExportTo(v, &elems) == nil {
 				assert.Equal(t, 3, len(elems))
 				assert.Equal(t, "option 1", elems[0])
 				assert.Equal(t, "option 2", elems[1])
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Invalid arg", func(t *testing.T) {
 			_, err := rt.RunString(`doc.find("#select_multi option").each("");`)
-			if assert.Error(t, err) ***REMOVED***
-				assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+			if assert.Error(t, err) {
+				assert.IsType(t, &goja.Exception{}, err)
 				assert.Contains(t, err.Error(), "must be a function")
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Is", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Is", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String selector", func(t *testing.T) ***REMOVED***
+		t.Run("String selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").is("h1")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Function selector", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`doc.find("h1").is(function(idx, val)***REMOVED*** return val.text() == "Lorem ipsum" ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("Function selector", func(t *testing.T) {
+			v, err := rt.RunString(`doc.find("h1").is(function(idx, val){ return val.text() == "Lorem ipsum" })`)
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().first().is(doc.find("h1"))`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Filter", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Filter", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().filter("p")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Function", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`doc.find("body").children().filter(function(idx, val)***REMOVED*** return val.is("p") ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("Function", func(t *testing.T) {
+			v, err := rt.RunString(`doc.find("body").children().filter(function(idx, val){ return val.is("p") })`)
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().filter(doc.find("p"))`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("End", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("End", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("body").children().filter("p").end()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			sel := v.Export().(Selection).sel
 			assert.Equal(t, 5, sel.Length())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Eq", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Eq", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("body").children().eq(3).attr("id")`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "form1", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("First", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("First", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("body").children().first().attr("id")`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "top", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Last", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Last", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("body").children().last().text()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, "This is the footer.", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Has", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Has", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String selector", func(t *testing.T) ***REMOVED***
+		t.Run("String selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().has("input").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().has(doc.find("input")).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Map", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Map", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("Valid", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`doc.find("#select_multi option").map(function(idx, val) ***REMOVED*** return val.text() ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
+		t.Run("Valid", func(t *testing.T) {
+			v, err := rt.RunString(`doc.find("#select_multi option").map(function(idx, val) { return val.text() })`)
+			if assert.NoError(t, err) {
 				mapped, ok := v.Export().([]goja.Value)
 				assert.True(t, ok)
 				assert.Equal(t, 3, len(mapped))
 				assert.Equal(t, "option 1", mapped[0].String())
 				assert.Equal(t, "option 2", mapped[1].String())
 				assert.Equal(t, "option 3", mapped[2].String())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Continues to work with strings", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Continues to work with strings", func(t *testing.T) {
 			_, err := rt.RunString(`
 				const values = doc
 					.find("#select_multi option")
-					.map(function(idx, val) ***REMOVED*** 
+					.map(function(idx, val) { 
 						return val.text()
-					***REMOVED***)
+					})
 				
-				if (values.length !== 3) ***REMOVED***
+				if (values.length !== 3) {
 					throw new Error('Expected 3 values, got ' + values.length)
-				***REMOVED***
+				}
 
-				for (let i = 0; i < values.length; i++) ***REMOVED***
-					if (typeof values[i] !== 'string') ***REMOVED***
+				for (let i = 0; i < values.length; i++) {
+					if (typeof values[i] !== 'string') {
 						throw new Error('Expected string, got ' + values[i].toString())
-					***REMOVED***
+					}
 
-					if (values[i].toString() !== 'option ' + (i + 1)) ***REMOVED***
+					if (values[i].toString() !== 'option ' + (i + 1)) {
 						throw new Error('Expected value ' + (i + 1) + ', got ' + values[i])
-					***REMOVED***
-				***REMOVED***
+					}
+				}
 			`)
 
 			assert.NoError(t, err)
-		***REMOVED***)
-		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Invalid arg", func(t *testing.T) {
 			_, err := rt.RunString(`doc.find("#select_multi option").map("");`)
-			if assert.Error(t, err) ***REMOVED***
-				assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+			if assert.Error(t, err) {
+				assert.IsType(t, &goja.Exception{}, err)
 				assert.Contains(t, err.Error(), "must be a function")
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Map with attr must return string", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`doc.find("#select_multi").map(function(idx, val) ***REMOVED*** return val.attr("name") ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("Map with attr must return string", func(t *testing.T) {
+			v, err := rt.RunString(`doc.find("#select_multi").map(function(idx, val) { return val.attr("name") })`)
+			if assert.NoError(t, err) {
 				mapped, ok := v.Export().([]goja.Value)
 				assert.True(t, ok)
 				assert.Equal(t, 1, len(mapped))
 				assert.Equal(t, "select_multi", mapped[0].String())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Valid XML", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Valid XML", func(t *testing.T) {
 			rt := getTestRuntimeWithDoc(t, testXML)
 			testScript := `
 			const buckets = doc
 				.find('Buckets')
 				.children()
-				.map(function (idx, bucket) ***REMOVED***
-					let bucketObj = ***REMOVED******REMOVED***
-					bucket.children().each(function (idx, elem) ***REMOVED***
-						switch (elem.nodeName()) ***REMOVED***
+				.map(function (idx, bucket) {
+					let bucketObj = {}
+					bucket.children().each(function (idx, elem) {
+						switch (elem.nodeName()) {
 							case 'name':
-								Object.assign(bucketObj, ***REMOVED*** name: elem.textContent() ***REMOVED***)
+								Object.assign(bucketObj, { name: elem.textContent() })
 								break
 							case 'creationdate':
-								Object.assign(bucketObj, ***REMOVED*** creationDate: parseInt(elem.textContent(), 10) ***REMOVED***)
+								Object.assign(bucketObj, { creationDate: parseInt(elem.textContent(), 10) })
 								break
-						***REMOVED***
-					***REMOVED***)
+						}
+					})
 					return bucketObj
-				***REMOVED***)
+				})
 		
-			if (buckets.length !== 2) ***REMOVED***
+			if (buckets.length !== 2) {
 				throw new Error('Expected 2 buckets, got ' + buckets.length)
-			***REMOVED***
+			}
 		
-			if (buckets[0].name !== 'firstBucket') ***REMOVED***
+			if (buckets[0].name !== 'firstBucket') {
 				throw new Error('Expected bucket name to be "firstBucket", got ' + buckets[0].name)
-			***REMOVED***
+			}
 		
-			if (buckets[0].creationDate !== 1654852823) ***REMOVED***
+			if (buckets[0].creationDate !== 1654852823) {
 				throw new Error(
 					'Expected bucket creation date to be 1654852823, got ' + buckets[0].creationDate
 				)
-			***REMOVED***
+			}
 		
-			if (buckets[1].name != 'secondBucket') ***REMOVED***
+			if (buckets[1].name != 'secondBucket') {
 				throw new Error('Expected bucket name to be "secondBucket", got ' + buckets[1].name)
-			***REMOVED***
+			}
 		
-			if (buckets[1].creationDate !== 1654852825) ***REMOVED***
+			if (buckets[1].creationDate !== 1654852825) {
 				throw new Error(
 					'Expected bucket creation date to be 1654852825, got ' + buckets[1].creationDate
 				)
-			***REMOVED***
+			}
 			`
 
 			_, err := rt.RunString(testScript)
 			assert.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Next", func(t *testing.T) ***REMOVED***
+		})
+	})
+	t.Run("Next", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No arg", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").next()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 1, sel.Length())
 				assert.True(t, sel.Is("p"))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filter arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").next("form")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 1, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("NextAll", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("NextAll", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No arg", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextAll()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 4, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filter arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextAll("p")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Prev", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Prev", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No arg", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prev()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.True(t, sel.Is("form"))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filter arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prev("form")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 1, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("PrevAll", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("PrevAll", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No arg", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").prevAll()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 3, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filter arg", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").prevAll("p")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("PrevUntil", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("PrevUntil", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prevUntil("h1").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prevUntil(doc.find("h1")).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("String filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").prevUntil("h1", "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").prevUntil(doc.find("h1"), "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prevUntil().size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(4), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("footer").prevUntil(null, "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("NextUntil", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("NextUntil", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil("footer").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil(doc.find("footer")).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("String filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil("footer", "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil(doc.find("footer"), "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil().size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(4), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").nextUntil(null, "p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Parent", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Parent", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No filter", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parent().attr("id")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "form1", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parent("form").attr("id")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "form1", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Parents", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Parents", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No filter", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parents().size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parents("body").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("ParentsUntil", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("ParentsUntil", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil("html").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil(doc.find("html")).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("String filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil("html", "body").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Query filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil(doc.find("html"), "body").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil().size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("All filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("textarea").parentsUntil(null, "body").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Not", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Not", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("String selector", func(t *testing.T) ***REMOVED***
+		t.Run("String selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().not("p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().not(doc.find("p")).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Function selector", func(t *testing.T) ***REMOVED***
-			v, err := rt.RunString(`doc.find("body").children().not(function(idx, val)***REMOVED*** return val.is("p") ***REMOVED***).size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("Function selector", func(t *testing.T) {
+			v, err := rt.RunString(`doc.find("body").children().not(function(idx, val){ return val.is("p") }).size()`)
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Siblings", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Siblings", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No filter", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").siblings().size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(4), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").siblings("p").size()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(2), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Slice", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Slice", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No filter", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().slice(1, 2)`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 1, sel.Length())
 				assert.True(t, sel.Is("p"))
 				assert.Contains(t, sel.Text(), "Lorem ipsum dolor")
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Filtered", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().slice(3)`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				sel := v.Export().(Selection).sel
 				assert.Equal(t, 2, sel.Length())
 				assert.Equal(t, true, sel.Eq(0).Is("form"))
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Get", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Get", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No args", func(t *testing.T) ***REMOVED***
+		t.Run("No args", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().get()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				elems, ok := v.Export().([]goja.Value)
 
 				assert.True(t, ok)
 				assert.Equal(t, "h1", elems[0].Export().(Element).NodeName())
 				assert.Equal(t, "p", elems[1].Export().(Element).NodeName())
 				assert.Equal(t, "footer", elems[4].Export().(Element).NodeName())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("+ve index", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("+ve index", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().get(1)`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				elem, _ := v.Export().(Element)
 				assert.Contains(t, elem.InnerHTML(), "Lorem ipsum dolor sit amet")
-			***REMOVED***
-		***REMOVED***)
-		t.Run("-ve index", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("-ve index", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().get(-1)`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				elem, _ := v.Export().(Element)
 				assert.Equal(t, "This is the footer.", elem.InnerHTML().String())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("ToArray", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("ToArray", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
 		v, err := rt.RunString(`doc.find("p").toArray()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			arr, ok := v.Export().([]Selection)
 
 			assert.True(t, ok)
@@ -847,115 +847,115 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 			assert.Equal(t, 1, arr[1].sel.Length())
 			assert.Contains(t, arr[0].sel.Text(), "Lorem ipsum dolor sit amet")
 			assert.Contains(t, arr[1].sel.Text(), "Nullam id nisi eget")
-		***REMOVED***
-	***REMOVED***)
-	t.Run("Index", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("Index", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("No args", func(t *testing.T) ***REMOVED***
+		t.Run("No args", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").index()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(1), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("String selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("String selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").index("body > *")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Selection selector", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Selection selector", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("body").children().index(doc.find("footer"))`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(4), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Data <h1>", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Data <h1>", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("string attr", func(t *testing.T) ***REMOVED***
+		t.Run("string attr", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data("test")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "dataval", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("numeric attr 1", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("numeric attr 1", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data("num-a")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(123), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("numeric attr 2", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("numeric attr 2", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data("num-b")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, float64(1.5), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("not numeric attr 1", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("not numeric attr 1", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data("not-num-a")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "1.50", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("not numeric attr 2", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("not numeric attr 2", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data("not-num-b")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, "1.1e02", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("dataset", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("dataset", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("h1").data()`)
-			if assert.NoError(t, err) ***REMOVED***
-				data, ok := v.Export().(map[string]interface***REMOVED******REMOVED***)
+			if assert.NoError(t, err) {
+				data, ok := v.Export().(map[string]interface{})
 
 				assert.True(t, ok)
 				assert.Equal(t, "dataval", data["test"])
 				assert.Equal(t, float64(123), data["numA"])
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Data <p>", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("Data <p>", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTML)
 
-		t.Run("boolean attr", func(t *testing.T) ***REMOVED***
+		t.Run("boolean attr", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data("test-b")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("snakeCase attr name", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("snakeCase attr name", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data("testB")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("empty string", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("empty string", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data("test-empty")`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, nil, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("json attr", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("json attr", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data("opts").id`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(101), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("dataset property", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("dataset property", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data().testB`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("dataset object", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("dataset object", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("p").data().opts.id`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, int64(101), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+			}
+		})
+	})
+}

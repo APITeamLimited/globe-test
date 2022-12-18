@@ -12,85 +12,85 @@ import (
 // the DeriveScenariosFromShortcuts() function.
 type ExecutionConflictError string
 
-func (e ExecutionConflictError) Error() string ***REMOVED***
+func (e ExecutionConflictError) Error() string {
 	return string(e)
-***REMOVED***
+}
 
 var _ error = ExecutionConflictError("")
 
-func getConstantVUsScenario(duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs ***REMOVED***
+func getConstantVUsScenario(duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs {
 	ds := executor.NewConstantVUsConfig(libWorker.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Duration = duration
-	return libWorker.ScenarioConfigs***REMOVED***libWorker.DefaultScenarioName: ds***REMOVED***
-***REMOVED***
+	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
+}
 
-func getRampingVUsScenario(stages []libWorker.Stage, startVUs null.Int) libWorker.ScenarioConfigs ***REMOVED***
+func getRampingVUsScenario(stages []libWorker.Stage, startVUs null.Int) libWorker.ScenarioConfigs {
 	ds := executor.NewRampingVUsConfig(libWorker.DefaultScenarioName)
 	ds.StartVUs = startVUs
-	for _, s := range stages ***REMOVED***
-		if s.Duration.Valid ***REMOVED***
-			ds.Stages = append(ds.Stages, executor.Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
-		***REMOVED***
-	***REMOVED***
-	return libWorker.ScenarioConfigs***REMOVED***libWorker.DefaultScenarioName: ds***REMOVED***
-***REMOVED***
+	for _, s := range stages {
+		if s.Duration.Valid {
+			ds.Stages = append(ds.Stages, executor.Stage{Duration: s.Duration, Target: s.Target})
+		}
+	}
+	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
+}
 
-func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs ***REMOVED***
+func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vus null.Int) libWorker.ScenarioConfigs {
 	ds := executor.NewSharedIterationsConfig(libWorker.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Iterations = iters
-	if duration.Valid ***REMOVED***
+	if duration.Valid {
 		ds.MaxDuration = duration
-	***REMOVED***
-	return libWorker.ScenarioConfigs***REMOVED***libWorker.DefaultScenarioName: ds***REMOVED***
-***REMOVED***
+	}
+	return libWorker.ScenarioConfigs{libWorker.DefaultScenarioName: ds}
+}
 
 // deriveScenariosFromShortcuts checks for conflicting options and turns any
 // shortcut options (i.e. duration, iterations, stages) into the proper
 // long-form scenario/executor configuration in the scenarios property.
-func deriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLogger) (libWorker.Options, error) ***REMOVED***
+func deriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLogger) (libWorker.Options, error) {
 	result := opts
 
-	switch ***REMOVED***
+	switch {
 	case opts.Iterations.Valid:
-		if len(opts.Stages) > 0 ***REMOVED*** // stages isn't nil (not set) and isn't explicitly set to empty
+		if len(opts.Stages) > 0 { // stages isn't nil (not set) and isn't explicitly set to empty
 			return result, ExecutionConflictError(
 				"using multiple execution config shortcuts (`iterations` and `stages`) simultaneously is not allowed",
 			)
-		***REMOVED***
-		if opts.Scenarios != nil ***REMOVED***
+		}
+		if opts.Scenarios != nil {
 			return opts, ExecutionConflictError(
 				"using an execution configuration shortcut (`iterations`) and `scenarios` simultaneously is not allowed",
 			)
-		***REMOVED***
+		}
 		result.Scenarios = getSharedIterationsScenario(opts.Iterations, opts.Duration, opts.VUs)
 
 	case opts.Duration.Valid:
-		if len(opts.Stages) > 0 ***REMOVED*** // stages isn't nil (not set) and isn't explicitly set to empty
+		if len(opts.Stages) > 0 { // stages isn't nil (not set) and isn't explicitly set to empty
 			return result, ExecutionConflictError(
 				"using multiple execution config shortcuts (`duration` and `stages`) simultaneously is not allowed",
 			)
-		***REMOVED***
-		if opts.Scenarios != nil ***REMOVED***
+		}
+		if opts.Scenarios != nil {
 			return result, ExecutionConflictError(
 				"using an execution configuration shortcut (`duration`) and `scenarios` simultaneously is not allowed",
 			)
-		***REMOVED***
-		if opts.Duration.Duration <= 0 ***REMOVED***
+		}
+		if opts.Duration.Duration <= 0 {
 			// TODO: move this validation to Validate()?
 			return result, ExecutionConflictError(
 				"`duration` should be more than 0, for infinite duration use the externally-controlled executor",
 			)
-		***REMOVED***
+		}
 		result.Scenarios = getConstantVUsScenario(opts.Duration, opts.VUs)
 
 	case len(opts.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
-		if opts.Scenarios != nil ***REMOVED***
+		if opts.Scenarios != nil {
 			return opts, ExecutionConflictError(
 				"using an execution configuration shortcut (`stages`) and `scenarios` simultaneously is not allowed",
 			)
-		***REMOVED***
+		}
 		result.Scenarios = getRampingVUsScenario(opts.Stages, opts.VUs)
 
 	case len(opts.Scenarios) > 0:
@@ -98,26 +98,26 @@ func deriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLog
 
 	default:
 		// Check if we should emit some warnings
-		if opts.VUs.Valid && opts.VUs.Int64 != 1 ***REMOVED***
+		if opts.VUs.Valid && opts.VUs.Int64 != 1 {
 			logger.Warnf(
 				"the `vus=%d` option will be ignored, it only works in conjunction with `iterations`, `duration`, or `stages`",
 				opts.VUs.Int64,
 			)
-		***REMOVED***
-		if opts.Stages != nil && len(opts.Stages) == 0 ***REMOVED***
+		}
+		if opts.Stages != nil && len(opts.Stages) == 0 {
 			// No someone explicitly set stages to empty
 			logger.Warnf("`stages` was explicitly set to an empty value, running the script with 1 iteration in 1 VU")
-		***REMOVED***
-		if opts.Scenarios != nil && len(opts.Scenarios) == 0 ***REMOVED***
+		}
+		if opts.Scenarios != nil && len(opts.Scenarios) == 0 {
 			// No shortcut, and someone explicitly set execution to empty
 			logger.Warnf("`scenarios` was explicitly set to an empty value, running the script with 1 iteration in 1 VU")
-		***REMOVED***
+		}
 		// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
 		// with 1 VU and 1 iteration.
-		result.Scenarios = libWorker.ScenarioConfigs***REMOVED***
+		result.Scenarios = libWorker.ScenarioConfigs{
 			libWorker.DefaultScenarioName: executor.NewPerVUIterationsConfig(libWorker.DefaultScenarioName),
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	// TODO: validate the config; questions:
 	// - separately validate the duration, iterations and stages for better error messages?
@@ -125,4 +125,4 @@ func deriveScenariosFromShortcuts(opts libWorker.Options, logger logrus.FieldLog
 	// - here or in getConsolidatedConfig() or somewhere else?
 
 	return result, nil
-***REMOVED***
+}

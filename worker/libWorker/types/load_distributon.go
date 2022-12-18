@@ -10,39 +10,39 @@ const (
 	HTTPMultipleLoadZone = "httpMultiple"
 )
 
-type LoadZone struct ***REMOVED***
+type LoadZone struct {
 	Location string `json:"location"`
 	Fraction int    `json:"fraction"`
-***REMOVED***
+}
 
-type NullLoadDistribution struct ***REMOVED***
+type NullLoadDistribution struct {
 	Value []LoadZone
 	Valid bool
-***REMOVED***
+}
 
-func NewNullLoadDistribution(loadZone []LoadZone, valid bool) NullLoadDistribution ***REMOVED***
-	return NullLoadDistribution***REMOVED***loadZone, valid***REMOVED***
-***REMOVED***
+func NewNullLoadDistribution(loadZone []LoadZone, valid bool) NullLoadDistribution {
+	return NullLoadDistribution{loadZone, valid}
+}
 
-func NullLoadDistributionFrom(loadZone []LoadZone) NullLoadDistribution ***REMOVED***
-	return NullLoadDistribution***REMOVED***loadZone, true***REMOVED***
-***REMOVED***
+func NullLoadDistributionFrom(loadZone []LoadZone) NullLoadDistribution {
+	return NullLoadDistribution{loadZone, true}
+}
 
-func (em NullLoadDistribution) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !em.Valid ***REMOVED***
+func (em NullLoadDistribution) MarshalJSON() ([]byte, error) {
+	if !em.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return json.Marshal(em.Value)
-***REMOVED***
+}
 
-func (em *NullLoadDistribution) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (em *NullLoadDistribution) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		em.Valid = false
 		return nil
-	***REMOVED***
-	if err := json.Unmarshal(data, &em.Value); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &em.Value); err != nil {
 		return err
-	***REMOVED***
+	}
 	em.Valid = true
 	return nil
-***REMOVED***
+}

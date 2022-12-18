@@ -7,49 +7,49 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func OutputConfig(options *libWorker.Options, standalone bool) error ***REMOVED***
-	if !options.OutputConfig.Valid && options.ExecutionMode.Value == types.HTTPMultipleExecutionMode ***REMOVED***
+func OutputConfig(options *libWorker.Options, standalone bool) error {
+	if !options.OutputConfig.Valid && options.ExecutionMode.Value == types.HTTPMultipleExecutionMode {
 		options.OutputConfig = types.DefaultOutputConfig(standalone)
-	***REMOVED***
+	}
 
 	err := validateMetricGraphs(options.OutputConfig.Value.Graphs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
-func validateMetricGraphs(metricGraphs []types.MetricGraph) error ***REMOVED***
-	for _, metricGraph := range metricGraphs ***REMOVED***
-		if metricGraph.Name == "" ***REMOVED***
+func validateMetricGraphs(metricGraphs []types.MetricGraph) error {
+	for _, metricGraph := range metricGraphs {
+		if metricGraph.Name == "" {
 			return fmt.Errorf("metric graph name cannot be empty")
-		***REMOVED***
+		}
 
-		if metricGraph.DesiredWidth < 1 || metricGraph.DesiredWidth > 3 ***REMOVED***
+		if metricGraph.DesiredWidth < 1 || metricGraph.DesiredWidth > 3 {
 			return fmt.Errorf("metric graph desiredWidth must be between 1 and 3")
-		***REMOVED***
+		}
 
-		for _, series := range metricGraph.Series ***REMOVED***
+		for _, series := range metricGraph.Series {
 
-			if series.LoadZone == "" ***REMOVED***
+			if series.LoadZone == "" {
 				return fmt.Errorf("loadZone cannot be empty")
-			***REMOVED***
+			}
 
-			if !types.IsValidSeriesKind(series.Kind) ***REMOVED***
+			if !types.IsValidSeriesKind(series.Kind) {
 				return fmt.Errorf("metric graph kind must be one of %s, %s, %s",
 					types.AreaGraphSeriesType, types.LineGraphSeriesType, types.ColumnGraphSeriesType)
-			***REMOVED***
+			}
 
-			if !types.IsBuiltinMetric(series.Metric) ***REMOVED***
+			if !types.IsBuiltinMetric(series.Metric) {
 				return fmt.Errorf("metric must be one of the builtin metric types, got '%s'", series.Metric)
-			***REMOVED***
+			}
 
-			if !types.ValidSeriesColor(series.Color) ***REMOVED***
+			if !types.ValidSeriesColor(series.Color) {
 				return fmt.Errorf("graph series colour invalid, got '%s'", series.Color)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	return nil
-***REMOVED***
+}

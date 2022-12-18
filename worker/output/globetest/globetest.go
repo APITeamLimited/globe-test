@@ -12,78 +12,78 @@ import (
 
 const flushPeriod = 1000 * time.Millisecond
 
-type Output struct ***REMOVED***
+type Output struct {
 	output.SampleBuffer
 
 	periodicFlusher *output.PeriodicFlusher
 
 	gs          libWorker.BaseGlobalState
-	seenMetrics map[string]struct***REMOVED******REMOVED***
+	seenMetrics map[string]struct{}
 	thresholds  map[string]workerMetrics.Thresholds
-***REMOVED***
+}
 
-func New(gs libWorker.BaseGlobalState) (output.Output, error) ***REMOVED***
-	return &Output***REMOVED***
+func New(gs libWorker.BaseGlobalState) (output.Output, error) {
+	return &Output{
 		gs:          gs,
-		seenMetrics: make(map[string]struct***REMOVED******REMOVED***),
-	***REMOVED***, nil
-***REMOVED***
+		seenMetrics: make(map[string]struct{}),
+	}, nil
+}
 
-func (o *Output) Description() string ***REMOVED***
+func (o *Output) Description() string {
 	return fmt.Sprintf("GlobeTest output for job %s", o.gs.JobId())
-***REMOVED***
+}
 
-func (o *Output) Start() error ***REMOVED***
+func (o *Output) Start() error {
 	pf, err := output.NewPeriodicFlusher(flushPeriod, o.flushMetrics)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	o.periodicFlusher = pf
 
 	return nil
-***REMOVED***
+}
 
-func (o *Output) Stop() error ***REMOVED***
+func (o *Output) Stop() error {
 	o.periodicFlusher.Stop()
 	return nil
-***REMOVED***
+}
 
 // SetThresholds receives the thresholds before the output is Start()-ed.
-func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) ***REMOVED***
-	if len(thresholds) == 0 ***REMOVED***
+func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) {
+	if len(thresholds) == 0 {
 		return
-	***REMOVED***
+	}
 	o.thresholds = make(map[string]workerMetrics.Thresholds, len(thresholds))
-	for name, t := range thresholds ***REMOVED***
+	for name, t := range thresholds {
 		o.thresholds[name] = t
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (o *Output) flushMetrics() ***REMOVED***
+func (o *Output) flushMetrics() {
 	samples := o.GetBufferedSamples()
 	var count int
 
 	formattedSamples := make([]SampleEnvelope, 0)
 
-	for _, sc := range samples ***REMOVED***
+	for _, sc := range samples {
 		samples := sc.GetSamples()
 		count += len(samples)
-		for _, sample := range samples ***REMOVED***
+		for _, sample := range samples {
 			sample := sample
 
 			wrapped := wrapSample(sample)
 
 			formattedSamples = append(formattedSamples, wrapped)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if len(formattedSamples) > 0 ***REMOVED***
+	if len(formattedSamples) > 0 {
 		marshalled, err := json.Marshal(formattedSamples)
-		if err != nil ***REMOVED***
+		if err != nil {
 			libWorker.HandleError(o.gs, err)
 			return
-		***REMOVED***
+		}
 
 		libWorker.DispatchMessage(o.gs, string(marshalled), "METRICS")
-	***REMOVED***
-***REMOVED***
+	}
+}

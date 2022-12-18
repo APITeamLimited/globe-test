@@ -18,20 +18,20 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils/minirunner"
 )
 
-func TestExecutionStateVUIDs(t *testing.T) ***REMOVED***
+func TestExecutionStateVUIDs(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		seq, seg string
-	***REMOVED******REMOVED***
-		***REMOVED******REMOVED***,
-		***REMOVED***seq: "0,1/4,3/4,1", seg: "0:1/4"***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6"***REMOVED***,
-	***REMOVED***
+	}{
+		{},
+		{seq: "0,1/4,3/4,1", seg: "0:1/4"},
+		{seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) {
 			t.Parallel()
 			ess, err := libWorker.NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
@@ -62,28 +62,28 @@ func TestExecutionStateVUIDs(t *testing.T) ***REMOVED***
 			r := rand.New(rand.NewSource(seed)) //nolint:gosec
 			t.Logf("Random source seeded with %d\n", seed)
 			count := 100 + r.Intn(50)
-			wg := sync.WaitGroup***REMOVED******REMOVED***
+			wg := sync.WaitGroup{}
 			wg.Add(count)
-			for i := 0; i < count; i++ ***REMOVED***
-				go func() ***REMOVED***
+			for i := 0; i < count; i++ {
+				go func() {
 					es.GetUniqueVUIdentifiers()
 					wg.Done()
-				***REMOVED***()
-			***REMOVED***
+				}()
+			}
 			wg.Wait()
 			idl, idg = es.GetUniqueVUIdentifiers()
 			assert.Equal(t, uint64(4+count), idl)
 			assert.Equal(t, uint64((3+count)*int(offsets[0])+int(start+1)), idg)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestExecutionStateGettingVUsWhenNonAreAvailable(t *testing.T) ***REMOVED***
+func TestExecutionStateGettingVUsWhenNonAreAvailable(t *testing.T) {
 	t.Parallel()
 	et, err := libWorker.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := libWorker.NewExecutionState(nil, et, 0, 0)
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
 	testLog.SetOutput(ioutil.Discard)
@@ -93,14 +93,14 @@ func TestExecutionStateGettingVUsWhenNonAreAvailable(t *testing.T) ***REMOVED***
 	require.Contains(t, err.Error(), "could not get a VU from the buffer in")
 	entries := logHook.Drain()
 	require.Equal(t, libWorker.MaxRetriesGetPlannedVU, len(entries))
-	for _, entry := range entries ***REMOVED***
+	for _, entry := range entries {
 		require.Contains(t, entry.Message, "Could not get a VU from the buffer for ")
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
+func TestExecutionStateGettingVUs(t *testing.T) {
 	t.Parallel()
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel, logrus.DebugLevel***REMOVED******REMOVED***
+	logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel, logrus.DebugLevel}}
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
 	testLog.SetOutput(ioutil.Discard)
@@ -109,12 +109,12 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	et, err := libWorker.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := libWorker.NewExecutionState(nil, et, 10, 20)
-	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry, _ *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
-		return &minirunner.VU***REMOVED******REMOVED***, nil
-	***REMOVED***)
+	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry, _ *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
+		return &minirunner.VU{}, nil
+	})
 
 	var vu libWorker.InitializedVU
-	for i := 0; i < 10; i++ ***REMOVED***
+	for i := 0; i < 10; i++ {
 		require.EqualValues(t, i, es.GetInitializedVUsCount())
 		vu, err = es.InitializeNewVU(context.Background(), logEntry, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
@@ -122,10 +122,10 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 		es.ReturnVU(vu, false)
 		require.EqualValues(t, 0, es.GetCurrentlyActiveVUsCount())
 		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
-	***REMOVED***
+	}
 
 	// Test getting initialized VUs is okay :)
-	for i := 0; i < 10; i++ ***REMOVED***
+	for i := 0; i < 10; i++ {
 		require.EqualValues(t, i, es.GetCurrentlyActiveVUsCount())
 		vu, err = es.GetPlannedVU(logEntry, true)
 		require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 		require.NotNil(t, vu)
 		require.EqualValues(t, i+1, es.GetCurrentlyActiveVUsCount())
 		require.EqualValues(t, 10, es.GetInitializedVUsCount())
-	***REMOVED***
+	}
 
 	// Check that getting 1 more planned VU will error out
 	vu, err = es.GetPlannedVU(logEntry, true)
@@ -142,12 +142,12 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	require.Contains(t, err.Error(), "could not get a VU from the buffer in")
 	entries := logHook.Drain()
 	require.Equal(t, libWorker.MaxRetriesGetPlannedVU, len(entries))
-	for _, entry := range entries ***REMOVED***
+	for _, entry := range entries {
 		require.Contains(t, entry.Message, "Could not get a VU from the buffer for ")
-	***REMOVED***
+	}
 
 	// Test getting uninitialized vus will work
-	for i := 0; i < 10; i++ ***REMOVED***
+	for i := 0; i < 10; i++ {
 		require.EqualValues(t, 10+i, es.GetInitializedVUsCount())
 		vu, err = es.GetUnplannedVU(context.Background(), logEntry, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 		require.NotNil(t, vu)
 		require.EqualValues(t, 10+i+1, es.GetInitializedVUsCount())
 		require.EqualValues(t, 10, es.GetCurrentlyActiveVUsCount())
-	***REMOVED***
+	}
 
 	// Check that getting 1 more unplanned VU will error out
 	vu, err = es.GetUnplannedVU(context.Background(), logEntry, libWorker.GetTestWorkerInfo())
@@ -164,12 +164,12 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	require.Contains(t, err.Error(), "could not get a VU from the buffer in")
 	entries = logHook.Drain()
 	require.Equal(t, libWorker.MaxRetriesGetPlannedVU, len(entries))
-	for _, entry := range entries ***REMOVED***
+	for _, entry := range entries {
 		require.Contains(t, entry.Message, "Could not get a VU from the buffer for ")
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestMarkStartedPanicsOnSecondRun(t *testing.T) ***REMOVED***
+func TestMarkStartedPanicsOnSecondRun(t *testing.T) {
 	t.Parallel()
 	et, err := libWorker.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
@@ -178,9 +178,9 @@ func TestMarkStartedPanicsOnSecondRun(t *testing.T) ***REMOVED***
 	es.MarkStarted()
 	require.True(t, es.HasStarted())
 	require.Panics(t, es.MarkStarted)
-***REMOVED***
+}
 
-func TestMarkEnded(t *testing.T) ***REMOVED***
+func TestMarkEnded(t *testing.T) {
 	t.Parallel()
 	et, err := libWorker.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
@@ -189,4 +189,4 @@ func TestMarkEnded(t *testing.T) ***REMOVED***
 	es.MarkEnded()
 	require.True(t, es.HasEnded())
 	require.Panics(t, es.MarkEnded)
-***REMOVED***
+}

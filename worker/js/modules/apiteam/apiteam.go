@@ -24,73 +24,73 @@ var (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct***REMOVED******REMOVED***
+	RootModule struct{}
 
 	// APITeam represents an instance of the k6 module.
-	APITeam struct ***REMOVED***
+	APITeam struct {
 		vu modules.VU
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &APITeam***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &APITeam{}
 )
 
 // New returns a pointer to a new RootModule instance.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
-***REMOVED***
+func New() *RootModule {
+	return &RootModule{}
+}
 
 // NewModuleInstance implements the modules.Module interface to return
 // a new instance for each VU.
-func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &APITeam***REMOVED***vu: vu***REMOVED***
-***REMOVED***
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &APITeam{vu: vu}
+}
 
 // Exports returns the exports of the apiteam module.
-func (mi *APITeam) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
-		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+func (mi *APITeam) Exports() modules.Exports {
+	return modules.Exports{
+		Named: map[string]interface{}{
 			"mark": mi.Mark,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // Returns a marked value to the orchestrator
-func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error ***REMOVED***
+func (mi *APITeam) Mark(mark string, markedObject *goja.Object) error {
 	workerInfo := mi.vu.InitEnv().WorkerInfo
 	rt := mi.vu.Runtime()
 
 	// Ensure no ':' in the tag
-	if strings.Contains(mark, ":") ***REMOVED***
+	if strings.Contains(mark, ":") {
 		return common.NewInitContextError(fmt.Sprintf("Mark tag cannot contain ':' character: %s", mark))
-	***REMOVED***
+	}
 
-	exportedResponse := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+	exportedResponse := map[string]interface{}{}
 	err := rt.ExportTo(markedObject, &exportedResponse)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
-	markedMessage := libWorker.MarkMessage***REMOVED***
+	markedMessage := libWorker.MarkMessage{
 		Mark:    mark,
 		Message: exportedResponse,
-	***REMOVED***
+	}
 
 	// Loop over marked response message and delete any function calls
-	for key, value := range markedMessage.Message ***REMOVED***
-		if reflect.TypeOf(value).Kind() == reflect.Func ***REMOVED***
+	for key, value := range markedMessage.Message {
+		if reflect.TypeOf(value).Kind() == reflect.Func {
 			delete(markedMessage.Message, key)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	marshalledMarkedMessage, err := json.Marshal(markedMessage)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	libWorker.DispatchMessage(*workerInfo.Gs, string(marshalledMarkedMessage), "MARK")
 
 	return nil
-***REMOVED***
+}

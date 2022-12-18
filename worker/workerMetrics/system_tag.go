@@ -43,102 +43,102 @@ var DefaultSystemTagSet = TagProto | TagSubproto | TagStatus | TagMethod | TagUR
 	TagCheck | TagError | TagErrorCode | TagTLSVersion | TagScenario | TagService | TagExpectedResponse
 
 // Add adds a tag to tag set.
-func (i *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
-	if i == nil ***REMOVED***
+func (i *SystemTagSet) Add(tag SystemTagSet) {
+	if i == nil {
 		i = new(SystemTagSet)
-	***REMOVED***
+	}
 	*i |= tag
-***REMOVED***
+}
 
 // Has checks a tag included in tag set.
-func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
-	if i == nil ***REMOVED***
+func (i *SystemTagSet) Has(tag SystemTagSet) bool {
+	if i == nil {
 		return false
-	***REMOVED***
+	}
 	return *i&tag != 0
-***REMOVED***
+}
 
 // Map returns the EnabledTags with current value from SystemTagSet
-func (i SystemTagSet) Map() EnabledTags ***REMOVED***
-	m := EnabledTags***REMOVED******REMOVED***
-	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if i.Has(tag) ***REMOVED***
+func (i SystemTagSet) Map() EnabledTags {
+	m := EnabledTags{}
+	for _, tag := range SystemTagSetValues() {
+		if i.Has(tag) {
 			m[tag.String()] = true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return m
-***REMOVED***
+}
 
 // SetString returns comma separated list of the string representation of all values in the set
-func (i SystemTagSet) SetString() string ***REMOVED***
+func (i SystemTagSet) SetString() string {
 	var keys []string
-	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if i.Has(tag) ***REMOVED***
+	for _, tag := range SystemTagSetValues() {
+		if i.Has(tag) {
 			keys = append(keys, tag.String())
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return strings.Join(keys, ",")
-***REMOVED***
+}
 
 // ToSystemTagSet converts list of tags to SystemTagSet
 // TODO: emit error instead of discarding invalid values.
-func ToSystemTagSet(tags []string) *SystemTagSet ***REMOVED***
+func ToSystemTagSet(tags []string) *SystemTagSet {
 	ts := new(SystemTagSet)
-	for _, tag := range tags ***REMOVED***
-		if v, err := SystemTagSetString(tag); err == nil ***REMOVED***
+	for _, tag := range tags {
+		if v, err := SystemTagSetString(tag); err == nil {
 			ts.Add(v)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return ts
-***REMOVED***
+}
 
 // NewSystemTagSet returns a SystemTagSet from input.
-func NewSystemTagSet(tags ...SystemTagSet) *SystemTagSet ***REMOVED***
+func NewSystemTagSet(tags ...SystemTagSet) *SystemTagSet {
 	ts := new(SystemTagSet)
-	for _, tag := range tags ***REMOVED***
+	for _, tag := range tags {
 		ts.Add(tag)
-	***REMOVED***
+	}
 	return ts
-***REMOVED***
+}
 
 // MarshalJSON converts the SystemTagSet to a list (JS array).
-func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+func (i *SystemTagSet) MarshalJSON() ([]byte, error) {
 	var tags []string
-	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if i.Has(tag) ***REMOVED***
+	for _, tag := range SystemTagSetValues() {
+		if i.Has(tag) {
 			tags = append(tags, tag.String())
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	sort.Strings(tags)
 
 	return json.Marshal(tags)
-***REMOVED***
+}
 
 // UnmarshalJSON converts the tag list back to expected tag set.
-func (i *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalJSON(data []byte) error {
 	var tags []string
-	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &tags); err != nil {
 		return err
-	***REMOVED***
-	if len(tags) != 0 ***REMOVED***
+	}
+	if len(tags) != 0 {
 		*i = *ToSystemTagSet(tags)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
 // UnmarshalText converts the tag list to SystemTagSet.
-func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalText(data []byte) error {
 	list := bytes.Split(data, []byte(","))
 
-	for _, key := range list ***REMOVED***
+	for _, key := range list {
 		key := strings.TrimSpace(string(key))
-		if key == "" ***REMOVED***
+		if key == "" {
 			continue
-		***REMOVED***
-		if v, err := SystemTagSetString(key); err == nil ***REMOVED***
+		}
+		if v, err := SystemTagSetString(key); err == nil {
 			i.Add(v)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return nil
-***REMOVED***
+}

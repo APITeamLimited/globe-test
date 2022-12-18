@@ -7,8 +7,8 @@ import (
 
 var privateIPBlocks []*net.IPNet
 
-func init() ***REMOVED***
-	for _, cidr := range []string***REMOVED***
+func init() {
+	for _, cidr := range []string{
 		"127.0.0.0/8",    // IPv4 loopback
 		"10.0.0.0/8",     // RFC1918
 		"172.16.0.0/12",  // RFC1918
@@ -17,34 +17,34 @@ func init() ***REMOVED***
 		"::1/128",        // IPv6 loopback
 		"fe80::/10",      // IPv6 link-local
 		"fc00::/7",       // IPv6 unique local addr
-	***REMOVED*** ***REMOVED***
+	} {
 		_, block, err := net.ParseCIDR(cidr)
-		if err != nil ***REMOVED***
+		if err != nil {
 			panic(fmt.Errorf("parse error on %q: %v", cidr, err))
-		***REMOVED***
+		}
 		privateIPBlocks = append(privateIPBlocks, block)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func IsPrivateIP(ip net.IP) bool ***REMOVED***
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ***REMOVED***
+func IsPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 		return true
-	***REMOVED***
+	}
 
-	for _, block := range privateIPBlocks ***REMOVED***
-		if block.Contains(ip) ***REMOVED***
+	for _, block := range privateIPBlocks {
+		if block.Contains(ip) {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}
 
-func IsPrivateIPString(ip string) bool ***REMOVED***
+func IsPrivateIPString(ip string) bool {
 	parsedIp := net.ParseIP(ip)
 
-	if parsedIp == nil ***REMOVED***
+	if parsedIp == nil {
 		return false
-	***REMOVED***
+	}
 
 	return IsPrivateIP(parsedIp)
-***REMOVED***
+}

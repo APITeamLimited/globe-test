@@ -9,68 +9,68 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHTTPFile(t *testing.T) ***REMOVED***
+func TestHTTPFile(t *testing.T) {
 	t.Parallel()
 	rt, mi, _ := getTestModuleInstance(t)
-	input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
+	input := []byte{104, 101, 108, 108, 111}
 
-	testCases := []struct ***REMOVED***
-		input    interface***REMOVED******REMOVED***
+	testCases := []struct {
+		input    interface{}
 		args     []string
 		expected FileData
 		expErr   string
-	***REMOVED******REMOVED***
+	}{
 		// We can't really test without specifying a filename argument,
 		// as File() calls time.Now(), so we'd need some time freezing/mocking
 		// or refactoring, or to exclude the field from the assertion.
-		***REMOVED***
+		{
 			input,
-			[]string***REMOVED***"test.bin"***REMOVED***,
-			FileData***REMOVED***Data: input, Filename: "test.bin", ContentType: "application/octet-stream"***REMOVED***,
+			[]string{"test.bin"},
+			FileData{Data: input, Filename: "test.bin", ContentType: "application/octet-stream"},
 			"",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			string(input),
-			[]string***REMOVED***"test.txt", "text/plain"***REMOVED***,
-			FileData***REMOVED***Data: input, Filename: "test.txt", ContentType: "text/plain"***REMOVED***,
+			[]string{"test.txt", "text/plain"},
+			FileData{Data: input, Filename: "test.txt", ContentType: "text/plain"},
 			"",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			rt.NewArrayBuffer(input),
-			[]string***REMOVED***"test-ab.bin"***REMOVED***,
-			FileData***REMOVED***Data: input, Filename: "test-ab.bin", ContentType: "application/octet-stream"***REMOVED***,
+			[]string{"test-ab.bin"},
+			FileData{Data: input, Filename: "test-ab.bin", ContentType: "application/octet-stream"},
 			"",
-		***REMOVED***,
-		***REMOVED***struct***REMOVED******REMOVED******REMOVED******REMOVED***, []string***REMOVED******REMOVED***, FileData***REMOVED******REMOVED***, "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"***REMOVED***,
-	***REMOVED***
+		},
+		{struct{}{}, []string{}, FileData{}, "invalid type struct {}, expected string, []byte or ArrayBuffer"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("%T", tc.input), func(t *testing.T) ***REMOVED***
-			if tc.expErr != "" ***REMOVED***
-				defer func() ***REMOVED***
+		t.Run(fmt.Sprintf("%T", tc.input), func(t *testing.T) {
+			if tc.expErr != "" {
+				defer func() {
 					err := recover()
 					require.NotNil(t, err)
-					require.IsType(t, &goja.Object***REMOVED******REMOVED***, err)
+					require.IsType(t, &goja.Object{}, err)
 					val := err.(*goja.Object).Export()
 					require.EqualError(t, val.(error), tc.expErr)
-				***REMOVED***()
-			***REMOVED***
+				}()
+			}
 			out := mi.file(tc.input, tc.args...)
 			assert.Equal(t, tc.expected, out)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestHTTPFileDataInRequest(t *testing.T) ***REMOVED***
+func TestHTTPFileDataInRequest(t *testing.T) {
 	t.Parallel()
 
 	tb, _, _, rt, _ := newRuntime(t) //nolint:dogsled
 	_, err := rt.RunString(tb.Replacer.Replace(`
     let f = http.file("something");
     let res = http.request("POST", "HTTPBIN_URL/post", f.data);
-    if (res.status != 200) ***REMOVED***
+    if (res.status != 200) {
       throw new Error("Unexpected status " + res.status)
-    ***REMOVED***`))
+    }`))
 	require.NoError(t, err)
-***REMOVED***
+}

@@ -32,7 +32,7 @@ const (
 )
 
 // ResponseTimings is a struct to put all timings for a given HTTP response/request
-type ResponseTimings struct ***REMOVED***
+type ResponseTimings struct {
 	Duration       float64 `json:"duration"`
 	Blocked        float64 `json:"blocked"`
 	LookingUp      float64 `json:"looking_up"`
@@ -41,18 +41,18 @@ type ResponseTimings struct ***REMOVED***
 	Sending        float64 `json:"sending"`
 	Waiting        float64 `json:"waiting"`
 	Receiving      float64 `json:"receiving"`
-***REMOVED***
+}
 
 // HTTPCookie is a representation of an http cookies used in the Response object
-type HTTPCookie struct ***REMOVED***
+type HTTPCookie struct {
 	Name, Value, Domain, Path string
 	HTTPOnly, Secure          bool
 	MaxAge                    int
 	Expires                   int64
-***REMOVED***
+}
 
 // Response is a representation of an HTTP response
-type Response struct ***REMOVED***
+type Response struct {
 	RemoteIP       string                   `json:"remote_ip"`
 	RemotePort     int                      `json:"remote_port"`
 	URL            string                   `json:"url"`
@@ -61,7 +61,7 @@ type Response struct ***REMOVED***
 	Proto          string                   `json:"proto"`
 	Headers        map[string]string        `json:"headers"`
 	Cookies        map[string][]*HTTPCookie `json:"cookies"`
-	Body           interface***REMOVED******REMOVED***              `json:"body"`
+	Body           interface{}              `json:"body"`
 	Timings        ResponseTimings          `json:"timings"`
 	TLSVersion     string                   `json:"tls_version"`
 	TLSCipherSuite string                   `json:"tls_cipher_suite"`
@@ -69,18 +69,18 @@ type Response struct ***REMOVED***
 	Error          string                   `json:"error"`
 	ErrorCode      int                      `json:"error_code"`
 	Request        *Request                 `json:"request"`
-***REMOVED***
+}
 
 // NewResponse returns an empty Response instance.
-func NewResponse() *Response ***REMOVED***
-	return &Response***REMOVED***
-		Body: []byte***REMOVED******REMOVED***,
-	***REMOVED***
-***REMOVED***
+func NewResponse() *Response {
+	return &Response{
+		Body: []byte{},
+	}
+}
 
-func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
+func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) {
 	tlsInfo, oscp := netext.ParseTLSConnState(tlsState)
 	res.TLSVersion = tlsInfo.Version
 	res.TLSCipherSuite = tlsInfo.CipherSuite
 	res.OCSP = oscp
-***REMOVED***
+}

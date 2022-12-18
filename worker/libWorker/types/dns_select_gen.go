@@ -9,44 +9,44 @@ import (
 
 const _DNSSelectName = "firstroundRobinrandom"
 
-var _DNSSelectIndex = [...]uint8***REMOVED***0, 5, 15, 21***REMOVED***
+var _DNSSelectIndex = [...]uint8{0, 5, 15, 21}
 
-func (i DNSSelect) String() string ***REMOVED***
+func (i DNSSelect) String() string {
 	i -= 1
-	if i >= DNSSelect(len(_DNSSelectIndex)-1) ***REMOVED***
+	if i >= DNSSelect(len(_DNSSelectIndex)-1) {
 		return fmt.Sprintf("DNSSelect(%d)", i+1)
-	***REMOVED***
+	}
 	return _DNSSelectName[_DNSSelectIndex[i]:_DNSSelectIndex[i+1]]
-***REMOVED***
+}
 
-var _DNSSelectValues = []DNSSelect***REMOVED***1, 2, 3***REMOVED***
+var _DNSSelectValues = []DNSSelect{1, 2, 3}
 
-var _DNSSelectNameToValueMap = map[string]DNSSelect***REMOVED***
+var _DNSSelectNameToValueMap = map[string]DNSSelect{
 	_DNSSelectName[0:5]:   1,
 	_DNSSelectName[5:15]:  2,
 	_DNSSelectName[15:21]: 3,
-***REMOVED***
+}
 
 // DNSSelectString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func DNSSelectString(s string) (DNSSelect, error) ***REMOVED***
-	if val, ok := _DNSSelectNameToValueMap[s]; ok ***REMOVED***
+func DNSSelectString(s string) (DNSSelect, error) {
+	if val, ok := _DNSSelectNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to DNSSelect values", s)
-***REMOVED***
+}
 
 // DNSSelectValues returns all values of the enum
-func DNSSelectValues() []DNSSelect ***REMOVED***
+func DNSSelectValues() []DNSSelect {
 	return _DNSSelectValues
-***REMOVED***
+}
 
 // IsADNSSelect returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i DNSSelect) IsADNSSelect() bool ***REMOVED***
-	for _, v := range _DNSSelectValues ***REMOVED***
-		if i == v ***REMOVED***
+func (i DNSSelect) IsADNSSelect() bool {
+	for _, v := range _DNSSelectValues {
+		if i == v {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}

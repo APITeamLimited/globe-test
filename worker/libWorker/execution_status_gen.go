@@ -9,18 +9,18 @@ import (
 
 const _ExecutionStatusName = "CreatedInitVUsInitExecutorsInitDonePausedBeforeRunStartedSetupRunningTeardownEndedInterrupted"
 
-var _ExecutionStatusIndex = [...]uint8***REMOVED***0, 7, 14, 27, 35, 50, 57, 62, 69, 77, 82, 93***REMOVED***
+var _ExecutionStatusIndex = [...]uint8{0, 7, 14, 27, 35, 50, 57, 62, 69, 77, 82, 93}
 
-func (i ExecutionStatus) String() string ***REMOVED***
-	if i >= ExecutionStatus(len(_ExecutionStatusIndex)-1) ***REMOVED***
+func (i ExecutionStatus) String() string {
+	if i >= ExecutionStatus(len(_ExecutionStatusIndex)-1) {
 		return fmt.Sprintf("ExecutionStatus(%d)", i)
-	***REMOVED***
+	}
 	return _ExecutionStatusName[_ExecutionStatusIndex[i]:_ExecutionStatusIndex[i+1]]
-***REMOVED***
+}
 
-var _ExecutionStatusValues = []ExecutionStatus***REMOVED***0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***
+var _ExecutionStatusValues = []ExecutionStatus{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
-var _ExecutionStatusNameToValueMap = map[string]ExecutionStatus***REMOVED***
+var _ExecutionStatusNameToValueMap = map[string]ExecutionStatus{
 	_ExecutionStatusName[0:7]:   0,
 	_ExecutionStatusName[7:14]:  1,
 	_ExecutionStatusName[14:27]: 2,
@@ -32,28 +32,28 @@ var _ExecutionStatusNameToValueMap = map[string]ExecutionStatus***REMOVED***
 	_ExecutionStatusName[69:77]: 8,
 	_ExecutionStatusName[77:82]: 9,
 	_ExecutionStatusName[82:93]: 10,
-***REMOVED***
+}
 
 // ExecutionStatusString retrieves an enum value from the enum constants string name.
 // Throws an error if the param is not part of the enum.
-func ExecutionStatusString(s string) (ExecutionStatus, error) ***REMOVED***
-	if val, ok := _ExecutionStatusNameToValueMap[s]; ok ***REMOVED***
+func ExecutionStatusString(s string) (ExecutionStatus, error) {
+	if val, ok := _ExecutionStatusNameToValueMap[s]; ok {
 		return val, nil
-	***REMOVED***
+	}
 	return 0, fmt.Errorf("%s does not belong to ExecutionStatus values", s)
-***REMOVED***
+}
 
 // ExecutionStatusValues returns all values of the enum
-func ExecutionStatusValues() []ExecutionStatus ***REMOVED***
+func ExecutionStatusValues() []ExecutionStatus {
 	return _ExecutionStatusValues
-***REMOVED***
+}
 
 // IsAExecutionStatus returns "true" if the value is listed in the enum definition. "false" otherwise
-func (i ExecutionStatus) IsAExecutionStatus() bool ***REMOVED***
-	for _, v := range _ExecutionStatusValues ***REMOVED***
-		if i == v ***REMOVED***
+func (i ExecutionStatus) IsAExecutionStatus() bool {
+	for _, v := range _ExecutionStatusValues {
+		if i == v {
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}

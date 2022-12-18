@@ -8,45 +8,45 @@ import (
 
 //TODO: update test
 /*
-func TestSumStages(t *testing.T) ***REMOVED***
-	testdata := map[string]struct ***REMOVED***
+func TestSumStages(t *testing.T) {
+	testdata := map[string]struct {
 		Time   types.NullDuration
 		Stages []Stage
-	***REMOVED******REMOVED***
-		"Blank":    ***REMOVED***types.NullDuration***REMOVED******REMOVED***, []Stage***REMOVED******REMOVED******REMOVED***,
-		"Infinite": ***REMOVED***types.NullDuration***REMOVED******REMOVED***, []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***,
-		"Limit": ***REMOVED***
+	}{
+		"Blank":    {types.NullDuration{}, []Stage{}},
+		"Infinite": {types.NullDuration{}, []Stage{{}}},
+		"Limit": {
 			types.NullDurationFrom(10 * time.Second),
-			[]Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"InfiniteTail": ***REMOVED***
-			types.NullDuration***REMOVED***Duration: types.Duration(10 * time.Second), Valid: false***REMOVED***,
-			[]Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED******REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	for name, data := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
+			[]Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+			},
+		},
+		"InfiniteTail": {
+			types.NullDuration{Duration: types.Duration(10 * time.Second), Valid: false},
+			[]Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{},
+			},
+		},
+	}
+	for name, data := range testdata {
+		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, data.Time, SumStages(data.Stages))
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 */
 
-func TestMin(t *testing.T) ***REMOVED***
+func TestMin(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, int64(10), Min(10, 100))
 	assert.Equal(t, int64(10), Min(100, 10))
-***REMOVED***
+}
 
-func TestMax(t *testing.T) ***REMOVED***
+func TestMax(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, int64(100), Max(10, 100))
 	assert.Equal(t, int64(100), Max(100, 10))
-***REMOVED***
+}

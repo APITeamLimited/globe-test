@@ -17,50 +17,50 @@ import (
 //nolint:golint, revive
 func getTestModuleInstance(
 	t testing.TB,
-) (*goja.Runtime, *ModuleInstance, *modulestest.VU) ***REMOVED***
+) (*goja.Runtime, *ModuleInstance, *modulestest.VU) {
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	root := New()
-	mockVU := &modulestest.VU***REMOVED***
+	mockVU := &modulestest.VU{
 		RuntimeField: rt,
-		InitEnvField: &common.InitEnvironment***REMOVED***
+		InitEnvField: &common.InitEnvironment{
 			Registry: workerMetrics.NewRegistry(),
-		***REMOVED***,
+		},
 		CtxField: ctx,
-	***REMOVED***
+	}
 	mi, ok := root.NewModuleInstance(mockVU).(*ModuleInstance)
 	require.True(t, ok)
 
 	require.NoError(t, rt.Set("http", mi.Exports().Default))
 
 	return rt, mi, mockVU
-***REMOVED***
+}
 
-func TestTagURL(t *testing.T) ***REMOVED***
+func TestTagURL(t *testing.T) {
 	t.Parallel()
 
-	testdata := map[string]struct***REMOVED*** u, n string ***REMOVED******REMOVED***
-		`http://localhost/anything/`:               ***REMOVED***"http://localhost/anything/", "http://localhost/anything/"***REMOVED***,
-		`http://localhost/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***"http://localhost/anything/2", "http://localhost/anything/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***"http://localhost/anything/2/", "http://localhost/anything/$***REMOVED******REMOVED***/"***REMOVED***,
-		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***"http://localhost/anything/2/3", "http://localhost/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***"http://localhost/anything/2/3/", "http://localhost/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
-	***REMOVED***
-	for expr, data := range testdata ***REMOVED***
+	testdata := map[string]struct{ u, n string }{
+		`http://localhost/anything/`:               {"http://localhost/anything/", "http://localhost/anything/"},
+		`http://localhost/anything/${1+1}`:         {"http://localhost/anything/2", "http://localhost/anything/${}"},
+		`http://localhost/anything/${1+1}/`:        {"http://localhost/anything/2/", "http://localhost/anything/${}/"},
+		`http://localhost/anything/${1+1}/${1+2}`:  {"http://localhost/anything/2/3", "http://localhost/anything/${}/${}"},
+		`http://localhost/anything/${1+1}/${1+2}/`: {"http://localhost/anything/2/3/", "http://localhost/anything/${}/${}/"},
+	}
+	for expr, data := range testdata {
 		expr, data := expr, data
-		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
+		t.Run("expr="+expr, func(t *testing.T) {
 			t.Parallel()
 			rt, _, _ := getTestModuleInstance(t)
 			tag, err := httpext.NewURL(data.u, data.n)
 			require.NoError(t, err)
 			v, err := rt.RunString("http.url`" + expr + "`")
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				assert.Equal(t, tag, v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}

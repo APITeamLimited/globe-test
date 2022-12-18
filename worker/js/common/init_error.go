@@ -4,14 +4,14 @@ package common
 type InitContextError string
 
 // NewInitContextError returns a new InitContextError with the provided message
-func NewInitContextError(msg string) InitContextError ***REMOVED***
+func NewInitContextError(msg string) InitContextError {
 	return (InitContextError)(msg)
-***REMOVED***
+}
 
-func (i InitContextError) Error() string ***REMOVED***
+func (i InitContextError) Error() string {
 	return (string)(i)
-***REMOVED***
+}
 
-func (i InitContextError) String() string ***REMOVED***
+func (i InitContextError) String() string {
 	return (string)(i)
-***REMOVED***
+}

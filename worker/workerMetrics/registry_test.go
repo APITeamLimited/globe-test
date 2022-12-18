@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegistryNewMetric(t *testing.T) ***REMOVED***
+func TestRegistryNewMetric(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
 
@@ -25,11 +25,11 @@ func TestRegistryNewMetric(t *testing.T) ***REMOVED***
 
 	_, err = r.NewMetric("something", Counter, Time)
 	require.Error(t, err)
-***REMOVED***
+}
 
-func TestMetricNames(t *testing.T) ***REMOVED***
+func TestMetricNames(t *testing.T) {
 	t.Parallel()
-	testMap := map[string]bool***REMOVED***
+	testMap := map[string]bool{
 		"simple":       true,
 		"still_simple": true,
 		"":             false,
@@ -40,13 +40,13 @@ func TestMetricNames(t *testing.T) ***REMOVED***
 		"hello.World_in_한글一안녕一세상": true,
 		// too long
 		"tooolooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooog": false,
-	***REMOVED***
+	}
 
-	for key, value := range testMap ***REMOVED***
+	for key, value := range testMap {
 		key, value := key, value
-		t.Run(key, func(t *testing.T) ***REMOVED***
+		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, value, checkName(key), key)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

@@ -13,7 +13,7 @@ import (
 
 // A Trail represents detailed information about an HTTP request.
 // You'd typically get one from a Tracer.
-type Trail struct ***REMOVED***
+type Trail struct {
 	EndTime time.Time
 
 	// Total connect time (Connecting + TLSHandshaking)
@@ -37,48 +37,48 @@ type Trail struct ***REMOVED***
 	// Populated by SaveSamples()
 	Tags    *workerMetrics.SampleTags
 	Samples []workerMetrics.Sample
-***REMOVED***
+}
 
 // SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
-func (tr *Trail) SaveSamples(builtinMetrics *workerMetrics.BuiltinMetrics, tags *workerMetrics.SampleTags) ***REMOVED***
+func (tr *Trail) SaveSamples(builtinMetrics *workerMetrics.BuiltinMetrics, tags *workerMetrics.SampleTags) {
 	tr.Tags = tags
 	tr.Samples = make([]workerMetrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
-	tr.Samples = append(tr.Samples, []workerMetrics.Sample***REMOVED***
-		***REMOVED***Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.TLSHandshaking)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Receiving)***REMOVED***,
-	***REMOVED***...)
-***REMOVED***
+	tr.Samples = append(tr.Samples, []workerMetrics.Sample{
+		{Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1},
+		{Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Duration)},
+		{Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Blocked)},
+		{Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Connecting)},
+		{Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.TLSHandshaking)},
+		{Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Sending)},
+		{Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Waiting)},
+		{Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Receiving)},
+	}...)
+}
 
 // GetSamples implements the workerMetrics.SampleContainer interface.
-func (tr *Trail) GetSamples() []workerMetrics.Sample ***REMOVED***
+func (tr *Trail) GetSamples() []workerMetrics.Sample {
 	return tr.Samples
-***REMOVED***
+}
 
 // GetTags implements the workerMetrics.ConnectedSampleContainer interface.
-func (tr *Trail) GetTags() *workerMetrics.SampleTags ***REMOVED***
+func (tr *Trail) GetTags() *workerMetrics.SampleTags {
 	return tr.Tags
-***REMOVED***
+}
 
 // GetTime implements the workerMetrics.ConnectedSampleContainer interface.
-func (tr *Trail) GetTime() time.Time ***REMOVED***
+func (tr *Trail) GetTime() time.Time {
 	return tr.EndTime
-***REMOVED***
+}
 
 // Ensure that interfaces are implemented correctly
-var _ workerMetrics.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
+var _ workerMetrics.ConnectedSampleContainer = &Trail{}
 
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to
 // add it), you must call Done() at the end of the request to get the full timings.
 // It's NOT safe to reuse Tracers between requests.
 // Cheers, love, the cavalry's here.
-type Tracer struct ***REMOVED***
+type Tracer struct {
 	getConn              int64
 	connectStart         int64
 	connectDone          int64
@@ -90,11 +90,11 @@ type Tracer struct ***REMOVED***
 
 	connReused     bool
 	connRemoteAddr net.Addr
-***REMOVED***
+}
 
 // Trace returns a premade ClientTrace that calls all of the Tracer's hooks.
-func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
-	return &httptrace.ClientTrace***REMOVED***
+func (t *Tracer) Trace() *httptrace.ClientTrace {
+	return &httptrace.ClientTrace{
 		GetConn:              t.GetConn,
 		ConnectStart:         t.ConnectStart,
 		ConnectDone:          t.ConnectDone,
@@ -103,12 +103,12 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 		GotConn:              t.GotConn,
 		WroteRequest:         t.WroteRequest,
 		GotFirstResponseByte: t.GotFirstResponseByte,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func now() int64 ***REMOVED***
+func now() int64 {
 	return time.Now().UnixNano()
-***REMOVED***
+}
 
 // GetConn is called before a connection is created or
 // retrieved from an idle pool. The hostPort is the
@@ -118,9 +118,9 @@ func now() int64 ***REMOVED***
 // Keep in mind that GetConn won't be called if a connection
 // is reused though, for example when there's a redirect.
 // If it's called, it will be called before all other hooks.
-func (t *Tracer) GetConn(hostPort string) ***REMOVED***
+func (t *Tracer) GetConn(hostPort string) {
 	t.getConn = now()
-***REMOVED***
+}
 
 // ConnectStart is called when a new connection's Dial begins.
 // If net.Dialer.DualStack (IPv6 "Happy Eyeballs") support is
@@ -128,12 +128,12 @@ func (t *Tracer) GetConn(hostPort string) ***REMOVED***
 //
 // If the connection is reused, this won't be called. Otherwise,
 // it will be called after GetConn() and before ConnectDone().
-func (t *Tracer) ConnectStart(network, addr string) ***REMOVED***
+func (t *Tracer) ConnectStart(network, addr string) {
 	// If using dual-stack dialing, it's possible to get this
 	// multiple times, so the atomic compareAndSwap ensures
 	// that only the first call's time is recorded
 	atomic.CompareAndSwapInt64(&t.connectStart, 0, now())
-***REMOVED***
+}
 
 // ConnectDone is called when a new connection's Dial
 // completes. The provided err indicates whether the
@@ -144,16 +144,16 @@ func (t *Tracer) ConnectStart(network, addr string) ***REMOVED***
 // If the connection is reused, this won't be called. Otherwise,
 // it will be called after ConnectStart() and before either
 // TLSHandshakeStart() (for TLS connections) or GotConn().
-func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
+func (t *Tracer) ConnectDone(network, addr string, err error) {
 	// If using dual-stack dialing, it's possible to get this
 	// multiple times, so the atomic compareAndSwap ensures
 	// that only the first call's time is recorded
-	if err == nil ***REMOVED***
+	if err == nil {
 		atomic.CompareAndSwapInt64(&t.connectDone, 0, now())
-	***REMOVED***
+	}
 	// if there is an error it either is happy eyeballs related and doesn't matter or it will be
 	// returned by the http call
-***REMOVED***
+}
 
 // TLSHandshakeStart is called when the TLS handshake is started. When
 // connecting to a HTTPS site via a HTTP proxy, the handshake happens after
@@ -161,9 +161,9 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 //
 // If the connection is reused, this won't be called. Otherwise,
 // it will be called after ConnectDone() and before TLSHandshakeDone().
-func (t *Tracer) TLSHandshakeStart() ***REMOVED***
+func (t *Tracer) TLSHandshakeStart() {
 	atomic.CompareAndSwapInt64(&t.tlsHandshakeStart, 0, now())
-***REMOVED***
+}
 
 // TLSHandshakeDone is called after the TLS handshake with either the
 // successful handshake's connection state, or a non-nil error on handshake
@@ -173,12 +173,12 @@ func (t *Tracer) TLSHandshakeStart() ***REMOVED***
 // it will be called after TLSHandshakeStart() and before GotConn().
 // If the request was cancelled, this could be called after the
 // RoundTrip() method has returned.
-func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) ***REMOVED***
-	if err == nil ***REMOVED***
+func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) {
+	if err == nil {
 		atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now())
-	***REMOVED***
+	}
 	// if there is an error it will be returned by the http call
-***REMOVED***
+}
 
 // GotConn is called after a successful connection is
 // obtained. There is no hook for failure to obtain a
@@ -187,7 +187,7 @@ func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) ***REMOV
 // This is the fist hook called for reused connections. For new
 // connections, it's called either after TLSHandshakeDone()
 // (for TLS connections) or after ConnectDone()
-func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
+func (t *Tracer) GotConn(info httptrace.GotConnInfo) {
 	now := now()
 
 	// This shouldn't be called multiple times so no synchronization here,
@@ -202,14 +202,14 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 	// We overwrite the different timestamps here, so the other callbacks don't
 	// put incorrect values in them (they use CompareAndSwap)
 	_, isConnTLS := info.Conn.(*tls.Conn)
-	if info.Reused ***REMOVED***
+	if info.Reused {
 		atomic.SwapInt64(&t.connectStart, now)
 		atomic.SwapInt64(&t.connectDone, now)
-		if isConnTLS ***REMOVED***
+		if isConnTLS {
 			atomic.SwapInt64(&t.tlsHandshakeStart, now)
 			atomic.SwapInt64(&t.tlsHandshakeDone, now)
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+		}
+	} else {
 		// There's a bug in the Go stdlib where an HTTP/2 connection can be reused
 		// but the httptrace.GotConnInfo struct will contain a false Reused property...
 		// That's probably from a previously made connection that was abandoned and
@@ -220,43 +220,43 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 		// it's possible this isn't actually the first request attempt...
 		atomic.CompareAndSwapInt64(&t.connectStart, 0, now)
 		atomic.CompareAndSwapInt64(&t.connectDone, 0, now)
-		if isConnTLS ***REMOVED***
+		if isConnTLS {
 			atomic.CompareAndSwapInt64(&t.tlsHandshakeStart, 0, now)
 			atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
 // WroteRequest is called with the result of writing the
 // request and any body. It may be called multiple times
 // in the case of retried requests.
-func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) ***REMOVED***
-	if info.Err == nil ***REMOVED***
+func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) {
+	if info.Err == nil {
 		atomic.StoreInt64(&t.wroteRequest, now())
-	***REMOVED***
+	}
 	// if there is an error it will be returned by the http call
-***REMOVED***
+}
 
 // GotFirstResponseByte is called when the first byte of the response
 // headers is available.
 // If the request was cancelled, this could be called after the
 // RoundTrip() method has returned.
-func (t *Tracer) GotFirstResponseByte() ***REMOVED***
+func (t *Tracer) GotFirstResponseByte() {
 	atomic.CompareAndSwapInt64(&t.gotFirstResponseByte, 0, now())
-***REMOVED***
+}
 
 // Done calculates all metrics and should be called when the request is finished.
-func (t *Tracer) Done() *Trail ***REMOVED***
+func (t *Tracer) Done() *Trail {
 	done := time.Now()
 
-	trail := Trail***REMOVED***
+	trail := Trail{
 		ConnReused:     t.connReused,
 		ConnRemoteAddr: t.connRemoteAddr,
-	***REMOVED***
+	}
 
-	if t.gotConn != 0 && t.getConn != 0 && t.gotConn > t.getConn ***REMOVED***
+	if t.gotConn != 0 && t.getConn != 0 && t.gotConn > t.getConn {
 		trail.Blocked = time.Duration(t.gotConn - t.getConn)
-	***REMOVED***
+	}
 
 	// It's possible for some of the methods of httptrace.ClientTrace to
 	// actually be called after the http.Client or http.RoundTripper have
@@ -271,42 +271,42 @@ func (t *Tracer) Done() *Trail ***REMOVED***
 	wroteRequest := atomic.LoadInt64(&t.wroteRequest)
 	gotFirstResponseByte := atomic.LoadInt64(&t.gotFirstResponseByte)
 
-	if connectDone != 0 && connectStart != 0 ***REMOVED***
+	if connectDone != 0 && connectStart != 0 {
 		trail.Connecting = time.Duration(connectDone - connectStart)
-	***REMOVED***
-	if tlsHandshakeDone != 0 && tlsHandshakeStart != 0 ***REMOVED***
+	}
+	if tlsHandshakeDone != 0 && tlsHandshakeStart != 0 {
 		trail.TLSHandshaking = time.Duration(tlsHandshakeDone - tlsHandshakeStart)
-	***REMOVED***
-	if wroteRequest != 0 ***REMOVED***
-		if tlsHandshakeDone != 0 ***REMOVED***
+	}
+	if wroteRequest != 0 {
+		if tlsHandshakeDone != 0 {
 			// If the request was sent over TLS, we need to use
 			// TLS Handshake Done time to calculate sending duration
 			trail.Sending = time.Duration(wroteRequest - tlsHandshakeDone)
-		***REMOVED*** else if connectDone != 0 ***REMOVED***
+		} else if connectDone != 0 {
 			// Otherwise, use the end of the normal connection
 			trail.Sending = time.Duration(wroteRequest - connectDone)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			// Finally, this handles the strange HTTP/2 case where the GotConn() hook
 			// gets called first, but with Reused=false
 			trail.Sending = time.Duration(wroteRequest - gotConn)
-		***REMOVED***
+		}
 
-		if gotFirstResponseByte != 0 ***REMOVED***
+		if gotFirstResponseByte != 0 {
 			// We started receiving at least some response back
 
-			if gotFirstResponseByte > wroteRequest ***REMOVED***
+			if gotFirstResponseByte > wroteRequest {
 				// For some requests, especially HTTP/2, the server starts responding before the
 				// client has finished sending the full request
 				trail.Waiting = time.Duration(gotFirstResponseByte - wroteRequest)
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+			}
+		} else {
 			// The server never responded to our request
 			trail.Waiting = done.Sub(time.Unix(0, wroteRequest))
-		***REMOVED***
-	***REMOVED***
-	if gotFirstResponseByte != 0 ***REMOVED***
+		}
+	}
+	if gotFirstResponseByte != 0 {
 		trail.Receiving = done.Sub(time.Unix(0, gotFirstResponseByte))
-	***REMOVED***
+	}
 
 	// Calculate total times using adjusted values.
 	trail.EndTime = done
@@ -314,4 +314,4 @@ func (t *Tracer) Done() *Trail ***REMOVED***
 	trail.Duration = trail.Sending + trail.Waiting + trail.Receiving
 
 	return &trail
-***REMOVED***
+}

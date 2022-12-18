@@ -23,68 +23,68 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-func TestInvoke(t *testing.T) ***REMOVED***
+func TestInvoke(t *testing.T) {
 	t.Parallel()
 
-	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error ***REMOVED***
-		err := protojson.Unmarshal([]byte(`***REMOVED***"reply":"text reply"***REMOVED***`), out)
+	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error {
+		err := protojson.Unmarshal([]byte(`{"reply":"text reply"}`), out)
 		require.NoError(t, err)
 
 		return nil
-	***REMOVED***
+	}
 
-	c := Conn***REMOVED***raw: invokemock(helloReply)***REMOVED***
-	r := Request***REMOVED***
+	c := Conn{raw: invokemock(helloReply)}
+	r := Request{
 		MethodDescriptor: methodFromProto("SayHello"),
-		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
-	***REMOVED***
+		Message:          []byte(`{"greeting":"text request"}`),
+	}
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/SayHello", metadata.New(nil), r)
 	require.NoError(t, err)
 
 	assert.Equal(t, codes.OK, res.Status)
-	assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"reply": "text reply"***REMOVED***, res.Message)
+	assert.Equal(t, map[string]interface{}{"reply": "text reply"}, res.Message)
 	assert.Empty(t, res.Error)
-***REMOVED***
+}
 
-func TestInvokeWithCallOptions(t *testing.T) ***REMOVED***
+func TestInvokeWithCallOptions(t *testing.T) {
 	t.Parallel()
 
-	reply := func(in, out *dynamicpb.Message, opts ...grpc.CallOption) error ***REMOVED***
+	reply := func(in, out *dynamicpb.Message, opts ...grpc.CallOption) error {
 		assert.Len(t, opts, 3) // two by default plus one injected
 		return nil
-	***REMOVED***
+	}
 
-	c := Conn***REMOVED***raw: invokemock(reply)***REMOVED***
-	r := Request***REMOVED***
+	c := Conn{raw: invokemock(reply)}
+	r := Request{
 		MethodDescriptor: methodFromProto("NoOp"),
-		Message:          []byte(`***REMOVED******REMOVED***`),
-	***REMOVED***
+		Message:          []byte(`{}`),
+	}
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/NoOp", metadata.New(nil), r, grpc.UseCompressor("fakeone"))
 	require.NoError(t, err)
 	assert.NotNil(t, res)
-***REMOVED***
+}
 
-func TestInvokeReturnError(t *testing.T) ***REMOVED***
+func TestInvokeReturnError(t *testing.T) {
 	t.Parallel()
 
-	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error ***REMOVED***
+	helloReply := func(in, out *dynamicpb.Message, _ ...grpc.CallOption) error {
 		return fmt.Errorf("test error")
-	***REMOVED***
+	}
 
-	c := Conn***REMOVED***raw: invokemock(helloReply)***REMOVED***
-	r := Request***REMOVED***
+	c := Conn{raw: invokemock(helloReply)}
+	r := Request{
 		MethodDescriptor: methodFromProto("SayHello"),
-		Message:          []byte(`***REMOVED***"greeting":"text request"***REMOVED***`),
-	***REMOVED***
+		Message:          []byte(`{"greeting":"text request"}`),
+	}
 	res, err := c.Invoke(context.Background(), "/hello.HelloService/SayHello", metadata.New(nil), r)
 	require.NoError(t, err)
 
 	assert.Equal(t, codes.Unknown, res.Status)
 	assert.NotEmpty(t, res.Error)
-	assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"reply": ""***REMOVED***, res.Message)
-***REMOVED***
+	assert.Equal(t, map[string]interface{}{"reply": ""}, res.Message)
+}
 
-func TestConnInvokeInvalid(t *testing.T) ***REMOVED***
+func TestConnInvokeInvalid(t *testing.T) {
 	t.Parallel()
 
 	var (
@@ -93,239 +93,239 @@ func TestConnInvokeInvalid(t *testing.T) ***REMOVED***
 		url        = "not-empty-url-for-method"
 		md         = metadata.New(nil)
 		methodDesc = methodFromProto("SayHello")
-		payload    = []byte(`***REMOVED***"greeting":"test"***REMOVED***`)
+		payload    = []byte(`{"greeting":"test"}`)
 	)
 
-	req := Request***REMOVED***
+	req := Request{
 		MethodDescriptor: methodDesc,
 		Message:          payload,
-	***REMOVED***
+	}
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		name   string
 		ctx    context.Context
 		md     metadata.MD
 		url    string
 		req    Request
 		experr string
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:   "EmptyMethod",
 			ctx:    ctx,
 			url:    "",
 			md:     md,
 			req:    req,
 			experr: "url is required",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:   "NullMethodDescriptor",
 			ctx:    ctx,
 			url:    url,
 			md:     nil,
-			req:    Request***REMOVED***Message: payload***REMOVED***,
+			req:    Request{Message: payload},
 			experr: "method descriptor is required",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:   "NullMessage",
 			ctx:    ctx,
 			url:    url,
 			md:     nil,
-			req:    Request***REMOVED***MethodDescriptor: methodDesc***REMOVED***,
+			req:    Request{MethodDescriptor: methodDesc},
 			experr: "message is required",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:   "EmptyMessage",
 			ctx:    ctx,
 			url:    url,
 			md:     nil,
-			req:    Request***REMOVED***MethodDescriptor: methodDesc, Message: []byte***REMOVED******REMOVED******REMOVED***,
+			req:    Request{MethodDescriptor: methodDesc, Message: []byte{}},
 			experr: "message is required",
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, tt := range tests ***REMOVED***
+	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) ***REMOVED***
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			c := Conn***REMOVED******REMOVED***
+			c := Conn{}
 			res, err := c.Invoke(tt.ctx, tt.url, tt.md, tt.req)
 			require.Error(t, err)
 			require.Nil(t, res)
 			assert.Contains(t, err.Error(), tt.experr)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestResolveFileDescriptors(t *testing.T) ***REMOVED***
+func TestResolveFileDescriptors(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		name                string
 		pkgs                []string
 		services            []string
 		expectedDescriptors int
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:                "SuccessSamePackage",
-			pkgs:                []string***REMOVED***"mypkg"***REMOVED***,
-			services:            []string***REMOVED***"Service1", "Service2", "Service3"***REMOVED***,
+			pkgs:                []string{"mypkg"},
+			services:            []string{"Service1", "Service2", "Service3"},
 			expectedDescriptors: 3,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:                "SuccessMultiPackages",
-			pkgs:                []string***REMOVED***"mypkg1", "mypkg2", "mypkg3"***REMOVED***,
-			services:            []string***REMOVED***"Service", "Service", "Service"***REMOVED***,
+			pkgs:                []string{"mypkg1", "mypkg2", "mypkg3"},
+			services:            []string{"Service", "Service", "Service"},
 			expectedDescriptors: 3,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:                "DeduplicateServices",
-			pkgs:                []string***REMOVED***"mypkg1"***REMOVED***,
-			services:            []string***REMOVED***"Service1", "Service2", "Service1"***REMOVED***,
+			pkgs:                []string{"mypkg1"},
+			services:            []string{"Service1", "Service2", "Service1"},
 			expectedDescriptors: 2,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:                "NoServices",
-			services:            []string***REMOVED******REMOVED***,
+			services:            []string{},
 			expectedDescriptors: 0,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, tt := range tests ***REMOVED***
+	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) ***REMOVED***
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var (
-				lsr  = &reflectpb.ListServiceResponse***REMOVED******REMOVED***
-				mock = &getServiceFileDescriptorMock***REMOVED******REMOVED***
+				lsr  = &reflectpb.ListServiceResponse{}
+				mock = &getServiceFileDescriptorMock{}
 			)
-			for i, service := range tt.services ***REMOVED***
+			for i, service := range tt.services {
 				// if only one package is defined then
 				// the package is the same for every service
 				pkg := tt.pkgs[0]
-				if len(tt.pkgs) > 1 ***REMOVED***
+				if len(tt.pkgs) > 1 {
 					pkg = tt.pkgs[i]
-				***REMOVED***
+				}
 
-				lsr.Service = append(lsr.Service, &reflectpb.ServiceResponse***REMOVED***
+				lsr.Service = append(lsr.Service, &reflectpb.ServiceResponse{
 					Name: fmt.Sprintf("%s.%s", pkg, service),
-				***REMOVED***)
+				})
 				mock.pkgs = append(mock.pkgs, pkg)
 				mock.names = append(mock.names, service)
-			***REMOVED***
+			}
 
-			rc := reflectionClient***REMOVED******REMOVED***
+			rc := reflectionClient{}
 			fdset, err := rc.resolveServiceFileDescriptors(mock, lsr)
 			require.NoError(t, err)
 			assert.Len(t, fdset.File, tt.expectedDescriptors)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-type getServiceFileDescriptorMock struct ***REMOVED***
+type getServiceFileDescriptorMock struct {
 	pkgs  []string
 	names []string
 	nreqs int64
-***REMOVED***
+}
 
-func (m *getServiceFileDescriptorMock) Send(req *reflectpb.ServerReflectionRequest) error ***REMOVED***
+func (m *getServiceFileDescriptorMock) Send(req *reflectpb.ServerReflectionRequest) error {
 	// TODO: check that the sent message is expected,
 	// otherwise return an error
 	return nil
-***REMOVED***
+}
 
-func (m *getServiceFileDescriptorMock) Recv() (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
+func (m *getServiceFileDescriptorMock) Recv() (*reflectpb.ServerReflectionResponse, error) {
 	n := atomic.AddInt64(&m.nreqs, 1)
-	ptr := func(s string) (sptr *string) ***REMOVED***
+	ptr := func(s string) (sptr *string) {
 		return &s
-	***REMOVED***
+	}
 	index := n - 1
-	fdp := &descriptorpb.FileDescriptorProto***REMOVED***
+	fdp := &descriptorpb.FileDescriptorProto{
 		Package: ptr(m.pkgs[index]),
 		Name:    ptr(m.names[index]),
-	***REMOVED***
+	}
 	b, err := proto.Marshal(fdp)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
-	srr := &reflectpb.ServerReflectionResponse***REMOVED***
-		MessageResponse: &reflectpb.ServerReflectionResponse_FileDescriptorResponse***REMOVED***
-			FileDescriptorResponse: &reflectpb.FileDescriptorResponse***REMOVED***
-				FileDescriptorProto: [][]byte***REMOVED***b***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
+	}
+	srr := &reflectpb.ServerReflectionResponse{
+		MessageResponse: &reflectpb.ServerReflectionResponse_FileDescriptorResponse{
+			FileDescriptorResponse: &reflectpb.FileDescriptorResponse{
+				FileDescriptorProto: [][]byte{b},
+			},
+		},
+	}
 	return srr, nil
-***REMOVED***
+}
 
-func methodFromProto(method string) protoreflect.MethodDescriptor ***REMOVED***
-	parser := protoparse.Parser***REMOVED***
+func methodFromProto(method string) protoreflect.MethodDescriptor {
+	parser := protoparse.Parser{
 		InferImportPaths: false,
-		Accessor: protoparse.FileAccessor(func(filename string) (io.ReadCloser, error) ***REMOVED***
+		Accessor: protoparse.FileAccessor(func(filename string) (io.ReadCloser, error) {
 			b := `
 syntax = "proto3";
 
 package hello;
 
-service HelloService ***REMOVED***
+service HelloService {
   rpc SayHello(HelloRequest) returns (HelloResponse);
   rpc NoOp(Empty) returns (Empty);
   rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
   rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
   rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
-***REMOVED***
+}
 
-message HelloRequest ***REMOVED***
+message HelloRequest {
   string greeting = 1;
-***REMOVED***
+}
 
-message HelloResponse ***REMOVED***
+message HelloResponse {
   string reply = 1;
-***REMOVED***
+}
 
-message Empty ***REMOVED***
+message Empty {
 
-***REMOVED***`
+}`
 			return io.NopCloser(bytes.NewBufferString(b)), nil
-		***REMOVED***),
-	***REMOVED***
+		}),
+	}
 
 	fds, err := parser.ParseFiles("any-path")
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
+	}
 
 	fd, err := protodesc.NewFile(fds[0].AsFileDescriptorProto(), nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		panic(err)
-	***REMOVED***
+	}
 
 	services := fd.Services()
-	if services.Len() == 0 ***REMOVED***
+	if services.Len() == 0 {
 		panic("no available services")
-	***REMOVED***
+	}
 	return services.Get(0).Methods().ByName(protoreflect.Name(method))
-***REMOVED***
+}
 
 // invokemock is a mock for the grpc connection supporting only unary requests.
 type invokemock func(in, out *dynamicpb.Message, opts ...grpc.CallOption) error
 
-func (im invokemock) Invoke(ctx context.Context, url string, payload interface***REMOVED******REMOVED***, reply interface***REMOVED******REMOVED***, opts ...grpc.CallOption) error ***REMOVED***
+func (im invokemock) Invoke(ctx context.Context, url string, payload interface{}, reply interface{}, opts ...grpc.CallOption) error {
 	in, ok := payload.(*dynamicpb.Message)
-	if !ok ***REMOVED***
+	if !ok {
 		return fmt.Errorf("unexpected type for payload")
-	***REMOVED***
+	}
 	out, ok := reply.(*dynamicpb.Message)
-	if !ok ***REMOVED***
+	if !ok {
 		return fmt.Errorf("unexpected type for reply")
-	***REMOVED***
+	}
 	return im(in, out, opts...)
-***REMOVED***
+}
 
-func (invokemock) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) ***REMOVED***
+func (invokemock) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	panic("not implemented")
-***REMOVED***
+}
 
-func (invokemock) Close() error ***REMOVED***
+func (invokemock) Close() error {
 	return nil
-***REMOVED***
+}

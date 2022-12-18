@@ -8,62 +8,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnabledTagsMarshalJSON(t *testing.T) ***REMOVED***
+func TestEnabledTagsMarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tagset   EnabledTags
 		expected string
-	***REMOVED******REMOVED***
-		***REMOVED***tagset: EnabledTags***REMOVED***"ip": true, "proto": true, "group": true, "custom": true***REMOVED***, expected: `["custom","group","ip","proto"]`***REMOVED***,
-		***REMOVED***tagset: EnabledTags***REMOVED******REMOVED***, expected: `[]`***REMOVED***,
-	***REMOVED***
+	}{
+		{tagset: EnabledTags{"ip": true, "proto": true, "group": true, "custom": true}, expected: `["custom","group","ip","proto"]`},
+		{tagset: EnabledTags{}, expected: `[]`},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := &tc.tagset
 		got, err := json.Marshal(ts)
 		require.Nil(t, err)
 		require.Equal(t, tc.expected, string(got))
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestEnabledTagsUnmarshalJSON(t *testing.T) ***REMOVED***
+func TestEnabledTagsUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tags []byte
 		sets EnabledTags
-	***REMOVED******REMOVED***
-		***REMOVED***[]byte(`[]`), EnabledTags***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip","custom", "proto"]`), EnabledTags***REMOVED***"ip": true, "proto": true, "custom": true***REMOVED******REMOVED***,
-	***REMOVED***
+	}{
+		{[]byte(`[]`), EnabledTags{}},
+		{[]byte(`["ip","custom", "proto"]`), EnabledTags{"ip": true, "proto": true, "custom": true}},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := new(EnabledTags)
 		require.Nil(t, json.Unmarshal(tc.tags, ts))
-		for tag := range tc.sets ***REMOVED***
+		for tag := range tc.sets {
 			assert.True(t, (*ts)[tag])
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestEnabledTagsTextUnmarshal(t *testing.T) ***REMOVED***
+func TestEnabledTagsTextUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	testMatrix := map[string]EnabledTags***REMOVED***
+	testMatrix := map[string]EnabledTags{
 		"":                           make(EnabledTags),
-		"ip":                         ***REMOVED***"ip": true***REMOVED***,
-		"ip,proto":                   ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,  proto  ":          ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,   ,  proto  ":      ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,,  proto  ,,":       ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,custom,  proto  ,,": ***REMOVED***"ip": true, "custom": true, "proto": true***REMOVED***,
-	***REMOVED***
+		"ip":                         {"ip": true},
+		"ip,proto":                   {"ip": true, "proto": true},
+		"   ip  ,  proto  ":          {"ip": true, "proto": true},
+		"   ip  ,   ,  proto  ":      {"ip": true, "proto": true},
+		"   ip  ,,  proto  ,,":       {"ip": true, "proto": true},
+		"   ip  ,custom,  proto  ,,": {"ip": true, "custom": true, "proto": true},
+	}
 
-	for input, expected := range testMatrix ***REMOVED***
+	for input, expected := range testMatrix {
 		set := new(EnabledTags)
 		err := set.UnmarshalText([]byte(input))
 		require.NoError(t, err)
 		require.Equal(t, expected, *set)
-	***REMOVED***
-***REMOVED***
+	}
+}

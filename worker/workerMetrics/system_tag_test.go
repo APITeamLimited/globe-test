@@ -8,122 +8,122 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
+func TestSystemTagSetMarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tagset   SystemTagSet
 		expected string
-	***REMOVED******REMOVED***
-		***REMOVED***TagIP, `["ip"]`***REMOVED***,
-		***REMOVED***TagIP | TagProto | TagGroup, `["group","ip","proto"]`***REMOVED***,
-		***REMOVED***0, `null`***REMOVED***,
-	***REMOVED***
+	}{
+		{TagIP, `["ip"]`},
+		{TagIP | TagProto | TagGroup, `["group","ip","proto"]`},
+		{0, `null`},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := &tc.tagset
 		got, err := json.Marshal(ts)
 		require.Nil(t, err)
 		require.Equal(t, tc.expected, string(got))
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
+func TestSystemTagSet_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tags []byte
 		sets []SystemTagSet
-	***REMOVED******REMOVED***
-		***REMOVED***[]byte(`[]`), []SystemTagSet***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip", "proto"]`), []SystemTagSet***REMOVED***TagIP, TagProto***REMOVED******REMOVED***,
-	***REMOVED***
+	}{
+		{[]byte(`[]`), []SystemTagSet{}},
+		{[]byte(`["ip", "proto"]`), []SystemTagSet{TagIP, TagProto}},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := new(SystemTagSet)
 		require.Nil(t, json.Unmarshal(tc.tags, ts))
-		for _, tag := range tc.sets ***REMOVED***
+		for _, tag := range tc.sets {
 			assert.True(t, ts.Has(tag))
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+func TestSystemTagSetTextUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	testMatrix := map[string]SystemTagSet***REMOVED***
+	testMatrix := map[string]SystemTagSet{
 		"":                      0,
 		"ip":                    TagIP,
 		"ip,proto":              TagIP | TagProto,
 		"   ip  ,  proto  ":     TagIP | TagProto,
 		"   ip  ,   ,  proto  ": TagIP | TagProto,
 		"   ip  ,,  proto  ,,":  TagIP | TagProto,
-	***REMOVED***
+	}
 
-	for input, expected := range testMatrix ***REMOVED***
+	for input, expected := range testMatrix {
 		set := new(SystemTagSet)
 		err := set.UnmarshalText([]byte(input))
 		require.NoError(t, err)
 		require.Equal(t, expected, *set)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
+func TestTagSetMarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tagset   EnabledTags
 		expected string
-	***REMOVED******REMOVED***
-		***REMOVED***tagset: EnabledTags***REMOVED***"ip": true, "proto": true, "group": true, "custom": true***REMOVED***, expected: `["custom","group","ip","proto"]`***REMOVED***,
-		***REMOVED***tagset: EnabledTags***REMOVED******REMOVED***, expected: `[]`***REMOVED***,
-	***REMOVED***
+	}{
+		{tagset: EnabledTags{"ip": true, "proto": true, "group": true, "custom": true}, expected: `["custom","group","ip","proto"]`},
+		{tagset: EnabledTags{}, expected: `[]`},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := &tc.tagset
 		got, err := json.Marshal(ts)
 		require.Nil(t, err)
 		require.Equal(t, tc.expected, string(got))
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
+func TestTagSet_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		tags []byte
 		sets EnabledTags
-	***REMOVED******REMOVED***
-		***REMOVED***[]byte(`[]`), EnabledTags***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip","custom", "proto"]`), EnabledTags***REMOVED***"ip": true, "proto": true, "custom": true***REMOVED******REMOVED***,
-	***REMOVED***
+	}{
+		{[]byte(`[]`), EnabledTags{}},
+		{[]byte(`["ip","custom", "proto"]`), EnabledTags{"ip": true, "proto": true, "custom": true}},
+	}
 
-	for _, tc := range tests ***REMOVED***
+	for _, tc := range tests {
 		ts := new(EnabledTags)
 		require.Nil(t, json.Unmarshal(tc.tags, ts))
-		for tag := range tc.sets ***REMOVED***
+		for tag := range tc.sets {
 			assert.True(t, (*ts)[tag])
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+func TestTagSetTextUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	testMatrix := map[string]EnabledTags***REMOVED***
+	testMatrix := map[string]EnabledTags{
 		"":                           make(EnabledTags),
-		"ip":                         ***REMOVED***"ip": true***REMOVED***,
-		"ip,proto":                   ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,  proto  ":          ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,   ,  proto  ":      ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,,  proto  ,,":       ***REMOVED***"ip": true, "proto": true***REMOVED***,
-		"   ip  ,custom,  proto  ,,": ***REMOVED***"ip": true, "custom": true, "proto": true***REMOVED***,
-	***REMOVED***
+		"ip":                         {"ip": true},
+		"ip,proto":                   {"ip": true, "proto": true},
+		"   ip  ,  proto  ":          {"ip": true, "proto": true},
+		"   ip  ,   ,  proto  ":      {"ip": true, "proto": true},
+		"   ip  ,,  proto  ,,":       {"ip": true, "proto": true},
+		"   ip  ,custom,  proto  ,,": {"ip": true, "custom": true, "proto": true},
+	}
 
-	for input, expected := range testMatrix ***REMOVED***
+	for input, expected := range testMatrix {
 		set := new(EnabledTags)
 		err := set.UnmarshalText([]byte(input))
 		require.NoError(t, err)
 		require.Equal(t, expected, *set)
-	***REMOVED***
-***REMOVED***
+	}
+}

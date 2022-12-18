@@ -12,59 +12,59 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-type summaryMetric struct ***REMOVED***
+type summaryMetric struct {
 	Contains string                   `json:"contains"`
 	Type     workerMetrics.MetricType `json:"type"`
 	Values   map[string]float64       `json:"values"`
-***REMOVED***
+}
 
-type wrappedSummaryMetric struct ***REMOVED***
+type wrappedSummaryMetric struct {
 	summaryMetric
 	location    string
 	subFraction float64
-***REMOVED***
+}
 
-type summaryBank struct ***REMOVED***
+type summaryBank struct {
 	gs libOrch.BaseGlobalState
 	// Locations and list of summary summaryMetrics for each location
 	collectedSummaryMetrics map[string][]map[string]wrappedSummaryMetric
 	mu                      *sync.Mutex
-***REMOVED***
+}
 
-func NewSummaryBank(gs libOrch.BaseGlobalState, options *libWorker.Options) *summaryBank ***REMOVED***
-	sb := &summaryBank***REMOVED***
+func NewSummaryBank(gs libOrch.BaseGlobalState, options *libWorker.Options) *summaryBank {
+	sb := &summaryBank{
 		gs:                      gs,
 		collectedSummaryMetrics: make(map[string][]map[string]wrappedSummaryMetric),
-		mu:                      &sync.Mutex***REMOVED******REMOVED***,
-	***REMOVED***
+		mu:                      &sync.Mutex{},
+	}
 
 	// Add load distribution locations
-	for _, location := range options.LoadDistribution.Value ***REMOVED***
+	for _, location := range options.LoadDistribution.Value {
 		sb.collectedSummaryMetrics[location.Location] = make([]map[string]wrappedSummaryMetric, 0)
-	***REMOVED***
+	}
 
 	// Add global location
 	sb.collectedSummaryMetrics[libOrch.GlobalName] = make([]map[string]wrappedSummaryMetric, 0)
 
 	return sb
-***REMOVED***
+}
 
-func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error ***REMOVED***
+func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
 	var summaryMetrics map[string]summaryMetric
 
 	err := json.Unmarshal([]byte(message.Message), &summaryMetrics)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	wrappedSummaryMetrics := make(map[string]wrappedSummaryMetric)
-	for metricName, metric := range summaryMetrics ***REMOVED***
-		wrappedSummaryMetrics[metricName] = wrappedSummaryMetric***REMOVED***
+	for metricName, metric := range summaryMetrics {
+		wrappedSummaryMetrics[metricName] = wrappedSummaryMetric{
 			summaryMetric: metric,
 			location:      workerLocation,
 			subFraction:   subFraction,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
@@ -76,176 +76,176 @@ func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation 
 	sb.collectedSummaryMetrics[libOrch.GlobalName] = append(sb.collectedSummaryMetrics[libOrch.GlobalName], wrappedSummaryMetrics)
 
 	return nil
-***REMOVED***
+}
 
-func (sb *summaryBank) CalculateAndDispatchSummaryMetrics() error ***REMOVED***
-	if len(sb.collectedSummaryMetrics) == 0 ***REMOVED***
+func (sb *summaryBank) CalculateAndDispatchSummaryMetrics() error {
+	if len(sb.collectedSummaryMetrics) == 0 {
 		return errors.New("need at least one group of summaryMetrics to calculate summary")
-	***REMOVED***
+	}
 
 	firstKey := ""
 
 	// Ensure at least one metric in each location
-	for key, zoneSummaryMetrics := range sb.collectedSummaryMetrics ***REMOVED***
-		if len(zoneSummaryMetrics) == 0 ***REMOVED***
+	for key, zoneSummaryMetrics := range sb.collectedSummaryMetrics {
+		if len(zoneSummaryMetrics) == 0 {
 			return errors.New("need at least one metric in each location to calculate summary")
-		***REMOVED***
+		}
 
-		if firstKey == "" ***REMOVED***
+		if firstKey == "" {
 			firstKey = key
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	metricKeys := make([]string, 0)
 	metricTypes := make([]workerMetrics.MetricType, 0)
 	metricContains := make([]string, 0)
 
 	// Determine the metric keys from first metric
-	for metricKey, zoneSummaryMetric := range sb.collectedSummaryMetrics[firstKey][0] ***REMOVED***
+	for metricKey, zoneSummaryMetric := range sb.collectedSummaryMetrics[firstKey][0] {
 		metricKeys = append(metricKeys, metricKey)
 		metricTypes = append(metricTypes, zoneSummaryMetric.Type)
 		metricContains = append(metricContains, zoneSummaryMetric.Contains)
-	***REMOVED***
+	}
 
 	outputSummaryMetrics := make(map[string]map[string]summaryMetric)
 
 	// Add all locations to output summaryMetrics
-	for location, zoneSummaryMetrics := range sb.collectedSummaryMetrics ***REMOVED***
+	for location, zoneSummaryMetrics := range sb.collectedSummaryMetrics {
 		outputSummaryMetrics[location] = make(map[string]summaryMetric)
 
-		for i, metricKey := range metricKeys ***REMOVED***
+		for i, metricKey := range metricKeys {
 			// Find all summaryMetrics is this zone that match the metric key
 			matchingKeyMetrics := make([]map[string]wrappedSummaryMetric, 0)
-			for _, zoneMetric := range zoneSummaryMetrics ***REMOVED***
-				if zoneMetric[metricKey].Contains != "" ***REMOVED***
+			for _, zoneMetric := range zoneSummaryMetrics {
+				if zoneMetric[metricKey].Contains != "" {
 					matchingKeyMetrics = append(matchingKeyMetrics, zoneMetric)
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 
 			// Combine the summaryMetrics
-			if metricTypes[i] == workerMetrics.Counter ***REMOVED***
+			if metricTypes[i] == workerMetrics.Counter {
 				// Calculate the total for this metric
 				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
-			***REMOVED*** else if metricTypes[i] == workerMetrics.Gauge ***REMOVED***
+			} else if metricTypes[i] == workerMetrics.Gauge {
 				// Gauges are summed
 				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Gauge)
-			***REMOVED*** else if metricTypes[i] == workerMetrics.Rate ***REMOVED***
+			} else if metricTypes[i] == workerMetrics.Rate {
 				// Rates are summed
 				outputSummaryMetrics[location][metricKey] = determineSummaryCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
-			***REMOVED*** else if metricTypes[i] == workerMetrics.Trend ***REMOVED***
+			} else if metricTypes[i] == workerMetrics.Trend {
 				// Calculate the trend for this metric
 				outputSummaryMetrics[location][metricKey] = determineSummaryTrend(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Trend)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				return fmt.Errorf("unknown metric type %s", metricTypes[i])
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	// Dispatch the summary summaryMetrics
 	marshalledOutputSummary, err := json.Marshal(outputSummaryMetrics)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	// Send the summary summaryMetrics to the orchestrator
 	libOrch.DispatchMessage(sb.gs, string(marshalledOutputSummary), "SUMMARY_METRICS")
 
 	return nil
-***REMOVED***
+}
 
 // Calculates an aggregated counter summaryMetric for a zone
 func determineSummaryCounter(matchingKeyMetrics []map[string]wrappedSummaryMetric, metricName string,
-	metricContains string, metricType workerMetrics.MetricType) summaryMetric ***REMOVED***
-	aggregatedMetric := summaryMetric***REMOVED***
+	metricContains string, metricType workerMetrics.MetricType) summaryMetric {
+	aggregatedMetric := summaryMetric{
 		Contains: metricContains,
 		Type:     metricType,
 		Values:   make(map[string]float64),
-	***REMOVED***
+	}
 
 	// If no value keys, return an empty metric
-	if len(matchingKeyMetrics[0][metricName].Values) == 0 ***REMOVED***
+	if len(matchingKeyMetrics[0][metricName].Values) == 0 {
 		return aggregatedMetric
-	***REMOVED***
+	}
 
 	// Determine the value keys from first metric
 	valueKeys := make([]string, 0)
-	for valueKey := range matchingKeyMetrics[0][metricName].Values ***REMOVED***
+	for valueKey := range matchingKeyMetrics[0][metricName].Values {
 		valueKeys = append(valueKeys, valueKey)
-	***REMOVED***
+	}
 
-	for _, valueKey := range valueKeys ***REMOVED***
-		for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
+	for _, valueKey := range valueKeys {
+		for _, zoneMetric := range matchingKeyMetrics {
 			aggregatedMetric.Values[valueKey] += zoneMetric[metricName].Values[valueKey]
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return aggregatedMetric
-***REMOVED***
+}
 
 // Calculates a weighted mean value summaryMetric for a zone
 func determineSummaryTrend(matchingKeyMetrics []map[string]wrappedSummaryMetric, metricName string,
-	metricContains string, metricType workerMetrics.MetricType) summaryMetric ***REMOVED***
-	aggregatedMetric := summaryMetric***REMOVED***
+	metricContains string, metricType workerMetrics.MetricType) summaryMetric {
+	aggregatedMetric := summaryMetric{
 		Contains: metricContains,
 		Type:     metricType,
 		Values:   make(map[string]float64),
-	***REMOVED***
+	}
 
 	// If no value keys, return an empty metric
-	if len(matchingKeyMetrics[0][metricName].Values) == 0 ***REMOVED***
+	if len(matchingKeyMetrics[0][metricName].Values) == 0 {
 		return aggregatedMetric
-	***REMOVED***
+	}
 
 	// Determine the value keys from first metric
 	valueKeys := make([]string, 0)
-	for valueKey := range matchingKeyMetrics[0][metricName].Values ***REMOVED***
+	for valueKey := range matchingKeyMetrics[0][metricName].Values {
 		valueKeys = append(valueKeys, valueKey)
-	***REMOVED***
+	}
 
 	// Determine the weighted average of each value key from each metric
 	subFractionTotal := 0.0
 
-	for _, valueKey := range valueKeys ***REMOVED***
-		if valueKey == "max" ***REMOVED***
+	for _, valueKey := range valueKeys {
+		if valueKey == "max" {
 			// Find biggest value
-			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
-				if zoneMetric[metricName].Values[valueKey] > aggregatedMetric.Values[valueKey] ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics {
+				if zoneMetric[metricName].Values[valueKey] > aggregatedMetric.Values[valueKey] {
 					aggregatedMetric.Values[valueKey] = zoneMetric[metricName].Values[valueKey]
-				***REMOVED***
-			***REMOVED***
-		***REMOVED*** else if valueKey == "min" ***REMOVED***
+				}
+			}
+		} else if valueKey == "min" {
 			// Find smallest value
 			aggregatedMetric.Values[valueKey] = math.MaxFloat64
 
-			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
-				if zoneMetric[metricName].Values[valueKey] < aggregatedMetric.Values[valueKey] ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics {
+				if zoneMetric[metricName].Values[valueKey] < aggregatedMetric.Values[valueKey] {
 					aggregatedMetric.Values[valueKey] = zoneMetric[metricName].Values[valueKey]
-				***REMOVED***
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+				}
+			}
+		} else {
 			// This isn't ideal for all all remaining value keys but better than nothing
 
-			for _, zoneMetric := range matchingKeyMetrics ***REMOVED***
+			for _, zoneMetric := range matchingKeyMetrics {
 				subFractionTotal += zoneMetric[metricName].subFraction
 				aggregatedMetric.Values[valueKey] += zoneMetric[metricName].Values[valueKey] * zoneMetric[metricName].subFraction
-			***REMOVED***
+			}
 
 			aggregatedMetric.Values[valueKey] /= subFractionTotal
 
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return aggregatedMetric
-***REMOVED***
+}
 
-func (sb *summaryBank) Size() int ***REMOVED***
+func (sb *summaryBank) Size() int {
 	count := 0
 
-	for k, v := range sb.collectedSummaryMetrics ***REMOVED***
-		if k != libOrch.GlobalName ***REMOVED***
+	for k, v := range sb.collectedSummaryMetrics {
+		if k != libOrch.GlobalName {
 			count += len(v)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return count
-***REMOVED***
+}

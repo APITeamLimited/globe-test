@@ -10,10 +10,10 @@ import (
 // BatchParsedHTTPRequest extends the normal parsed HTTP request with a pointer
 // to a Response object, so that the batch goroutines can concurrently store the
 // responses they receive, without any locking.
-type BatchParsedHTTPRequest struct ***REMOVED***
+type BatchParsedHTTPRequest struct {
 	*ParsedHTTPRequest
 	Response *Response // this is modified by MakeBatchRequests()
-***REMOVED***
+}
 
 // MakeBatchRequests concurrently makes multiple requests. It spawns
 // min(reqCount, globalLimit) goroutines that asynchronously process all
@@ -29,40 +29,40 @@ func MakeBatchRequests(
 	requests []BatchParsedHTTPRequest,
 	reqCount, globalLimit, perHostLimit int,
 	processResponse func(*Response, ResponseType),
-) <-chan error ***REMOVED***
+) <-chan error {
 	workers := globalLimit
-	if reqCount < workers ***REMOVED***
+	if reqCount < workers {
 		workers = reqCount
-	***REMOVED***
+	}
 	result := make(chan error, reqCount)
 	perHostLimiter := libWorker.NewMultiSlotLimiter(perHostLimit)
 
-	makeRequest := func(req BatchParsedHTTPRequest) ***REMOVED***
-		if hl := perHostLimiter.Slot(req.URL.GetURL().Host); hl != nil ***REMOVED***
+	makeRequest := func(req BatchParsedHTTPRequest) {
+		if hl := perHostLimiter.Slot(req.URL.GetURL().Host); hl != nil {
 			hl.Begin()
 			defer hl.End()
-		***REMOVED***
+		}
 
 		resp, err := MakeRequest(ctx, state, req.ParsedHTTPRequest)
-		if resp != nil ***REMOVED***
+		if resp != nil {
 			processResponse(resp, req.ParsedHTTPRequest.ResponseType)
 			*req.Response = *resp
-		***REMOVED***
+		}
 		result <- err
-	***REMOVED***
+	}
 
 	counter, i32reqCount := int32(-1), int32(reqCount)
-	for i := 0; i < workers; i++ ***REMOVED***
-		go func() ***REMOVED***
-			for ***REMOVED***
+	for i := 0; i < workers; i++ {
+		go func() {
+			for {
 				reqNum := atomic.AddInt32(&counter, 1)
-				if reqNum >= i32reqCount ***REMOVED***
+				if reqNum >= i32reqCount {
 					return
-				***REMOVED***
+				}
 				makeRequest(requests[reqNum])
-			***REMOVED***
-		***REMOVED***()
-	***REMOVED***
+			}
+		}()
+	}
 
 	return result
-***REMOVED***
+}

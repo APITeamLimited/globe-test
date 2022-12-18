@@ -11,39 +11,39 @@ import (
 // https://unix.stackexchange.com/questions/418784/what-is-the-min-and-max-values-of-exit-codes-in-linux
 
 // HasExitCode is a wrapper around an error with an attached exit code.
-type HasExitCode interface ***REMOVED***
+type HasExitCode interface {
 	error
 	ExitCode() exitcodes.ExitCode
-***REMOVED***
+}
 
 // WithExitCodeIfNone can attach an exit code to the given error, if it doesn't
 // have one already. It won't do anything if the error already had an exit code
 // attached. Similarly, if there is no error (i.e. the given error is nil), it
 // also won't do anything.
-func WithExitCodeIfNone(err error, exitCode exitcodes.ExitCode) error ***REMOVED***
-	if err == nil ***REMOVED***
+func WithExitCodeIfNone(err error, exitCode exitcodes.ExitCode) error {
+	if err == nil {
 		// No error, do nothing
 		return nil
-	***REMOVED***
+	}
 	var ecerr HasExitCode
-	if errors.As(err, &ecerr) ***REMOVED***
+	if errors.As(err, &ecerr) {
 		// The given error already has an exit code, do nothing
 		return err
-	***REMOVED***
-	return withExitCode***REMOVED***err, exitCode***REMOVED***
-***REMOVED***
+	}
+	return withExitCode{err, exitCode}
+}
 
-type withExitCode struct ***REMOVED***
+type withExitCode struct {
 	error
 	exitCode exitcodes.ExitCode
-***REMOVED***
+}
 
-func (wh withExitCode) Unwrap() error ***REMOVED***
+func (wh withExitCode) Unwrap() error {
 	return wh.error
-***REMOVED***
+}
 
-func (wh withExitCode) ExitCode() exitcodes.ExitCode ***REMOVED***
+func (wh withExitCode) ExitCode() exitcodes.ExitCode {
 	return wh.exitCode
-***REMOVED***
+}
 
-var _ HasExitCode = withExitCode***REMOVED******REMOVED***
+var _ HasExitCode = withExitCode{}

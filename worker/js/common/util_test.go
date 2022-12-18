@@ -9,75 +9,75 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestThrow(t *testing.T) ***REMOVED***
+func TestThrow(t *testing.T) {
 	t.Parallel()
 	rt := goja.New()
-	fn1, ok := goja.AssertFunction(rt.ToValue(func() ***REMOVED*** Throw(rt, errors.New("aaaa")) ***REMOVED***))
-	if assert.True(t, ok, "fn1 is invalid") ***REMOVED***
+	fn1, ok := goja.AssertFunction(rt.ToValue(func() { Throw(rt, errors.New("aaaa")) }))
+	if assert.True(t, ok, "fn1 is invalid") {
 		_, err := fn1(goja.Undefined())
 		assert.EqualError(t, err, "aaaa")
 
-		fn2, ok := goja.AssertFunction(rt.ToValue(func() ***REMOVED*** Throw(rt, err) ***REMOVED***))
-		if assert.True(t, ok, "fn1 is invalid") ***REMOVED***
+		fn2, ok := goja.AssertFunction(rt.ToValue(func() { Throw(rt, err) }))
+		if assert.True(t, ok, "fn1 is invalid") {
 			_, err := fn2(goja.Undefined())
 			assert.EqualError(t, err, "aaaa")
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestToBytes(t *testing.T) ***REMOVED***
+func TestToBytes(t *testing.T) {
 	t.Parallel()
 	rt := goja.New()
 	b := []byte("hello")
-	testCases := []struct ***REMOVED***
-		in     interface***REMOVED******REMOVED***
+	testCases := []struct {
+		in     interface{}
 		expOut []byte
 		expErr string
-	***REMOVED******REMOVED***
-		***REMOVED***b, b, ""***REMOVED***,
-		***REMOVED***"hello", b, ""***REMOVED***,
-		***REMOVED***rt.NewArrayBuffer(b), b, ""***REMOVED***,
-		***REMOVED***struct***REMOVED******REMOVED******REMOVED******REMOVED***, nil, "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"***REMOVED***,
-	***REMOVED***
+	}{
+		{b, b, ""},
+		{"hello", b, ""},
+		{rt.NewArrayBuffer(b), b, ""},
+		{struct{}{}, nil, "invalid type struct {}, expected string, []byte or ArrayBuffer"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) {
 			t.Parallel()
 			out, err := ToBytes(tc.in)
-			if tc.expErr != "" ***REMOVED***
+			if tc.expErr != "" {
 				assert.EqualError(t, err, tc.expErr)
 				return
-			***REMOVED***
+			}
 			assert.Equal(t, tc.expOut, out)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestToString(t *testing.T) ***REMOVED***
+func TestToString(t *testing.T) {
 	t.Parallel()
 	rt := goja.New()
 	s := "hello"
-	testCases := []struct ***REMOVED***
-		in             interface***REMOVED******REMOVED***
+	testCases := []struct {
+		in             interface{}
 		expOut, expErr string
-	***REMOVED******REMOVED***
-		***REMOVED***s, s, ""***REMOVED***,
-		***REMOVED***"hello", s, ""***REMOVED***,
-		***REMOVED***rt.NewArrayBuffer([]byte(s)), s, ""***REMOVED***,
-		***REMOVED***struct***REMOVED******REMOVED******REMOVED******REMOVED***, "", "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"***REMOVED***,
-	***REMOVED***
+	}{
+		{s, s, ""},
+		{"hello", s, ""},
+		{rt.NewArrayBuffer([]byte(s)), s, ""},
+		{struct{}{}, "", "invalid type struct {}, expected string, []byte or ArrayBuffer"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) {
 			t.Parallel()
 			out, err := ToString(tc.in)
-			if tc.expErr != "" ***REMOVED***
+			if tc.expErr != "" {
 				assert.EqualError(t, err, tc.expErr)
 				return
-			***REMOVED***
+			}
 			assert.Equal(t, tc.expOut, out)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

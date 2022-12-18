@@ -10,25 +10,25 @@ import (
 
 const minIterationDurationMilliseconds = 1000
 
-func MinIterationDuration(options *libWorker.Options) error ***REMOVED***
+func MinIterationDuration(options *libWorker.Options) error {
 	// Ensure that user duration is within the allowed range
 
 	// Don't enforce minimum iteration duration for HTTPSingleExecutionMode
-	if options.ExecutionMode.Valid && options.ExecutionMode.Value == types.HTTPSingleExecutionMode ***REMOVED***
+	if options.ExecutionMode.Valid && options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
 		return nil
-	***REMOVED***
+	}
 
-	if !options.MinIterationDuration.Valid ***REMOVED***
+	if !options.MinIterationDuration.Valid {
 		// Set default
 		options.MinIterationDuration = types.NullDurationFrom(time.Duration(minIterationDurationMilliseconds * time.Millisecond))
-	***REMOVED***
+	}
 
 	durationMilliseconds := int64(options.MinIterationDuration.TimeDuration().Milliseconds())
 
 	// Allow errors of 1 millisecond for floating point errors
-	if durationMilliseconds < (minIterationDurationMilliseconds - 1) ***REMOVED***
+	if durationMilliseconds < (minIterationDurationMilliseconds - 1) {
 		return fmt.Errorf("duration %dms is too small, the minimum is %dms", durationMilliseconds, minIterationDurationMilliseconds)
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}

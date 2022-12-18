@@ -34,22 +34,22 @@ const (
 	// https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
 )
 
-func compressBody(algos []CompressionType, body io.ReadCloser) (*bytes.Buffer, string, error) ***REMOVED***
+func compressBody(algos []CompressionType, body io.ReadCloser) (*bytes.Buffer, string, error) {
 	var contentEncoding string
 	var prevBuf io.Reader = body
 	var buf *bytes.Buffer
-	for _, compressionType := range algos ***REMOVED***
-		if buf != nil ***REMOVED***
+	for _, compressionType := range algos {
+		if buf != nil {
 			prevBuf = buf
-		***REMOVED***
+		}
 		buf = new(bytes.Buffer)
 
-		if contentEncoding != "" ***REMOVED***
+		if contentEncoding != "" {
 			contentEncoding += ", "
-		***REMOVED***
+		}
 		contentEncoding += compressionType.String()
 		var w io.WriteCloser
-		switch compressionType ***REMOVED***
+		switch compressionType {
 		case CompressionTypeGzip:
 			w = gzip.NewWriter(buf)
 		case CompressionTypeDeflate:
@@ -60,94 +60,94 @@ func compressBody(algos []CompressionType, body io.ReadCloser) (*bytes.Buffer, s
 			w = brotli.NewWriter(buf)
 		default:
 			return nil, "", fmt.Errorf("unknown compressionType %s", compressionType)
-		***REMOVED***
+		}
 		// we don't close in defer because zlib will write it's checksum again if it closes twice :(
 		_, err := io.Copy(w, prevBuf)
-		if err != nil ***REMOVED***
+		if err != nil {
 			_ = w.Close()
 			return nil, "", err
-		***REMOVED***
+		}
 
-		if err = w.Close(); err != nil ***REMOVED***
+		if err = w.Close(); err != nil {
 			return nil, "", err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return buf, contentEncoding, body.Close()
-***REMOVED***
+}
 
 //nolint:gochecknoglobals
-var decompressionErrors = [...]error***REMOVED***
+var decompressionErrors = [...]error{
 	zlib.ErrChecksum, zlib.ErrDictionary, zlib.ErrHeader,
 	gzip.ErrChecksum, gzip.ErrHeader,
 	// TODO: handle brotli errors - currently unexported
 	zstd.ErrReservedBlockType, zstd.ErrCompressedSizeTooBig, zstd.ErrBlockTooSmall, zstd.ErrMagicMismatch,
 	zstd.ErrWindowSizeExceeded, zstd.ErrWindowSizeTooSmall, zstd.ErrDecoderSizeExceeded, zstd.ErrUnknownDictionary,
 	zstd.ErrFrameSizeExceeded, zstd.ErrCRCMismatch, zstd.ErrDecoderClosed,
-***REMOVED***
+}
 
-func newDecompressionError(originalErr error) K6Error ***REMOVED***
+func newDecompressionError(originalErr error) K6Error {
 	return NewK6Error(
 		responseDecompressionErrorCode,
 		fmt.Sprintf("error decompressing response body (%s)", originalErr.Error()),
 		originalErr,
 	)
-***REMOVED***
+}
 
-func wrapDecompressionError(err error) error ***REMOVED***
-	if err == nil ***REMOVED***
+func wrapDecompressionError(err error) error {
+	if err == nil {
 		return nil
-	***REMOVED***
+	}
 
 	// TODO: something more optimized? for example, we won't get zstd errors if
 	// we don't use it... maybe the code that builds the decompression readers
 	// could also add an appropriate error-wrapper layer?
-	for _, decErr := range &decompressionErrors ***REMOVED***
-		if err == decErr ***REMOVED***
+	for _, decErr := range &decompressionErrors {
+		if err == decErr {
 			return newDecompressionError(err)
-		***REMOVED***
-	***REMOVED***
-	if strings.HasPrefix(err.Error(), "brotli: ") ***REMOVED*** // TODO: submit an upstream patch and fix...
+		}
+	}
+	if strings.HasPrefix(err.Error(), "brotli: ") { // TODO: submit an upstream patch and fix...
 		return newDecompressionError(err)
-	***REMOVED***
+	}
 	return err
-***REMOVED***
+}
 
 func readResponseBody(
 	state *libWorker.State,
 	respType ResponseType,
 	resp *http.Response,
 	respErr error,
-) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	if resp == nil || respErr != nil ***REMOVED***
+) (interface{}, error) {
+	if resp == nil || respErr != nil {
 		return nil, respErr
-	***REMOVED***
+	}
 
-	if respType == ResponseTypeNone ***REMOVED***
+	if respType == ResponseTypeNone {
 		_, err := io.Copy(ioutil.Discard, resp.Body)
 		_ = resp.Body.Close()
-		if err != nil ***REMOVED***
+		if err != nil {
 			respErr = err
-		***REMOVED***
+		}
 		return nil, respErr
-	***REMOVED***
+	}
 
-	rc := &readCloser***REMOVED***resp.Body***REMOVED***
+	rc := &readCloser{resp.Body}
 	// Ensure that the entire response body is read and closed, e.g. in case of decoding errors
-	defer func(respBody io.ReadCloser) ***REMOVED***
+	defer func(respBody io.ReadCloser) {
 		_, _ = io.Copy(ioutil.Discard, respBody)
 		_ = respBody.Close()
-	***REMOVED***(resp.Body)
+	}(resp.Body)
 
 	contentEncodings := strings.Split(resp.Header.Get("Content-Encoding"), ",")
 	// Transparently decompress the body if it's has a content-encoding we
 	// support. If not, simply return it as it is.
-	for i := len(contentEncodings) - 1; i >= 0; i-- ***REMOVED***
+	for i := len(contentEncodings) - 1; i >= 0; i-- {
 		contentEncoding := strings.TrimSpace(contentEncodings[i])
-		if compression, err := CompressionTypeString(contentEncoding); err == nil ***REMOVED***
+		if compression, err := CompressionTypeString(contentEncoding); err == nil {
 			var decoder io.Reader
 			var err error
-			switch compression ***REMOVED***
+			switch compression {
 			case CompressionTypeDeflate:
 				decoder, err = zlib.NewReader(rc)
 			case CompressionTypeGzip:
@@ -162,29 +162,29 @@ func readResponseBody(
 					"unsupported compression type %s - this is a bug in k6, please report it",
 					compression,
 				)
-			***REMOVED***
-			if err != nil ***REMOVED***
+			}
+			if err != nil {
 				return nil, newDecompressionError(err)
-			***REMOVED***
-			rc = &readCloser***REMOVED***decoder***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+			rc = &readCloser{decoder}
+		}
+	}
 	buf := state.BPool.Get()
 	defer state.BPool.Put(buf)
 	buf.Reset()
 	_, err := io.Copy(buf, rc.Reader)
-	if err != nil ***REMOVED***
+	if err != nil {
 		respErr = wrapDecompressionError(err)
-	***REMOVED***
+	}
 
 	err = rc.Close()
-	if err != nil && respErr == nil ***REMOVED*** // Don't overwrite previous errors
+	if err != nil && respErr == nil { // Don't overwrite previous errors
 		respErr = wrapDecompressionError(err)
-	***REMOVED***
+	}
 
-	var result interface***REMOVED******REMOVED***
+	var result interface{}
 	// Binary or string
-	switch respType ***REMOVED***
+	switch respType {
 	case ResponseTypeText:
 		result = buf.String()
 	case ResponseTypeBinary:
@@ -197,7 +197,7 @@ func readResponseBody(
 		result = binData
 	default:
 		respErr = fmt.Errorf("unknown responseType %s", respType)
-	***REMOVED***
+	}
 
 	return result, respErr
-***REMOVED***
+}

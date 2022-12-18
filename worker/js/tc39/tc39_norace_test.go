@@ -7,12 +7,12 @@ package tc39
 
 import "testing"
 
-func (ctx *tc39TestCtx) runTest(name string, f func(t *testing.T)) ***REMOVED***
-	ctx.t.Run(name, func(t *testing.T) ***REMOVED***
+func (ctx *tc39TestCtx) runTest(name string, f func(t *testing.T)) {
+	ctx.t.Run(name, func(t *testing.T) {
 		t.Parallel()
 		f(t)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func (ctx *tc39TestCtx) flush() ***REMOVED***
-***REMOVED***
+func (ctx *tc39TestCtx) flush() {
+}

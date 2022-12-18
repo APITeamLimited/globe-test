@@ -20,7 +20,7 @@ const (
 )
 
 // RuntimeOptions are settings passed onto the goja JS runtime
-type RuntimeOptions struct ***REMOVED***
+type RuntimeOptions struct {
 	TestType null.String `json:"-"`
 
 	// Whether to pass the actual system environment variables to the JS runtime
@@ -40,20 +40,20 @@ type RuntimeOptions struct ***REMOVED***
 	NoThresholds  null.Bool   `json:"noThresholds"`
 	SummaryExport null.String `json:"summaryExport"`
 	KeyWriter     null.String `json:"-"`
-***REMOVED***
+}
 
 // ValidateCompatibilityMode checks if the provided val is a valid compatibility mode
-func ValidateCompatibilityMode(val string) (cm CompatibilityMode, err error) ***REMOVED***
-	if val == "" ***REMOVED***
+func ValidateCompatibilityMode(val string) (cm CompatibilityMode, err error) {
+	if val == "" {
 		return CompatibilityModeExtended, nil
-	***REMOVED***
-	if cm, err = CompatibilityModeString(val); err != nil ***REMOVED***
+	}
+	if cm, err = CompatibilityModeString(val); err != nil {
 		var compatValues []string
-		for _, v := range CompatibilityModeValues() ***REMOVED***
+		for _, v := range CompatibilityModeValues() {
 			compatValues = append(compatValues, v.String())
-		***REMOVED***
+		}
 		err = fmt.Errorf(`invalid compatibility mode "%s". Use: "%s"`,
 			val, strings.Join(compatValues, `", "`))
-	***REMOVED***
+	}
 	return
-***REMOVED***
+}

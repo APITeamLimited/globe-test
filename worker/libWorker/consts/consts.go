@@ -14,15 +14,15 @@ var VersionDetails = "" //nolint:gochecknoglobals
 
 // FullVersion returns the maximally full version and build information for
 // the currently running k6 executable.
-func FullVersion() string ***REMOVED***
+func FullVersion() string {
 	goVersionArch := fmt.Sprintf("%s, %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	if VersionDetails != "" ***REMOVED***
+	if VersionDetails != "" {
 		return fmt.Sprintf("%s (%s, %s)", Version, VersionDetails, goVersionArch)
-	***REMOVED***
+	}
 
-	if buildInfo, ok := debug.ReadBuildInfo(); ok ***REMOVED***
+	if buildInfo, ok := debug.ReadBuildInfo(); ok {
 		return fmt.Sprintf("%s (%s, %s)", Version, buildInfo.Main.Version, goVersionArch)
-	***REMOVED***
+	}
 
 	return fmt.Sprintf("%s (dev build, %s)", Version, goVersionArch)
-***REMOVED***
+}

@@ -10,48 +10,48 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct***REMOVED******REMOVED***
+	RootModule struct{}
 
 	// Encoding represents an instance of the encoding module.
-	Encoding struct ***REMOVED***
+	Encoding struct {
 		vu modules.VU
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &Encoding***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &Encoding{}
 )
 
 // New returns a pointer to a new RootModule instance.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
-***REMOVED***
+func New() *RootModule {
+	return &RootModule{}
+}
 
 // NewModuleInstance implements the modules.Module interface to return
 // a new instance for each VU.
-func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &Encoding***REMOVED***vu: vu***REMOVED***
-***REMOVED***
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &Encoding{vu: vu}
+}
 
 // Exports returns the exports of the encoding module.
-func (e *Encoding) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
-		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+func (e *Encoding) Exports() modules.Exports {
+	return modules.Exports{
+		Named: map[string]interface{}{
 			"b64encode": e.b64Encode,
 			"b64decode": e.b64Decode,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // b64encode returns the base64 encoding of input as a string.
 // The data type of input can be a string, []byte or ArrayBuffer.
-func (e *Encoding) b64Encode(input interface***REMOVED******REMOVED***, encoding string) string ***REMOVED***
+func (e *Encoding) b64Encode(input interface{}, encoding string) string {
 	data, err := common.ToBytes(input)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(e.vu.Runtime(), err)
-	***REMOVED***
-	switch encoding ***REMOVED***
+	}
+	switch encoding {
 	case "rawstd":
 		return base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(data)
 	case "std":
@@ -62,19 +62,19 @@ func (e *Encoding) b64Encode(input interface***REMOVED******REMOVED***, encoding
 		return base64.URLEncoding.EncodeToString(data)
 	default:
 		return base64.StdEncoding.EncodeToString(data)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // b64decode returns the decoded data of the base64 encoded input string using
 // the given encoding. If format is "s" it returns the data as a string,
 // otherwise as an ArrayBuffer.
-func (e *Encoding) b64Decode(input, encoding, format string) interface***REMOVED******REMOVED*** ***REMOVED***
+func (e *Encoding) b64Decode(input, encoding, format string) interface{} {
 	var (
 		output []byte
 		err    error
 	)
 
-	switch encoding ***REMOVED***
+	switch encoding {
 	case "rawstd":
 		output, err = base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(input)
 	case "std":
@@ -85,19 +85,19 @@ func (e *Encoding) b64Decode(input, encoding, format string) interface***REMOVED
 		output, err = base64.URLEncoding.DecodeString(input)
 	default:
 		output, err = base64.StdEncoding.DecodeString(input)
-	***REMOVED***
+	}
 
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(e.vu.Runtime(), err)
-	***REMOVED***
+	}
 
-	var out interface***REMOVED******REMOVED***
-	if format == "s" ***REMOVED***
+	var out interface{}
+	if format == "s" {
 		out = string(output)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		ab := e.vu.Runtime().NewArrayBuffer(output)
 		out = &ab
-	***REMOVED***
+	}
 
 	return out
-***REMOVED***
+}

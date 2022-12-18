@@ -11,43 +11,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSampleBufferBasics(t *testing.T) ***REMOVED***
+func TestSampleBufferBasics(t *testing.T) {
 	t.Parallel()
 
 	registry := workerMetrics.NewRegistry()
 	metric, err := registry.NewMetric("my_metric", workerMetrics.Rate)
 	require.NoError(t, err)
 
-	single := workerMetrics.Sample***REMOVED***
+	single := workerMetrics.Sample{
 		Time:   time.Now(),
 		Metric: metric,
 		Value:  float64(123),
-		Tags:   workerMetrics.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
-	***REMOVED***
-	connected := workerMetrics.ConnectedSamples***REMOVED***Samples: []workerMetrics.Sample***REMOVED***single, single***REMOVED***, Time: single.Time***REMOVED***
-	buffer := SampleBuffer***REMOVED******REMOVED***
+		Tags:   workerMetrics.NewSampleTags(map[string]string{"tag1": "val1"}),
+	}
+	connected := workerMetrics.ConnectedSamples{Samples: []workerMetrics.Sample{single, single}, Time: single.Time}
+	buffer := SampleBuffer{}
 
 	assert.Empty(t, buffer.GetBufferedSamples())
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***single, single***REMOVED***)
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***single, connected, single***REMOVED***)
-	assert.Equal(t, []workerMetrics.SampleContainer***REMOVED***single, single, single, connected, single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, single})
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, connected, single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single, single, single, connected, single}, buffer.GetBufferedSamples())
 	assert.Empty(t, buffer.GetBufferedSamples())
 
 	// Verify some internals
 	assert.Equal(t, cap(buffer.buffer), 5)
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***single, connected***REMOVED***)
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single, connected})
 	buffer.AddMetricSamples(nil)
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED******REMOVED***)
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***single***REMOVED***)
-	assert.Equal(t, []workerMetrics.SampleContainer***REMOVED***single, connected, single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{})
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single, connected, single}, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 4)
-	buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***single***REMOVED***)
-	assert.Equal(t, []workerMetrics.SampleContainer***REMOVED***single***REMOVED***, buffer.GetBufferedSamples())
+	buffer.AddMetricSamples([]workerMetrics.SampleContainer{single})
+	assert.Equal(t, []workerMetrics.SampleContainer{single}, buffer.GetBufferedSamples())
 	assert.Equal(t, cap(buffer.buffer), 3)
 	assert.Empty(t, buffer.GetBufferedSamples())
-***REMOVED***
+}
 
-func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
+func TestSampleBufferConcurrently(t *testing.T) {
 	t.Parallel()
 
 	seed := time.Now().UnixNano()
@@ -61,24 +61,24 @@ func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
 	producersCount := 50 + r.Intn(50)
 	sampleCount := 10 + r.Intn(10)
 	sleepModifier := 10 + r.Intn(10)
-	buffer := SampleBuffer***REMOVED******REMOVED***
+	buffer := SampleBuffer{}
 
-	wg := make(chan struct***REMOVED******REMOVED***)
-	fillBuffer := func() ***REMOVED***
-		for i := 0; i < sampleCount; i++ ***REMOVED***
-			buffer.AddMetricSamples([]workerMetrics.SampleContainer***REMOVED***workerMetrics.Sample***REMOVED***
+	wg := make(chan struct{})
+	fillBuffer := func() {
+		for i := 0; i < sampleCount; i++ {
+			buffer.AddMetricSamples([]workerMetrics.SampleContainer{workerMetrics.Sample{
 				Time:   time.Unix(1562324644, 0),
 				Metric: metric,
 				Value:  float64(i),
-				Tags:   workerMetrics.NewSampleTags(map[string]string***REMOVED***"tag1": "val1"***REMOVED***),
-			***REMOVED******REMOVED***)
+				Tags:   workerMetrics.NewSampleTags(map[string]string{"tag1": "val1"}),
+			}})
 			time.Sleep(time.Duration(i*sleepModifier) * time.Microsecond)
-		***REMOVED***
-		wg <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	***REMOVED***
-	for i := 0; i < producersCount; i++ ***REMOVED***
+		}
+		wg <- struct{}{}
+	}
+	for i := 0; i < producersCount; i++ {
 		go fillBuffer()
-	***REMOVED***
+	}
 
 	timer := time.NewTicker(5 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
@@ -86,56 +86,56 @@ func TestSampleBufferConcurrently(t *testing.T) ***REMOVED***
 	readSamples := make([]workerMetrics.SampleContainer, 0, sampleCount*producersCount)
 	finishedProducers := 0
 loop:
-	for ***REMOVED***
-		select ***REMOVED***
+	for {
+		select {
 		case <-timer.C:
 			readSamples = append(readSamples, buffer.GetBufferedSamples()...)
 		case <-wg:
 			finishedProducers++
-			if finishedProducers == producersCount ***REMOVED***
+			if finishedProducers == producersCount {
 				readSamples = append(readSamples, buffer.GetBufferedSamples()...)
 				break loop
-			***REMOVED***
+			}
 		case <-timeout:
 			t.Fatalf("test timed out")
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	assert.Equal(t, sampleCount*producersCount, len(readSamples))
-	for _, s := range readSamples ***REMOVED***
+	for _, s := range readSamples {
 		require.NotNil(t, s)
 		ss := s.GetSamples()
 		require.Len(t, ss, 1)
 		assert.Equal(t, "my_metric", ss[0].Metric.Name)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestPeriodicFlusherBasics(t *testing.T) ***REMOVED***
+func TestPeriodicFlusherBasics(t *testing.T) {
 	t.Parallel()
 
-	f, err := NewPeriodicFlusher(-1*time.Second, func() ***REMOVED******REMOVED***)
+	f, err := NewPeriodicFlusher(-1*time.Second, func() {})
 	assert.Error(t, err)
 	assert.Nil(t, f)
-	f, err = NewPeriodicFlusher(0, func() ***REMOVED******REMOVED***)
+	f, err = NewPeriodicFlusher(0, func() {})
 	assert.Error(t, err)
 	assert.Nil(t, f)
 
 	count := 0
-	wg := &sync.WaitGroup***REMOVED******REMOVED***
+	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	f, err = NewPeriodicFlusher(100*time.Millisecond, func() ***REMOVED***
+	f, err = NewPeriodicFlusher(100*time.Millisecond, func() {
 		count++
-		if count == 2 ***REMOVED***
+		if count == 2 {
 			wg.Done()
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 	assert.NotNil(t, f)
 	assert.Nil(t, err)
 	wg.Wait()
 	f.Stop()
 	assert.Equal(t, 3, count)
-***REMOVED***
+}
 
-func TestPeriodicFlusherConcurrency(t *testing.T) ***REMOVED***
+func TestPeriodicFlusherConcurrency(t *testing.T) {
 	t.Parallel()
 
 	seed := time.Now().UnixNano()
@@ -144,29 +144,29 @@ func TestPeriodicFlusherConcurrency(t *testing.T) ***REMOVED***
 	t.Logf("Random source seeded with %d\n", seed)
 
 	count := 0
-	wg := &sync.WaitGroup***REMOVED******REMOVED***
+	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	f, err := NewPeriodicFlusher(1000*time.Microsecond, func() ***REMOVED***
+	f, err := NewPeriodicFlusher(1000*time.Microsecond, func() {
 		// Sleep intentionally may be longer than the flush period. Also, this
 		// should never happen concurrently, so it's intentionally not locked.
 		time.Sleep(time.Duration(700+r.Intn(1000)) * time.Microsecond)
 		count++
-		if count == 100 ***REMOVED***
+		if count == 100 {
 			wg.Done()
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 	assert.NotNil(t, f)
 	assert.Nil(t, err)
 	wg.Wait()
 
-	stopWG := &sync.WaitGroup***REMOVED******REMOVED***
+	stopWG := &sync.WaitGroup{}
 	stopWG.Add(randStops)
-	for i := 0; i < randStops; i++ ***REMOVED***
-		go func() ***REMOVED***
+	for i := 0; i < randStops; i++ {
+		go func() {
 			f.Stop()
 			stopWG.Done()
-		***REMOVED***()
-	***REMOVED***
+		}()
+	}
 	stopWG.Wait()
 	assert.True(t, count >= 101) // due to the short intervals, we might not get exactly 101
-***REMOVED***
+}

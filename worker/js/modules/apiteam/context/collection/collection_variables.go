@@ -5,17 +5,17 @@ import (
 	"github.com/dop251/goja"
 )
 
-func (mi *CollectionInstance) getVariablesObject() *goja.Object ***REMOVED***
+func (mi *CollectionInstance) getVariablesObject() *goja.Object {
 	// Make sure variables are enabled before calling
 
 	rt := mi.vu.Runtime()
 	variablesObject := rt.NewObject()
 
-	mustExport := func(name string, value interface***REMOVED******REMOVED***) ***REMOVED***
-		if err := variablesObject.Set(name, value); err != nil ***REMOVED***
+	mustExport := func(name string, value interface{}) {
+		if err := variablesObject.Set(name, value); err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	mustExport("set", mi.set)
 	mustExport("get", mi.get)
@@ -25,10 +25,10 @@ func (mi *CollectionInstance) getVariablesObject() *goja.Object ***REMOVED***
 	mustExport("list", mi.list)
 
 	return variablesObject
-***REMOVED***
+}
 
 // set sets a key-value pair in the collection.
-func (mi *CollectionInstance) set(key string, value string) bool ***REMOVED***
+func (mi *CollectionInstance) set(key string, value string) bool {
 	mi.module.sharedCollection.mu.Lock()
 	defer mi.module.sharedCollection.mu.Unlock()
 
@@ -36,56 +36,56 @@ func (mi *CollectionInstance) set(key string, value string) bool ***REMOVED***
 	mi.module.sharedCollection.data.Variables[key] = value
 
 	return true
-***REMOVED***
+}
 
 // get gets a value from the collection.
-func (mi *CollectionInstance) get(key string) string ***REMOVED***
+func (mi *CollectionInstance) get(key string) string {
 	mi.module.sharedCollection.mu.RLock()
 	defer mi.module.sharedCollection.mu.RUnlock()
 
-	if value, ok := mi.module.sharedCollection.data.Variables[key]; ok ***REMOVED***
+	if value, ok := mi.module.sharedCollection.data.Variables[key]; ok {
 		return value
-	***REMOVED***
+	}
 
 	return ""
-***REMOVED***
+}
 
 // has checks if a key exists in the collection.
-func (mi *CollectionInstance) has(key string) bool ***REMOVED***
+func (mi *CollectionInstance) has(key string) bool {
 	mi.module.sharedCollection.mu.RLock()
 	defer mi.module.sharedCollection.mu.RUnlock()
 
 	_, ok := mi.module.sharedCollection.data.Variables[key]
 
 	return ok
-***REMOVED***
+}
 
 // unset removes a key-value pair from the collection.
-func (mi *CollectionInstance) unset(key string) bool ***REMOVED***
+func (mi *CollectionInstance) unset(key string) bool {
 	mi.module.sharedCollection.mu.Lock()
 	defer mi.module.sharedCollection.mu.Unlock()
 
-	if _, ok := mi.module.sharedCollection.data.Variables[key]; ok ***REMOVED***
+	if _, ok := mi.module.sharedCollection.data.Variables[key]; ok {
 		delete(mi.module.sharedCollection.data.Variables, key)
 		return true
-	***REMOVED***
+	}
 
 	return false
-***REMOVED***
+}
 
 // clear removes all key-value pairs from the collection.
-func (mi *CollectionInstance) clear() bool ***REMOVED***
+func (mi *CollectionInstance) clear() bool {
 	mi.module.sharedCollection.mu.Lock()
 	defer mi.module.sharedCollection.mu.Unlock()
 
 	mi.module.sharedCollection.data.Variables = make(map[string]string)
 	return true
-***REMOVED***
+}
 
 // list returns a dictionary of all key-value pairs in the collection.
-func (mi *CollectionInstance) list() map[string]string ***REMOVED***
+func (mi *CollectionInstance) list() map[string]string {
 	mi.module.sharedCollection.mu.RLock()
 	defer mi.module.sharedCollection.mu.RUnlock()
 
 	return mi.module.sharedCollection.data.Variables
-***REMOVED***
+}

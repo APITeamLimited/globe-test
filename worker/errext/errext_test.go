@@ -10,21 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertHasHint(t *testing.T, err error, hint string) ***REMOVED***
+func assertHasHint(t *testing.T, err error, hint string) {
 	var typederr HasHint
 	require.ErrorAs(t, err, &typederr)
 	assert.Equal(t, typederr.Hint(), hint)
 	assert.Contains(t, err.Error(), typederr.Error())
-***REMOVED***
+}
 
-func assertHasExitCode(t *testing.T, err error, exitcode exitcodes.ExitCode) ***REMOVED***
+func assertHasExitCode(t *testing.T, err error, exitcode exitcodes.ExitCode) {
 	var typederr HasExitCode
 	require.ErrorAs(t, err, &typederr)
 	assert.Equal(t, typederr.ExitCode(), exitcode)
 	assert.Contains(t, err.Error(), typederr.Error())
-***REMOVED***
+}
 
-func TestErrextHelpers(t *testing.T) ***REMOVED***
+func TestErrextHelpers(t *testing.T) {
 	t.Parallel()
 
 	const testExitCode exitcodes.ExitCode = 13
@@ -55,4 +55,4 @@ func TestErrextHelpers(t *testing.T) ***REMOVED***
 	assert.Equal(t, finalErrorMess.Error(), "woot: wrapper error: base error")
 	assertHasHint(t, finalErrorMess, "best hint (better hint (test hint))")
 	assertHasExitCode(t, finalErrorMess, testExitCode)
-***REMOVED***
+}

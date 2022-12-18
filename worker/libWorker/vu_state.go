@@ -15,12 +15,12 @@ import (
 )
 
 // DialContexter is an interface that can dial with a context
-type DialContexter interface ***REMOVED***
+type DialContexter interface {
 	DialContext(ctx context.Context, network, addr string) (net.Conn, error)
-***REMOVED***
+}
 
 // State provides the volatile state for a VU.
-type State struct ***REMOVED***
+type State struct {
 	// Global options and built-in workerMetrics.
 	//
 	// TODO: remove them from here, the built-in metrics and the script options
@@ -70,70 +70,70 @@ type State struct ***REMOVED***
 	// unique globally across k6 instances (taking into account execution
 	// segments).
 	GetScenarioGlobalVUIter func() uint64
-***REMOVED***
+}
 
 // CloneTags makes a copy of the tags map and returns it.
-func (s *State) CloneTags() map[string]string ***REMOVED***
+func (s *State) CloneTags() map[string]string {
 	return s.Tags.Clone()
-***REMOVED***
+}
 
 // TagMap is a safe-concurrent Tags lookup.
-type TagMap struct ***REMOVED***
+type TagMap struct {
 	m     map[string]string
 	mutex sync.RWMutex
-***REMOVED***
+}
 
 // NewTagMap creates a TagMap,
 // if a not-nil map is passed then it will be used as the internal map
 // otherwise a new one will be created.
-func NewTagMap(m map[string]string) *TagMap ***REMOVED***
-	if m == nil ***REMOVED***
+func NewTagMap(m map[string]string) *TagMap {
+	if m == nil {
 		m = make(map[string]string)
-	***REMOVED***
-	return &TagMap***REMOVED***
+	}
+	return &TagMap{
 		m:     m,
-		mutex: sync.RWMutex***REMOVED******REMOVED***,
-	***REMOVED***
-***REMOVED***
+		mutex: sync.RWMutex{},
+	}
+}
 
 // Set sets a Tag.
-func (tg *TagMap) Set(k, v string) ***REMOVED***
+func (tg *TagMap) Set(k, v string) {
 	tg.mutex.Lock()
 	defer tg.mutex.Unlock()
 	tg.m[k] = v
-***REMOVED***
+}
 
 // Get returns the Tag value and true
 // if the provided key has been found.
-func (tg *TagMap) Get(k string) (string, bool) ***REMOVED***
+func (tg *TagMap) Get(k string) (string, bool) {
 	tg.mutex.RLock()
 	defer tg.mutex.RUnlock()
 	v, ok := tg.m[k]
 	return v, ok
-***REMOVED***
+}
 
 // Len returns the number of the set keys.
-func (tg *TagMap) Len() int ***REMOVED***
+func (tg *TagMap) Len() int {
 	tg.mutex.RLock()
 	defer tg.mutex.RUnlock()
 	return len(tg.m)
-***REMOVED***
+}
 
 // Delete deletes a map's item based on the provided key.
-func (tg *TagMap) Delete(k string) ***REMOVED***
+func (tg *TagMap) Delete(k string) {
 	tg.mutex.Lock()
 	defer tg.mutex.Unlock()
 	delete(tg.m, k)
-***REMOVED***
+}
 
 // Clone returns a map with the entire set of items.
-func (tg *TagMap) Clone() map[string]string ***REMOVED***
+func (tg *TagMap) Clone() map[string]string {
 	tg.mutex.RLock()
 	defer tg.mutex.RUnlock()
 
 	tags := make(map[string]string, len(tg.m))
-	for k, v := range tg.m ***REMOVED***
+	for k, v := range tg.m {
 		tags[k] = v
-	***REMOVED***
+	}
 	return tags
-***REMOVED***
+}

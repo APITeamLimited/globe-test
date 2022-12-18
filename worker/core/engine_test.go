@@ -33,48 +33,48 @@ const isWindows = runtime.GOOS == "windows"
 
 // TODO: completely rewrite all of these tests
 
-type testStruct struct ***REMOVED***
+type testStruct struct {
 	engine    *Engine
 	run       func() error
 	runCancel func()
 	wait      func()
 	piState   *libWorker.TestPreInitState
-***REMOVED***
+}
 
-func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState ***REMOVED***
+func getTestPreInitState(tb testing.TB) *libWorker.TestPreInitState {
 	reg := workerMetrics.NewRegistry()
-	return &libWorker.TestPreInitState***REMOVED***
+	return &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
-		RuntimeOptions: libWorker.RuntimeOptions***REMOVED******REMOVED***,
+		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 func getTestRunState(
 	tb testing.TB, piState *libWorker.TestPreInitState, options libWorker.Options, runner libWorker.Runner,
-) *libWorker.TestRunState ***REMOVED***
+) *libWorker.TestRunState {
 	require.Empty(tb, options.Validate())
 	require.NoError(tb, runner.SetOptions(options))
-	return &libWorker.TestRunState***REMOVED***
+	return &libWorker.TestRunState{
 		TestPreInitState: piState,
 		Options:          options,
 		Runner:           runner,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngineWithTestPreInitState( //nolint:golint
 	t *testing.T, runTimeout *time.Duration, runner libWorker.Runner, outputs []output.Output,
 	opts libWorker.Options, piState *libWorker.TestPreInitState,
-) *testStruct ***REMOVED***
-	if runner == nil ***REMOVED***
-		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
-	***REMOVED***
+) *testStruct {
+	if runner == nil {
+		runner = &minirunner.MiniRunner{}
+	}
 
-	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
+	newOpts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), piState.Logger)
+	}.Apply(runner.GetOptions()).Apply(opts), piState.Logger)
 	require.NoError(t, err)
 
 	testRunState := getTestRunState(t, piState, newOpts, runner)
@@ -89,131 +89,131 @@ func newTestEngineWithTestPreInitState( //nolint:golint
 	globalCtx, globalCancel := context.WithCancel(context.Background())
 	var runCancel func()
 	var runCtx context.Context
-	if runTimeout != nil ***REMOVED***
+	if runTimeout != nil {
 		runCtx, runCancel = context.WithTimeout(globalCtx, *runTimeout)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		runCtx, runCancel = context.WithCancel(globalCtx)
-	***REMOVED***
+	}
 	run, waitFn, err := engine.Init(globalCtx, runCtx, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	var test *testStruct
-	test = &testStruct***REMOVED***
+	test = &testStruct{
 		engine:    engine,
 		run:       run,
 		runCancel: runCancel,
-		wait: func() ***REMOVED***
+		wait: func() {
 			test.runCancel()
 			globalCancel()
 			waitFn()
 			engine.OutputManager.StopOutputs()
-		***REMOVED***,
+		},
 		piState: piState,
-	***REMOVED***
+	}
 	return test
-***REMOVED***
+}
 
 func newTestEngine(
 	t *testing.T, runTimeout *time.Duration, runner libWorker.Runner, outputs []output.Output, opts libWorker.Options,
-) *testStruct ***REMOVED***
+) *testStruct {
 	return newTestEngineWithTestPreInitState(t, runTimeout, runner, outputs, opts, getTestPreInitState(t))
-***REMOVED***
+}
 
-func TestEngineRun(t *testing.T) ***REMOVED***
+func TestEngineRun(t *testing.T) {
 	t.Parallel()
 	logrus.SetLevel(logrus.DebugLevel)
-	t.Run("exits with context", func(t *testing.T) ***REMOVED***
+	t.Run("exits with context", func(t *testing.T) {
 		t.Parallel()
-		done := make(chan struct***REMOVED******REMOVED***)
-		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error ***REMOVED***
+		done := make(chan struct{})
+		runner := &minirunner.MiniRunner{
+			Fn: func(ctx context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 				<-ctx.Done()
 				close(done)
 				return nil
-			***REMOVED***,
-		***REMOVED***
+			},
+		}
 
 		duration := 100 * time.Millisecond
-		test := newTestEngine(t, &duration, runner, nil, libWorker.Options***REMOVED******REMOVED***)
+		test := newTestEngine(t, &duration, runner, nil, libWorker.Options{})
 		defer test.wait()
 
 		startTime := time.Now()
 		assert.NoError(t, test.run())
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
 		<-done
-	***REMOVED***)
-	t.Run("exits with executor", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("exits with executor", func(t *testing.T) {
 		t.Parallel()
-		test := newTestEngine(t, nil, nil, nil, libWorker.Options***REMOVED***
+		test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 			VUs:        null.IntFrom(10),
 			Iterations: null.IntFrom(100),
-		***REMOVED***)
+		})
 		defer test.wait()
 		assert.NoError(t, test.run())
 		assert.Equal(t, uint64(100), test.engine.ExecutionScheduler.GetState().GetFullIterationCount())
-	***REMOVED***)
+	})
 	// Make sure samples are discarded after context close (using "cutoff" timestamp in local.go)
-	t.Run("collects samples", func(t *testing.T) ***REMOVED***
+	t.Run("collects samples", func(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
 		testMetric, err := piState.Registry.NewMetric("test_metric", workerMetrics.Trend)
 		require.NoError(t, err)
 
-		signalChan := make(chan interface***REMOVED******REMOVED***)
+		signalChan := make(chan interface{})
 
-		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+		runner := &minirunner.MiniRunner{
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
 				close(signalChan)
 				<-ctx.Done()
-				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+				workerMetrics.PushIfNotDone(ctx, out, workerMetrics.Sample{Metric: testMetric, Time: time.Now(), Value: 1})
 				return nil
-			***REMOVED***,
-		***REMOVED***
+			},
+		}
 
 		mockOutput := mockoutput.New()
-		test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED***
+		test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
-		***REMOVED***, piState)
+		}, piState)
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+		go func() { errC <- test.run() }()
 		<-signalChan
 		test.runCancel()
 		assert.NoError(t, <-errC)
 		test.wait()
 
 		found := 0
-		for _, s := range mockOutput.Samples ***REMOVED***
-			if s.Metric != testMetric ***REMOVED***
+		for _, s := range mockOutput.Samples {
+			if s.Metric != testMetric {
 				continue
-			***REMOVED***
+			}
 			found++
 			assert.Equal(t, 1.0, s.Value, "wrong value")
-		***REMOVED***
+		}
 		assert.Equal(t, 1, found, "wrong number of samples")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestEngineAtTime(t *testing.T) ***REMOVED***
+func TestEngineAtTime(t *testing.T) {
 	t.Parallel()
-	test := newTestEngine(t, nil, nil, nil, libWorker.Options***REMOVED***
+	test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 		VUs:      null.IntFrom(2),
 		Duration: types.NullDurationFrom(20 * time.Second),
-	***REMOVED***)
+	})
 	defer test.wait()
 
 	assert.NoError(t, test.run())
-***REMOVED***
+}
 
-func TestEngineStopped(t *testing.T) ***REMOVED***
+func TestEngineStopped(t *testing.T) {
 	t.Parallel()
-	test := newTestEngine(t, nil, nil, nil, libWorker.Options***REMOVED***
+	test := newTestEngine(t, nil, nil, nil, libWorker.Options{
 		VUs:      null.IntFrom(1),
 		Duration: types.NullDurationFrom(20 * time.Second),
-	***REMOVED***)
+	})
 	defer test.wait()
 
 	assert.NoError(t, test.run())
@@ -221,130 +221,130 @@ func TestEngineStopped(t *testing.T) ***REMOVED***
 	test.engine.Stop()
 	assert.Equal(t, true, test.engine.IsStopped(), "engine should be stopped")
 	test.engine.Stop() // test that a second stop doesn't panic
-***REMOVED***
+}
 
-func TestEngineOutput(t *testing.T) ***REMOVED***
+func TestEngineOutput(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
 	testMetric, err := piState.Registry.NewMetric("test_metric", workerMetrics.Trend)
 	require.NoError(t, err)
 
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(_ context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-			out <- workerMetrics.Sample***REMOVED***Metric: testMetric***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(_ context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: testMetric}
 			return nil
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	mockOutput := mockoutput.New()
-	test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED***
+	test := newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(1),
-	***REMOVED***, piState)
+	}, piState)
 
 	assert.NoError(t, test.run())
 	test.wait()
 
-	cSamples := []workerMetrics.Sample***REMOVED******REMOVED***
-	for _, sample := range mockOutput.Samples ***REMOVED***
-		if sample.Metric == testMetric ***REMOVED***
+	cSamples := []workerMetrics.Sample{}
+	for _, sample := range mockOutput.Samples {
+		if sample.Metric == testMetric {
 			cSamples = append(cSamples, sample)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	metric := test.engine.MetricsEngine.ObservedMetrics["test_metric"]
-	if assert.NotNil(t, metric) ***REMOVED***
+	if assert.NotNil(t, metric) {
 		sink := metric.Sink.(*workerMetrics.TrendSink) //nolint:forcetypeassert
-		if assert.NotNil(t, sink) ***REMOVED***
+		if assert.NotNil(t, sink) {
 			numOutputSamples := len(cSamples)
 			numEngineSamples := len(sink.Values)
 			assert.Equal(t, numEngineSamples, numOutputSamples)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestEngine_processSamples(t *testing.T) ***REMOVED***
+func TestEngine_processSamples(t *testing.T) {
 	t.Parallel()
 
-	t.Run("metric", func(t *testing.T) ***REMOVED***
+	t.Run("metric", func(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
 		metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 		require.NoError(t, err)
 
-		done := make(chan struct***REMOVED******REMOVED***)
-		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-				out <- workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+		done := make(chan struct{})
+		runner := &minirunner.MiniRunner{
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 				close(done)
 				return nil
-			***REMOVED***,
-		***REMOVED***
-		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options***REMOVED******REMOVED***, piState)
+			},
+		}
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{}, piState)
 
-		go func() ***REMOVED***
+		go func() {
 			assert.NoError(t, test.run())
-		***REMOVED***()
+		}()
 
-		select ***REMOVED***
+		select {
 		case <-done:
 			return
 		case <-time.After(10 * time.Second):
 			assert.Fail(t, "Test should have completed within 10 seconds")
-		***REMOVED***
+		}
 
 		test.wait()
 
-		assert.IsType(t, &workerMetrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
-	***REMOVED***)
-	t.Run("submetric", func(t *testing.T) ***REMOVED***
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+	})
+	t.Run("submetric", func(t *testing.T) {
 		t.Parallel()
 
 		piState := getTestPreInitState(t)
 		metric, err := piState.Registry.NewMetric("my_metric", workerMetrics.Gauge)
 		require.NoError(t, err)
 
-		ths := workerMetrics.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
+		ths := workerMetrics.NewThresholds([]string{`value<2`})
 		gotParseErr := ths.Parse()
 		require.NoError(t, gotParseErr)
 
-		done := make(chan struct***REMOVED******REMOVED***)
-		runner := &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-				out <- workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED***
+		done := make(chan struct{})
+		runner := &minirunner.MiniRunner{
+			Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+				out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1", "b": "2"})}
 				close(done)
 				return nil
-			***REMOVED***,
-		***REMOVED***
-		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options***REMOVED***
-			Thresholds: map[string]workerMetrics.Thresholds***REMOVED***
-				"my_metric***REMOVED***a:1***REMOVED***": ths,
-			***REMOVED***,
-		***REMOVED***, piState)
+			},
+		}
+		test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{
+			Thresholds: map[string]workerMetrics.Thresholds{
+				"my_metric{a:1}": ths,
+			},
+		}, piState)
 
-		go func() ***REMOVED***
+		go func() {
 			assert.NoError(t, test.run())
-		***REMOVED***()
+		}()
 
-		select ***REMOVED***
+		select {
 		case <-done:
 			return
 		case <-time.After(10 * time.Second):
 			assert.Fail(t, "Test should have completed within 10 seconds")
-		***REMOVED***
+		}
 		test.wait()
 
 		assert.Len(t, test.engine.MetricsEngine.ObservedMetrics, 2)
-		sms := test.engine.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
-		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
+		sms := test.engine.MetricsEngine.ObservedMetrics["my_metric{a:1}"]
+		assert.EqualValues(t, map[string]string{"a": "1"}, sms.Sub.Tags.CloneTags())
 
-		assert.IsType(t, &workerMetrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
-		assert.IsType(t, &workerMetrics.GaugeSink***REMOVED******REMOVED***, test.engine.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
-	***REMOVED***)
-***REMOVED***
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &workerMetrics.GaugeSink{}, test.engine.MetricsEngine.ObservedMetrics["my_metric{a:1}"].Sink)
+	})
+}
 
-func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
+func TestEngineThresholdsWillAbort(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
@@ -354,38 +354,38 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	// The incoming samples for the metric set it to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
-	ths := workerMetrics.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	ths := workerMetrics.NewThresholds([]string{"value>1.25"})
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]workerMetrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
+	thresholds := map[string]workerMetrics.Thresholds{metric.Name: ths}
 
-	done := make(chan struct***REMOVED******REMOVED***)
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-			out <- workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+	done := make(chan struct{})
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			close(done)
 			return nil
-		***REMOVED***,
-	***REMOVED***
-	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState)
+		},
+	}
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState)
 
-	go func() ***REMOVED***
+	go func() {
 		assert.NoError(t, test.run())
-	***REMOVED***()
+	}()
 
-	select ***REMOVED***
+	select {
 	case <-done:
 		return
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Test should have completed within 10 seconds")
-	***REMOVED***
+	}
 	test.wait()
 	assert.True(t, test.engine.thresholdsTainted)
-***REMOVED***
+}
 
-func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
+func TestEngineAbortedByThresholds(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
@@ -396,71 +396,71 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
 	// **N.B**: a threshold returning an error, won't trigger an abort.
-	ths := workerMetrics.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	ths := workerMetrics.NewThresholds([]string{"value>1.25"})
 	gotParseErr := ths.Parse()
 	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
-	thresholds := map[string]workerMetrics.Thresholds***REMOVED***metric.Name: ths***REMOVED***
+	thresholds := map[string]workerMetrics.Thresholds{metric.Name: ths}
 
-	done := make(chan struct***REMOVED******REMOVED***)
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-			out <- workerMetrics.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+	done := make(chan struct{})
+	runner := &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, _ *libWorker.State, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: metric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})}
 			<-ctx.Done()
 			close(done)
 			return nil
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState)
+	test := newTestEngineWithTestPreInitState(t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState)
 	defer test.wait()
 
-	go func() ***REMOVED***
+	go func() {
 		assert.NoError(t, test.run())
-	***REMOVED***()
+	}()
 
-	select ***REMOVED***
+	select {
 	case <-done:
 		return
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Test should have completed within 10 seconds")
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestEngine_processThresholds(t *testing.T) ***REMOVED***
+func TestEngine_processThresholds(t *testing.T) {
 	t.Parallel()
 
-	testdata := map[string]struct ***REMOVED***
+	testdata := map[string]struct {
 		pass bool
 		ths  map[string][]string
-	***REMOVED******REMOVED***
-		"passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
-		"failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
+	}{
+		"passing": {true, map[string][]string{"my_metric": {"value<2"}}},
+		"failing": {false, map[string][]string{"my_metric": {"value>1.25"}}},
 
-		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
-		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
-		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
-		"submetric,nomatch,failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
+		"submetric,match,passing":   {true, map[string][]string{"my_metric{a:1}": {"value<2"}}},
+		"submetric,match,failing":   {false, map[string][]string{"my_metric{a:1}": {"value>1.25"}}},
+		"submetric,nomatch,passing": {true, map[string][]string{"my_metric{a:2}": {"value<2"}}},
+		"submetric,nomatch,failing": {false, map[string][]string{"my_metric{a:2}": {"value>1.25"}}},
 
-		"unused,passing":      ***REMOVED***true, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
-		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
-		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
-		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
+		"unused,passing":      {true, map[string][]string{"unused_counter": {"count==0"}}},
+		"unused,failing":      {false, map[string][]string{"unused_counter": {"count>1"}}},
+		"unused,subm,passing": {true, map[string][]string{"unused_counter{a:2}": {"count<1"}}},
+		"unused,subm,failing": {false, map[string][]string{"unused_counter{a:2}": {"count>1"}}},
 
-		"used,passing":               ***REMOVED***true, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
-		"used,failing":               ***REMOVED***false, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
-		"used,subm,passing":          ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:1***REMOVED***": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
-		"used,not-subm,passing":      ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:2***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
-		"used,invalid-subm,passing1": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
-		"used,invalid-subm,failing1": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
-		"used,invalid-subm,passing2": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
-		"used,invalid-subm,failing2": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***
+		"used,passing":               {true, map[string][]string{"used_counter": {"count==2"}}},
+		"used,failing":               {false, map[string][]string{"used_counter": {"count<1"}}},
+		"used,subm,passing":          {true, map[string][]string{"used_counter{b:1}": {"count==2"}}},
+		"used,not-subm,passing":      {true, map[string][]string{"used_counter{b:2}": {"count==0"}}},
+		"used,invalid-subm,passing1": {true, map[string][]string{"used_counter{c:''}": {"count==0"}}},
+		"used,invalid-subm,failing1": {false, map[string][]string{"used_counter{c:''}": {"count>0"}}},
+		"used,invalid-subm,passing2": {true, map[string][]string{"used_counter{c:}": {"count==0"}}},
+		"used,invalid-subm,failing2": {false, map[string][]string{"used_counter{c:}": {"count>0"}}},
+	}
 
-	for name, data := range testdata ***REMOVED***
+	for name, data := range testdata {
 		name, data := name, data
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			piState := getTestPreInitState(t)
@@ -472,361 +472,361 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			thresholds := make(map[string]workerMetrics.Thresholds, len(data.ths))
-			for m, srcs := range data.ths ***REMOVED***
+			for m, srcs := range data.ths {
 				ths := workerMetrics.NewThresholds(srcs)
 				gotParseErr := ths.Parse()
 				require.NoError(t, gotParseErr)
 				thresholds[m] = ths
-			***REMOVED***
+			}
 
-			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
+			runner := &minirunner.MiniRunner{}
 			test := newTestEngineWithTestPreInitState(
-				t, nil, runner, nil, libWorker.Options***REMOVED***Thresholds: thresholds***REMOVED***, piState,
+				t, nil, runner, nil, libWorker.Options{Thresholds: thresholds}, piState,
 			)
 
 			test.engine.OutputManager.AddMetricSamples(
-				[]workerMetrics.SampleContainer***REMOVED***
-					workerMetrics.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
-					workerMetrics.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: workerMetrics.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
-				***REMOVED***,
+				[]workerMetrics.SampleContainer{
+					workerMetrics.Sample{Metric: gaugeMetric, Value: 1.25, Tags: workerMetrics.IntoSampleTags(&map[string]string{"a": "1"})},
+					workerMetrics.Sample{Metric: counterMetric, Value: 2, Tags: workerMetrics.IntoSampleTags(&map[string]string{"b": "1"})},
+				},
 			)
 
 			require.NoError(t, test.run())
 			test.wait()
 
 			assert.Equal(t, data.pass, !test.engine.IsTainted())
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func getMetricSum(mo *mockoutput.MockOutput, name string) (result float64) ***REMOVED***
-	for _, sc := range mo.SampleContainers ***REMOVED***
-		for _, s := range sc.GetSamples() ***REMOVED***
-			if s.Metric.Name == name ***REMOVED***
+func getMetricSum(mo *mockoutput.MockOutput, name string) (result float64) {
+	for _, sc := range mo.SampleContainers {
+		for _, s := range sc.GetSamples() {
+			if s.Metric.Name == name {
 				result += s.Value
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 	return
-***REMOVED***
+}
 
-func getMetricCount(mo *mockoutput.MockOutput, name string) (result uint) ***REMOVED***
-	for _, sc := range mo.SampleContainers ***REMOVED***
-		for _, s := range sc.GetSamples() ***REMOVED***
-			if s.Metric.Name == name ***REMOVED***
+func getMetricCount(mo *mockoutput.MockOutput, name string) (result uint) {
+	for _, sc := range mo.SampleContainers {
+		for _, s := range sc.GetSamples() {
+			if s.Metric.Name == name {
 				result++
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 	return
-***REMOVED***
+}
 
-func getMetricMax(mo *mockoutput.MockOutput, name string) (result float64) ***REMOVED***
-	for _, sc := range mo.SampleContainers ***REMOVED***
-		for _, s := range sc.GetSamples() ***REMOVED***
-			if s.Metric.Name == name && s.Value > result ***REMOVED***
+func getMetricMax(mo *mockoutput.MockOutput, name string) (result float64) {
+	for _, sc := range mo.SampleContainers {
+		for _, s := range sc.GetSamples() {
+			if s.Metric.Name == name && s.Value > result {
 				result = s.Value
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 	return
-***REMOVED***
+}
 
 const expectedHeaderMaxLength = 550
 
 // FIXME: This test is too brittle, consider simplifying.
-func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
+func TestSentReceivedMetrics(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tr := tb.Replacer.Replace
 
-	type testScript struct ***REMOVED***
+	type testScript struct {
 		Code                 string
 		NumRequests          int64
 		ExpectedDataSent     int64
 		ExpectedDataReceived int64
-	***REMOVED***
-	testScripts := []testScript***REMOVED***
-		***REMOVED***tr(`import http from "k6/http";
-			export default function() ***REMOVED***
+	}
+	testScripts := []testScript{
+		{tr(`import http from "k6/http";
+			export default function() {
 				http.get("HTTPBIN_URL/bytes/15000");
-			***REMOVED***`), 1, 0, 15000***REMOVED***,
+			}`), 1, 0, 15000},
 		// NOTE: This needs to be improved, in the case of HTTPS IN URL
 		// it's highly possible to meet the case when data received is out
 		// of in the possible interval
-		***REMOVED***tr(`import http from "k6/http";
-			export default function() ***REMOVED***
+		{tr(`import http from "k6/http";
+			export default function() {
 				http.get("HTTPBIN_URL/bytes/5000");
 				http.get("HTTPSBIN_URL/bytes/5000");
 				http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
-			***REMOVED***`), 5, 0, 50000***REMOVED***,
-		***REMOVED***tr(`import http from "k6/http";
+			}`), 5, 0, 50000},
+		{tr(`import http from "k6/http";
 			let data = "0123456789".repeat(100);
-			export default function() ***REMOVED***
-				http.post("HTTPBIN_URL/ip", ***REMOVED***
+			export default function() {
+				http.post("HTTPBIN_URL/ip", {
 					file: http.file(data, "test.txt")
-				***REMOVED***);
-			***REMOVED***`), 1, 1000, 100***REMOVED***,
+				});
+			}`), 1, 1000, 100},
 		// NOTE(imiric): This needs to keep testing against /ws-echo-invalid because
 		// this test is highly sensitive to metric data, and slightly differing
 		// WS server implementations might introduce flakiness.
 		// See https://github.com/k6io/k6/pull/1149
-		***REMOVED***tr(`import ws from "k6/ws";
+		{tr(`import ws from "k6/ws";
 			let data = "0123456789".repeat(100);
-			export default function() ***REMOVED***
-				ws.connect("WSBIN_URL/ws-echo-invalid", null, function (socket) ***REMOVED***
-					socket.on('open', function open() ***REMOVED***
+			export default function() {
+				ws.connect("WSBIN_URL/ws-echo-invalid", null, function (socket) {
+					socket.on('open', function open() {
 						socket.send(data);
-					***REMOVED***);
-					socket.on('message', function (message) ***REMOVED***
+					});
+					socket.on('message', function (message) {
 						socket.close();
-					***REMOVED***);
-				***REMOVED***);
-			***REMOVED***`), 2, 1000, 1000***REMOVED***,
-	***REMOVED***
+					});
+				});
+			}`), 2, 1000, 1000},
+	}
 
-	type testCase struct***REMOVED*** Iterations, VUs int64 ***REMOVED***
-	testCases := []testCase***REMOVED***
-		***REMOVED***1, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
-	***REMOVED***
+	type testCase struct{ Iterations, VUs int64 }
+	testCases := []testCase{
+		{1, 1}, {2, 2}, {2, 1}, {5, 2}, {25, 2}, {50, 5},
+	}
 
-	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
+	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) {
 		r, err := js.New(
 			getTestPreInitState(t),
-			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
+			&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: []byte(ts.Code)},
 			nil, libWorker.GetTestWorkerInfo(),
 		)
 		require.NoError(t, err)
 
 		mockOutput := mockoutput.New()
-		test := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED***
+		test := newTestEngine(t, nil, r, []output.Output{mockOutput}, libWorker.Options{
 			Iterations:            null.IntFrom(tc.Iterations),
 			VUs:                   null.IntFrom(tc.VUs),
 			Hosts:                 tb.Dialer.Hosts,
 			InsecureSkipTLSVerify: null.BoolFrom(true),
 			NoVUConnectionReuse:   null.BoolFrom(noConnReuse),
 			Batch:                 null.IntFrom(20),
-		***REMOVED***)
+		})
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+		go func() { errC <- test.run() }()
 
-		select ***REMOVED***
+		select {
 		case <-time.After(10 * time.Second):
 			t.Fatal("Test timed out")
 		case err := <-errC:
 			require.NoError(t, err)
-		***REMOVED***
+		}
 		test.wait()
 
-		checkData := func(name string, expected int64) float64 ***REMOVED***
+		checkData := func(name string, expected int64) float64 {
 			data := getMetricSum(mockOutput, name)
 			expectedDataMin := float64(expected * tc.Iterations)
 			expectedDataMax := float64((expected + ts.NumRequests*expectedHeaderMaxLength) * tc.Iterations)
 
-			if data < expectedDataMin || data > expectedDataMax ***REMOVED***
+			if data < expectedDataMin || data > expectedDataMax {
 				t.Errorf(
 					"The %s sum should be in the interval [%f, %f] but was %f",
 					name, expectedDataMin, expectedDataMax, data,
 				)
-			***REMOVED***
+			}
 			return data
-		***REMOVED***
+		}
 
 		return checkData(workerMetrics.DataSentName, ts.ExpectedDataSent),
 			checkData(workerMetrics.DataReceivedName, ts.ExpectedDataReceived)
-	***REMOVED***
+	}
 
-	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
-		return func(t *testing.T) ***REMOVED***
+	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) {
+		return func(t *testing.T) {
 			t.Parallel()
 			noReuseSent, noReuseReceived := runTest(t, ts, tc, true)
 			reuseSent, reuseReceived := runTest(t, ts, tc, false)
 
-			if noReuseSent < reuseSent ***REMOVED***
+			if noReuseSent < reuseSent {
 				t.Errorf("reuseSent=%f is greater than noReuseSent=%f", reuseSent, noReuseSent)
-			***REMOVED***
-			if noReuseReceived < reuseReceived ***REMOVED***
+			}
+			if noReuseReceived < reuseReceived {
 				t.Errorf("reuseReceived=%f is greater than noReuseReceived=%f", reuseReceived, noReuseReceived)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	// This Run will not return until the parallel subtests complete.
-	t.Run("group", func(t *testing.T) ***REMOVED***
+	t.Run("group", func(t *testing.T) {
 		t.Parallel()
-		for tsNum, ts := range testScripts ***REMOVED***
-			for tcNum, tc := range testCases ***REMOVED***
+		for tsNum, ts := range testScripts {
+			for tcNum, tc := range testCases {
 				t.Run(
 					fmt.Sprintf("SentReceivedMetrics_script[%d]_case[%d](%d,%d)", tsNum, tcNum, tc.Iterations, tc.VUs),
 					getTestCase(t, ts, tc),
 				)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+			}
+		}
+	})
+}
 
-func TestRunTags(t *testing.T) ***REMOVED***
+func TestRunTags(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	expectedRunTags := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
+	expectedRunTags := map[string]string{"foo": "bar", "test": "mest", "over": "written"}
 
 	// it copies the map so in the case the runner will overwrite
 	// some run tags' values it doesn't affect the assertion.
 	runTags := make(map[string]string)
-	for k, v := range expectedRunTags ***REMOVED***
+	for k, v := range expectedRunTags {
 		runTags[k] = v
-	***REMOVED***
+	}
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
 		import ws from "k6/ws";
-		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
-		import ***REMOVED*** group, check, fail ***REMOVED*** from "k6";
+		import { Counter } from "k6/metrics";
+		import { group, check, fail } from "k6";
 
-		let customTags =  ***REMOVED*** "over": "the rainbow" ***REMOVED***;
-		let params = ***REMOVED*** "tags": customTags***REMOVED***;
-		let statusCheck = ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***
+		let customTags =  { "over": "the rainbow" };
+		let params = { "tags": customTags};
+		let statusCheck = { "status is 200": (r) => r.status === 200 }
 
 		let myCounter = new Counter("mycounter");
 
-		export default function() ***REMOVED***
+		export default function() {
 
-			group("http", function() ***REMOVED***
+			group("http", function() {
 				check(http.get("HTTPSBIN_URL", params), statusCheck, customTags);
 				check(http.get("HTTPBIN_URL/status/418", params), statusCheck, customTags);
-			***REMOVED***)
+			})
 
-			group("websockets", function() ***REMOVED***
-				var response = ws.connect("WSBIN_URL/ws-echo", params, function (socket) ***REMOVED***
-					socket.on('open', function open() ***REMOVED***
+			group("websockets", function() {
+				var response = ws.connect("WSBIN_URL/ws-echo", params, function (socket) {
+					socket.on('open', function open() {
 						console.log('ws open and say hello');
 						socket.send("hello");
-					***REMOVED***);
+					});
 
-					socket.on('message', function (message) ***REMOVED***
+					socket.on('message', function (message) {
 						console.log('ws got message ' + message);
-						if (message != "hello") ***REMOVED***
+						if (message != "hello") {
 							fail("Expected to receive 'hello' but got '" + message + "' instead !");
-						***REMOVED***
+						}
 						console.log('ws closing socket...');
 						socket.close();
-					***REMOVED***);
+					});
 
-					socket.on('close', function () ***REMOVED***
+					socket.on('close', function () {
 						console.log('ws close');
-					***REMOVED***);
+					});
 
-					socket.on('error', function (e) ***REMOVED***
+					socket.on('error', function (e) {
 						console.log('ws error: ' + e.error());
-					***REMOVED***);
-				***REMOVED***);
+					});
+				});
 				console.log('connect returned');
-				check(response, ***REMOVED*** "status is 101": (r) => r && r.status === 101 ***REMOVED***, customTags);
-			***REMOVED***)
+				check(response, { "status is 101": (r) => r && r.status === 101 }, customTags);
+			})
 
 			myCounter.add(1, customTags);
-		***REMOVED***
+		}
 	`))
 
 	r, err := js.New(
 		getTestPreInitState(t),
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
 		nil,
 		libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	test := newTestEngine(t, nil, r, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED***
+	test := newTestEngine(t, nil, r, []output.Output{mockOutput}, libWorker.Options{
 		Iterations:            null.IntFrom(3),
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
 		RunTags:               runTags,
 		SystemTags:            &workerMetrics.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
-	***REMOVED***)
+	})
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+	go func() { errC <- test.run() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(10 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		require.NoError(t, err)
-	***REMOVED***
+	}
 	test.wait()
 
-	systemMetrics := []string***REMOVED***
+	systemMetrics := []string{
 		workerMetrics.VUsName, workerMetrics.VUsMaxName, workerMetrics.IterationsName, workerMetrics.IterationDurationName,
 		workerMetrics.GroupDurationName, workerMetrics.DataSentName, workerMetrics.DataReceivedName,
-	***REMOVED***
+	}
 
-	getExpectedOverVal := func(metricName string) string ***REMOVED***
-		for _, sysMetric := range systemMetrics ***REMOVED***
-			if sysMetric == metricName ***REMOVED***
+	getExpectedOverVal := func(metricName string) string {
+		for _, sysMetric := range systemMetrics {
+			if sysMetric == metricName {
 				return expectedRunTags["over"]
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		return "the rainbow"
-	***REMOVED***
+	}
 
-	for _, s := range mockOutput.Samples ***REMOVED***
-		for key, expVal := range expectedRunTags ***REMOVED***
+	for _, s := range mockOutput.Samples {
+		for key, expVal := range expectedRunTags {
 			val, ok := s.Tags.Get(key)
 
-			if key == "over" ***REMOVED***
+			if key == "over" {
 				expVal = getExpectedOverVal(s.Metric.Name)
-			***REMOVED***
+			}
 
 			assert.True(t, ok)
 			assert.Equalf(t, expVal, val, "Wrong tag value in sample for metric %#v", s.Metric)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
-func TestSetupException(t *testing.T) ***REMOVED***
+func TestSetupException(t *testing.T) {
 	t.Parallel()
 
 	script := []byte(`
 	import bar from "./bar.js";
-	export function setup() ***REMOVED***
+	export function setup() {
 		bar();
-	***REMOVED***;
-	export default function() ***REMOVED***
-	***REMOVED***;
+	};
+	export default function() {
+	};
 	`)
 
 	memfs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(memfs, "/bar.js", []byte(`
-	export default function () ***REMOVED***
+	export default function () {
         baz();
-	***REMOVED***
-	function baz() ***REMOVED***
+	}
+	function baz() {
 		        throw new Error("baz");
-			***REMOVED***
+			}
 	`), 0x666))
 	runner, err := js.New(
 		getTestPreInitState(t),
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***, libWorker.GetTestWorkerInfo(),
+		&loader.SourceData{URL: &url.URL{Scheme: "file", Path: "/script.js"}, Data: script},
+		map[string]afero.Fs{"file": memfs}, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
-	test := newTestEngine(t, nil, runner, nil, libWorker.Options***REMOVED***
+	test := newTestEngine(t, nil, runner, nil, libWorker.Options{
 		SystemTags:      &workerMetrics.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
-	***REMOVED***)
+	})
 	defer test.wait()
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+	go func() { errC <- test.run() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(10 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
@@ -836,29 +836,29 @@ func TestSetupException(t *testing.T) ***REMOVED***
 		require.Equal(t, "Error: baz\n\tat baz (file:///bar.js:6:16(3))\n"+
 			"\tat file:///bar.js:3:8(3)\n\tat setup (file:///script.js:4:2(4))\n\tat native\n",
 			err.Error())
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestVuInitException(t *testing.T) ***REMOVED***
+func TestVuInitException(t *testing.T) {
 	t.Parallel()
 
 	script := []byte(`
-		export let options = ***REMOVED***
+		export let options = {
 			vus: 3,
 			iterations: 5,
-		***REMOVED***;
+		};
 
-		export default function() ***REMOVED******REMOVED***;
+		export default function() {};
 
-		if (__VU == 2) ***REMOVED***
+		if (__VU == 2) {
 			throw new Error('oops in ' + __VU);
-		***REMOVED***
+		}
 	`)
 
 	piState := getTestPreInitState(t)
 	runner, err := js.New(
 		piState,
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		&loader.SourceData{URL: &url.URL{Scheme: "file", Path: "/script.js"}, Data: script},
 		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
@@ -886,64 +886,64 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 	var errWithHint errext.HasHint
 	require.ErrorAs(t, err, &errWithHint)
 	assert.Equal(t, "error while initializing VU #2 (script exception)", errWithHint.Hint())
-***REMOVED***
+}
 
-func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
+func TestEmittedMetricsWhenScalingDown(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
-		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+		import { sleep } from "k6";
 
-		export let options = ***REMOVED***
+		export let options = {
 			systemTags: ["iter", "vu", "url"],
-			scenarios: ***REMOVED***
-				we_need_hard_stop_and_ramp_down: ***REMOVED***
+			scenarios: {
+				we_need_hard_stop_and_ramp_down: {
 					executor: "ramping-vus",
 					// Start with 2 VUs for 4 seconds and then quickly scale down to 1 for the next 4s and then quit
 					startVUs: 2,
 					stages: [
-						***REMOVED*** duration: "4s", target: 2 ***REMOVED***,
-						***REMOVED*** duration: "0s", target: 1 ***REMOVED***,
-						***REMOVED*** duration: "4s", target: 1 ***REMOVED***,
+						{ duration: "4s", target: 2 },
+						{ duration: "0s", target: 1 },
+						{ duration: "4s", target: 1 },
 					],
 					gracefulStop: "0s",
 					gracefulRampDown: "0s",
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***;
+				},
+			},
+		};
 
-		export default function () ***REMOVED***
+		export default function () {
 			console.log("VU " + __VU + " starting iteration #" + __ITER);
 			http.get("HTTPBIN_IP_URL/bytes/15000");
 			sleep(3.1);
 			http.get("HTTPBIN_IP_URL/bytes/15000");
 			console.log("VU " + __VU + " ending iteration #" + __ITER);
-		***REMOVED***;
+		};
 	`))
 
 	runner, err := js.New(
 		getTestPreInitState(t),
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script},
 		nil, libWorker.GetTestWorkerInfo(),
 	)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	test := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED******REMOVED***)
+	test := newTestEngine(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{})
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+	go func() { errC <- test.run() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(12 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		require.NoError(t, err)
 		test.wait()
 		require.False(t, test.engine.IsTainted())
-	***REMOVED***
+	}
 
 	// The 3.1 sleep in the default function would cause the first VU to complete 2 full iterations
 	// and stat executing its third one, while the second VU will only fully complete 1 iteration
@@ -962,12 +962,12 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	dataReceivedExpectedMin := 15000.0 * 8
 	dataReceivedExpectedMax := (15000.0 + expectedHeaderMaxLength) * 8
 	dataReceivedActual := getMetricSum(mockOutput, workerMetrics.DataReceivedName)
-	if dataReceivedActual < dataReceivedExpectedMin || dataReceivedActual > dataReceivedExpectedMax ***REMOVED***
+	if dataReceivedActual < dataReceivedExpectedMin || dataReceivedActual > dataReceivedExpectedMax {
 		t.Errorf(
 			"The data_received sum should be in the interval [%f, %f] but was %f",
 			dataReceivedExpectedMin, dataReceivedExpectedMax, dataReceivedActual,
 		)
-	***REMOVED***
+	}
 
 	// Also, the interrupted iterations shouldn't affect the average iteration_duration in any way, only
 	// complete iterations should be taken into account
@@ -975,146 +975,146 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	assert.Equal(t, 3.0, durationCount)
 	durationSum := getMetricSum(mockOutput, workerMetrics.IterationDurationName)
 	assert.InDelta(t, 3.35, durationSum/(1000*durationCount), 0.25)
-***REMOVED***
+}
 
-func TestMetricsEmission(t *testing.T) ***REMOVED***
-	if !isWindows ***REMOVED***
+func TestMetricsEmission(t *testing.T) {
+	if !isWindows {
 		t.Parallel()
-	***REMOVED***
+	}
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		method             string
 		minIterDuration    string
 		defaultBody        string
 		expCount, expIters float64
-	***REMOVED******REMOVED***
+	}{
 		// Since emission of Iterations happens before the minIterationDuration
 		// sleep is done, we expect to receive metrics for all executions of
 		// the `default` function, despite of the lower overall duration setting.
-		***REMOVED***"minIterationDuration", `"300ms"`, "testCounter.add(1);", 16.0, 16.0***REMOVED***,
+		{"minIterationDuration", `"300ms"`, "testCounter.add(1);", 16.0, 16.0},
 		// With the manual sleep method and no minIterationDuration, the last
 		// `default` execution will be cutoff by the duration setting, so only
 		// 3 sets of metrics are expected.
-		***REMOVED***"sleepBeforeCounterAdd", "null", "sleep(0.3); testCounter.add(1); ", 12.0, 12.0***REMOVED***,
+		{"sleepBeforeCounterAdd", "null", "sleep(0.3); testCounter.add(1); ", 12.0, 12.0},
 		// The counter should be sent, but the last iteration will be incomplete
-		***REMOVED***"sleepAfterCounterAdd", "null", "testCounter.add(1); sleep(0.3); ", 16.0, 12.0***REMOVED***,
-	***REMOVED***
+		{"sleepAfterCounterAdd", "null", "testCounter.add(1); sleep(0.3); ", 16.0, 12.0},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.method, func(t *testing.T) ***REMOVED***
-			if !isWindows ***REMOVED***
+		t.Run(tc.method, func(t *testing.T) {
+			if !isWindows {
 				t.Parallel()
-			***REMOVED***
+			}
 			runner, err := js.New(
 				getTestPreInitState(t),
-				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
-				import ***REMOVED*** sleep ***REMOVED*** from "k6";
-				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+				&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: []byte(fmt.Sprintf(`
+				import { sleep } from "k6";
+				import { Counter } from "k6/metrics";
 
 				let testCounter = new Counter("testcounter");
 
-				export let options = ***REMOVED***
-					scenarios: ***REMOVED***
-						we_need_hard_stop: ***REMOVED***
+				export let options = {
+					scenarios: {
+						we_need_hard_stop: {
 							executor: "constant-vus",
 							vus: 4,
 							duration: "1s",
 							gracefulStop: "0s",
-						***REMOVED***,
-					***REMOVED***,
+						},
+					},
 					minIterationDuration: %s,
-				***REMOVED***;
+				};
 
-				export default function() ***REMOVED***
+				export default function() {
 					%s
-				***REMOVED***
-				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
+				}
+				`, tc.minIterDuration, tc.defaultBody))},
 				nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
 
 			mockOutput := mockoutput.New()
-			test := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, runner.GetOptions())
+			test := newTestEngine(t, nil, runner, []output.Output{mockOutput}, runner.GetOptions())
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
+			go func() { errC <- test.run() }()
 
-			select ***REMOVED***
+			select {
 			case <-time.After(10 * time.Second):
 				t.Fatal("Test timed out")
 			case err := <-errC:
 				require.NoError(t, err)
 				test.wait()
 				require.False(t, test.engine.IsTainted())
-			***REMOVED***
+			}
 
 			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, workerMetrics.IterationsName))
 			assert.Equal(t, tc.expCount, getMetricSum(mockOutput, "testcounter"))
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
+func TestMinIterationDurationInSetupTeardownStage(t *testing.T) {
 	t.Parallel()
 	setupScript := `
-		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+		import { sleep } from "k6";
 
-		export function setup() ***REMOVED***
+		export function setup() {
 			sleep(1);
-		***REMOVED***
+		}
 
-		export let options = ***REMOVED***
+		export let options = {
 			minIterationDuration: "2s",
-			scenarios: ***REMOVED***
-				we_need_hard_stop: ***REMOVED***
+			scenarios: {
+				we_need_hard_stop: {
 					executor: "constant-vus",
 					vus: 2,
 					duration: "1.9s",
 					gracefulStop: "0s",
-				***REMOVED***,
-			***REMOVED***,
+				},
+			},
 			setupTimeout: "3s",
-		***REMOVED***;
+		};
 
-		export default function () ***REMOVED***
-		***REMOVED***;`
+		export default function () {
+		};`
 	teardownScript := `
-		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+		import { sleep } from "k6";
 
-		export let options = ***REMOVED***
+		export let options = {
 			minIterationDuration: "2s",
-			scenarios: ***REMOVED***
-				we_need_hard_stop: ***REMOVED***
+			scenarios: {
+				we_need_hard_stop: {
 					executor: "constant-vus",
 					vus: 2,
 					duration: "1.9s",
 					gracefulStop: "0s",
-				***REMOVED***,
-			***REMOVED***,
+				},
+			},
 			teardownTimeout: "3s",
-		***REMOVED***;
+		};
 
-		export default function () ***REMOVED***
-		***REMOVED***;
+		export default function () {
+		};
 
-		export function teardown() ***REMOVED***
+		export function teardown() {
 			sleep(1);
-		***REMOVED***
+		}
 `
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		name, script string
-	***REMOVED******REMOVED***
-		***REMOVED***"Test setup", setupScript***REMOVED***,
-		***REMOVED***"Test teardown", teardownScript***REMOVED***,
-	***REMOVED***
-	for _, tc := range tests ***REMOVED***
+	}{
+		{"Test setup", setupScript},
+		{"Test teardown", teardownScript},
+	}
+	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			runner, err := js.New(
 				getTestPreInitState(t),
-				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
+				&loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: []byte(tc.script)},
 				nil, libWorker.GetTestWorkerInfo(),
 			)
 			require.NoError(t, err)
@@ -1122,20 +1122,20 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 			test := newTestEngine(t, nil, runner, nil, runner.GetOptions())
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- test.run() ***REMOVED***()
-			select ***REMOVED***
+			go func() { errC <- test.run() }()
+			select {
 			case <-time.After(10 * time.Second):
 				t.Fatal("Test timed out")
 			case err := <-errC:
 				require.NoError(t, err)
 				test.wait()
 				require.False(t, test.engine.IsTainted())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
+func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) {
 	t.Parallel()
 
 	piState := getTestPreInitState(t)
@@ -1143,43 +1143,43 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	var test *testStruct
-	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(_ context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner{
+		Fn: func(_ context.Context, _ *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 			test.runCancel() // we cancel the run immediately after the test starts
 			return nil
-		***REMOVED***,
-		TeardownFn: func(_ context.Context, out chan<- workerMetrics.SampleContainer) error ***REMOVED***
-			out <- workerMetrics.Sample***REMOVED***Metric: testMetric, Value: 1***REMOVED***
+		},
+		TeardownFn: func(_ context.Context, out chan<- workerMetrics.SampleContainer) error {
+			out <- workerMetrics.Sample{Metric: testMetric, Value: 1}
 			return nil
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	mockOutput := mockoutput.New()
-	test = newTestEngineWithTestPreInitState(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, libWorker.Options***REMOVED***
+	test = newTestEngineWithTestPreInitState(t, nil, runner, []output.Output{mockOutput}, libWorker.Options{
 		VUs: null.IntFrom(1), Iterations: null.IntFrom(1),
-	***REMOVED***, piState)
+	}, piState)
 
 	assert.NoError(t, test.run())
 	test.wait()
 
 	var count float64
-	for _, sample := range mockOutput.Samples ***REMOVED***
-		if sample.Metric == testMetric ***REMOVED***
+	for _, sample := range mockOutput.Samples {
+		if sample.Metric == testMetric {
 			count += sample.Value
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	assert.Equal(t, 1.0, count)
-***REMOVED***
+}
 
-func TestActiveVUsCount(t *testing.T) ***REMOVED***
+func TestActiveVUsCount(t *testing.T) {
 	t.Parallel()
 
 	script := []byte(`
 		var sleep = require('k6').sleep;
 
-		exports.options = ***REMOVED***
-			scenarios: ***REMOVED***
-				carr1: ***REMOVED***
+		exports.options = {
+			scenarios: {
+				carr1: {
 					executor: 'constant-arrival-rate',
 					rate: 10,
 					preAllocatedVUs: 1,
@@ -1187,8 +1187,8 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 					startTime: '0s',
 					duration: '3s',
 					gracefulStop: '0s',
-				***REMOVED***,
-				carr2: ***REMOVED***
+				},
+				carr2: {
 					executor: 'constant-arrival-rate',
 					rate: 10,
 					preAllocatedVUs: 1,
@@ -1196,65 +1196,65 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 					duration: '3s',
 					startTime: '3s',
 					gracefulStop: '0s',
-				***REMOVED***,
-				rarr: ***REMOVED***
+				},
+				rarr: {
 					executor: 'ramping-arrival-rate',
 					startRate: 5,
 					stages: [
-						***REMOVED*** target: 10, duration: '2s' ***REMOVED***,
-						***REMOVED*** target: 0, duration: '2s' ***REMOVED***,
+						{ target: 10, duration: '2s' },
+						{ target: 0, duration: '2s' },
 					],
 					preAllocatedVUs: 1,
 					maxVUs: 10,
 					startTime: '6s',
 					gracefulStop: '0s',
-				***REMOVED***,
-			***REMOVED***
-		***REMOVED***
+				},
+			}
+		}
 
-		exports.default = function () ***REMOVED***
+		exports.default = function () {
 			sleep(5);
-		***REMOVED***
+		}
 	`)
 
 	logger := testutils.NewLogger(t)
-	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
+	logHook := testutils.SimpleLogrusHook{HookedLevels: logrus.AllLevels}
 	logger.AddHook(&logHook)
 
-	rtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
+	rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("base")}
 
 	registry := workerMetrics.NewRegistry()
-	piState := &libWorker.TestPreInitState***REMOVED***
+	piState := &libWorker.TestPreInitState{
 		Logger:         logger,
 		Registry:       registry,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 		RuntimeOptions: rtOpts,
-	***REMOVED***
-	runner, err := js.New(piState, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, libWorker.GetTestWorkerInfo())
+	}
+	runner, err := js.New(piState, &loader.SourceData{URL: &url.URL{Path: "/script.js"}, Data: script}, nil, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	opts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options***REMOVED***
+	opts, err := executor.DeriveScenariosFromShortcuts(libWorker.Options{
 		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()), nil)
+	}.Apply(runner.GetOptions()), nil)
 	require.NoError(t, err)
 
 	testState := getTestRunState(t, piState, opts, runner)
 	execScheduler, err := local.NewExecutionScheduler(testState)
 	require.NoError(t, err)
-	engine, err := NewEngine(testState, execScheduler, []output.Output***REMOVED***mockOutput***REMOVED***)
+	engine, err := NewEngine(testState, execScheduler, []output.Output{mockOutput})
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 	run, waitFn, err := engine.Init(ctx, ctx, libWorker.GetTestWorkerInfo()) // no need for 2 different contexts
 	require.NoError(t, err)
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() { errC <- run() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(15 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
@@ -1263,15 +1263,15 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		waitFn()
 		engine.OutputManager.StopOutputs()
 		require.False(t, engine.IsTainted())
-	***REMOVED***
+	}
 
 	assert.Equal(t, 10.0, getMetricMax(mockOutput, workerMetrics.VUsName))
 	assert.Equal(t, 10.0, getMetricMax(mockOutput, workerMetrics.VUsMaxName))
 
 	logEntries := logHook.Drain()
 	assert.Len(t, logEntries, 3)
-	for _, logEntry := range logEntries ***REMOVED***
+	for _, logEntry := range logEntries {
 		assert.Equal(t, logrus.WarnLevel, logEntry.Level)
 		assert.Equal(t, "Insufficient VUs, reached 10 active VUs and cannot initialize more", logEntry.Message)
-	***REMOVED***
-***REMOVED***
+	}
+}

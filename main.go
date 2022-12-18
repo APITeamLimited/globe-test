@@ -16,21 +16,21 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 )
 
-func main() ***REMOVED***
+func main() {
 	mode := flag.String("mode", "dev_worker_function", "worker, orchestrator, orchestrator_func_mode, or dev_worker_function")
 	pProfPort := flag.Int("pprof-port", 0, "Enable pprof on the given port")
 
 	flag.Parse()
 
 	// If pprof is enabled, start the profiling server
-	if *pProfPort != 0 ***REMOVED***
+	if *pProfPort != 0 {
 		fmt.Printf("Starting pprof server on port %d\n", *pProfPort)
-		go func() ***REMOVED***
+		go func() {
 			log.Println(http.ListenAndServe(fmt.Sprintf("localhost:%d", *pProfPort), nil))
-		***REMOVED***()
-	***REMOVED***
+		}()
+	}
 
-	switch *mode ***REMOVED***
+	switch *mode {
 	case "worker":
 		worker.Run(true)
 	case "orchestrator":
@@ -44,11 +44,11 @@ func main() ***REMOVED***
 
 		funcframework.RegisterHTTPFunction("worker", worker.RunGoogleCloud)
 
-		if err := funcframework.Start(devWorkerServerPort); err != nil ***REMOVED***
+		if err := funcframework.Start(devWorkerServerPort); err != nil {
 			log.Fatalf("funcframework.Start: %v\n", err)
-		***REMOVED***
+		}
 	default:
 		fmt.Println("Invalid GlobeTest mode, please specify one of: worker, orchestrator, orchestrator_func_mode, or dev_worker_function, default is dev_worker_function")
 		os.Exit(1)
-	***REMOVED***
-***REMOVED***
+	}
+}

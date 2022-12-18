@@ -8,24 +8,24 @@ import "google/protobuf/any.proto";
 
 option go_package ="./grpc_any_testing";
 
-service AnyTestService ***REMOVED***
-	rpc Sum (SumRequest) returns (SumReply) ***REMOVED******REMOVED***
-***REMOVED***
+service AnyTestService {
+	rpc Sum (SumRequest) returns (SumReply) {}
+}
 
-message SumRequest ***REMOVED***
+message SumRequest {
 	google.protobuf.Any data = 1;
-***REMOVED***
+}
 
-message SumRequestData ***REMOVED***
+message SumRequestData {
 	int64 a = 1;
 	int64 b = 2;
-***REMOVED***
+}
 
-message SumReply ***REMOVED***
+message SumReply {
 	google.protobuf.Any data = 1;
-***REMOVED***
+}
 
-message SumReplyData ***REMOVED***
+message SumReplyData {
 	int64 v = 1;
 	string err = 2;
-***REMOVED***
+}

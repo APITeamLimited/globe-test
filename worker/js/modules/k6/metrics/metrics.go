@@ -15,180 +15,180 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-type Metric struct ***REMOVED***
+type Metric struct {
 	metric *workerMetrics.Metric
 	vu     modules.VU
-***REMOVED***
+}
 
 // ErrMetricsAddInInitContext is error returned when adding to metric is done in the init context
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
-func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t workerMetrics.MetricType) (*goja.Object, error) ***REMOVED***
+func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t workerMetrics.MetricType) (*goja.Object, error) {
 	initEnv := mi.vu.InitEnv()
-	if initEnv == nil ***REMOVED***
+	if initEnv == nil {
 		return nil, errors.New("metrics must be declared in the init context")
-	***REMOVED***
+	}
 	rt := mi.vu.Runtime()
-	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) ***REMOVED***
+	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) {
 		valueType := workerMetrics.Default
-		if len(isTime) > 0 && isTime[0] ***REMOVED***
+		if len(isTime) > 0 && isTime[0] {
 			valueType = workerMetrics.Time
-		***REMOVED***
+		}
 		m, err := initEnv.Registry.NewMetric(name, t, valueType)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-		metric := &Metric***REMOVED***metric: m, vu: mi.vu***REMOVED***
+		}
+		metric := &Metric{metric: m, vu: mi.vu}
 		o := rt.NewObject()
 		err = o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-		if err = o.Set("add", rt.ToValue(metric.add)); err != nil ***REMOVED***
+		}
+		if err = o.Set("add", rt.ToValue(metric.add)); err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		return o, nil
-	***REMOVED***))
+	}))
 	v, err := c(call.This, call.Arguments...)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	return v.ToObject(rt), nil
-***REMOVED***
+}
 
 const warnMessageValueMaxSize = 100
 
-func limitValue(v string) string ***REMOVED***
+func limitValue(v string) string {
 	vRunes := []rune(v)
-	if len(vRunes) < warnMessageValueMaxSize ***REMOVED***
+	if len(vRunes) < warnMessageValueMaxSize {
 		return v
-	***REMOVED***
+	}
 	difference := int64(len(vRunes) - warnMessageValueMaxSize)
 	omitMsg := append(strconv.AppendInt([]byte("... omitting "), difference, 10), " characters ..."...)
-	return strings.Join([]string***REMOVED***
+	return strings.Join([]string{
 		string(vRunes[:warnMessageValueMaxSize/2]),
 		string(vRunes[len(vRunes)-warnMessageValueMaxSize/2:]),
-	***REMOVED***, string(omitMsg))
-***REMOVED***
+	}, string(omitMsg))
+}
 
-func (m Metric) add(v goja.Value, addTags goja.Value) (bool, error) ***REMOVED***
+func (m Metric) add(v goja.Value, addTags goja.Value) (bool, error) {
 	state := m.vu.State()
-	if state == nil ***REMOVED***
+	if state == nil {
 		return false, ErrMetricsAddInInitContext
-	***REMOVED***
+	}
 
 	// return/throw exception if throw enabled, otherwise just log
-	raiseErr := func(err error) (bool, error) ***REMOVED*** //nolint:unparam // we want to just do `return raiseErr(...)`
-		if state.Options.Throw.Bool ***REMOVED***
+	raiseErr := func(err error) (bool, error) { //nolint:unparam // we want to just do `return raiseErr(...)`
+		if state.Options.Throw.Bool {
 			return false, err
-		***REMOVED***
+		}
 		state.Logger.Warn(err)
 		return false, nil
-	***REMOVED***
-	raiseNan := func() (bool, error) ***REMOVED***
+	}
+	raiseNan := func() (bool, error) {
 		return raiseErr(fmt.Errorf("'%s' is an invalid value for metric '%s', a number or a boolean value is expected",
 			limitValue(v.String()), m.metric.Name))
-	***REMOVED***
+	}
 
-	if v == nil ***REMOVED***
+	if v == nil {
 		return raiseErr(fmt.Errorf("no value was provided for metric '%s', a number or a boolean value is expected",
 			m.metric.Name))
-	***REMOVED***
-	if goja.IsNull(v) ***REMOVED***
+	}
+	if goja.IsNull(v) {
 		return raiseNan()
-	***REMOVED***
+	}
 
 	vfloat := v.ToFloat()
-	if vfloat == 0 && v.ToBoolean() ***REMOVED***
+	if vfloat == 0 && v.ToBoolean() {
 		vfloat = 1.0
-	***REMOVED***
+	}
 
-	if math.IsNaN(vfloat) ***REMOVED***
+	if math.IsNaN(vfloat) {
 		return raiseNan()
-	***REMOVED***
+	}
 
 	tags := state.CloneTags()
-	if addTags != nil ***REMOVED***
+	if addTags != nil {
 		tagsobj := addTags.ToObject(m.vu.Runtime())
-		for _, key := range tagsobj.Keys() ***REMOVED***
+		for _, key := range tagsobj.Keys() {
 			tags[key] = tagsobj.Get(key).String()
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	sample := workerMetrics.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: workerMetrics.IntoSampleTags(&tags)***REMOVED***
+	sample := workerMetrics.Sample{Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: workerMetrics.IntoSampleTags(&tags)}
 	workerMetrics.PushIfNotDone(m.vu.Context(), state.Samples, sample)
 	return true, nil
-***REMOVED***
+}
 
 type (
 	// RootModule is the root metrics module
-	RootModule struct***REMOVED******REMOVED***
+	RootModule struct{}
 	// ModuleInstance represents an instance of the metrics module
-	ModuleInstance struct ***REMOVED***
+	ModuleInstance struct {
 		vu modules.VU
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &ModuleInstance***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &ModuleInstance{}
 )
 
 // NewModuleInstance implements modules.Module interface
-func (*RootModule) NewModuleInstance(m modules.VU) modules.Instance ***REMOVED***
-	return &ModuleInstance***REMOVED***vu: m***REMOVED***
-***REMOVED***
+func (*RootModule) NewModuleInstance(m modules.VU) modules.Instance {
+	return &ModuleInstance{vu: m}
+}
 
 // New returns a new RootModule.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
-***REMOVED***
+func New() *RootModule {
+	return &RootModule{}
+}
 
 // Exports returns the exports of the metrics module
-func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
-		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+func (mi *ModuleInstance) Exports() modules.Exports {
+	return modules.Exports{
+		Named: map[string]interface{}{
 			"Counter": mi.XCounter,
 			"Gauge":   mi.XGauge,
 			"Trend":   mi.XTrend,
 			"Rate":    mi.XRate,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // XCounter is a counter constructor
-func (mi *ModuleInstance) XCounter(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+func (mi *ModuleInstance) XCounter(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
 	v, err := mi.newMetric(call, workerMetrics.Counter)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	return v
-***REMOVED***
+}
 
 // XGauge is a gauge constructor
-func (mi *ModuleInstance) XGauge(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+func (mi *ModuleInstance) XGauge(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
 	v, err := mi.newMetric(call, workerMetrics.Gauge)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	return v
-***REMOVED***
+}
 
 // XTrend is a trend constructor
-func (mi *ModuleInstance) XTrend(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+func (mi *ModuleInstance) XTrend(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
 	v, err := mi.newMetric(call, workerMetrics.Trend)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	return v
-***REMOVED***
+}
 
 // XRate is a rate constructor
-func (mi *ModuleInstance) XRate(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+func (mi *ModuleInstance) XRate(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
 	v, err := mi.newMetric(call, workerMetrics.Rate)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	return v
-***REMOVED***
+}

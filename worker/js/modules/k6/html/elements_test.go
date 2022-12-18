@@ -62,677 +62,677 @@ const testHTMLElems = `
 </body>
 `
 
-func TestElements(t *testing.T) ***REMOVED***
+func TestElements(t *testing.T) {
 	t.Parallel()
-	t.Run("AnchorElement", func(t *testing.T) ***REMOVED***
+	t.Run("AnchorElement", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("Hash", func(t *testing.T) ***REMOVED***
+		t.Run("Hash", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(0).hash()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(0).hash()`); assert.NoError(t, err) {
 				assert.Equal(t, "#hashtext", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).hash()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).hash()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Host", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Host", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(1).host()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(1).host()`); assert.NoError(t, err) {
 				assert.Equal(t, "example.com", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("a").get(2).host()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("a").get(2).host()`); assert.NoError(t, err) {
 				assert.Equal(t, "example.com:81", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("a").get(3).host()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("a").get(3).host()`); assert.NoError(t, err) {
 				assert.Equal(t, "ssl.example.com", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("a").get(4).host()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("a").get(4).host()`); assert.NoError(t, err) {
 				assert.Equal(t, "ssl.example.com:444", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).host()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).host()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Hostname", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Hostname", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(1).hostname()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(1).hostname()`); assert.NoError(t, err) {
 				assert.Equal(t, "example.com", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).hostname()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).hostname()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Port", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Port", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(5).port()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(5).port()`); assert.NoError(t, err) {
 				assert.Equal(t, "80", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).port()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).port()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Username", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Username", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(5).username()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(5).username()`); assert.NoError(t, err) {
 				assert.Equal(t, "username", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).username()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).username()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Password", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Password", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(5).password()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(5).password()`); assert.NoError(t, err) {
 				assert.Equal(t, "password", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).password()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).password()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Origin", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Origin", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(5).origin()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(5).origin()`); assert.NoError(t, err) {
 				assert.Equal(t, "http://example.com:80", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).origin()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).origin()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Pathname", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Pathname", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(1).pathname()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(1).pathname()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("a").get(2).pathname()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("a").get(2).pathname()`); assert.NoError(t, err) {
 				assert.Equal(t, "/path/file", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).pathname()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).pathname()`); assert.NoError(t, err) {
 				assert.Equal(t, "", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Protocol", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Protocol", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(4).protocol()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(4).protocol()`); assert.NoError(t, err) {
 				assert.Equal(t, "https", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).protocol()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#blank_anchor").get(0).protocol()`); assert.NoError(t, err) {
 				assert.Equal(t, ":", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("RelList", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("RelList", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(6).relList()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, []string***REMOVED***"prev", "next"***REMOVED***, v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("a").get(5).relList()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, []string***REMOVED******REMOVED***, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Search", func(t *testing.T) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(6).relList()`); assert.NoError(t, err) {
+				assert.Equal(t, []string{"prev", "next"}, v.Export())
+			}
+			if v, err := rt.RunString(`doc.find("a").get(5).relList()`); assert.NoError(t, err) {
+				assert.Equal(t, []string{}, v.Export())
+			}
+		})
+		t.Run("Search", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(0).search()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(0).search()`); assert.NoError(t, err) {
 				assert.Equal(t, "?querytxt", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Text", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("Text", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("a").get(6).text()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("a").get(6).text()`); assert.NoError(t, err) {
 				assert.Equal(t, "6", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("AreaElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("AreaElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		if v, err := rt.RunString(`doc.find("area").get(0).toString()`); assert.NoError(t, err) ***REMOVED***
+		if v, err := rt.RunString(`doc.find("area").get(0).toString()`); assert.NoError(t, err) {
 			assert.Equal(t, "web.address.com", v.Export())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("ButtonElement", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("ButtonElement", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form1", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#named_form_btn").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#named_form_btn").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form2", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#no_form_btn").get(0).form()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#no_form_btn").get(0).form()`); assert.NoError(t, err) {
 				assert.Equal(t, nil, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("formaction", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("formaction", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formAction()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formAction()`); assert.NoError(t, err) {
 				assert.Equal(t, "action_url", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formAction()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formAction()`); assert.NoError(t, err) {
 				assert.Equal(t, "override_action_url", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("formenctype", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("formenctype", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formEnctype()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formEnctype()`); assert.NoError(t, err) {
 				assert.Equal(t, "text/plain", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formEnctype()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formEnctype()`); assert.NoError(t, err) {
 				assert.Equal(t, "multipart/form-data", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("formmethod", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("formmethod", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formMethod()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formMethod()`); assert.NoError(t, err) {
 				assert.Equal(t, "get", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formMethod()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formMethod()`); assert.NoError(t, err) {
 				assert.Equal(t, "post", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("formnovalidate", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("formnovalidate", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formNoValidate()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formNoValidate()`); assert.NoError(t, err) {
 				assert.Equal(t, false, v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formNoValidate()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formNoValidate()`); assert.NoError(t, err) {
 				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("formtarget", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("formtarget", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formTarget()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formTarget()`); assert.NoError(t, err) {
 				assert.Equal(t, "_self", v.Export())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formTarget()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).formTarget()`); assert.NoError(t, err) {
 				assert.Equal(t, "_top", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("labels", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("labels", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).labels()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).labels()`); assert.NoError(t, err) {
 				assert.Equal(t, 1, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "form_btn_label", v.Export().([]goja.Value)[0].Export().(LabelElement).Id())
-			***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).labels()`); assert.NoError(t, err) ***REMOVED***
+			}
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).labels()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "wrapper_label", v.Export().([]goja.Value)[0].Export().(LabelElement).Id())
 				assert.Equal(t, "form_btn_2_label", v.Export().([]goja.Value)[1].Export().(LabelElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("name", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("name", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn").get(0).name()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn").get(0).name()`); assert.NoError(t, err) {
 				assert.Equal(t, "form_btn", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("value", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("value", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).value()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).value()`); assert.NoError(t, err) {
 				assert.Equal(t, "form_btn_2_initval", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("CanvasElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("CanvasElement", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("width", func(t *testing.T) ***REMOVED***
+		t.Run("width", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("canvas").get(0).width()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("canvas").get(0).width()`); assert.NoError(t, err) {
 				assert.Equal(t, int64(200), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("height", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("height", func(t *testing.T) {
 			t.Parallel()
 			rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-			if v, err := rt.RunString(`doc.find("canvas").get(0).height()`); assert.NoError(t, err) ***REMOVED***
+			if v, err := rt.RunString(`doc.find("canvas").get(0).height()`); assert.NoError(t, err) {
 				assert.Equal(t, int64(150), v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("DataListElement options", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("DataListElement options", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		if v, err := rt.RunString(`doc.find("datalist").get(0).options()`); assert.NoError(t, err) ***REMOVED***
+		if v, err := rt.RunString(`doc.find("datalist").get(0).options()`); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 			assert.Equal(t, "dl_opt_1", v.Export().([]goja.Value)[0].Export().(OptionElement).Id())
 			assert.Equal(t, "dl_opt_2", v.Export().([]goja.Value)[1].Export().(OptionElement).Id())
-		***REMOVED***
-	***REMOVED***)
-	t.Run("FieldSetElement", func(t *testing.T) ***REMOVED***
+		}
+	})
+	t.Run("FieldSetElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("elements", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("fieldset").get(0).elements()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("elements", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("fieldset").get(0).elements()`); assert.NoError(t, err) {
 				assert.Equal(t, 5, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("type", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("fieldset").get(0).type()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("type", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("fieldset").get(0).type()`); assert.NoError(t, err) {
 				assert.Equal(t, "fieldset", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("fieldset").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("fieldset").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "fieldset_form", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("FormElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("FormElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("elements", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#fieldset_form").get(0).elements()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("elements", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#fieldset_form").get(0).elements()`); assert.NoError(t, err) {
 				assert.Equal(t, 6, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("length", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#fieldset_form").get(0).length()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("length", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#fieldset_form").get(0).length()`); assert.NoError(t, err) {
 				assert.Equal(t, int64(6), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("method", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("method", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#form1").get(0).method()`)
 			v2, err2 := rt.RunString(`doc.find("#fieldset_form").get(0).method()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, "get", v1.Export())
 				assert.Equal(t, "post", v2.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("InputElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("InputElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#test_dl_input").get(0).list().options()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#test_dl_input").get(0).list().options()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("LabelElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("LabelElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("control", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2_label").get(0).control().value()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("control", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#form_btn_2_label").get(0).control().value()`); assert.NoError(t, err) {
 				assert.Equal(t, "form_btn_2_initval", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#form_btn_2_label").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#form_btn_2_label").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form1", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("LegendElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("LegendElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#legend_1").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#legend_1").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "fieldset_form", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("LinkElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("LinkElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("rel list", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("link").get(0).relList()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, []string***REMOVED***"alternate", "next"***REMOVED***, v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("MapElement", func(t *testing.T) ***REMOVED***
+		t.Run("rel list", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("link").get(0).relList()`); assert.NoError(t, err) {
+				assert.Equal(t, []string{"alternate", "next"}, v.Export())
+			}
+		})
+	})
+	t.Run("MapElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("areas", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#find_this_map").get(0).areas()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("areas", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#find_this_map").get(0).areas()`); assert.NoError(t, err) {
 				assert.Equal(t, 3, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-		t.Run("images", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#find_this_map").get(0).images()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("images", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#find_this_map").get(0).images()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("ObjectElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("ObjectElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#obj_1").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#obj_1").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form1", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("OptionElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("OptionElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("disabled", func(t *testing.T) ***REMOVED***
+		t.Run("disabled", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#opt_1").get(0).disabled()`)
 			v2, err2 := rt.RunString(`doc.find("#opt_2").get(0).disabled()`)
 			v3, err3 := rt.RunString(`doc.find("#opt_3").get(0).disabled()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) && assert.NoError(t, err3) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) && assert.NoError(t, err3) {
 				assert.Equal(t, false, v1.Export())
 				assert.Equal(t, true, v2.Export())
 				assert.Equal(t, true, v3.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#opt_4").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#opt_4").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form3", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("index", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("index", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#dl_opt_2").get(0).index()`)
 			v2, err2 := rt.RunString(`doc.find("#opt_3").get(0).index()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, int64(1), v1.Export())
 				assert.Equal(t, int64(2), v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("label", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("label", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#opt_1").get(0).label()`)
 			v2, err2 := rt.RunString(`doc.find("#opt_2").get(0).label()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, "txt_label", v1.Export())
 				assert.Equal(t, "attr_label", v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("text", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#opt_1").get(0).text()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("text", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#opt_1").get(0).text()`); assert.NoError(t, err) {
 				assert.Equal(t, "txt_label", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("value", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("value", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#opt_1").get(0).value()`)
 			v2, err2 := rt.RunString(`doc.find("#opt_2").get(0).value()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, "txt_label", v1.Export())
 				assert.Equal(t, "selected_attr_val", v2.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("OutputElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("OutputElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("value", func(t *testing.T) ***REMOVED***
+		t.Run("value", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#output1").get(0).value()`)
 			v2, err2 := rt.RunString(`doc.find("#output1").get(0).defaultValue()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, "defaultVal", v1.Export())
 				assert.Equal(t, "defaultVal", v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("labels", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#output1").get(0).labels()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("labels", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#output1").get(0).labels()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("ProgressElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("ProgressElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("max", func(t *testing.T) ***REMOVED***
+		t.Run("max", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#progress1").get(0).max()`)
 			v2, err2 := rt.RunString(`doc.find("#progress2").get(0).max()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, int64(100), v1.Export())
 				assert.Equal(t, int64(1), v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("value", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("value", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#progress1").get(0).value()`)
 			v2, err2 := rt.RunString(`doc.find("#progress2").get(0).value()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, float64(0.7), v1.Export())
 				assert.Equal(t, int64(0), v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("position", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("position", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#progress1").get(0).position()`)
 			v2, err2 := rt.RunString(`doc.find("#progress2").get(0).position()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, float64(0.7), v1.Export())
 				assert.Equal(t, int64(-1), v2.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("ScriptElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("ScriptElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("text", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#script1").get(0).text()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("text", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#script1").get(0).text()`); assert.NoError(t, err) {
 				assert.Equal(t, "script text", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("SelectElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("SelectElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#sel2").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#sel2").get(0).form().id()`); assert.NoError(t, err) {
 				assert.Equal(t, "form3", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("length", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#sel1").get(0).length()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("length", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#sel1").get(0).length()`); assert.NoError(t, err) {
 				assert.Equal(t, int64(3), v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("options", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#sel1").get(0).options()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("options", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#sel1").get(0).options()`); assert.NoError(t, err) {
 				assert.Equal(t, 3, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "opt_1", v.Export().([]goja.Value)[0].Export().(OptionElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("selectedOptions", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#sel1").get(0).selectedOptions()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("selectedOptions", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#sel1").get(0).selectedOptions()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "opt_2", v.Export().([]goja.Value)[0].Export().(OptionElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("selectedIndex", func(t *testing.T) ***REMOVED***
+			}
+		})
+		t.Run("selectedIndex", func(t *testing.T) {
 			v1, err1 := rt.RunString(`doc.find("#sel1").get(0).selectedIndex()`)
 			v2, err2 := rt.RunString(`doc.find("#sel2").get(0).selectedIndex()`)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			if assert.NoError(t, err1) && assert.NoError(t, err2) {
 				assert.Equal(t, int64(1), v1.Export())
 				assert.Equal(t, int64(-1), v2.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("value", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#sel1").get(0).value()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("value", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#sel1").get(0).value()`); assert.NoError(t, err) {
 				assert.Equal(t, "selected_attr_val", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("StyleElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("StyleElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("text", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#style1").get(0).type()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("text", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#style1").get(0).type()`); assert.NoError(t, err) {
 				assert.Equal(t, "text/css", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("TableElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("TableElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("caption", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("table").get(0).caption().textContent()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("caption", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("table").get(0).caption().textContent()`); assert.NoError(t, err) {
 				assert.Equal(t, "caption text", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("thead", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("table").get(0).tHead().rows()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("thead", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("table").get(0).tHead().rows()`); assert.NoError(t, err) {
 				assert.Equal(t, 1, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "thead_row", v.Export().([]goja.Value)[0].Export().(TableRowElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("tbody", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("table").get(0).tBodies()[0].rows()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("tbody", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("table").get(0).tBodies()[0].rows()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "tbody_row", v.Export().([]goja.Value)[1].Export().(TableRowElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("tfoot", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("table").get(0).tFoot().rows()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("tfoot", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("table").get(0).tFoot().rows()`); assert.NoError(t, err) {
 				assert.Equal(t, 3, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "tfoot_row", v.Export().([]goja.Value)[2].Export().(TableRowElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("rows", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("table").get(0).rows()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("rows", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("table").get(0).rows()`); assert.NoError(t, err) {
 				assert.Equal(t, 7, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "thead_row", v.Export().([]goja.Value)[0].Export().(TableRowElement).Id())
 				assert.Equal(t, "tfoot_row", v.Export().([]goja.Value)[3].Export().(TableRowElement).Id())
 				assert.Equal(t, "tbody_row", v.Export().([]goja.Value)[5].Export().(TableRowElement).Id())
 				assert.Equal(t, "last_row", v.Export().([]goja.Value)[6].Export().(TableRowElement).Id())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("TableCellElement", func(t *testing.T) ***REMOVED***
-			t.Run("cellIndex", func(t *testing.T) ***REMOVED***
-				if v, err := rt.RunString(`doc.find("#td_cell").get(0).cellIndex()`); assert.NoError(t, err) ***REMOVED***
+			}
+		})
+		t.Run("TableCellElement", func(t *testing.T) {
+			t.Run("cellIndex", func(t *testing.T) {
+				if v, err := rt.RunString(`doc.find("#td_cell").get(0).cellIndex()`); assert.NoError(t, err) {
 					assert.Equal(t, int64(2), v.Export())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("colSpan", func(t *testing.T) ***REMOVED***
+				}
+			})
+			t.Run("colSpan", func(t *testing.T) {
 				v1, err1 := rt.RunString(`doc.find("#td_cell").get(0).colSpan()`)
 				v2, err2 := rt.RunString(`doc.find("#th_cell").get(0).colSpan()`)
-				if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
 					assert.Equal(t, int64(1), v1.Export())
 					assert.Equal(t, int64(2), v2.Export())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("rowSpan", func(t *testing.T) ***REMOVED***
+				}
+			})
+			t.Run("rowSpan", func(t *testing.T) {
 				v1, err1 := rt.RunString(`doc.find("#td_cell").get(0).rowSpan()`)
 				v2, err2 := rt.RunString(`doc.find("#th_cell").get(0).rowSpan()`)
-				if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
 					assert.Equal(t, int64(2), v1.Export())
 					assert.Equal(t, int64(1), v2.Export())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("headers", func(t *testing.T) ***REMOVED***
-				if v, err := rt.RunString(`doc.find("#td_cell").get(0).headers()`); assert.NoError(t, err) ***REMOVED***
+				}
+			})
+			t.Run("headers", func(t *testing.T) {
+				if v, err := rt.RunString(`doc.find("#td_cell").get(0).headers()`); assert.NoError(t, err) {
 					assert.Equal(t, "th_cell", v.Export())
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-		t.Run("TableRowElement", func(t *testing.T) ***REMOVED***
-			t.Run("cells", func(t *testing.T) ***REMOVED***
-				if v, err := rt.RunString(`doc.find("#thead_row").get(0).cells()`); assert.NoError(t, err) ***REMOVED***
+				}
+			})
+		})
+		t.Run("TableRowElement", func(t *testing.T) {
+			t.Run("cells", func(t *testing.T) {
+				if v, err := rt.RunString(`doc.find("#thead_row").get(0).cells()`); assert.NoError(t, err) {
 					assert.Equal(t, 3, len(v.Export().([]goja.Value)))
 					assert.Equal(t, "th_cell", v.Export().([]goja.Value)[1].Export().(TableHeaderCellElement).Id())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("colSpan", func(t *testing.T) ***REMOVED***
+				}
+			})
+			t.Run("colSpan", func(t *testing.T) {
 				v1, err1 := rt.RunString(`doc.find("#td_cell").get(0).colSpan()`)
 				v2, err2 := rt.RunString(`doc.find("#th_cell").get(0).colSpan()`)
-				if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
 					assert.Equal(t, int64(1), v1.Export())
 					assert.Equal(t, int64(2), v2.Export())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("sectionRowIndex", func(t *testing.T) ***REMOVED***
+				}
+			})
+			t.Run("sectionRowIndex", func(t *testing.T) {
 				v1, err1 := rt.RunString(`doc.find("#tfoot_row").get(0).sectionRowIndex()`)
 				v2, err2 := rt.RunString(`doc.find("#last_row").get(0).sectionRowIndex()`)
-				if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
 					assert.Equal(t, int64(2), v1.Export())
 					assert.Equal(t, int64(0), v2.Export())
-				***REMOVED***
-			***REMOVED***)
-			t.Run("rowIndex", func(t *testing.T) ***REMOVED***
+				}
+			})
+			t.Run("rowIndex", func(t *testing.T) {
 				v1, err1 := rt.RunString(`doc.find("#tfoot_row").get(0).rowIndex()`)
 				v2, err2 := rt.RunString(`doc.find("#last_row").get(0).rowIndex()`)
-				if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
 					assert.Equal(t, int64(3), v1.Export())
 					assert.Equal(t, int64(6), v2.Export())
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("VideoElement", func(t *testing.T) ***REMOVED***
+				}
+			})
+		})
+	})
+	t.Run("VideoElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("text tracks", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("#video1").get(0).textTracks()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("text tracks", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("#video1").get(0).textTracks()`); assert.NoError(t, err) {
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "trk1", v.Export().([]goja.Value)[0].Export().(TrackElement).Id())
 				assert.Equal(t, "trk2", v.Export().([]goja.Value)[1].Export().(TrackElement).Id())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("TitleElement", func(t *testing.T) ***REMOVED***
+			}
+		})
+	})
+	t.Run("TitleElement", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testHTMLElems)
 
-		t.Run("text tracks", func(t *testing.T) ***REMOVED***
-			if v, err := rt.RunString(`doc.find("title").get(0).text()`); assert.NoError(t, err) ***REMOVED***
+		t.Run("text tracks", func(t *testing.T) {
+			if v, err := rt.RunString(`doc.find("title").get(0).text()`); assert.NoError(t, err) {
 				assert.Equal(t, "titletest", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+			}
+		})
+	})
+}

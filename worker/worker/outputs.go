@@ -8,16 +8,16 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
 )
 
-func createOutputs(gs libWorker.BaseGlobalState) ([]output.Output, error) ***REMOVED***
+func createOutputs(gs libWorker.BaseGlobalState) ([]output.Output, error) {
 	result := make([]output.Output, 0, 1)
 
 	// Using globetest output only
 	globetestOutput, err := globetest.New(gs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, fmt.Errorf("could not create the 'globetest' output: %w", err)
-	***REMOVED***
+	}
 
 	result = append(result, globetestOutput)
 
 	return result, nil
-***REMOVED***
+}

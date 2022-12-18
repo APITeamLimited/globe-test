@@ -18,43 +18,43 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct***REMOVED******REMOVED***
+	RootModule struct{}
 
 	// ModuleInstance represents an instance of the execution module.
-	ModuleInstance struct ***REMOVED***
+	ModuleInstance struct {
 		vu  modules.VU
 		obj *goja.Object
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &ModuleInstance***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &ModuleInstance{}
 )
 
 // New returns a pointer to a new RootModule instance.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
-***REMOVED***
+func New() *RootModule {
+	return &RootModule{}
+}
 
 // NewModuleInstance implements the modules.Module interface to return
 // a new instance for each VU.
-func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	mi := &ModuleInstance***REMOVED***vu: vu***REMOVED***
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	mi := &ModuleInstance{vu: vu}
 	rt := vu.Runtime()
 	o := rt.NewObject()
-	defProp := func(name string, newInfo func() (*goja.Object, error)) ***REMOVED***
-		err := o.DefineAccessorProperty(name, rt.ToValue(func() goja.Value ***REMOVED***
+	defProp := func(name string, newInfo func() (*goja.Object, error)) {
+		err := o.DefineAccessorProperty(name, rt.ToValue(func() goja.Value {
 			obj, err := newInfo()
-			if err != nil ***REMOVED***
+			if err != nil {
 				common.Throw(rt, err)
-			***REMOVED***
+			}
 			return obj
-		***REMOVED***), nil, goja.FLAG_FALSE, goja.FLAG_TRUE)
-		if err != nil ***REMOVED***
+		}), nil, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		if err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	defProp("instance", mi.newInstanceInfo)
 	defProp("scenario", mi.newScenarioInfo)
 	defProp("test", mi.newTestInfo)
@@ -63,202 +63,202 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED*
 	mi.obj = o
 
 	return mi
-***REMOVED***
+}
 
 // Exports returns the exports of the execution module.
-func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***Default: mi.obj***REMOVED***
-***REMOVED***
+func (mi *ModuleInstance) Exports() modules.Exports {
+	return modules.Exports{Default: mi.obj}
+}
 
 var errRunInInitContext = errors.New("getting scenario information outside of the VU context is not supported")
 
 // newScenarioInfo returns a goja.Object with property accessors to retrieve
 // information about the scenario the current VU is running in.
-func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
+func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) {
 	rt := mi.vu.Runtime()
 	vuState := mi.vu.State()
-	if vuState == nil ***REMOVED***
+	if vuState == nil {
 		return nil, errRunInInitContext
-	***REMOVED***
-	getScenarioState := func() *libWorker.ScenarioState ***REMOVED***
+	}
+	getScenarioState := func() *libWorker.ScenarioState {
 		ss := libWorker.GetScenarioState(mi.vu.Context())
-		if ss == nil ***REMOVED***
+		if ss == nil {
 			common.Throw(rt, errRunInInitContext)
-		***REMOVED***
+		}
 		return ss
-	***REMOVED***
+	}
 
-	si := map[string]func() interface***REMOVED******REMOVED******REMOVED***
-		"name": func() interface***REMOVED******REMOVED*** ***REMOVED***
+	si := map[string]func() interface{}{
+		"name": func() interface{} {
 			return getScenarioState().Name
-		***REMOVED***,
-		"executor": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"executor": func() interface{} {
 			return getScenarioState().Executor
-		***REMOVED***,
-		"startTime": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"startTime": func() interface{} {
 			//nolint:lll
 			// Return the timestamp in milliseconds, since that's how JS
 			// timestamps usually are:
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/Date#time_value_or_timestamp_number
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now#return_value
 			return getScenarioState().StartTime.UnixNano() / int64(time.Millisecond)
-		***REMOVED***,
-		"progress": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"progress": func() interface{} {
 			p, _ := getScenarioState().ProgressFn()
 			return p
-		***REMOVED***,
-		"iterationInInstance": func() interface***REMOVED******REMOVED*** ***REMOVED***
-			if vuState.GetScenarioLocalVUIter == nil ***REMOVED***
+		},
+		"iterationInInstance": func() interface{} {
+			if vuState.GetScenarioLocalVUIter == nil {
 				common.Throw(rt, errRunInInitContext)
-			***REMOVED***
+			}
 
 			return vuState.GetScenarioLocalVUIter()
-		***REMOVED***,
-		"iterationInTest": func() interface***REMOVED******REMOVED*** ***REMOVED***
-			if vuState.GetScenarioGlobalVUIter == nil ***REMOVED***
+		},
+		"iterationInTest": func() interface{} {
+			if vuState.GetScenarioGlobalVUIter == nil {
 				common.Throw(rt, errRunInInitContext)
-			***REMOVED***
+			}
 
 			return vuState.GetScenarioGlobalVUIter()
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	return newInfoObj(rt, si)
-***REMOVED***
+}
 
 // newInstanceInfo returns a goja.Object with property accessors to retrieve
 // information about the local instance stats.
-func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
+func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) {
 	es := libWorker.GetExecutionState(mi.vu.Context())
-	if es == nil ***REMOVED***
+	if es == nil {
 		return nil, errors.New("getting instance information in the init context is not supported")
-	***REMOVED***
+	}
 	rt := mi.vu.Runtime()
 
-	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
-		"currentTestRunDuration": func() interface***REMOVED******REMOVED*** ***REMOVED***
+	ti := map[string]func() interface{}{
+		"currentTestRunDuration": func() interface{} {
 			return float64(es.GetCurrentTestRunDuration()) / float64(time.Millisecond)
-		***REMOVED***,
-		"iterationsCompleted": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"iterationsCompleted": func() interface{} {
 			return es.GetFullIterationCount()
-		***REMOVED***,
-		"iterationsInterrupted": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"iterationsInterrupted": func() interface{} {
 			return es.GetPartialIterationCount()
-		***REMOVED***,
-		"vusActive": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"vusActive": func() interface{} {
 			return es.GetCurrentlyActiveVUsCount()
-		***REMOVED***,
-		"vusInitialized": func() interface***REMOVED******REMOVED*** ***REMOVED***
+		},
+		"vusInitialized": func() interface{} {
 			return es.GetInitializedVUsCount()
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	return newInfoObj(rt, ti)
-***REMOVED***
+}
 
 // newTestInfo returns a goja.Object with property accessors to retrieve
 // information and control execution of the overall test run.
-func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) ***REMOVED***
+func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) {
 	// the cache of goja.Object in the optimal parsed form
 	// for the consolidated and derived libWorker.Options
 	var optionsObject *goja.Object
 	rt := mi.vu.Runtime()
-	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
+	ti := map[string]func() interface{}{
 		// stop the test run
-		"abort": func() interface***REMOVED******REMOVED*** ***REMOVED***
-			return func(msg goja.Value) ***REMOVED***
+		"abort": func() interface{} {
+			return func(msg goja.Value) {
 				reason := errext.AbortTest
-				if msg != nil && !goja.IsUndefined(msg) ***REMOVED***
+				if msg != nil && !goja.IsUndefined(msg) {
 					reason = fmt.Sprintf("%s: %s", reason, msg.String())
-				***REMOVED***
-				rt.Interrupt(&errext.InterruptError***REMOVED***Reason: reason***REMOVED***)
-			***REMOVED***
-		***REMOVED***,
-		"options": func() interface***REMOVED******REMOVED*** ***REMOVED***
-			if optionsObject == nil ***REMOVED***
+				}
+				rt.Interrupt(&errext.InterruptError{Reason: reason})
+			}
+		},
+		"options": func() interface{} {
+			if optionsObject == nil {
 				opts, err := optionsAsObject(rt, mi.vu.State().Options)
-				if err != nil ***REMOVED***
+				if err != nil {
 					common.Throw(rt, err)
-				***REMOVED***
+				}
 				optionsObject = opts
-			***REMOVED***
+			}
 			return optionsObject
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	return newInfoObj(rt, ti)
-***REMOVED***
+}
 
 // newVUInfo returns a goja.Object with property accessors to retrieve
 // information about the currently executing VU.
-func (mi *ModuleInstance) newVUInfo() (*goja.Object, error) ***REMOVED***
+func (mi *ModuleInstance) newVUInfo() (*goja.Object, error) {
 	vuState := mi.vu.State()
-	if vuState == nil ***REMOVED***
+	if vuState == nil {
 		return nil, errors.New("getting VU information in the init context is not supported")
-	***REMOVED***
+	}
 	rt := mi.vu.Runtime()
 
-	vi := map[string]func() interface***REMOVED******REMOVED******REMOVED***
-		"idInInstance":        func() interface***REMOVED******REMOVED*** ***REMOVED*** return vuState.VUID ***REMOVED***,
-		"idInTest":            func() interface***REMOVED******REMOVED*** ***REMOVED*** return vuState.VUIDGlobal ***REMOVED***,
-		"iterationInInstance": func() interface***REMOVED******REMOVED*** ***REMOVED*** return vuState.Iteration ***REMOVED***,
-		"iterationInScenario": func() interface***REMOVED******REMOVED*** ***REMOVED***
+	vi := map[string]func() interface{}{
+		"idInInstance":        func() interface{} { return vuState.VUID },
+		"idInTest":            func() interface{} { return vuState.VUIDGlobal },
+		"iterationInInstance": func() interface{} { return vuState.Iteration },
+		"iterationInScenario": func() interface{} {
 			return vuState.GetScenarioVUIter()
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	o, err := newInfoObj(rt, vi)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return o, err
-	***REMOVED***
+	}
 
-	err = o.Set("tags", rt.NewDynamicObject(&tagsDynamicObject***REMOVED***
+	err = o.Set("tags", rt.NewDynamicObject(&tagsDynamicObject{
 		Runtime: rt,
 		State:   vuState,
-	***REMOVED***))
+	}))
 	return o, err
-***REMOVED***
+}
 
-func newInfoObj(rt *goja.Runtime, props map[string]func() interface***REMOVED******REMOVED***) (*goja.Object, error) ***REMOVED***
+func newInfoObj(rt *goja.Runtime, props map[string]func() interface{}) (*goja.Object, error) {
 	o := rt.NewObject()
 
-	for p, get := range props ***REMOVED***
+	for p, get := range props {
 		err := o.DefineAccessorProperty(p, rt.ToValue(get), nil, goja.FLAG_FALSE, goja.FLAG_TRUE)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return o, nil
-***REMOVED***
+}
 
 // optionsAsObject maps the libWorker.Options struct that contains the consolidated
 // and derived options configuration in a goja.Object.
 //
 // When values are not set then the default value returned from JSON is used.
 // Most of the libWorker.Options are Nullable types so they will be null on default.
-func optionsAsObject(rt *goja.Runtime, options libWorker.Options) (*goja.Object, error) ***REMOVED***
+func optionsAsObject(rt *goja.Runtime, options libWorker.Options) (*goja.Object, error) {
 	b, err := json.Marshal(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, fmt.Errorf("failed to encode the libWorker.Options as json: %w", err)
-	***REMOVED***
+	}
 
 	// Using the native JS parser function guarantees getting
 	// the supported types for deep freezing the complex object.
 	jsonParse, _ := goja.AssertFunction(rt.GlobalObject().Get("JSON").ToObject(rt).Get("parse"))
 	parsed, err := jsonParse(goja.Undefined(), rt.ToValue(string(b)))
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	obj := parsed.ToObject(rt)
 
-	mustDelete := func(prop string) ***REMOVED***
+	mustDelete := func(prop string) {
 		delErr := obj.Delete(prop)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(rt, delErr)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	mustDelete("vus")
 	mustDelete("iterations")
@@ -266,38 +266,38 @@ func optionsAsObject(rt *goja.Runtime, options libWorker.Options) (*goja.Object,
 	mustDelete("stages")
 
 	err = common.FreezeObject(rt, obj)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	return obj, nil
-***REMOVED***
+}
 
-type tagsDynamicObject struct ***REMOVED***
+type tagsDynamicObject struct {
 	Runtime *goja.Runtime
 	State   *libWorker.State
-***REMOVED***
+}
 
 // Get a property value for the key. May return nil if the property does not exist.
-func (o *tagsDynamicObject) Get(key string) goja.Value ***REMOVED***
+func (o *tagsDynamicObject) Get(key string) goja.Value {
 	tag, ok := o.State.Tags.Get(key)
-	if !ok ***REMOVED***
+	if !ok {
 		return nil
-	***REMOVED***
+	}
 	return o.Runtime.ToValue(tag)
-***REMOVED***
+}
 
 // Set a property value for the key. It returns true if succeed.
 // String, Boolean and Number types are implicitly converted
 // to the goja's relative string representation.
 // In any other case, if the Throw option is set then an error is raised
 // otherwise just a Warning is written.
-func (o *tagsDynamicObject) Set(key string, val goja.Value) bool ***REMOVED***
+func (o *tagsDynamicObject) Set(key string, val goja.Value) bool {
 	kind := reflect.Invalid
-	if typ := val.ExportType(); typ != nil ***REMOVED***
+	if typ := val.ExportType(); typ != nil {
 		kind = typ.Kind()
-	***REMOVED***
-	switch kind ***REMOVED***
+	}
+	switch kind {
 	case
 		reflect.String,
 		reflect.Bool,
@@ -308,36 +308,36 @@ func (o *tagsDynamicObject) Set(key string, val goja.Value) bool ***REMOVED***
 		return true
 	default:
 		reason := "only String, Boolean and Number types are accepted as a Tag value"
-		if o.State.Options.Throw.Bool ***REMOVED***
+		if o.State.Options.Throw.Bool {
 			panic(o.Runtime.NewTypeError(reason))
-		***REMOVED***
+		}
 		o.State.Logger.Warnf("the execution.vu.tags.Set('%s') operation has been discarded because %s", key, reason)
 		return false
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Has returns true if the property exists.
-func (o *tagsDynamicObject) Has(key string) bool ***REMOVED***
+func (o *tagsDynamicObject) Has(key string) bool {
 	_, ok := o.State.Tags.Get(key)
 	return ok
-***REMOVED***
+}
 
 // Delete deletes the property for the key. It returns true on success (note, that includes missing property).
-func (o *tagsDynamicObject) Delete(key string) bool ***REMOVED***
+func (o *tagsDynamicObject) Delete(key string) bool {
 	o.State.Tags.Delete(key)
 	return true
-***REMOVED***
+}
 
 // Keys returns a slice with all existing property keys. The order is not deterministic.
-func (o *tagsDynamicObject) Keys() []string ***REMOVED***
-	if o.State.Tags.Len() < 1 ***REMOVED***
+func (o *tagsDynamicObject) Keys() []string {
+	if o.State.Tags.Len() < 1 {
 		return nil
-	***REMOVED***
+	}
 
 	tags := o.State.Tags.Clone()
 	keys := make([]string, 0, len(tags))
-	for k := range tags ***REMOVED***
+	for k := range tags {
 		keys = append(keys, k)
-	***REMOVED***
+	}
 	return keys
-***REMOVED***
+}

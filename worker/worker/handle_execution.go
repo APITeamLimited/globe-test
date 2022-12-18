@@ -24,29 +24,29 @@ This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
-	workerId string, creditsClient *redis.Client, standalone bool) bool ***REMOVED***
+	workerId string, creditsClient *redis.Client, standalone bool) bool {
 	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
 	libWorker.UpdateStatus(gs, "LOADING")
 
 	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
 
-	if workerInfo.CreditsManager != nil ***REMOVED***
+	if workerInfo.CreditsManager != nil {
 		monitorCredits(gs, workerInfo.CreditsManager)
-	***REMOVED***
+	}
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("failed to load test: %s", err))
 		return false
-	***REMOVED***
+	}
 
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return false
-	***REMOVED***
+	}
 
 	startSubscription := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
 
@@ -73,9 +73,9 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 
-	if gs.funcModeInfo != nil && workerInfo.CreditsManager != nil ***REMOVED***
+	if gs.funcModeInfo != nil && workerInfo.CreditsManager != nil {
 		defer billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
-	***REMOVED***
+	}
 
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
@@ -84,148 +84,148 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	defer workerInfo.CreditsManager.StopCreditsCapturing()
 	defer childUpdatesSubscription.Close()
 
-	go func() ***REMOVED***
-		for msg := range childJobUpdatesChannel ***REMOVED***
-			var abortMessage = JobUserUpdate***REMOVED******REMOVED***
-			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil ***REMOVED***
+	go func() {
+		for msg := range childJobUpdatesChannel {
+			var abortMessage = JobUserUpdate{}
+			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
-			***REMOVED***
+			}
 
-			if abortMessage.UpdateType == "CANCEL" ***REMOVED***
+			if abortMessage.UpdateType == "CANCEL" {
 				fmt.Println("Aborting child job due to a request from the orchestrator")
 				runCancel()
 				return
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
+			}
+		}
+	}()
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
 		return false
-	***REMOVED***
+	}
 
 	// Create all outputs.
 	outputs, err := createOutputs(gs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return false
-	***REMOVED***
+	}
 
 	// Create the engine.
 	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return false
-	***REMOVED***
+	}
 
 	// Wait for the job to be started on redis
 	// TODO: implement as a blocking redis call
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
-	if err != nil ***REMOVED***
+	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error starting outputs %s", err.Error()))
 		return false
-	***REMOVED***
+	}
 	defer engine.OutputManager.StopOutputs()
 
 	// Initialize the engine
 	engineRun, _, err := engine.Init(globalCtx, runCtx, workerInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
 		// Add a generic engine exit code if we don't have a more specific one
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
 		return false
-	***REMOVED***
+	}
 
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
 	var interrupt error
 	err = engineRun()
-	if err != nil ***REMOVED***
+	if err != nil {
 		err = common.UnwrapGojaInterruptedError(err)
-		if errext.IsInterruptError(err) ***REMOVED***
+		if errext.IsInterruptError(err) {
 			interrupt = err
-		***REMOVED***
-		if interrupt == nil ***REMOVED***
+		}
+		if interrupt == nil {
 			fmt.Println(errext.WithExitCodeIfNone(err, exitcodes.GenericEngine))
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	runCancel()
 
 	executionState := execScheduler.GetState()
 
 	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary***REMOVED***
+	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary{
 		Metrics:         engine.MetricsEngine.ObservedMetrics,
 		RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
 		TestRunDuration: executionState.GetCurrentTestRunDuration(),
-	***REMOVED***)
+	})
 	engine.MetricsEngine.MetricsLock.Unlock()
 
 	// Retrive collection and environment variables
-	if workerInfo.Collection != nil ***REMOVED***
+	if workerInfo.Collection != nil {
 		collectionVariables, err := json.Marshal(workerInfo.Collection.Variables)
 
-		if err != nil ***REMOVED***
+		if err != nil {
 			libWorker.HandleStringError(gs, fmt.Sprintf("Error marshalling collection variables %s", err.Error()))
-		***REMOVED*** else ***REMOVED***
+		} else {
 			libWorker.DispatchMessage(gs, string(collectionVariables), "COLLECTION_VARIABLES")
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if workerInfo.Environment != nil ***REMOVED***
+	if workerInfo.Environment != nil {
 		environmentVariables, err := json.Marshal(workerInfo.Environment.Variables)
 
-		if err != nil ***REMOVED***
+		if err != nil {
 			libWorker.HandleStringError(gs, fmt.Sprintf("Error marshalling environment variables %s", err.Error()))
-		***REMOVED*** else ***REMOVED***
+		} else {
 			libWorker.DispatchMessage(gs, string(environmentVariables), "ENVIRONMENT_VARIABLES")
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if err == nil ***REMOVED***
+	if err == nil {
 		libWorker.DispatchMessage(gs, string(marshalledMetrics), "SUMMARY_METRICS")
-	***REMOVED*** else ***REMOVED***
+	} else {
 		libWorker.HandleError(gs, err)
-	***REMOVED***
+	}
 
 	libWorker.UpdateStatus(gs, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
-	if interrupt != nil ***REMOVED***
+	if interrupt != nil {
 		return false
-	***REMOVED***
-	if engine.IsTainted() ***REMOVED***
+	}
+	if engine.IsTainted() {
 		libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return false
-	***REMOVED***
+	}
 
 	return true
-***REMOVED***
+}
 
 func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 	configToReinject libWorker.Options,
-) (*libWorker.TestRunState, error) ***REMOVED***
+) (*libWorker.TestRunState, error) {
 	// This might be the full derived or just the consolidated options
-	if err := lct.initRunner.SetOptions(configToReinject); err != nil ***REMOVED***
+	if err := lct.initRunner.SetOptions(configToReinject); err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	return &libWorker.TestRunState***REMOVED***
+	return &libWorker.TestRunState{
 		TestPreInitState: lct.preInitState,
 		Runner:           lct.initRunner,
 		Options:          lct.derivedConfig.Options, // we will always run with the derived options
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 func loadWorkerInfo(ctx context.Context,
 	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState,
-	creditsClient *redis.Client, standalone bool) *libWorker.WorkerInfo ***REMOVED***
-	workerInfo := &libWorker.WorkerInfo***REMOVED***
+	creditsClient *redis.Client, standalone bool) *libWorker.WorkerInfo {
+	workerInfo := &libWorker.WorkerInfo{
 		Client:          client,
 		JobId:           job.Id,
 		ChildJobId:      job.ChildJobId,
@@ -237,48 +237,48 @@ func loadWorkerInfo(ctx context.Context,
 		VerifiedDomains: job.VerifiedDomains,
 		SubFraction:     job.SubFraction,
 		Standalone:      standalone,
-	***REMOVED***
+	}
 
-	if gs.FuncModeInfo() != nil && creditsClient != nil ***REMOVED***
+	if gs.FuncModeInfo() != nil && creditsClient != nil {
 		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
-	***REMOVED***
+	}
 
-	if job.CollectionContext != nil && job.CollectionContext.Name != "" ***REMOVED***
+	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
 		collectionVariables := make(map[string]string)
 
-		for _, variable := range job.CollectionContext.Variables ***REMOVED***
+		for _, variable := range job.CollectionContext.Variables {
 			collectionVariables[variable.Key] = variable.Value
-		***REMOVED***
+		}
 
-		workerInfo.Collection = &libWorker.Collection***REMOVED***
+		workerInfo.Collection = &libWorker.Collection{
 			Variables: collectionVariables,
 			Name:      job.CollectionContext.Name,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" ***REMOVED***
+	if job.EnvironmentContext != nil && job.EnvironmentContext.Name != "" {
 		environmentVariables := make(map[string]string)
 
-		for _, variable := range job.EnvironmentContext.Variables ***REMOVED***
+		for _, variable := range job.EnvironmentContext.Variables {
 			environmentVariables[variable.Key] = variable.Value
-		***REMOVED***
+		}
 
-		workerInfo.Environment = &libWorker.Environment***REMOVED***
+		workerInfo.Environment = &libWorker.Environment{
 			Variables: environmentVariables,
 			Name:      job.EnvironmentContext.Name,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	workerInfo.FinalRequest = job.FinalRequest
 	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
-***REMOVED***
+}
 
-func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) ***REMOVED***
+func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) {
 	timeSinceLastBilling := time.Since(creditsManager.LastBillingTime())
 	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
 	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
 
 	creditsManager.ForceDeductCredits(fractionCost, false)
-***REMOVED***
+}

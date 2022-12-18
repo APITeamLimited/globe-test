@@ -12,50 +12,50 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 )
 
-func TestCDNJS(t *testing.T) ***REMOVED***
+func TestCDNJS(t *testing.T) {
 	t.Skip("skipped to avoid inconsistent API responses")
 	t.Parallel()
 
-	paths := map[string]struct ***REMOVED***
+	paths := map[string]struct {
 		parts []string
 		src   string
-	***REMOVED******REMOVED***
-		"cdnjs.com/libraries/Faker": ***REMOVED***
-			[]string***REMOVED***"Faker", "", ""***REMOVED***,
+	}{
+		"cdnjs.com/libraries/Faker": {
+			[]string{"Faker", "", ""},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/[\d\.]+/faker.min.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/faker.js": ***REMOVED***
-			[]string***REMOVED***"Faker", "", "faker.js"***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/faker.js": {
+			[]string{"Faker", "", "faker.js"},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/[\d\.]+/faker.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/locales/en_AU/faker.en_AU.min.js": ***REMOVED***
-			[]string***REMOVED***"Faker", "", "locales/en_AU/faker.en_AU.min.js"***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/locales/en_AU/faker.en_AU.min.js": {
+			[]string{"Faker", "", "locales/en_AU/faker.en_AU.min.js"},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/[\d\.]+/locales/en_AU/faker.en_AU.min.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/3.1.0": ***REMOVED***
-			[]string***REMOVED***"Faker", "3.1.0", ""***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/3.1.0": {
+			[]string{"Faker", "3.1.0", ""},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/faker.min.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/3.1.0/faker.js": ***REMOVED***
-			[]string***REMOVED***"Faker", "3.1.0", "faker.js"***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/3.1.0/faker.js": {
+			[]string{"Faker", "3.1.0", "faker.js"},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/faker.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/3.1.0/locales/en_AU/faker.en_AU.min.js": ***REMOVED***
-			[]string***REMOVED***"Faker", "3.1.0", "locales/en_AU/faker.en_AU.min.js"***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/3.1.0/locales/en_AU/faker.en_AU.min.js": {
+			[]string{"Faker", "3.1.0", "locales/en_AU/faker.en_AU.min.js"},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/locales/en_AU/faker.en_AU.min.js$`,
-		***REMOVED***,
-		"cdnjs.com/libraries/Faker/0.7.2": ***REMOVED***
-			[]string***REMOVED***"Faker", "0.7.2", ""***REMOVED***,
+		},
+		"cdnjs.com/libraries/Faker/0.7.2": {
+			[]string{"Faker", "0.7.2", ""},
 			`^https://cdnjs.cloudflare.com/ajax/libs/Faker/0.7.2/MinFaker.js$`,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	root := &url.URL***REMOVED***Scheme: "https", Host: "example.com", Path: "/something/"***REMOVED***
+	root := &url.URL{Scheme: "https", Host: "example.com", Path: "/something/"}
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
-	for path, expected := range paths ***REMOVED***
+	for path, expected := range paths {
 		path, expected := path, expected
-		t.Run(path, func(t *testing.T) ***REMOVED***
+		t.Run(path, func(t *testing.T) {
 			t.Parallel()
 			name, loader, parts := pickLoader(path)
 			assert.Equal(t, "cdnjs", name)
@@ -70,29 +70,29 @@ func TestCDNJS(t *testing.T) ***REMOVED***
 			require.Empty(t, resolvedURL.Scheme)
 			require.Equal(t, path, resolvedURL.Opaque)
 
-			data, err := Load(logger, map[string]afero.Fs***REMOVED***"https": afero.NewMemMapFs()***REMOVED***, resolvedURL, path)
+			data, err := Load(logger, map[string]afero.Fs{"https": afero.NewMemMapFs()}, resolvedURL, path)
 			require.NoError(t, err)
 			assert.Equal(t, resolvedURL, data.URL)
 			assert.NotEmpty(t, data.Data)
-		***REMOVED***)
-	***REMOVED***
+		})
+	}
 
-	t.Run("cdnjs.com/libraries/nonexistent", func(t *testing.T) ***REMOVED***
+	t.Run("cdnjs.com/libraries/nonexistent", func(t *testing.T) {
 		t.Parallel()
 		path := "cdnjs.com/libraries/nonexistent"
 		name, loader, parts := pickLoader(path)
 		assert.Equal(t, "cdnjs", name)
-		assert.Equal(t, []string***REMOVED***"nonexistent", "", ""***REMOVED***, parts)
+		assert.Equal(t, []string{"nonexistent", "", ""}, parts)
 		_, err := loader(logger, path, parts)
 		assert.EqualError(t, err, "cdnjs: no such library: nonexistent")
-	***REMOVED***)
+	})
 
-	t.Run("cdnjs.com/libraries/Faker/3.1.0/nonexistent.js", func(t *testing.T) ***REMOVED***
+	t.Run("cdnjs.com/libraries/Faker/3.1.0/nonexistent.js", func(t *testing.T) {
 		t.Parallel()
 		path := "cdnjs.com/libraries/Faker/3.1.0/nonexistent.js"
 		name, loader, parts := pickLoader(path)
 		assert.Equal(t, "cdnjs", name)
-		assert.Equal(t, []string***REMOVED***"Faker", "3.1.0", "nonexistent.js"***REMOVED***, parts)
+		assert.Equal(t, []string{"Faker", "3.1.0", "nonexistent.js"}, parts)
 		src, err := loader(logger, path, parts)
 		require.NoError(t, err)
 		assert.Equal(t, "https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/nonexistent.js", src)
@@ -100,8 +100,8 @@ func TestCDNJS(t *testing.T) ***REMOVED***
 		pathURL, err := url.Parse(src)
 		require.NoError(t, err)
 
-		_, err = Load(logger, map[string]afero.Fs***REMOVED***"https": afero.NewMemMapFs()***REMOVED***, pathURL, path)
+		_, err = Load(logger, map[string]afero.Fs{"https": afero.NewMemMapFs()}, pathURL, path)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found: https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/nonexistent.js")
-	***REMOVED***)
-***REMOVED***
+	})
+}

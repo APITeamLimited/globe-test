@@ -15,56 +15,56 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
-func sumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***
-	for _, s := range stages ***REMOVED***
+func sumStagesDuration(stages []Stage) (result time.Duration) {
+	for _, s := range stages {
 		result += s.Duration.TimeDuration()
-	***REMOVED***
+	}
 	return
-***REMOVED***
+}
 
-func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []Stage) int64 ***REMOVED***
+func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []Stage) int64 {
 	max := unscaledStartValue
-	for _, s := range stages ***REMOVED***
-		if s.Target.Int64 > max ***REMOVED***
+	for _, s := range stages {
+		if s.Target.Int64 > max {
 			max = s.Target.Int64
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return max
-***REMOVED***
+}
 
 // A helper function to avoid code duplication
-func validateStages(stages []Stage) []error ***REMOVED***
+func validateStages(stages []Stage) []error {
 	var errors []error
-	if len(stages) == 0 ***REMOVED***
+	if len(stages) == 0 {
 		errors = append(errors, fmt.Errorf("at least one stage has to be specified"))
 		return errors
-	***REMOVED***
+	}
 
-	for i, s := range stages ***REMOVED***
+	for i, s := range stages {
 		stageNum := i + 1
-		if !s.Duration.Valid ***REMOVED***
+		if !s.Duration.Valid {
 			errors = append(errors, fmt.Errorf("stage %d doesn't have a duration", stageNum))
-		***REMOVED*** else if s.Duration.Duration < 0 ***REMOVED***
+		} else if s.Duration.Duration < 0 {
 			errors = append(errors, fmt.Errorf("the duration for stage %d can't be negative", stageNum))
-		***REMOVED***
-		if !s.Target.Valid ***REMOVED***
+		}
+		if !s.Target.Valid {
 			errors = append(errors, fmt.Errorf("stage %d doesn't have a target", stageNum))
-		***REMOVED*** else if s.Target.Int64 < 0 ***REMOVED***
+		} else if s.Target.Int64 < 0 {
 			errors = append(errors, fmt.Errorf("the target for stage %d can't be negative", stageNum))
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return errors
-***REMOVED***
+}
 
 // cancelKey is the key used to store the cancel function for the context of an
 // executor. This is a work around to avoid excessive changes for the ability of
 // nested functions to cancel the passed context.
-type cancelKey struct***REMOVED******REMOVED***
+type cancelKey struct{}
 
-type cancelExec struct ***REMOVED***
+type cancelExec struct {
 	cancel context.CancelFunc
 	reason error
-***REMOVED***
+}
 
 // Context returns context.Context that can be cancelled by calling
 // CancelExecutorContext. Use this to initialize context that will be passed to
@@ -72,45 +72,45 @@ type cancelExec struct ***REMOVED***
 //
 // This allows executors to globally halt any executions that uses this context.
 // Example use case is when a script calls test.abort().
-func Context(ctx context.Context) context.Context ***REMOVED***
+func Context(ctx context.Context) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
-	return context.WithValue(ctx, cancelKey***REMOVED******REMOVED***, &cancelExec***REMOVED***cancel: cancel***REMOVED***)
-***REMOVED***
+	return context.WithValue(ctx, cancelKey{}, &cancelExec{cancel: cancel})
+}
 
 // cancelExecutorContext cancels executor context found in ctx, ctx can be a
 // child of a context that was created with Context function.
-func cancelExecutorContext(ctx context.Context, err error) ***REMOVED***
-	if x := ctx.Value(cancelKey***REMOVED******REMOVED***); x != nil ***REMOVED***
-		if v, ok := x.(*cancelExec); ok ***REMOVED***
+func cancelExecutorContext(ctx context.Context, err error) {
+	if x := ctx.Value(cancelKey{}); x != nil {
+		if v, ok := x.(*cancelExec); ok {
 			v.reason = err
 			v.cancel()
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
 // CancelReason returns a reason the executor context was cancelled. This will
 // return nil if ctx is not an executor context(ctx or any of its parents was
 // never created by Context function).
-func CancelReason(ctx context.Context) error ***REMOVED***
-	if x := ctx.Value(cancelKey***REMOVED******REMOVED***); x != nil ***REMOVED***
-		if v, ok := x.(*cancelExec); ok ***REMOVED***
+func CancelReason(ctx context.Context) error {
+	if x := ctx.Value(cancelKey{}); x != nil {
+		if v, ok := x.(*cancelExec); ok {
 			return v.reason
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return nil
-***REMOVED***
+}
 
 // handleInterrupt returns true if err is InterruptError and if so it
 // cancels the executor context passed with ctx.
-func handleInterrupt(ctx context.Context, err error) bool ***REMOVED***
-	if err != nil ***REMOVED***
-		if errext.IsInterruptError(err) ***REMOVED***
+func handleInterrupt(ctx context.Context, err error) bool {
+	if err != nil {
+		if errext.IsInterruptError(err) {
 			cancelExecutorContext(ctx, err)
 			return true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return false
-***REMOVED***
+}
 
 // getIterationRunner is a helper function that returns an iteration executor
 // closure. It takes care of updating the execution state statistics and
@@ -119,42 +119,42 @@ func handleInterrupt(ctx context.Context, err error) bool ***REMOVED***
 // TODO: emit the end-of-test iteration metrics here (https://github.com/k6io/k6/issues/1250)
 func getIterationRunner(
 	executionState *libWorker.ExecutionState, logger *logrus.Entry,
-) func(context.Context, libWorker.ActiveVU) bool ***REMOVED***
-	return func(ctx context.Context, vu libWorker.ActiveVU) bool ***REMOVED***
+) func(context.Context, libWorker.ActiveVU) bool {
+	return func(ctx context.Context, vu libWorker.ActiveVU) bool {
 		err := vu.RunOnce()
 
 		// TODO: track (non-ramp-down) errors from script iterations as a metric,
 		// and have a default threshold that will abort the script when the error
 		// rate exceeds a certain percentage
 
-		select ***REMOVED***
+		select {
 		case <-ctx.Done():
 			// Don't log errors or emit iterations metrics from cancelled iterations
 			executionState.AddInterruptedIterations(1)
 			return false
 		default:
-			if err != nil ***REMOVED***
-				if handleInterrupt(ctx, err) ***REMOVED***
+			if err != nil {
+				if handleInterrupt(ctx, err) {
 					executionState.AddInterruptedIterations(1)
 					return false
-				***REMOVED***
+				}
 
 				var exception errext.Exception
-				if errors.As(err, &exception) ***REMOVED***
+				if errors.As(err, &exception) {
 					// TODO don't count this as a full iteration?
 					logger.WithField("source", "stacktrace").Error(exception.StackTrace())
-				***REMOVED*** else ***REMOVED***
+				} else {
 					logger.Error(err.Error())
-				***REMOVED***
+				}
 				// TODO: investigate context cancelled errors
-			***REMOVED***
+			}
 
 			// TODO: move emission of end-of-iteration metrics here?
 			executionState.AddFullIterations(1)
 			return true
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+		}
+	}
+}
 
 // getDurationContexts is used to create sub-contexts that can restrict an
 // executor to only run for its allotted time.
@@ -183,30 +183,30 @@ func getIterationRunner(
 //    handled transparently.
 func getDurationContexts(parentCtx context.Context, regularDuration, gracefulStop time.Duration) (
 	startTime time.Time, maxDurationCtx, regDurationCtx context.Context, maxDurationCancel func(),
-) ***REMOVED***
+) {
 	startTime = time.Now()
 	maxEndTime := startTime.Add(regularDuration + gracefulStop)
 
 	maxDurationCtx, maxDurationCancel = context.WithDeadline(parentCtx, maxEndTime)
-	if gracefulStop == 0 ***REMOVED***
+	if gracefulStop == 0 {
 		return startTime, maxDurationCtx, maxDurationCtx, maxDurationCancel
-	***REMOVED***
+	}
 	regDurationCtx, _ = context.WithDeadline(maxDurationCtx, startTime.Add(regularDuration)) //nolint:govet
 	return startTime, maxDurationCtx, regDurationCtx, maxDurationCancel
-***REMOVED***
+}
 
 // trackProgress is a helper function that monitors certain end-events in an
 // executor and updates its progressbar accordingly.
 func trackProgress(
 	parentCtx, maxDurationCtx, regDurationCtx context.Context,
 	exec libWorker.Executor, snapshot func() (float64, []string),
-) ***REMOVED***
+) {
 	progressBar := exec.GetProgress()
 	logger := exec.GetLogger()
 
 	<-regDurationCtx.Done() // Wait for the regular context to be over
 	gracefulStop := exec.GetConfig().GetGracefulStop()
-	if parentCtx.Err() == nil && gracefulStop > 0 ***REMOVED***
+	if parentCtx.Err() == nil && gracefulStop > 0 {
 		p, right := snapshot()
 		logger.WithField("gracefulStop", gracefulStop).Debug(
 			"Regular duration is done, waiting for iterations to gracefully finish",
@@ -215,30 +215,30 @@ func trackProgress(
 			pb.WithStatus(pb.Stopping),
 			pb.WithConstProgress(p, right...),
 		)
-	***REMOVED***
+	}
 
 	<-maxDurationCtx.Done()
 	p, right := snapshot()
 	constProg := pb.WithConstProgress(p, right...)
-	select ***REMOVED***
+	select {
 	case <-parentCtx.Done():
 		progressBar.Modify(pb.WithStatus(pb.Interrupted), constProg)
 	default:
 		status := pb.WithStatus(pb.Done)
-		if p < 1 ***REMOVED***
+		if p < 1 {
 			status = pb.WithStatus(pb.Interrupted)
-		***REMOVED***
+		}
 		progressBar.Modify(status, constProg)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // getScaledArrivalRate returns a rational number containing the scaled value of
 // the given rate over the given period. This should generally be the first
 // function that's called, before we do any calculations with the users-supplied
 // rates in the arrival-rate executors.
-func getScaledArrivalRate(es *libWorker.ExecutionSegment, rate int64, period time.Duration) *big.Rat ***REMOVED***
+func getScaledArrivalRate(es *libWorker.ExecutionSegment, rate int64, period time.Duration) *big.Rat {
 	return es.InPlaceScaleRat(big.NewRat(rate, int64(period)))
-***REMOVED***
+}
 
 // getTickerPeriod is just a helper function that returns the ticker interval
 // we need for given arrival-rate parameters.
@@ -246,29 +246,29 @@ func getScaledArrivalRate(es *libWorker.ExecutionSegment, rate int64, period tim
 // It's possible for this function to return a zero duration (i.e. valid=false)
 // and 0 isn't a valid ticker period. This happens so we don't divide by 0 when
 // the arrival-rate period is 0. This case has to be handled separately.
-func getTickerPeriod(scaledArrivalRate *big.Rat) types.NullDuration ***REMOVED***
-	if scaledArrivalRate.Sign() == 0 ***REMOVED***
+func getTickerPeriod(scaledArrivalRate *big.Rat) types.NullDuration {
+	if scaledArrivalRate.Sign() == 0 {
 		return types.NewNullDuration(0, false)
-	***REMOVED***
+	}
 	// Basically, the ticker rate is time.Duration(1/arrivalRate). Considering
 	// that time.Duration is represented as int64 nanoseconds, no meaningful
 	// precision is likely to be lost here...
 	result, _ := new(big.Rat).Inv(scaledArrivalRate).Float64()
 	return types.NewNullDuration(time.Duration(result), true)
-***REMOVED***
+}
 
 // getArrivalRatePerSec returns the iterations per second rate.
-func getArrivalRatePerSec(scaledArrivalRate *big.Rat) *big.Rat ***REMOVED***
+func getArrivalRatePerSec(scaledArrivalRate *big.Rat) *big.Rat {
 	perSecRate := big.NewRat(int64(time.Second), 1)
 	return perSecRate.Mul(perSecRate, scaledArrivalRate)
-***REMOVED***
+}
 
 // TODO: Refactor this, maybe move all scenario things to an embedded struct?
 func getVUActivationParams(
 	ctx context.Context, conf BaseConfig, deactivateCallback func(libWorker.InitializedVU),
 	nextIterationCounters func() (uint64, uint64),
-) *libWorker.VUActivationParams ***REMOVED***
-	return &libWorker.VUActivationParams***REMOVED***
+) *libWorker.VUActivationParams {
+	return &libWorker.VUActivationParams{
 		RunContext:               ctx,
 		Scenario:                 conf.Name,
 		Exec:                     conf.GetExec(),
@@ -276,5 +276,5 @@ func getVUActivationParams(
 		Tags:                     conf.GetTags(),
 		DeactivateCallback:       deactivateCallback,
 		GetNextIterationCounters: nextIterationCounters,
-	***REMOVED***
-***REMOVED***
+	}
+}

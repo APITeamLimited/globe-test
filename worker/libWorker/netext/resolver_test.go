@@ -13,66 +13,66 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func TestResolver(t *testing.T) ***REMOVED***
+func TestResolver(t *testing.T) {
 	t.Parallel()
 
 	host := "myhost"
-	mr := mockresolver.New(map[string][]net.IP***REMOVED***
-		host: ***REMOVED***
+	mr := mockresolver.New(map[string][]net.IP{
+		host: {
 			net.ParseIP("127.0.0.10"),
 			net.ParseIP("127.0.0.11"),
 			net.ParseIP("127.0.0.12"),
 			net.ParseIP("2001:db8::10"),
 			net.ParseIP("2001:db8::11"),
 			net.ParseIP("2001:db8::12"),
-		***REMOVED***,
-	***REMOVED***, nil)
+		},
+	}, nil)
 
-	t.Run("LookupIP", func(t *testing.T) ***REMOVED***
+	t.Run("LookupIP", func(t *testing.T) {
 		t.Parallel()
-		testCases := []struct ***REMOVED***
+		testCases := []struct {
 			ttl   time.Duration
 			sel   types.DNSSelect
 			pol   types.DNSPolicy
 			expIP []net.IP
-		***REMOVED******REMOVED***
-			***REMOVED***
+		}{
+			{
 				0, types.DNSfirst, types.DNSpreferIPv4,
-				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
-			***REMOVED***,
-			***REMOVED***
+				[]net.IP{net.ParseIP("127.0.0.10")},
+			},
+			{
 				time.Second, types.DNSfirst, types.DNSpreferIPv4,
-				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
-			***REMOVED***,
-			***REMOVED***0, types.DNSroundRobin, types.DNSonlyIPv6, []net.IP***REMOVED***
+				[]net.IP{net.ParseIP("127.0.0.10")},
+			},
+			{0, types.DNSroundRobin, types.DNSonlyIPv6, []net.IP{
 				net.ParseIP("2001:db8::10"),
 				net.ParseIP("2001:db8::11"),
 				net.ParseIP("2001:db8::12"),
 				net.ParseIP("2001:db8::10"),
-			***REMOVED******REMOVED***,
-			***REMOVED***
+			}},
+			{
 				0, types.DNSfirst, types.DNSpreferIPv6,
-				[]net.IP***REMOVED***net.ParseIP("2001:db8::10")***REMOVED***,
-			***REMOVED***,
-			***REMOVED***0, types.DNSroundRobin, types.DNSpreferIPv4, []net.IP***REMOVED***
+				[]net.IP{net.ParseIP("2001:db8::10")},
+			},
+			{0, types.DNSroundRobin, types.DNSpreferIPv4, []net.IP{
 				net.ParseIP("127.0.0.10"),
 				net.ParseIP("127.0.0.11"),
 				net.ParseIP("127.0.0.12"),
 				net.ParseIP("127.0.0.10"),
-			***REMOVED******REMOVED***,
-		***REMOVED***
+			}},
+		}
 
-		for _, tc := range testCases ***REMOVED***
+		for _, tc := range testCases {
 			tc := tc
-			t.Run(fmt.Sprintf("%s_%s_%s", tc.ttl, tc.sel, tc.pol), func(t *testing.T) ***REMOVED***
+			t.Run(fmt.Sprintf("%s_%s_%s", tc.ttl, tc.sel, tc.pol), func(t *testing.T) {
 				t.Parallel()
 				r := NewResolver(mr.LookupIPAll, tc.ttl, tc.sel, tc.pol)
 				ip, err := r.LookupIP(host)
 				require.NoError(t, err)
 				assert.Equal(t, tc.expIP[0], ip)
 
-				if tc.ttl > 0 ***REMOVED***
-					require.IsType(t, &cacheResolver***REMOVED******REMOVED***, r)
+				if tc.ttl > 0 {
+					require.IsType(t, &cacheResolver{}, r)
 					cr := r.(*cacheResolver)
 					assert.Len(t, cr.cache, 1)
 					assert.Equal(t, tc.ttl, cr.ttl)
@@ -81,18 +81,18 @@ func TestResolver(t *testing.T) ***REMOVED***
 					_, err = r.LookupIP(host)
 					require.NoError(t, err)
 					assert.True(t, cr.cache[host].lastLookup.After(firstLookup))
-				***REMOVED***
+				}
 
-				if tc.sel == types.DNSroundRobin ***REMOVED***
-					ips := []net.IP***REMOVED***ip***REMOVED***
-					for i := 0; i < 3; i++ ***REMOVED***
+				if tc.sel == types.DNSroundRobin {
+					ips := []net.IP{ip}
+					for i := 0; i < 3; i++ {
 						ip, err = r.LookupIP(host)
 						require.NoError(t, err)
 						ips = append(ips, ip)
-					***REMOVED***
+					}
 					assert.Equal(t, tc.expIP, ips)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+				}
+			})
+		}
+	})
+}

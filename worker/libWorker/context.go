@@ -12,29 +12,29 @@ const (
 )
 
 // WithExecutionState embeds an ExecutionState in ctx.
-func WithExecutionState(ctx context.Context, s *ExecutionState) context.Context ***REMOVED***
+func WithExecutionState(ctx context.Context, s *ExecutionState) context.Context {
 	return context.WithValue(ctx, ctxKeyExecState, s)
-***REMOVED***
+}
 
 // GetExecutionState returns an ExecutionState from ctx.
-func GetExecutionState(ctx context.Context) *ExecutionState ***REMOVED***
+func GetExecutionState(ctx context.Context) *ExecutionState {
 	v := ctx.Value(ctxKeyExecState)
-	if v == nil ***REMOVED***
+	if v == nil {
 		return nil
-	***REMOVED***
+	}
 	return v.(*ExecutionState)
-***REMOVED***
+}
 
 // WithScenarioState embeds a ScenarioState in ctx.
-func WithScenarioState(ctx context.Context, s *ScenarioState) context.Context ***REMOVED***
+func WithScenarioState(ctx context.Context, s *ScenarioState) context.Context {
 	return context.WithValue(ctx, ctxKeyScenario, s)
-***REMOVED***
+}
 
 // GetScenarioState returns a ScenarioState from ctx.
-func GetScenarioState(ctx context.Context) *ScenarioState ***REMOVED***
+func GetScenarioState(ctx context.Context) *ScenarioState {
 	v := ctx.Value(ctxKeyScenario)
-	if v == nil ***REMOVED***
+	if v == nil {
 		return nil
-	***REMOVED***
+	}
 	return v.(*ScenarioState)
-***REMOVED***
+}

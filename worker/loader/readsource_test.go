@@ -17,22 +17,22 @@ import (
 
 type errorReader string
 
-func (e errorReader) Read(_ []byte) (int, error) ***REMOVED***
+func (e errorReader) Read(_ []byte) (int, error) {
 	return 0, errors.New((string)(e))
-***REMOVED***
+}
 
 var _ io.Reader = errorReader("")
 
-func TestReadSourceSTDINError(t *testing.T) ***REMOVED***
+func TestReadSourceSTDINError(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	_, err := ReadSource(logger, "-", "", nil, errorReader("1234"))
 	require.Error(t, err)
 	require.Equal(t, "1234", err.Error())
-***REMOVED***
+}
 
-func TestReadSourceSTDINCache(t *testing.T) ***REMOVED***
+func TestReadSourceSTDINCache(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -40,33 +40,33 @@ func TestReadSourceSTDINCache(t *testing.T) ***REMOVED***
 	r := bytes.NewReader(data)
 	fs := afero.NewMemMapFs()
 	sourceData, err := ReadSource(logger, "-", "/path/to/pwd",
-		map[string]afero.Fs***REMOVED***"file": fsext.NewCacheOnReadFs(nil, fs, 0)***REMOVED***, r)
+		map[string]afero.Fs{"file": fsext.NewCacheOnReadFs(nil, fs, 0)}, r)
 	require.NoError(t, err)
-	require.Equal(t, &SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Scheme: "file", Path: "/-"***REMOVED***,
+	require.Equal(t, &SourceData{
+		URL:  &url.URL{Scheme: "file", Path: "/-"},
 		Data: data,
-	***REMOVED***, sourceData)
+	}, sourceData)
 	fileData, err := afero.ReadFile(fs, "/-")
 	require.NoError(t, err)
 	require.Equal(t, data, fileData)
-***REMOVED***
+}
 
-func TestReadSourceRelative(t *testing.T) ***REMOVED***
+func TestReadSourceRelative(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	data := []byte(`test contents`)
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/path/to/somewhere/script.js", data, 0o644))
-	sourceData, err := ReadSource(logger, "../somewhere/script.js", "/path/to/pwd", map[string]afero.Fs***REMOVED***"file": fs***REMOVED***, nil)
+	sourceData, err := ReadSource(logger, "../somewhere/script.js", "/path/to/pwd", map[string]afero.Fs{"file": fs}, nil)
 	require.NoError(t, err)
-	require.Equal(t, &SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Scheme: "file", Path: "/path/to/somewhere/script.js"***REMOVED***,
+	require.Equal(t, &SourceData{
+		URL:  &url.URL{Scheme: "file", Path: "/path/to/somewhere/script.js"},
 		Data: data,
-	***REMOVED***, sourceData)
-***REMOVED***
+	}, sourceData)
+}
 
-func TestReadSourceAbsolute(t *testing.T) ***REMOVED***
+func TestReadSourceAbsolute(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -75,15 +75,15 @@ func TestReadSourceAbsolute(t *testing.T) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/a/b", data, 0o644))
 	require.NoError(t, afero.WriteFile(fs, "/c/a/b", []byte("wrong"), 0o644))
-	sourceData, err := ReadSource(logger, "/a/b", "/c", map[string]afero.Fs***REMOVED***"file": fs***REMOVED***, r)
+	sourceData, err := ReadSource(logger, "/a/b", "/c", map[string]afero.Fs{"file": fs}, r)
 	require.NoError(t, err)
-	require.Equal(t, &SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Scheme: "file", Path: "/a/b"***REMOVED***,
+	require.Equal(t, &SourceData{
+		URL:  &url.URL{Scheme: "file", Path: "/a/b"},
 		Data: data,
-	***REMOVED***, sourceData)
-***REMOVED***
+	}, sourceData)
+}
 
-func TestReadSourceHttps(t *testing.T) ***REMOVED***
+func TestReadSourceHttps(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -91,15 +91,15 @@ func TestReadSourceHttps(t *testing.T) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/github.com/something", data, 0o644))
 	sourceData, err := ReadSource(logger, "https://github.com/something", "/c",
-		map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs(), "https": fs***REMOVED***, nil)
+		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": fs}, nil)
 	require.NoError(t, err)
-	require.Equal(t, &SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Scheme: "https", Host: "github.com", Path: "/something"***REMOVED***,
+	require.Equal(t, &SourceData{
+		URL:  &url.URL{Scheme: "https", Host: "github.com", Path: "/something"},
 		Data: data,
-	***REMOVED***, sourceData)
-***REMOVED***
+	}, sourceData)
+}
 
-func TestReadSourceHttpError(t *testing.T) ***REMOVED***
+func TestReadSourceHttpError(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -107,18 +107,18 @@ func TestReadSourceHttpError(t *testing.T) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/github.com/something", data, 0o644))
 	_, err := ReadSource(logger, "http://github.com/something", "/c",
-		map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs(), "https": fs***REMOVED***, nil)
+		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": fs}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `only supported schemes for imports are file and https`)
-***REMOVED***
+}
 
-func TestReadSourceMissingFileError(t *testing.T) ***REMOVED***
+func TestReadSourceMissingFileError(t *testing.T) {
 	t.Parallel()
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	fs := afero.NewMemMapFs()
 	_, err := ReadSource(logger, "some file with spaces.js", "/c",
-		map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs(), "https": fs***REMOVED***, nil)
+		map[string]afero.Fs{"file": afero.NewMemMapFs(), "https": fs}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `The moduleSpecifier "some file with spaces.js" couldn't be found on local disk.`)
-***REMOVED***
+}

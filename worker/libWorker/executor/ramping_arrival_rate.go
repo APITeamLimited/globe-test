@@ -19,20 +19,20 @@ import (
 
 const rampingArrivalRateType = "ramping-arrival-rate"
 
-func init() ***REMOVED***
+func init() {
 	libWorker.RegisterExecutorConfigType(
 		rampingArrivalRateType,
-		func(name string, rawJSON []byte) (libWorker.ExecutorConfig, error) ***REMOVED***
+		func(name string, rawJSON []byte) (libWorker.ExecutorConfig, error) {
 			config := NewRampingArrivalRateConfig(name)
 			err := libWorker.StrictJSONUnmarshal(rawJSON, &config)
 			return config, err
-		***REMOVED***,
+		},
 	)
-***REMOVED***
+}
 
 // RampingArrivalRateConfig stores config for the ramping (i.e. variable)
 // arrival-rate executor.
-type RampingArrivalRateConfig struct ***REMOVED***
+type RampingArrivalRateConfig struct {
 	BaseConfig
 	StartRate null.Int           `json:"startRate"`
 	TimeUnit  types.NullDuration `json:"timeUnit"`
@@ -43,36 +43,36 @@ type RampingArrivalRateConfig struct ***REMOVED***
 	// absolutely hard limit on the number of VUs the executor will use
 	PreAllocatedVUs null.Int `json:"preAllocatedVUs"`
 	MaxVUs          null.Int `json:"maxVUs"`
-***REMOVED***
+}
 
 // NewRampingArrivalRateConfig returns a RampingArrivalRateConfig with default values
-func NewRampingArrivalRateConfig(name string) *RampingArrivalRateConfig ***REMOVED***
-	return &RampingArrivalRateConfig***REMOVED***
+func NewRampingArrivalRateConfig(name string) *RampingArrivalRateConfig {
+	return &RampingArrivalRateConfig{
 		BaseConfig: NewBaseConfig(name, rampingArrivalRateType),
 		TimeUnit:   types.NewNullDuration(1*time.Second, false),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Make sure we implement the libWorker.ExecutorConfig interface
-var _ libWorker.ExecutorConfig = &RampingArrivalRateConfig***REMOVED******REMOVED***
+var _ libWorker.ExecutorConfig = &RampingArrivalRateConfig{}
 
 // GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
-func (varc RampingArrivalRateConfig) GetPreAllocatedVUs(et *libWorker.ExecutionTuple) int64 ***REMOVED***
+func (varc RampingArrivalRateConfig) GetPreAllocatedVUs(et *libWorker.ExecutionTuple) int64 {
 	return et.ScaleInt64(varc.PreAllocatedVUs.Int64)
-***REMOVED***
+}
 
 // GetMaxVUs is just a helper method that returns the scaled max VUs.
-func (varc RampingArrivalRateConfig) GetMaxVUs(et *libWorker.ExecutionTuple) int64 ***REMOVED***
+func (varc RampingArrivalRateConfig) GetMaxVUs(et *libWorker.ExecutionTuple) int64 {
 	return et.ScaleInt64(varc.MaxVUs.Int64)
-***REMOVED***
+}
 
 // GetDescription returns a human-readable description of the executor options
-func (varc RampingArrivalRateConfig) GetDescription(et *libWorker.ExecutionTuple) string ***REMOVED***
+func (varc RampingArrivalRateConfig) GetDescription(et *libWorker.ExecutionTuple) string {
 	// TODO: something better? always show iterations per second?
 	maxVUsRange := fmt.Sprintf("maxVUs: %d", et.ScaleInt64(varc.PreAllocatedVUs.Int64))
-	if varc.MaxVUs.Int64 > varc.PreAllocatedVUs.Int64 ***REMOVED***
+	if varc.MaxVUs.Int64 > varc.PreAllocatedVUs.Int64 {
 		maxVUsRange += fmt.Sprintf("-%d", et.ScaleInt64(varc.MaxVUs.Int64))
-	***REMOVED***
+	}
 	maxUnscaledRate := getStagesUnscaledMaxTarget(varc.StartRate.Int64, varc.Stages)
 	maxArrRatePerSec, _ := getArrivalRatePerSec(
 		getScaledArrivalRate(et.Segment, maxUnscaledRate, varc.TimeUnit.TimeDuration()),
@@ -81,87 +81,87 @@ func (varc RampingArrivalRateConfig) GetDescription(et *libWorker.ExecutionTuple
 	return fmt.Sprintf("Up to %.2f iterations/s for %s over %d stages%s",
 		maxArrRatePerSec, sumStagesDuration(varc.Stages),
 		len(varc.Stages), varc.getBaseInfo(maxVUsRange))
-***REMOVED***
+}
 
 // Validate makes sure all options are configured and valid
-func (varc *RampingArrivalRateConfig) Validate() []error ***REMOVED***
+func (varc *RampingArrivalRateConfig) Validate() []error {
 	errors := varc.BaseConfig.Validate()
 
-	if varc.StartRate.Int64 < 0 ***REMOVED***
+	if varc.StartRate.Int64 < 0 {
 		errors = append(errors, fmt.Errorf("the startRate value can't be negative"))
-	***REMOVED***
+	}
 
-	if varc.TimeUnit.TimeDuration() < 0 ***REMOVED***
+	if varc.TimeUnit.TimeDuration() < 0 {
 		errors = append(errors, fmt.Errorf("the timeUnit must be more than 0"))
-	***REMOVED***
+	}
 
 	errors = append(errors, validateStages(varc.Stages)...)
 
-	if !varc.PreAllocatedVUs.Valid ***REMOVED***
+	if !varc.PreAllocatedVUs.Valid {
 		errors = append(errors, fmt.Errorf("the number of preAllocatedVUs isn't specified"))
-	***REMOVED*** else if varc.PreAllocatedVUs.Int64 < 0 ***REMOVED***
+	} else if varc.PreAllocatedVUs.Int64 < 0 {
 		errors = append(errors, fmt.Errorf("the number of preAllocatedVUs can't be negative"))
-	***REMOVED***
+	}
 
-	if !varc.MaxVUs.Valid ***REMOVED***
+	if !varc.MaxVUs.Valid {
 		// TODO: don't change the config while validating
 		varc.MaxVUs.Int64 = varc.PreAllocatedVUs.Int64
-	***REMOVED*** else if varc.MaxVUs.Int64 < varc.PreAllocatedVUs.Int64 ***REMOVED***
+	} else if varc.MaxVUs.Int64 < varc.PreAllocatedVUs.Int64 {
 		errors = append(errors, fmt.Errorf("maxVUs can't be less than preAllocatedVUs"))
-	***REMOVED***
+	}
 
 	return errors
-***REMOVED***
+}
 
 // GetExecutionRequirements returns the number of required VUs to run the
 // executor for its whole duration (disregarding any startTime), including the
 // maximum waiting time for any iterations to gracefully stop. This is used by
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
-func (varc RampingArrivalRateConfig) GetExecutionRequirements(et *libWorker.ExecutionTuple) []libWorker.ExecutionStep ***REMOVED***
-	return []libWorker.ExecutionStep***REMOVED***
-		***REMOVED***
+func (varc RampingArrivalRateConfig) GetExecutionRequirements(et *libWorker.ExecutionTuple) []libWorker.ExecutionStep {
+	return []libWorker.ExecutionStep{
+		{
 			TimeOffset:      0,
 			PlannedVUs:      uint64(et.ScaleInt64(varc.PreAllocatedVUs.Int64)),
 			MaxUnplannedVUs: uint64(et.ScaleInt64(varc.MaxVUs.Int64 - varc.PreAllocatedVUs.Int64)),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			TimeOffset:      sumStagesDuration(varc.Stages) + varc.GracefulStop.TimeDuration(),
 			PlannedVUs:      0,
 			MaxUnplannedVUs: 0,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // NewExecutor creates a new RampingArrivalRate executor
 func (varc RampingArrivalRateConfig) NewExecutor(
 	es *libWorker.ExecutionState, logger *logrus.Entry,
-) (libWorker.Executor, error) ***REMOVED***
-	return &RampingArrivalRate***REMOVED***
+) (libWorker.Executor, error) {
+	return &RampingArrivalRate{
 		BaseExecutor: NewBaseExecutor(&varc, es, logger),
 		config:       varc,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (varc RampingArrivalRateConfig) HasWork(et *libWorker.ExecutionTuple) bool ***REMOVED***
+func (varc RampingArrivalRateConfig) HasWork(et *libWorker.ExecutionTuple) bool {
 	return varc.GetMaxVUs(et) > 0
-***REMOVED***
+}
 
 // RampingArrivalRate tries to execute a specific number of iterations for a
 // specific period.
 // TODO: combine with the ConstantArrivalRate?
-type RampingArrivalRate struct ***REMOVED***
+type RampingArrivalRate struct {
 	*BaseExecutor
 	config RampingArrivalRateConfig
 	et     *libWorker.ExecutionTuple
-***REMOVED***
+}
 
 // Make sure we implement the libWorker.Executor interface.
-var _ libWorker.Executor = &RampingArrivalRate***REMOVED******REMOVED***
+var _ libWorker.Executor = &RampingArrivalRate{}
 
 // Init values needed for the execution
-func (varr *RampingArrivalRate) Init(ctx context.Context) error ***REMOVED***
+func (varr *RampingArrivalRate) Init(ctx context.Context) error {
 	// err should always be nil, because Init() won't be called for executors
 	// with no work, as determined by their config's HasWork() method.
 	et, err := varr.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(varr.config.MaxVUs.Int64)
@@ -169,7 +169,7 @@ func (varr *RampingArrivalRate) Init(ctx context.Context) error ***REMOVED***
 	varr.iterSegIndex = libWorker.NewSegmentedIndex(et)
 
 	return err //nolint:wrapcheck
-***REMOVED***
+}
 
 // cal calculates the  transtitions between stages and gives the next full value produced by the
 // stages. In this explanation we are talking about events and in practice those events are starting
@@ -233,14 +233,14 @@ func (varr *RampingArrivalRate) Init(ctx context.Context) error ***REMOVED***
 // The specific implementation here can only go forward and does incorporate
 // the striping algorithm from the libWorker.ExecutionTuple for additional speed up but this could
 // possibly be refactored if need for this arises.
-func (varc RampingArrivalRateConfig) cal(et *libWorker.ExecutionTuple, ch chan<- time.Duration) ***REMOVED***
+func (varc RampingArrivalRateConfig) cal(et *libWorker.ExecutionTuple, ch chan<- time.Duration) {
 	start, offsets, _ := et.GetStripedOffsets()
 	li := -1
 	// TODO: move this to a utility function, or directly what GetStripedOffsets uses once we see everywhere we will use it
-	next := func() int64 ***REMOVED***
+	next := func() int64 {
 		li++
 		return offsets[li%len(offsets)]
-	***REMOVED***
+	}
 	defer close(ch) // TODO: maybe this is not a good design - closing a channel we get
 	var (
 		stageStart                   time.Duration
@@ -251,29 +251,29 @@ func (varc RampingArrivalRateConfig) cal(et *libWorker.ExecutionTuple, ch chan<-
 		i = float64(start + 1)
 	)
 
-	for _, stage := range varc.Stages ***REMOVED***
+	for _, stage := range varc.Stages {
 		to = float64(stage.Target.ValueOrZero()) / timeUnit
 		dur = float64(stage.Duration.Duration)
-		if from != to ***REMOVED*** // ramp up/down
+		if from != to { // ramp up/down
 			endCount += dur * ((to-from)/2 + from)
-			for ; i <= endCount; i += float64(next()) ***REMOVED***
+			for ; i <= endCount; i += float64(next()) {
 				// TODO: try to twist this in a way to be able to get i (the only changing part)
 				// somewhere where it is less in the middle of the equation
 				x := (from*dur - noNegativeSqrt(dur*(from*from*dur+2*(i-doneSoFar)*(to-from)))) / (from - to)
 
 				ch <- time.Duration(x) + stageStart
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+			}
+		} else {
 			endCount += dur * to
-			for ; i <= endCount; i += float64(next()) ***REMOVED***
+			for ; i <= endCount; i += float64(next()) {
 				ch <- time.Duration((i-doneSoFar)/to) + stageStart
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		doneSoFar = endCount
 		from = to
 		stageStart += stage.Duration.TimeDuration()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // This is needed because, on some platforms (arm64), sometimes, even though we
 // in *reality* don't get negative results due to the nature of how float64 is
@@ -284,13 +284,13 @@ func (varc RampingArrivalRateConfig) cal(et *libWorker.ExecutionTuple, ch chan<-
 // TODO: this is probably going to be less necessary if we do some kind of of
 // optimization above and the operations with the float64 are more "accurate"
 // even on arm platforms.
-func noNegativeSqrt(f float64) float64 ***REMOVED***
-	if !math.Signbit(f) ***REMOVED***
+func noNegativeSqrt(f float64) float64 {
+	if !math.Signbit(f) {
 		return math.Sqrt(f)
-	***REMOVED***
+	}
 
 	return 0
-***REMOVED***
+}
 
 // Run executes a variable number of iterations per second.
 //
@@ -304,7 +304,7 @@ func noNegativeSqrt(f float64) float64 ***REMOVED***
 // and things like all of the TODOs below in one place only.
 //
 //nolint:funlen,cyclop
-func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) ***REMOVED***
+func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	segment := varr.executionState.ExecutionTuple.Segment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
@@ -319,20 +319,20 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	startTickerPeriod := getTickerPeriod(startArrivalRate)
 
 	// Make sure the log and the progress bar have accurate information
-	varr.logger.WithFields(logrus.Fields***REMOVED***
+	varr.logger.WithFields(logrus.Fields{
 		"maxVUs": maxVUs, "preAllocatedVUs": preAllocatedVUs, "duration": duration, "numStages": len(varr.config.Stages),
 		"startTickerPeriod": startTickerPeriod.Duration, "type": varr.config.GetType(),
-	***REMOVED***).Debug("Starting executor run...")
+	}).Debug("Starting executor run...")
 
-	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
+	activeVUsWg := &sync.WaitGroup{}
 
-	returnedVUs := make(chan struct***REMOVED******REMOVED***)
-	waitOnProgressChannel := make(chan struct***REMOVED******REMOVED***)
+	returnedVUs := make(chan struct{})
+	waitOnProgressChannel := make(chan struct{})
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 
 	vusPool := newActiveVUPool()
 
-	defer func() ***REMOVED***
+	defer func() {
 		// Make sure all VUs aren't executing iterations anymore, for the cancel()
 		// below to deactivate them.
 		<-returnedVUs
@@ -341,59 +341,59 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 		cancel()
 		activeVUsWg.Wait()
 		<-waitOnProgressChannel
-	***REMOVED***()
+	}()
 
 	activeVUsCount := uint64(0)
 	tickerPeriod := int64(startTickerPeriod.Duration)
 	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
 	itersFmt := pb.GetFixedLengthFloatFormat(maxArrivalRatePerSec, 2) + " iters/s"
 
-	progressFn := func() (float64, []string) ***REMOVED***
+	progressFn := func() (float64, []string) {
 		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
 		currentTickerPeriod := atomic.LoadInt64(&tickerPeriod)
 		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
 			vusPool.Running(), currActiveVUs)
 
 		itersPerSec := 0.0
-		if currentTickerPeriod > 0 ***REMOVED***
+		if currentTickerPeriod > 0 {
 			itersPerSec = float64(time.Second) / float64(currentTickerPeriod)
-		***REMOVED***
+		}
 		progIters := fmt.Sprintf(itersFmt, itersPerSec)
 
-		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
+		right := []string{progVUs, duration.String(), progIters}
 
 		spent := time.Since(startTime)
-		if spent > duration ***REMOVED***
+		if spent > duration {
 			return 1, right
-		***REMOVED***
+		}
 
 		spentDuration := pb.GetFixedLengthDuration(spent, duration)
 		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
 		right[1] = progDur
 
 		return math.Min(1, float64(spent)/float64(duration)), right
-	***REMOVED***
+	}
 
 	varr.progress.Modify(pb.WithProgress(progressFn))
-	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState***REMOVED***
+	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
 		Name:       varr.config.Name,
 		Executor:   varr.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
-	***REMOVED***)
-	go func() ***REMOVED***
+	})
+	go func() {
 		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &varr, progressFn)
 		close(waitOnProgressChannel)
-	***REMOVED***()
+	}()
 
-	returnVU := func(u libWorker.InitializedVU) ***REMOVED***
+	returnVU := func(u libWorker.InitializedVU) {
 		varr.executionState.ReturnVU(u, true)
 		activeVUsWg.Done()
-	***REMOVED***
+	}
 
 	runIterationBasic := getIterationRunner(varr.executionState, varr.logger)
 
-	activateVU := func(initVU libWorker.InitializedVU) libWorker.ActiveVU ***REMOVED***
+	activateVU := func(initVU libWorker.InitializedVU) libWorker.ActiveVU {
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(
 			getVUActivationParams(
@@ -404,35 +404,35 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 
 		vusPool.AddVU(maxDurationCtx, activeVU, runIterationBasic)
 		return activeVU
-	***REMOVED***
+	}
 
 	remainingUnplannedVUs := maxVUs - preAllocatedVUs
-	makeUnplannedVUCh := make(chan struct***REMOVED******REMOVED***)
+	makeUnplannedVUCh := make(chan struct{})
 	defer close(makeUnplannedVUCh)
-	go func() ***REMOVED***
+	go func() {
 		defer close(returnedVUs)
 
-		for range makeUnplannedVUCh ***REMOVED***
+		for range makeUnplannedVUCh {
 			varr.logger.Debug("Starting initialization of an unplanned VU...")
 			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger, workerInfo)
-			if err != nil ***REMOVED***
+			if err != nil {
 				// TODO figure out how to return it to the Run goroutine
 				varr.logger.WithError(err).Error("Error while allocating unplanned VU")
-			***REMOVED*** else ***REMOVED***
+			} else {
 				varr.logger.Debug("The unplanned VU finished initializing successfully!")
 				activateVU(initVU)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
+			}
+		}
+	}()
 
 	// Get the pre-allocated VUs in the local buffer
-	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
+	for i := int64(0); i < preAllocatedVUs; i++ {
 		initVU, err := varr.executionState.GetPlannedVU(varr.logger, false)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return err
-		***REMOVED***
+		}
 		activateVU(initVU)
-	***REMOVED***
+	}
 
 	regDurationDone := regDurationCtx.Done()
 	timer := time.NewTimer(time.Hour)
@@ -443,27 +443,27 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	metricTags := varr.getMetricTags(nil)
 	go varr.config.cal(varr.et, ch)
 	droppedIterationMetric := varr.executionState.Test.BuiltinMetrics.DroppedIterations
-	for nextTime := range ch ***REMOVED***
-		select ***REMOVED***
+	for nextTime := range ch {
+		select {
 		case <-regDurationDone:
 			return nil
 		default:
-		***REMOVED***
+		}
 		atomic.StoreInt64(&tickerPeriod, int64(nextTime-prevTime))
 		prevTime = nextTime
 		b := time.Until(start.Add(nextTime))
-		if b > 0 ***REMOVED*** // TODO: have a minimal ?
+		if b > 0 { // TODO: have a minimal ?
 			timer.Reset(b)
-			select ***REMOVED***
+			select {
 			case <-timer.C:
 			case <-regDurationDone:
 				return nil
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
-		if vusPool.TryRunIteration() ***REMOVED***
+		if vusPool.TryRunIteration() {
 			continue
-		***REMOVED***
+		}
 
 		// Since there aren't any free VUs available, consider this iteration
 		// dropped - we aren't going to try to recover it, but
@@ -472,124 +472,124 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 
 		// We'll try to start allocating another VU in the background,
 		// non-blockingly, if we have remainingUnplannedVUs...
-		if remainingUnplannedVUs == 0 ***REMOVED***
-			if !shownWarning ***REMOVED***
+		if remainingUnplannedVUs == 0 {
+			if !shownWarning {
 				varr.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot initialize more", maxVUs)
 				shownWarning = true
-			***REMOVED***
+			}
 			continue
-		***REMOVED***
+		}
 
-		select ***REMOVED***
-		case makeUnplannedVUCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***: // great!
+		select {
+		case makeUnplannedVUCh <- struct{}{}: // great!
 			remainingUnplannedVUs--
 		default: // we're already allocating a new VU
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return nil
-***REMOVED***
+}
 
 // activeVUPool controls the activeVUs
 // executing the received requests for iterations.
-type activeVUPool struct ***REMOVED***
-	iterations chan struct***REMOVED******REMOVED***
+type activeVUPool struct {
+	iterations chan struct{}
 	running    uint64
 	wg         sync.WaitGroup
-***REMOVED***
+}
 
 // newActiveVUPool returns an activeVUPool.
-func newActiveVUPool() *activeVUPool ***REMOVED***
-	return &activeVUPool***REMOVED***
-		iterations: make(chan struct***REMOVED******REMOVED***),
-	***REMOVED***
-***REMOVED***
+func newActiveVUPool() *activeVUPool {
+	return &activeVUPool{
+		iterations: make(chan struct{}),
+	}
+}
 
 // TryRunIteration invokes a request to execute a new iteration.
 // When there are no available VUs to process the request
 // then false is returned.
-func (p *activeVUPool) TryRunIteration() bool ***REMOVED***
-	select ***REMOVED***
-	case p.iterations <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+func (p *activeVUPool) TryRunIteration() bool {
+	select {
+	case p.iterations <- struct{}{}:
 		return true
 	default:
 		return false
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Running returns the number of the currently running VUs.
-func (p *activeVUPool) Running() uint64 ***REMOVED***
+func (p *activeVUPool) Running() uint64 {
 	return atomic.LoadUint64(&p.running)
-***REMOVED***
+}
 
 // AddVU adds the active VU to the pool of VUs for handling the incoming requests.
 // When a new request is accepted the runfn function is executed.
-func (p *activeVUPool) AddVU(ctx context.Context, avu libWorker.ActiveVU, runfn func(context.Context, libWorker.ActiveVU) bool) ***REMOVED***
+func (p *activeVUPool) AddVU(ctx context.Context, avu libWorker.ActiveVU, runfn func(context.Context, libWorker.ActiveVU) bool) {
 	p.wg.Add(1)
-	ch := make(chan struct***REMOVED******REMOVED***)
-	go func() ***REMOVED***
+	ch := make(chan struct{})
+	go func() {
 		defer p.wg.Done()
 
 		close(ch)
-		for range p.iterations ***REMOVED***
+		for range p.iterations {
 			atomic.AddUint64(&p.running, uint64(1))
 			runfn(ctx, avu)
 			atomic.AddUint64(&p.running, ^uint64(0))
-		***REMOVED***
-	***REMOVED***()
+		}
+	}()
 	<-ch
-***REMOVED***
+}
 
 // Close stops the pool from accepting requests
 // then it will wait for all on-going iterations to complete.
-func (p *activeVUPool) Close() ***REMOVED***
+func (p *activeVUPool) Close() {
 	close(p.iterations)
 	p.wg.Wait()
-***REMOVED***
+}
 
-func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 ***REMOVED***
+func (varc *RampingArrivalRateConfig) GetMaxExecutorVUs() int64 {
 	// Not sure which one of these values will actually be used
 	// TODO: figure out which one of these values will actually be used
 	maxCount := int64(varc.PreAllocatedVUs.ValueOrZero())
 
-	for _, stage := range varc.Stages ***REMOVED***
-		if stage.Target.ValueOrZero() > maxCount ***REMOVED***
+	for _, stage := range varc.Stages {
+		if stage.Target.ValueOrZero() > maxCount {
 			maxCount = stage.Target.ValueOrZero()
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if varc.MaxVUs.ValueOrZero() > maxCount ***REMOVED***
+	if varc.MaxVUs.ValueOrZero() > maxCount {
 		maxCount = varc.MaxVUs.ValueOrZero()
-	***REMOVED***
+	}
 
 	return maxCount
-***REMOVED***
+}
 
-func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig ***REMOVED***
+func (varc *RampingArrivalRateConfig) ScaleOptions(subFraction float64) libWorker.ExecutorConfig {
 	newConfig := varc
 
-	if newConfig.MaxVUs.Valid ***REMOVED***
+	if newConfig.MaxVUs.Valid {
 		newConfig.MaxVUs.Int64 = int64(float64(newConfig.MaxVUs.Int64) * subFraction)
 
-		if newConfig.MaxVUs.Int64 < 1 ***REMOVED***
+		if newConfig.MaxVUs.Int64 < 1 {
 			newConfig.MaxVUs.Int64 = 1
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if newConfig.PreAllocatedVUs.Valid ***REMOVED***
+	if newConfig.PreAllocatedVUs.Valid {
 		newConfig.PreAllocatedVUs.Int64 = int64(float64(newConfig.PreAllocatedVUs.Int64) * subFraction)
 
-		if newConfig.PreAllocatedVUs.Int64 < 1 ***REMOVED***
+		if newConfig.PreAllocatedVUs.Int64 < 1 {
 			newConfig.PreAllocatedVUs.Int64 = 1
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	for stage := range newConfig.Stages ***REMOVED***
+	for stage := range newConfig.Stages {
 		newConfig.Stages[stage].Target.Int64 = int64(float64(newConfig.Stages[stage].Target.ValueOrZero()) * subFraction)
 
-		if newConfig.Stages[stage].Target.Int64 < 1 ***REMOVED***
+		if newConfig.Stages[stage].Target.Int64 < 1 {
 			newConfig.Stages[stage].Target.Int64 = 1
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return newConfig
-***REMOVED***
+}

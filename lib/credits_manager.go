@@ -14,48 +14,48 @@ import (
 
 const OUT_OF_CREDITS_MESSAGE = "out of credits"
 
-func GetCreditsClient(standalone bool) *redis.Client ***REMOVED***
-	if !standalone ***REMOVED***
+func GetCreditsClient(standalone bool) *redis.Client {
+	if !standalone {
 		return nil
-	***REMOVED***
+	}
 
 	enableCreditsSystem := GetEnvVariable("ENABLE_CREDITS_SYSTEM", "false") == "true"
 
-	if !enableCreditsSystem ***REMOVED***
+	if !enableCreditsSystem {
 		return nil
-	***REMOVED***
+	}
 
 	clientHost := GetEnvVariable("CREDITS_REDIS_HOST", "localhost")
 	clientPort := GetEnvVariable("CREDITS_REDIS_PORT", "6379")
 
 	isSecure := GetEnvVariable("CREDITS_REDIS_IS_SECURE", "false") == "true"
 
-	options := &redis.Options***REMOVED***
+	options := &redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", clientHost, clientPort),
 		Username: "default",
 		Password: GetEnvVariable("CREDITS_REDIS_PASSWORD", ""),
-	***REMOVED***
+	}
 
-	if isSecure ***REMOVED***
+	if isSecure {
 		clientCert := GetEnvVariable("CREDITS_REDIS_CERT", "")
 		clientKey := GetEnvVariable("CREDITS_REDIS_KEY", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-		if err != nil ***REMOVED***
+		if err != nil {
 			panic(fmt.Errorf("error loading credits cert: %s", err))
-		***REMOVED***
+		}
 
-		options.TLSConfig = &tls.Config***REMOVED***
+		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: GetEnvVariable("CREDITS_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
-			Certificates:       []tls.Certificate***REMOVED***cert***REMOVED***,
-		***REMOVED***
-	***REMOVED***
+			Certificates:       []tls.Certificate{cert},
+		}
+	}
 
 	return redis.NewClient(options)
-***REMOVED***
+}
 
-type CreditsManager struct ***REMOVED***
+type CreditsManager struct {
 	ctx           context.Context
 	creditsClient *redis.Client
 
@@ -69,74 +69,74 @@ type CreditsManager struct ***REMOVED***
 	creditsMutex sync.Mutex
 
 	lastBillingTime time.Time
-***REMOVED***
+}
 
 func CreateCreditsManager(ctx context.Context, variant string, variantTargetId string,
-	creditsClient *redis.Client) *CreditsManager ***REMOVED***
-	creditsManager := &CreditsManager***REMOVED***
+	creditsClient *redis.Client) *CreditsManager {
+	creditsManager := &CreditsManager{
 		ctx:           ctx,
 		creditsClient: creditsClient,
 		workspaceName: fmt.Sprintf("%s:%s", variant, variantTargetId),
 		ticker:        time.NewTicker(1 * time.Second),
-		creditsMutex:  sync.Mutex***REMOVED******REMOVED***,
-	***REMOVED***
+		creditsMutex:  sync.Mutex{},
+	}
 
-	go func() ***REMOVED***
-		for range creditsManager.ticker.C ***REMOVED***
+	go func() {
+		for range creditsManager.ticker.C {
 			creditsManager.captureCredits()
-		***REMOVED***
-	***REMOVED***()
+		}
+	}()
 
 	// Perform initial credits capture
 	creditsManager.captureCredits()
 
 	return creditsManager
-***REMOVED***
+}
 
-func (creditsManager *CreditsManager) GetCredits() int64 ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) GetCredits() int64 {
+	if creditsManager == nil {
 		return math.MaxInt64
-	***REMOVED***
+	}
 
 	creditsManager.creditsMutex.Lock()
 	defer creditsManager.creditsMutex.Unlock()
 
 	return creditsManager.oldCredits - creditsManager.usedCredits
-***REMOVED***
+}
 
-func (creditsManager *CreditsManager) StopCreditsCapturing() ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) StopCreditsCapturing() {
+	if creditsManager == nil {
 		return
-	***REMOVED***
+	}
 
 	creditsManager.ticker.Stop()
 
 	// Capture credits one last time
 	creditsManager.captureCredits()
-***REMOVED***
+}
 
-func (creditsManager *CreditsManager) UseCredits(credits int64) bool ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) UseCredits(credits int64) bool {
+	if creditsManager == nil {
 		return true
-	***REMOVED***
+	}
 
 	creditsManager.creditsMutex.Lock()
 	defer creditsManager.creditsMutex.Unlock()
 
 	// Check delta is not greater than credits
-	if credits+creditsManager.usedCredits > creditsManager.oldCredits ***REMOVED***
+	if credits+creditsManager.usedCredits > creditsManager.oldCredits {
 		return false
-	***REMOVED***
+	}
 
 	creditsManager.usedCredits += credits
 
 	return true
-***REMOVED***
+}
 
-func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastBillingTime bool) ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastBillingTime bool) {
+	if creditsManager == nil {
 		return
-	***REMOVED***
+	}
 
 	creditsManager.creditsMutex.Lock()
 	defer creditsManager.creditsMutex.Unlock()
@@ -144,47 +144,47 @@ func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastB
 	creditsManager.usedCredits += credits
 
 	// Check delta is not greater than credits
-	if credits >= creditsManager.oldCredits ***REMOVED***
+	if credits >= creditsManager.oldCredits {
 		// Just set credits to 0
 		creditsManager.usedCredits = creditsManager.oldCredits
-	***REMOVED***
+	}
 
-	if setLastBillingTime ***REMOVED***
+	if setLastBillingTime {
 		creditsManager.lastBillingTime = time.Now()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // captureCredits captures credits from the credits pool and stores them in the credits store
-func (creditsManager *CreditsManager) captureCredits() ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) captureCredits() {
+	if creditsManager == nil {
 		return
-	***REMOVED***
+	}
 
 	creditsManager.creditsMutex.Lock()
 	defer creditsManager.creditsMutex.Unlock()
 
 	// DECR usedCredits from credits pool
 	newCredits, err := creditsManager.creditsClient.DecrBy(creditsManager.ctx, creditsManager.workspaceName, creditsManager.usedCredits).Result()
-	if err != nil ***REMOVED***
+	if err != nil {
 		fmt.Println("Error capturing credits: ", err)
 		return
-	***REMOVED***
+	}
 
 	// If newCredits is negative, set it to 0
-	if newCredits < 0 ***REMOVED***
+	if newCredits < 0 {
 		newCredits = 0
 		creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.workspaceName, strconv.FormatInt(newCredits, 10), 0)
-	***REMOVED***
+	}
 
 	// Add the credits to the credits store
 	creditsManager.oldCredits = newCredits
 	creditsManager.usedCredits = 0
-***REMOVED***
+}
 
-func (creditsManager *CreditsManager) LastBillingTime() time.Time ***REMOVED***
-	if creditsManager == nil ***REMOVED***
+func (creditsManager *CreditsManager) LastBillingTime() time.Time {
+	if creditsManager == nil {
 		return time.Now()
-	***REMOVED***
+	}
 
 	return creditsManager.lastBillingTime
-***REMOVED***
+}

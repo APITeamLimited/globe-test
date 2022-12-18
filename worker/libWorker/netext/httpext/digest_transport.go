@@ -7,9 +7,9 @@ import (
 	digest "github.com/Soontao/goHttpDigestClient"
 )
 
-type digestTransport struct ***REMOVED***
+type digestTransport struct {
 	originalTransport http.RoundTripper
-***REMOVED***
+}
 
 // RoundTrip handles digest auth by behaving like an http.RoundTripper
 //
@@ -19,7 +19,7 @@ type digestTransport struct ***REMOVED***
 // ditch the hacky http.RoundTripper approach and write our own client...
 //
 // Github issue: https://github.com/k6io/k6/issues/800
-func (t digestTransport) RoundTrip(req *http.Request) (*http.Response, error) ***REMOVED***
+func (t digestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Make the initial request authentication params to compute the
 	// authorization header
 	username := req.URL.User.Username()
@@ -30,16 +30,16 @@ func (t digestTransport) RoundTrip(req *http.Request) (*http.Response, error) **
 	req.URL.User = nil
 
 	noAuthResponse, err := t.originalTransport.RoundTrip(req)
-	if err != nil || noAuthResponse.StatusCode != http.StatusUnauthorized ***REMOVED***
+	if err != nil || noAuthResponse.StatusCode != http.StatusUnauthorized {
 		// If there was an error, or if the remote server didn't respond with
 		// status 401, we simply return, so the upstream code can deal with it.
 		return noAuthResponse, err
-	***REMOVED***
+	}
 
 	respBody, err := ioutil.ReadAll(noAuthResponse.Body)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	_ = noAuthResponse.Body.Close()
 
 	// Calculate the Authorization header
@@ -51,14 +51,14 @@ func (t digestTransport) RoundTrip(req *http.Request) (*http.Response, error) **
 	authorization := challenge.ToAuthorizationStr()
 	req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 
-	if req.GetBody != nil ***REMOVED***
+	if req.GetBody != nil {
 		// Reset the request body if we need to
 		req.Body, err = req.GetBody()
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	// Actually make the HTTP request with the proper Authorization
 	return t.originalTransport.RoundTrip(req)
-***REMOVED***
+}

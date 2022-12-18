@@ -14,30 +14,30 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/modulestest"
 )
 
-func makeRuntime(t *testing.T) *goja.Runtime ***REMOVED***
+func makeRuntime(t *testing.T) *goja.Runtime {
 	rt := goja.New()
-	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	m, ok := New().NewModuleInstance(
-		&modulestest.VU***REMOVED***
+		&modulestest.VU{
 			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			InitEnvField: &common.InitEnvironment{},
 			CtxField:     context.Background(),
 			StateField:   nil,
-		***REMOVED***,
+		},
 	).(*X509)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("x509", m.Exports().Named))
 	return rt
-***REMOVED***
+}
 
-type Material struct ***REMOVED***
+type Material struct {
 	dsaCertificate   string
 	ecdsaCertificate string
 	rsaCertificate   string
 	publicKey        string
-***REMOVED***
+}
 
-var material = Material***REMOVED*** //nolint:gochecknoglobals
+var material = Material{ //nolint:gochecknoglobals
 	dsaCertificate: `-----BEGIN CERTIFICATE-----
 MIIFnzCCBUSgAwIBAgIJAPOE4rArGHVcMAsGCWCGSAFlAwQDAjCBsTELMAkGA1UE
 BhMCWloxGTAXBgNVBAgMEEtvcHVuY2V6aXMgS3JhaXMxETAPBgNVBAcMCEFzaHRp
@@ -127,132 +127,132 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDXMLr/Y/vUtIFY75jj0YXfp6lQ
 EUEm/VHUnElNquzGyBA50TCfpv6NHPaTvOoB45yQbZ/YB4LO+CsT9eIMDZ4tcU9Z
 +xD10ifJhhIwpZUFIQIDAQAB
 -----END PUBLIC KEY-----`,
-***REMOVED***
+}
 
-func TestParse(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
+func TestParse(t *testing.T) {
+	if testing.Short() {
 		return
-	***REMOVED***
+	}
 	rt := makeRuntime(t)
 
-	t.Run("DecodeFailure", func(t *testing.T) ***REMOVED***
+	t.Run("DecodeFailure", func(t *testing.T) {
 		_, err := rt.RunString(`
 		x509.parse("bad-certificate");`)
 		assert.Contains(
 			t, err.Error(), "failed to decode certificate PEM file")
-	***REMOVED***)
+	})
 
-	t.Run("ParseFailure", func(t *testing.T) ***REMOVED***
+	t.Run("ParseFailure", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		x509.parse(pem);`, material.publicKey))
-		if assert.Error(t, err) ***REMOVED***
+		if assert.Error(t, err) {
 			assert.Contains(t,
 				err.Error(),
 				"failed to parse certificate",
 			)
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 
-	t.Run("SignatureAlgorithm", func(t *testing.T) ***REMOVED***
+	t.Run("SignatureAlgorithm", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.signatureAlgorithm;
-		if (value !== "SHA256-RSA") ***REMOVED***
+		if (value !== "SHA256-RSA") {
 			throw new Error("Bad signature algorithm: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("Subject", func(t *testing.T) ***REMOVED***
+	t.Run("Subject", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
-		if (typeof cert.subject !== "object") ***REMOVED***
+		if (typeof cert.subject !== "object") {
 			throw new Error("Bad subject: " + typeof cert.subject);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectCommonName", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectCommonName", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.commonName : null;
-		if (value !== "excouncil.zz") ***REMOVED***
+		if (value !== "excouncil.zz") {
 			throw new Error("Bad subject common name: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectCountry", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectCountry", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.country : null;
-		if (value !== "ZZ") ***REMOVED***
+		if (value !== "ZZ") {
 			throw new Error("Bad subject country: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectPostalCode", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectPostalCode", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.postalCode : null;
-		if (value !== "99999") ***REMOVED***
+		if (value !== "99999") {
 			throw new Error("Bad subject postal code: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectProvince", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectProvince", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.stateOrProvinceName : null;
-		if (value !== "Kopuncezis Krais") ***REMOVED***
+		if (value !== "Kopuncezis Krais") {
 			throw new Error("Bad subject province: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectLocality", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectLocality", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.localityName : null;
-		if (value !== "Ashtinok") ***REMOVED***
+		if (value !== "Ashtinok") {
 			throw new Error("Bad subject locality: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectStreetAddress", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectStreetAddress", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.streetAddress : null;
-		if (value !== "221B Baker Street") ***REMOVED***
+		if (value !== "221B Baker Street") {
 			throw new Error("Bad subject street address: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectOrganization", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectOrganization", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.organizationName : null;
-		if (value !== "Exumbran Convention") ***REMOVED***
+		if (value !== "Exumbran Convention") {
 			throw new Error("Bad subject organization: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectOrganizationalUnit", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectOrganizationalUnit", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -262,24 +262,24 @@ func TestParse(t *testing.T) ***REMOVED***
 			values.length === 2 &&
 			values[0] === "Exumbran Council" &&
 			values[1] === "Exumbran Janitorial Service"
-		)) ***REMOVED***
+		)) {
 			throw new Error(
 				"Bad subject organizational unit: " + values.join(", ")
 			);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("SubjectNames", func(t *testing.T) ***REMOVED***
+	t.Run("SubjectNames", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values = cert.subject ? cert.subject.names : null;
 		var strings = values
-			? values.map(function(entry) ***REMOVED*** return entry.type + ": " + entry.value***REMOVED***)
+			? values.map(function(entry) { return entry.type + ": " + entry.value})
 			: null;
 		Array.prototype.includes =
-			function (value) ***REMOVED*** return this.indexOf(value) !== -1 ***REMOVED***
+			function (value) { return this.indexOf(value) !== -1 }
 		if (!(
 			values &&
 			Array.isArray(values) &&
@@ -293,87 +293,87 @@ func TestParse(t *testing.T) ***REMOVED***
 			strings.includes("2.5.4.11: Exumbran Council") &&
 			strings.includes("2.5.4.11: Exumbran Janitorial Service") &&
 			strings.includes("2.5.4.3: excouncil.zz")
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad subject names");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("Issuer", func(t *testing.T) ***REMOVED***
+	t.Run("Issuer", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
-		if (typeof cert.issuer !== "object") ***REMOVED***
+		if (typeof cert.issuer !== "object") {
 			throw new Error("Bad issuer: " + typeof cert.issuer);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerCommonName", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerCommonName", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.commonName : null;
-		if (value !== "excouncil.zz") ***REMOVED***
+		if (value !== "excouncil.zz") {
 			throw new Error("Bad issuer common name: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerCountry", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerCountry", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.country : null;
-		if (value !== "ZZ") ***REMOVED***
+		if (value !== "ZZ") {
 			throw new Error("Bad issuer country: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerProvince", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerProvince", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.stateOrProvinceName : null;
-		if (value !== "Kopuncezis Krais") ***REMOVED***
+		if (value !== "Kopuncezis Krais") {
 			throw new Error("Bad issuer province: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerLocality", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerLocality", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.localityName : null;
-		if (value !== "Ashtinok") ***REMOVED***
+		if (value !== "Ashtinok") {
 			throw new Error("Bad issuer locality: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerOrganization", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerOrganization", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.organizationName : null;
-		if (value !== "Exumbran Convention") ***REMOVED***
+		if (value !== "Exumbran Convention") {
 			throw new Error("Bad issuer organization: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("IssuerNames", func(t *testing.T) ***REMOVED***
+	t.Run("IssuerNames", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values = cert.issuer ? cert.issuer.names : null;
 		var strings = values
-			? values.map(function(entry) ***REMOVED*** return entry.type + ": " + entry.value***REMOVED***)
+			? values.map(function(entry) { return entry.type + ": " + entry.value})
 			: null;
 		Array.prototype.includes =
-			function (value) ***REMOVED*** return this.indexOf(value) !== -1 ***REMOVED***
+			function (value) { return this.indexOf(value) !== -1 }
 		if (!(
 			values &&
 			Array.isArray(values) &&
@@ -387,35 +387,35 @@ func TestParse(t *testing.T) ***REMOVED***
 			strings.includes("2.5.4.11: Exumbran Council") &&
 			strings.includes("2.5.4.11: Exumbran Janitorial Service") &&
 			strings.includes("2.5.4.3: excouncil.zz")
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad subject names");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("NotBefore", func(t *testing.T) ***REMOVED***
+	t.Run("NotBefore", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.notBefore;
-		if (value !== "2019-01-01T00:00:00Z") ***REMOVED***
+		if (value !== "2019-01-01T00:00:00Z") {
 			throw new Error("Bad lower bound: " + value)
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("NotAfter", func(t *testing.T) ***REMOVED***
+	t.Run("NotAfter", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.notAfter;
-		if (value !== "2020-01-01T00:00:00Z") ***REMOVED***
+		if (value !== "2020-01-01T00:00:00Z") {
 			throw new Error("Bad upper bound: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("AltNames", func(t *testing.T) ***REMOVED***
+	t.Run("AltNames", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -430,13 +430,13 @@ func TestParse(t *testing.T) ***REMOVED***
 			values[5] === "192.0.2.25" &&
 			values[6] === "http://press.excouncil.zz" &&
 			values[7] === "http://learning.excouncil.zz/index.html"
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad alt names: " + values.join(", "));
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("FingerPrint", func(t *testing.T) ***REMOVED***
+	t.Run("FingerPrint", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -445,23 +445,23 @@ func TestParse(t *testing.T) ***REMOVED***
 			85, 119, 3, 199, 150, 144, 202, 145, 178, 46,
 			205, 132, 37, 235, 251, 208, 139, 161, 143, 14
 		]
-		if (value.join("") !== expected.join("")) ***REMOVED***
+		if (value.join("") !== expected.join("")) {
 			throw new Error("Bad fingerprint: " + value.join(":"));
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("PublicKey", func(t *testing.T) ***REMOVED***
+	t.Run("PublicKey", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
-		if (typeof cert.publicKey !== "object") ***REMOVED***
+		if (typeof cert.publicKey !== "object") {
 			throw new Error("Bad public key: " + typeof cert.publicKey);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("RSAPublicKey", func(t *testing.T) ***REMOVED***
+	t.Run("RSAPublicKey", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -473,24 +473,24 @@ func TestParse(t *testing.T) ***REMOVED***
 			typeof value.key === "object" &&
 			typeof value.key.e === "number" &&
 			typeof value.key.n === "object"
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad RSA public key");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("RSAPublicKeyExponent", func(t *testing.T) ***REMOVED***
+	t.Run("RSAPublicKeyExponent", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey ? cert.publicKey.key.e : null;
-		if (value !== 65537) ***REMOVED***
+		if (value !== 65537) {
 			throw new Error("Bad RSA public key exponent: " + value);
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("RSAPublicKeyModulus", func(t *testing.T) ***REMOVED***
+	t.Run("RSAPublicKeyModulus", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -515,13 +515,13 @@ func TestParse(t *testing.T) ***REMOVED***
 			152, 233, 166, 81, 7, 253, 155, 165, 96, 29, 72, 28, 172, 24, 104,
 			70, 229, 201, 107, 200, 169, 220, 35
 		]
-		if (value.join(":") !== expected.join(":")) ***REMOVED***
+		if (value.join(":") !== expected.join(":")) {
 			throw new Error("Bad RSA public key modulus: " + value.join(":"));
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("DSAPublicKey", func(t *testing.T) ***REMOVED***
+	t.Run("DSAPublicKey", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -532,13 +532,13 @@ func TestParse(t *testing.T) ***REMOVED***
 			value.algorithm === "DSA" &&
 			typeof value.key.parameters === "object" &&
 			typeof value.key.y === "object"
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad DSA public key");
-		***REMOVED***`, material.dsaCertificate))
+		}`, material.dsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("ECDSAPublicKey", func(t *testing.T) ***REMOVED***
+	t.Run("ECDSAPublicKey", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
@@ -550,26 +550,26 @@ func TestParse(t *testing.T) ***REMOVED***
 			typeof value.key.curve === "object" &&
 			typeof value.key.x === "object" &&
 			typeof value.key.y === "object"
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad ECDSA public key");
-		***REMOVED***`, material.ecdsaCertificate))
+		}`, material.ecdsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestGetAltNames(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
+func TestGetAltNames(t *testing.T) {
+	if testing.Short() {
 		return
-	***REMOVED***
+	}
 	rt := makeRuntime(t)
 
-	t.Run("Failure", func(t *testing.T) ***REMOVED***
+	t.Run("Failure", func(t *testing.T) {
 		_, err := rt.RunString(`
 		x509.getAltNames("bad-certificate");`)
 		assert.Error(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("Success", func(t *testing.T) ***REMOVED***
+	t.Run("Success", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var altNames = x509.getAltNames(pem);
@@ -584,26 +584,26 @@ func TestGetAltNames(t *testing.T) ***REMOVED***
 			altNames[5] === "192.0.2.25" &&
 			altNames[6] === "http://press.excouncil.zz" &&
 			altNames[7] === "http://learning.excouncil.zz/index.html"
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad alt names");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestGetIssuer(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
+func TestGetIssuer(t *testing.T) {
+	if testing.Short() {
 		return
-	***REMOVED***
+	}
 	rt := makeRuntime(t)
 
-	t.Run("Failure", func(t *testing.T) ***REMOVED***
+	t.Run("Failure", func(t *testing.T) {
 		_, err := rt.RunString(`
 		x509.getIssuer("bad-certificate");`)
 		assert.Error(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("Success", func(t *testing.T) ***REMOVED***
+	t.Run("Success", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var issuer = x509.getIssuer(pem);
@@ -616,26 +616,26 @@ func TestGetIssuer(t *testing.T) ***REMOVED***
 			issuer.organizationName === "Exumbran Convention" &&
 			Array.isArray(issuer.names) &&
 			issuer.names.length === 9
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad issuer");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestGetSubject(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
+func TestGetSubject(t *testing.T) {
+	if testing.Short() {
 		return
-	***REMOVED***
+	}
 	rt := makeRuntime(t)
 
-	t.Run("Failure", func(t *testing.T) ***REMOVED***
+	t.Run("Failure", func(t *testing.T) {
 		_, err := rt.RunString(`
 		x509.getSubject("bad-certificate");`)
 		assert.Error(t, err)
-	***REMOVED***)
+	})
 
-	t.Run("Success", func(t *testing.T) ***REMOVED***
+	t.Run("Success", func(t *testing.T) {
 		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var subject = x509.getSubject(pem);
@@ -655,35 +655,35 @@ func TestGetSubject(t *testing.T) ***REMOVED***
 				"Exumbran Janitorial Service" &&
 			Array.isArray(subject.names) &&
 			subject.names.length === 9
-		)) ***REMOVED***
+		)) {
 			throw new Error("Bad subject");
-		***REMOVED***`, material.rsaCertificate))
+		}`, material.rsaCertificate))
 		assert.NoError(t, err)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestSignatureAlgorithm(t *testing.T) ***REMOVED***
-	t.Run("Known", func(t *testing.T) ***REMOVED***
+func TestSignatureAlgorithm(t *testing.T) {
+	t.Run("Known", func(t *testing.T) {
 		result := signatureAlgorithm(gox509.MD5WithRSA)
 		assert.Equal(t, "MD5-RSA", result)
-	***REMOVED***)
+	})
 
-	t.Run("Unknown", func(t *testing.T) ***REMOVED***
+	t.Run("Unknown", func(t *testing.T) {
 		result := signatureAlgorithm(gox509.UnknownSignatureAlgorithm)
 		assert.Equal(t, "UnknownSignatureAlgorithm", result)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestMakePublicKey(t *testing.T) ***REMOVED***
-	t.Run("Unsupported", func(t *testing.T) ***REMOVED***
+func TestMakePublicKey(t *testing.T) {
+	t.Run("Unsupported", func(t *testing.T) {
 		_, err := makePublicKey(nil)
 		assert.EqualError(t, err, "unsupported public key algorithm")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestMakeCertificate(t *testing.T) ***REMOVED***
-	t.Run("UnsupportedKey", func(t *testing.T) ***REMOVED***
-		_, err := makeCertificate(&gox509.Certificate***REMOVED******REMOVED***)
+func TestMakeCertificate(t *testing.T) {
+	t.Run("UnsupportedKey", func(t *testing.T) {
+		_, err := makeCertificate(&gox509.Certificate{})
 		assert.EqualError(t, err, "unsupported public key algorithm")
-	***REMOVED***)
-***REMOVED***
+	})
+}

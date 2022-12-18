@@ -14,7 +14,7 @@ const testSerializeHTML = `
 </head>
 <body>
 	<h1 id="top" data-test="dataval" data-num-a="123" data-num-b="1.5" data-not-num-a="1.50" data-not-num-b="1.1e02">Lorem ipsum</h1>
-	<p data-test-b="true" data-opts='***REMOVED***"id":101***REMOVED***' data-test-empty="">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac dui erat. Pellentesque eu euismod odio, eget fringilla ante. In vitae nulla at est tincidunt gravida sit amet maximus arcu. Sed accumsan tristique massa, blandit sodales quam malesuada eu. Morbi vitae luctus augue. Nunc nec ligula quam. Cras fringilla nulla leo, at dignissim enim accumsan vitae. Sed eu cursus sapien, a rhoncus lorem. Etiam sed massa egestas, bibendum quam sit amet, eleifend ipsum. Maecenas mi ante, consectetur at tincidunt id, suscipit nec sem. Integer congue elit vel ligula commodo ultricies. Suspendisse condimentum laoreet ligula at aliquet.</p>
+	<p data-test-b="true" data-opts='{"id":101}' data-test-empty="">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac dui erat. Pellentesque eu euismod odio, eget fringilla ante. In vitae nulla at est tincidunt gravida sit amet maximus arcu. Sed accumsan tristique massa, blandit sodales quam malesuada eu. Morbi vitae luctus augue. Nunc nec ligula quam. Cras fringilla nulla leo, at dignissim enim accumsan vitae. Sed eu cursus sapien, a rhoncus lorem. Etiam sed massa egestas, bibendum quam sit amet, eleifend ipsum. Maecenas mi ante, consectetur at tincidunt id, suscipit nec sem. Integer congue elit vel ligula commodo ultricies. Suspendisse condimentum laoreet ligula at aliquet.</p>
 	<p>Nullam id nisi eget ex pharetra imperdiet. Maecenas augue ligula, aliquet sit amet maximus ut, vestibulum et magna. Nam in arcu sed tortor volutpat porttitor sed eget dolor. Duis rhoncus est id dui porttitor, id molestie ex imperdiet. Proin purus ligula, pretium eleifend felis a, tempor feugiat mi. Cras rutrum pulvinar neque, eu dictum arcu. Cras purus metus, fermentum eget malesuada sit amet, dignissim non dui.</p>
 	<form id="form1">
 		<input id="text_input" name="text_input" type="text" value="input-text-value"/>
@@ -45,16 +45,16 @@ const testSerializeHTML = `
 </body>
 `
 
-func TestSerialize(t *testing.T) ***REMOVED***
+func TestSerialize(t *testing.T) {
 	t.Parallel()
 
-	t.Run("SerializeArray", func(t *testing.T) ***REMOVED***
+	t.Run("SerializeArray", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testSerializeHTML)
 
-		t.Run("form", func(t *testing.T) ***REMOVED***
+		t.Run("form", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("form").serializeArray()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				arr, ok := v.Export().([]FormValue)
 				assert.True(t, ok)
 				assert.Len(t, arr, 11)
@@ -96,12 +96,12 @@ func TestSerialize(t *testing.T) ***REMOVED***
 
 				assert.Equal(t, "radio2", arr[10].Name)
 				assert.Equal(t, "on", arr[10].Value.String())
-			***REMOVED***
-		***REMOVED***)
+			}
+		})
 
-		t.Run("controls", func(t *testing.T) ***REMOVED***
+		t.Run("controls", func(t *testing.T) {
 			v, err := rt.RunString(`doc.find("input").serializeArray()`)
-			if assert.NoError(t, err) ***REMOVED***
+			if assert.NoError(t, err) {
 				arr, ok := v.Export().([]FormValue)
 
 				assert.True(t, ok)
@@ -127,16 +127,16 @@ func TestSerialize(t *testing.T) ***REMOVED***
 
 				assert.Equal(t, "radio2", arr[6].Name)
 				assert.Equal(t, "on", arr[6].Value.String())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
+			}
+		})
+	})
 
-	t.Run("SerializeObject", func(t *testing.T) ***REMOVED***
+	t.Run("SerializeObject", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testSerializeHTML)
 
 		v, err := rt.RunString(`doc.find("form").serializeObject()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			obj, ok := v.Export().(map[string]goja.Value)
 
 			assert.True(t, ok)
@@ -158,15 +158,15 @@ func TestSerialize(t *testing.T) ***REMOVED***
 			assert.True(t, ok)
 			assert.Equal(t, "option 2", multiValues[0])
 			assert.Equal(t, "option 3", multiValues[1])
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 
-	t.Run("Serialize", func(t *testing.T) ***REMOVED***
+	t.Run("Serialize", func(t *testing.T) {
 		t.Parallel()
 		rt := getTestRuntimeWithDoc(t, testSerializeHTML)
 
 		v, err := rt.RunString(`doc.find("form").serialize()`)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			url := v.String()
 			assert.Equal(t, "checkbox1=some+checkbox"+
 				"&checkbox2=on"+
@@ -180,6 +180,6 @@ func TestSerialize(t *testing.T) ***REMOVED***
 				"&select_text=yes+text"+
 				"&text_input=input-text-value"+
 				"&textarea=Lorem+ipsum+dolor+sit+amet", url)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}

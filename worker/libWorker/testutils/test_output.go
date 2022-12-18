@@ -9,24 +9,24 @@ import (
 
 // Something that makes the test also be a valid io.Writer, useful for passing it
 // as an output for logs and CLI flag help messages...
-type testOutput struct***REMOVED*** testing.TB ***REMOVED***
+type testOutput struct{ testing.TB }
 
-func (to testOutput) Write(p []byte) (n int, err error) ***REMOVED***
+func (to testOutput) Write(p []byte) (n int, err error) {
 	to.Logf("%s", p)
 
 	return len(p), nil
-***REMOVED***
+}
 
 // NewTestOutput returns a simple io.Writer implementation that uses the test's
 // logger as an output.
-func NewTestOutput(t testing.TB) io.Writer ***REMOVED***
-	return testOutput***REMOVED***t***REMOVED***
-***REMOVED***
+func NewTestOutput(t testing.TB) io.Writer {
+	return testOutput{t}
+}
 
 // NewLogger Returns new logger that will log to the testing.TB.Logf
-func NewLogger(t testing.TB) *logrus.Logger ***REMOVED***
+func NewLogger(t testing.TB) *logrus.Logger {
 	l := logrus.New()
 	logrus.SetOutput(NewTestOutput(t))
 
 	return l
-***REMOVED***
+}

@@ -24,61 +24,61 @@ const (
 //
 // TODO: add sync.Once for all of the deprecation warnings we might want to do
 // for the old k6/http APIs here, so they are shown only once in a test run.
-type RootModule struct ***REMOVED***
+type RootModule struct {
 	workerInfo       *libWorker.WorkerInfo
 	domainLimits     map[string]*rate.Limiter
 	domainLimitsLock sync.Mutex
 	isLocalIp        map[string]int
 	isLocalIpLock    sync.Mutex
-***REMOVED***
+}
 
 // ModuleInstance represents an instance of the HTTP module for every VU.
-type ModuleInstance struct ***REMOVED***
+type ModuleInstance struct {
 	vu            modules.VU
 	rootModule    *RootModule
 	defaultClient *Client
 	exports       *goja.Object
-***REMOVED***
+}
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &ModuleInstance***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &ModuleInstance{}
 )
 
 // New returns a pointer to a new HTTP RootModule.
-func New(workerInfo *libWorker.WorkerInfo) *RootModule ***REMOVED***
-	return &RootModule***REMOVED***
+func New(workerInfo *libWorker.WorkerInfo) *RootModule {
+	return &RootModule{
 		workerInfo:       workerInfo,
 		domainLimits:     make(map[string]*rate.Limiter),
-		domainLimitsLock: sync.Mutex***REMOVED******REMOVED***,
+		domainLimitsLock: sync.Mutex{},
 		//isLocalIp:        make(map[string]int),
-		//isLocalIpLock:    sync.Mutex***REMOVED******REMOVED***,
-	***REMOVED***
-***REMOVED***
+		//isLocalIpLock:    sync.Mutex{},
+	}
+}
 
 // NewModuleInstance returns an HTTP module instance for each VU.
-func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	rt := vu.Runtime()
-	mi := &ModuleInstance***REMOVED***
+	mi := &ModuleInstance{
 		vu:         vu,
 		rootModule: r,
 		exports:    rt.NewObject(),
-	***REMOVED***
+	}
 	mi.defineConstants()
 
-	mi.defaultClient = &Client***REMOVED***
+	mi.defaultClient = &Client{
 		// TODO: configure this from libWorker.Options and get rid of some of the
 		// things in the VU State struct that should be here. See
 		// https://github.com/grafana/k6/issues/2293
 		moduleInstance:   mi,
 		responseCallback: defaultExpectedStatuses.match,
-	***REMOVED***
+	}
 
-	mustExport := func(name string, value interface***REMOVED******REMOVED***) ***REMOVED***
-		if err := mi.exports.Set(name, value); err != nil ***REMOVED***
+	mustExport := func(name string, value interface{}) {
+		if err := mi.exports.Set(name, value); err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	mustExport("url", mi.URL)
 	mustExport("CookieJar", mi.newCookieJar)
@@ -88,18 +88,18 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVE
 	// TODO: refactor so the Client actually has better APIs and these are
 	// wrappers (facades) that convert the old k6 idiosyncratic APIs to the new
 	// proper Client ones that accept Request objects and don't suck
-	mustExport("get", func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+	mustExport("get", func(url goja.Value, args ...goja.Value) (*Response, error) {
 		// http.get(url, params) doesn't have a body argument, so we add undefined
 		// as the third argument to http.request(method, url, body, params)
-		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
+		args = append([]goja.Value{goja.Undefined()}, args...)
 		return mi.defaultClient.Request(http.MethodGet, url, args...)
-	***REMOVED***)
-	mustExport("head", func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+	})
+	mustExport("head", func(url goja.Value, args ...goja.Value) (*Response, error) {
 		// http.head(url, params) doesn't have a body argument, so we add undefined
 		// as the third argument to http.request(method, url, body, params)
-		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
+		args = append([]goja.Value{goja.Undefined()}, args...)
 		return mi.defaultClient.Request(http.MethodHead, url, args...)
-	***REMOVED***)
+	})
 	mustExport("post", mi.defaultClient.getMethodClosure(http.MethodPost))
 	mustExport("put", mi.defaultClient.getMethodClosure(http.MethodPut))
 	mustExport("patch", mi.defaultClient.getMethodClosure(http.MethodPatch))
@@ -119,27 +119,27 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVE
 	// https://github.com/grafana/k6/issues?q=is%3Aopen+is%3Aissue+label%3Anew-http
 
 	return mi
-***REMOVED***
+}
 
 // Exports returns the JS values this module exports.
-func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
+func (mi *ModuleInstance) Exports() modules.Exports {
+	return modules.Exports{
 		Default: mi.exports,
 		// TODO: add new HTTP APIs like Client, Request (see above comment in
 		// NewModuleInstance()), etc. as named exports?
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (mi *ModuleInstance) defineConstants() ***REMOVED***
+func (mi *ModuleInstance) defineConstants() {
 	rt := mi.vu.Runtime()
-	mustAddProp := func(name, val string) ***REMOVED***
+	mustAddProp := func(name, val string) {
 		err := mi.exports.DefineDataProperty(
 			name, rt.ToValue(val), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE,
 		)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	mustAddProp("TLS_1_0", netext.TLS_1_0)
 	mustAddProp("TLS_1_1", netext.TLS_1_1)
 	mustAddProp("TLS_1_2", netext.TLS_1_2)
@@ -158,45 +158,45 @@ func (mi *ModuleInstance) defineConstants() ***REMOVED***
 	mustAddProp("OCSP_REASON_REMOVE_FROM_CRL", netext.OCSP_REASON_REMOVE_FROM_CRL)
 	mustAddProp("OCSP_REASON_PRIVILEGE_WITHDRAWN", netext.OCSP_REASON_PRIVILEGE_WITHDRAWN)
 	mustAddProp("OCSP_REASON_AA_COMPROMISE", netext.OCSP_REASON_AA_COMPROMISE)
-***REMOVED***
+}
 
-func (mi *ModuleInstance) newCookieJar(call goja.ConstructorCall) *goja.Object ***REMOVED***
+func (mi *ModuleInstance) newCookieJar(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
 	jar, err := cookiejar.New(nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
-	return rt.ToValue(&CookieJar***REMOVED***mi, jar***REMOVED***).ToObject(rt)
-***REMOVED***
+	}
+	return rt.ToValue(&CookieJar{mi, jar}).ToObject(rt)
+}
 
 // getVUCookieJar returns the active cookie jar for the current VU.
-func (mi *ModuleInstance) getVUCookieJar(call goja.FunctionCall) goja.Value ***REMOVED***
+func (mi *ModuleInstance) getVUCookieJar(call goja.FunctionCall) goja.Value {
 	rt := mi.vu.Runtime()
-	if state := mi.vu.State(); state != nil ***REMOVED***
-		return rt.ToValue(&CookieJar***REMOVED***mi, state.CookieJar***REMOVED***)
-	***REMOVED***
+	if state := mi.vu.State(); state != nil {
+		return rt.ToValue(&CookieJar{mi, state.CookieJar})
+	}
 	common.Throw(rt, ErrJarForbiddenInInitContext)
 	return nil
-***REMOVED***
+}
 
 // URL creates a new URL wrapper from the provided parts.
-func (mi *ModuleInstance) URL(parts []string, pieces ...string) (httpext.URL, error) ***REMOVED***
+func (mi *ModuleInstance) URL(parts []string, pieces ...string) (httpext.URL, error) {
 	var name, urlstr string
-	for i, part := range parts ***REMOVED***
+	for i, part := range parts {
 		name += part
 		urlstr += part
-		if i < len(pieces) ***REMOVED***
-			name += "$***REMOVED******REMOVED***"
+		if i < len(pieces) {
+			name += "${}"
 			urlstr += pieces[i]
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return httpext.NewURL(urlstr, name)
-***REMOVED***
+}
 
 // Client represents a stand-alone HTTP client.
 //
 // TODO: move to its own file
-type Client struct ***REMOVED***
+type Client struct {
 	moduleInstance   *ModuleInstance
 	responseCallback func(int) bool
-***REMOVED***
+}

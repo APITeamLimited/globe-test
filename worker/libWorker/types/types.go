@@ -15,150 +15,150 @@ import (
 // Duration is an alias for time.Duration that de/serialises to JSON as human-readable strings.
 type Duration time.Duration
 
-func (d Duration) String() string ***REMOVED***
+func (d Duration) String() string {
 	return time.Duration(d).String()
-***REMOVED***
+}
 
 // ParseExtendedDuration is a helper function that allows for string duration
 // values containing days.
-func ParseExtendedDuration(data string) (result time.Duration, err error) ***REMOVED***
+func ParseExtendedDuration(data string) (result time.Duration, err error) {
 	// Assume millisecond values if data is provided with no units
-	if t, errp := strconv.ParseFloat(data, 64); errp == nil ***REMOVED***
+	if t, errp := strconv.ParseFloat(data, 64); errp == nil {
 		return time.Duration(t * float64(time.Millisecond)), nil
-	***REMOVED***
+	}
 
 	dPos := strings.IndexByte(data, 'd')
-	if dPos < 0 ***REMOVED***
+	if dPos < 0 {
 		return time.ParseDuration(data)
-	***REMOVED***
+	}
 
 	var hours time.Duration
-	if dPos+1 < len(data) ***REMOVED*** // case "12d"
+	if dPos+1 < len(data) { // case "12d"
 		hours, err = time.ParseDuration(data[dPos+1:])
-		if err != nil ***REMOVED***
+		if err != nil {
 			return
-		***REMOVED***
-		if hours < 0 ***REMOVED***
+		}
+		if hours < 0 {
 			return 0, fmt.Errorf("invalid time format '%s'", data[dPos+1:])
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	days, err := strconv.ParseInt(data[:dPos], 10, 64)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return
-	***REMOVED***
-	if days < 0 ***REMOVED***
+	}
+	if days < 0 {
 		hours = -hours
-	***REMOVED***
+	}
 	return time.Duration(days)*24*time.Hour + hours, nil
-***REMOVED***
+}
 
 // UnmarshalText converts text data to Duration
-func (d *Duration) UnmarshalText(data []byte) error ***REMOVED***
+func (d *Duration) UnmarshalText(data []byte) error {
 	v, err := ParseExtendedDuration(string(data))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	*d = Duration(v)
 	return nil
-***REMOVED***
+}
 
 // UnmarshalJSON converts JSON data to Duration
-func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
-	if len(data) > 0 && data[0] == '"' ***REMOVED***
+func (d *Duration) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
 		var str string
-		if err := json.Unmarshal(data, &str); err != nil ***REMOVED***
+		if err := json.Unmarshal(data, &str); err != nil {
 			return err
-		***REMOVED***
+		}
 
 		v, err := ParseExtendedDuration(str)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return err
-		***REMOVED***
+		}
 
 		*d = Duration(v)
-	***REMOVED*** else if t, errp := strconv.ParseFloat(string(data), 64); errp == nil ***REMOVED***
+	} else if t, errp := strconv.ParseFloat(string(data), 64); errp == nil {
 		*d = Duration(t * float64(time.Millisecond))
-	***REMOVED*** else ***REMOVED***
+	} else {
 		return fmt.Errorf("'%s' is not a valid duration value", string(data))
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d
-func (d Duration) MarshalJSON() ([]byte, error) ***REMOVED***
+func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
-***REMOVED***
+}
 
 // NullDuration is a nullable Duration, in the same vein as the nullable types provided by
 // package gopkg.in/guregu/null.v3.
-type NullDuration struct ***REMOVED***
+type NullDuration struct {
 	Duration
 	Valid bool
-***REMOVED***
+}
 
 // NewNullDuration is a simple helper constructor function
-func NewNullDuration(d time.Duration, valid bool) NullDuration ***REMOVED***
-	return NullDuration***REMOVED***Duration(d), valid***REMOVED***
-***REMOVED***
+func NewNullDuration(d time.Duration, valid bool) NullDuration {
+	return NullDuration{Duration(d), valid}
+}
 
 // NullDurationFrom returns a new valid NullDuration from a time.Duration.
-func NullDurationFrom(d time.Duration) NullDuration ***REMOVED***
-	return NullDuration***REMOVED***Duration(d), true***REMOVED***
-***REMOVED***
+func NullDurationFrom(d time.Duration) NullDuration {
+	return NullDuration{Duration(d), true}
+}
 
 // UnmarshalText converts text data to a valid NullDuration
-func (d *NullDuration) UnmarshalText(data []byte) error ***REMOVED***
-	if len(data) == 0 ***REMOVED***
-		*d = NullDuration***REMOVED******REMOVED***
+func (d *NullDuration) UnmarshalText(data []byte) error {
+	if len(data) == 0 {
+		*d = NullDuration{}
 		return nil
-	***REMOVED***
-	if err := d.Duration.UnmarshalText(data); err != nil ***REMOVED***
+	}
+	if err := d.Duration.UnmarshalText(data); err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // UnmarshalJSON converts JSON data to a valid NullDuration
-func (d *NullDuration) UnmarshalJSON(data []byte) error ***REMOVED***
-	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+func (d *NullDuration) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`null`)) {
 		d.Valid = false
 		return nil
-	***REMOVED***
-	if err := json.Unmarshal(data, &d.Duration); err != nil ***REMOVED***
+	}
+	if err := json.Unmarshal(data, &d.Duration); err != nil {
 		return err
-	***REMOVED***
+	}
 	d.Valid = true
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON returns the JSON representation of d
-func (d NullDuration) MarshalJSON() ([]byte, error) ***REMOVED***
-	if !d.Valid ***REMOVED***
+func (d NullDuration) MarshalJSON() ([]byte, error) {
+	if !d.Valid {
 		return []byte(`null`), nil
-	***REMOVED***
+	}
 	return d.Duration.MarshalJSON()
-***REMOVED***
+}
 
 // ValueOrZero returns the underlying Duration value of d if valid or
 // its zero equivalent otherwise. It matches the existing guregu/null API.
-func (d NullDuration) ValueOrZero() Duration ***REMOVED***
-	if !d.Valid ***REMOVED***
+func (d NullDuration) ValueOrZero() Duration {
+	if !d.Valid {
 		return Duration(0)
-	***REMOVED***
+	}
 
 	return d.Duration
-***REMOVED***
+}
 
 // TimeDuration returns a NullDuration's value as a stdlib Duration.
-func (d NullDuration) TimeDuration() time.Duration ***REMOVED***
+func (d NullDuration) TimeDuration() time.Duration {
 	return time.Duration(d.Duration)
-***REMOVED***
+}
 
-func getInt64(v interface***REMOVED******REMOVED***) (int64, error) ***REMOVED***
-	switch n := v.(type) ***REMOVED***
+func getInt64(v interface{}) (int64, error) {
+	switch n := v.(type) {
 	case int:
 		return int64(n), nil
 	case int8:
@@ -178,21 +178,21 @@ func getInt64(v interface***REMOVED******REMOVED***) (int64, error) ***REMOVED**
 	case uint32:
 		return int64(n), nil
 	case uint64:
-		if n > math.MaxInt64 ***REMOVED***
+		if n > math.MaxInt64 {
 			return 0, fmt.Errorf("%d is too big", n)
-		***REMOVED***
+		}
 		return int64(n), nil
 	default:
 		return 0, fmt.Errorf("unable to use type %T as a duration value", v)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // GetDurationValue is a helper function that can convert a lot of different
 // types to time.Duration.
 //
 // TODO: move to a separate package and check for integer overflows?
-func GetDurationValue(v interface***REMOVED******REMOVED***) (time.Duration, error) ***REMOVED***
-	switch d := v.(type) ***REMOVED***
+func GetDurationValue(v interface{}) (time.Duration, error) {
+	switch d := v.(type) {
 	case time.Duration:
 		return d, nil
 	case string:
@@ -203,9 +203,9 @@ func GetDurationValue(v interface***REMOVED******REMOVED***) (time.Duration, err
 		return time.Duration(d * float64(time.Millisecond)), nil
 	default:
 		n, err := getInt64(v)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return 0, err
-		***REMOVED***
+		}
 		return time.Duration(n) * time.Millisecond, nil
-	***REMOVED***
-***REMOVED***
+	}
+}

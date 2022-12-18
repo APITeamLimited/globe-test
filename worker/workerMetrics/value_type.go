@@ -16,17 +16,17 @@ var ErrInvalidValueType = errors.New("invalid value type")
 type ValueType int
 
 // MarshalJSON serializes a ValueType to a JSON string.
-func (t ValueType) MarshalJSON() ([]byte, error) ***REMOVED***
+func (t ValueType) MarshalJSON() ([]byte, error) {
 	txt, err := t.MarshalText()
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	return []byte(`"` + string(txt) + `"`), nil
-***REMOVED***
+}
 
 // MarshalText serializes a ValueType as a human readable string.
-func (t ValueType) MarshalText() ([]byte, error) ***REMOVED***
-	switch t ***REMOVED***
+func (t ValueType) MarshalText() ([]byte, error) {
+	switch t {
 	case Default:
 		return []byte(defaultString), nil
 	case Time:
@@ -35,12 +35,12 @@ func (t ValueType) MarshalText() ([]byte, error) ***REMOVED***
 		return []byte(dataString), nil
 	default:
 		return nil, ErrInvalidValueType
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // UnmarshalText deserializes a ValueType from a string representation.
-func (t *ValueType) UnmarshalText(data []byte) error ***REMOVED***
-	switch string(data) ***REMOVED***
+func (t *ValueType) UnmarshalText(data []byte) error {
+	switch string(data) {
 	case defaultString:
 		*t = Default
 	case timeString:
@@ -49,13 +49,13 @@ func (t *ValueType) UnmarshalText(data []byte) error ***REMOVED***
 		*t = Data
 	default:
 		return ErrInvalidValueType
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
-func (t ValueType) String() string ***REMOVED***
-	switch t ***REMOVED***
+func (t ValueType) String() string {
+	switch t {
 	case Default:
 		return defaultString
 	case Time:
@@ -64,5 +64,5 @@ func (t ValueType) String() string ***REMOVED***
 		return dataString
 	default:
 		return "[INVALID]"
-	***REMOVED***
-***REMOVED***
+	}
+}

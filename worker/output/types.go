@@ -15,7 +15,7 @@ import (
 //
 // N.B: All outputs should have non-blocking AddMetricSamples() methods and
 // should spawn their own goroutine to flush metrics asynchronously.
-type Output interface ***REMOVED***
+type Output interface {
 	// Returns a human-readable description of the output that will be shown in
 	// `k6 run`. For extensions it probably should include the version as well.
 	Description() string
@@ -33,32 +33,32 @@ type Output interface ***REMOVED***
 
 	// Flush all remaining metrics and finalize the test run.
 	Stop() error
-***REMOVED***
+}
 
 // WithThresholds is an output that requires the Engine to give it the
 // thresholds before it can be started.
-type WithThresholds interface ***REMOVED***
+type WithThresholds interface {
 	Output
 	SetThresholds(map[string]workerMetrics.Thresholds)
-***REMOVED***
+}
 
 // WithTestRunStop is an output that can stop the Engine mid-test, interrupting
 // the whole test run execution if some internal condition occurs, completely
 // independently from the thresholds. It requires a callback function which
 // expects an error and triggers the Engine to stop.
-type WithTestRunStop interface ***REMOVED***
+type WithTestRunStop interface {
 	Output
 	SetTestRunStopCallback(func(error))
-***REMOVED***
+}
 
 // WithRunStatusUpdates means the output can receive test run status updates.
-type WithRunStatusUpdates interface ***REMOVED***
+type WithRunStatusUpdates interface {
 	Output
 	SetRunStatus(latestStatus libWorker.RunStatus)
-***REMOVED***
+}
 
 // WithBuiltinMetrics means the output can receive the builtin workerMetrics.
-type WithBuiltinMetrics interface ***REMOVED***
+type WithBuiltinMetrics interface {
 	Output
 	SetBuiltinMetrics(builtinMetrics *workerMetrics.BuiltinMetrics)
-***REMOVED***
+}

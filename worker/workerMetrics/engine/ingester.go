@@ -9,51 +9,51 @@ import (
 
 const collectRate = 50 * time.Millisecond
 
-var _ output.Output = &outputIngester***REMOVED******REMOVED***
+var _ output.Output = &outputIngester{}
 
 // outputIngester implements the output.Output interface and can be used to
 // "feed" the MetricsEngine data from a `k6 run` test run.
-type outputIngester struct ***REMOVED***
+type outputIngester struct {
 	output.SampleBuffer
 	logger logrus.FieldLogger
 
 	metricsEngine   *MetricsEngine
 	periodicFlusher *output.PeriodicFlusher
-***REMOVED***
+}
 
 // Description returns a human-readable description of the output.
-func (oi *outputIngester) Description() string ***REMOVED***
+func (oi *outputIngester) Description() string {
 	return "engine"
-***REMOVED***
+}
 
 // Start the engine by initializing a new output.PeriodicFlusher
-func (oi *outputIngester) Start() error ***REMOVED***
+func (oi *outputIngester) Start() error {
 	oi.logger.Debug("Starting...")
 
 	pf, err := output.NewPeriodicFlusher(collectRate, oi.flushMetrics)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 	oi.logger.Debug("Started!")
 	oi.periodicFlusher = pf
 
 	return nil
-***REMOVED***
+}
 
 // Stop flushes any remaining metrics and stops the goroutine.
-func (oi *outputIngester) Stop() error ***REMOVED***
+func (oi *outputIngester) Stop() error {
 	oi.logger.Debug("Stopping...")
 	defer oi.logger.Debug("Stopped!")
 	oi.periodicFlusher.Stop()
 	return nil
-***REMOVED***
+}
 
 // flushMetrics Writes samples to the MetricsEngine
-func (oi *outputIngester) flushMetrics() ***REMOVED***
+func (oi *outputIngester) flushMetrics() {
 	sampleContainers := oi.GetBufferedSamples()
-	if len(sampleContainers) == 0 ***REMOVED***
+	if len(sampleContainers) == 0 {
 		return
-	***REMOVED***
+	}
 
 	oi.metricsEngine.MetricsLock.Lock()
 	defer oi.metricsEngine.MetricsLock.Unlock()
@@ -67,26 +67,26 @@ func (oi *outputIngester) flushMetrics() ***REMOVED***
 	// sequential integer ID, we would be able to use a slice for these buckets
 	// and eliminate the map loopkups altogether!
 
-	for _, sampleContainer := range sampleContainers ***REMOVED***
+	for _, sampleContainer := range sampleContainers {
 		samples := sampleContainer.GetSamples()
 
-		if len(samples) == 0 ***REMOVED***
+		if len(samples) == 0 {
 			continue
-		***REMOVED***
+		}
 
-		for _, sample := range samples ***REMOVED***
+		for _, sample := range samples {
 			m := sample.Metric               // this should have come from the Registry, no need to look it up
 			oi.metricsEngine.markObserved(m) // mark it as observed so it shows in the end-of-test summary
 			m.Sink.Add(sample)               // finally, add its value to its own sink
 
 			// and also to the same for any submetrics that match the metric sample
-			for _, sm := range m.Submetrics ***REMOVED***
-				if !sample.Tags.Contains(sm.Tags) ***REMOVED***
+			for _, sm := range m.Submetrics {
+				if !sample.Tags.Contains(sm.Tags) {
 					continue
-				***REMOVED***
+				}
 				oi.metricsEngine.markObserved(sm.Metric)
 				sm.Metric.Sink.Add(sample)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
+			}
+		}
+	}
+}

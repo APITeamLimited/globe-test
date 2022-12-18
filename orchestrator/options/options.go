@@ -14,19 +14,19 @@ import (
 )
 
 // Import script to determine options on the orchestrator
-func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, workerClients libOrch.WorkerClients) (*libWorker.Options, error) ***REMOVED***
+func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, workerClients libOrch.WorkerClients) (*libWorker.Options, error) {
 	options, err := getCompiledOptions(job, gs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// TODO: Check if MetricSamplesBufferSize config option is needed
-	options.MetricSamplesBufferSize = null.Int***REMOVED***
-		NullInt64: sql.NullInt64***REMOVED***
+	options.MetricSamplesBufferSize = null.Int{
+		NullInt64: sql.NullInt64{
 			Int64: 0,
 			Valid: false,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
 	// Prevent the user from accessing internal ip ranges
 	localhostIPNets := generateBannedIPNets()
@@ -36,99 +36,99 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	validators.BlacklistIPs(options, localhostIPNets)
 
 	err = validators.Batch(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	err = validators.BatchPerHost(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	if options.Duration.Valid ***REMOVED***
+	if options.Duration.Valid {
 		err = validators.Duration(options)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	err = validators.Hosts(options, localhostIPNets)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	err = validators.MinIterationDuration(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	validators.InsecureSkipTLSVerify(options)
 
 	err = validators.TeardownTimeout(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	err = validators.ExecutionMode(options)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	err = validators.LoadDistribution(options, workerClients, gs.Standalone())
-	if err != nil ***REMOVED***
+	err = validators.LoadDistribution(options, workerClients, gs.Standalone(), gs.FuncModeInfo())
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	err = validators.OutputConfig(options, gs.Standalone())
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// Check the generated and user supplied options are valid
 	checkedOptions, err := deriveScenariosFromShortcuts(applyDefault(options), gs.Logger())
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// Add max possible VU count
 	maxVUsCount := int64(0)
-	for _, scenario := range checkedOptions.Scenarios ***REMOVED***
+	for _, scenario := range checkedOptions.Scenarios {
 		maxVUsCount += scenario.GetMaxExecutorVUs()
-	***REMOVED***
+	}
 
 	// Restrict VU count to 50 for now
-	if maxVUsCount > 50 ***REMOVED***
+	if maxVUsCount > 50 {
 		return nil, errors.New("max VU count is currently limited to 50")
-	***REMOVED***
+	}
 
 	checkedOptions.MaxPossibleVUs = null.IntFrom(maxVUsCount)
 
 	return &checkedOptions, nil
-***REMOVED***
+}
 
-func applyDefault(options *libWorker.Options) libWorker.Options ***REMOVED***
-	if options.SystemTags == nil ***REMOVED***
+func applyDefault(options *libWorker.Options) libWorker.Options {
+	if options.SystemTags == nil {
 		options.SystemTags = &workerMetrics.DefaultSystemTagSet
-	***REMOVED***
-	if options.SummaryTrendStats == nil ***REMOVED***
+	}
+	if options.SummaryTrendStats == nil {
 		options.SummaryTrendStats = libWorker.DefaultSummaryTrendStats
-	***REMOVED***
+	}
 	defDNS := types.DefaultDNSConfig()
-	if !options.DNS.TTL.Valid ***REMOVED***
+	if !options.DNS.TTL.Valid {
 		options.DNS.TTL = defDNS.TTL
-	***REMOVED***
-	if !options.DNS.Select.Valid ***REMOVED***
+	}
+	if !options.DNS.Select.Valid {
 		options.DNS.Select = defDNS.Select
-	***REMOVED***
-	if !options.DNS.Policy.Valid ***REMOVED***
+	}
+	if !options.DNS.Policy.Valid {
 		options.DNS.Policy = defDNS.Policy
-	***REMOVED***
-	if !options.SetupTimeout.Valid ***REMOVED***
+	}
+	if !options.SetupTimeout.Valid {
 		options.SetupTimeout.Duration = types.Duration(60 * time.Second)
-	***REMOVED***
-	if !options.TeardownTimeout.Valid ***REMOVED***
+	}
+	if !options.TeardownTimeout.Valid {
 		options.TeardownTimeout.Duration = types.Duration(60 * time.Second)
-	***REMOVED***
+	}
 
 	return *options
-***REMOVED***
+}

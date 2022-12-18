@@ -36,30 +36,30 @@ import (
 
 // GetTLSClientConfig returns a TLS config that trusts the supplied
 // httptest.Server certificate as well as all the system root certificates
-func GetTLSClientConfig(t testing.TB, srv *httptest.Server) *tls.Config ***REMOVED***
+func GetTLSClientConfig(t testing.TB, srv *httptest.Server) *tls.Config {
 	var err error
 
 	certs := x509.NewCertPool()
 
-	if runtime.GOOS != "windows" ***REMOVED***
+	if runtime.GOOS != "windows" {
 		certs, err = x509.SystemCertPool()
 		require.NoError(t, err)
-	***REMOVED***
+	}
 
-	for _, c := range srv.TLS.Certificates ***REMOVED***
+	for _, c := range srv.TLS.Certificates {
 		roots, err := x509.ParseCertificates(c.Certificate[len(c.Certificate)-1])
 		require.NoError(t, err)
-		for _, root := range roots ***REMOVED***
+		for _, root := range roots {
 			certs.AddCert(root)
-		***REMOVED***
-	***REMOVED***
-	return &tls.Config***REMOVED***
+		}
+	}
+	return &tls.Config{
 		RootCAs:            certs,
 		InsecureSkipVerify: false,
 		Renegotiation:      tls.RenegotiateFreelyAsClient,
 		MinVersion:         tls.VersionTLS10,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 const httpDomain = "httpbin.local"
 
@@ -69,7 +69,7 @@ const httpDomain = "httpbin.local"
 const httpsDomain = "example.com"
 
 // HTTPMultiBin can be used as a local alternative of httpbin.org. It offers both http and https servers, as well as real domains
-type HTTPMultiBin struct ***REMOVED***
+type HTTPMultiBin struct {
 	Mux             *http.ServeMux
 	ServerHTTP      *httptest.Server
 	ServerHTTPS     *httptest.Server
@@ -82,177 +82,177 @@ type HTTPMultiBin struct ***REMOVED***
 	Dialer          *netext.Dialer
 	HTTPTransport   *http.Transport
 	Context         context.Context
-***REMOVED***
+}
 
-type jsonBody struct ***REMOVED***
+type jsonBody struct {
 	Header      http.Header `json:"headers"`
 	Compression string      `json:"compression"`
-***REMOVED***
+}
 
-func getWebsocketHandler(echo bool, closePrematurely bool) http.Handler ***REMOVED***
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
-		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
-		if err != nil ***REMOVED***
+func getWebsocketHandler(echo bool, closePrematurely bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, w.Header())
+		if err != nil {
 			return
-		***REMOVED***
-		if echo ***REMOVED***
+		}
+		if echo {
 			messageType, r, e := conn.NextReader()
-			if e != nil ***REMOVED***
+			if e != nil {
 				return
-			***REMOVED***
+			}
 			var wc io.WriteCloser
 			wc, err = conn.NextWriter(messageType)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return
-			***REMOVED***
-			if _, err = io.Copy(wc, r); err != nil ***REMOVED***
+			}
+			if _, err = io.Copy(wc, r); err != nil {
 				return
-			***REMOVED***
-			if err = wc.Close(); err != nil ***REMOVED***
+			}
+			if err = wc.Close(); err != nil {
 				return
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		// closePrematurely=true mimics an invalid WS server that doesn't
 		// send a close control frame before closing the connection.
-		if !closePrematurely ***REMOVED***
+		if !closePrematurely {
 			closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 			_ = conn.WriteControl(websocket.CloseMessage, closeMsg, time.Now().Add(time.Second))
 			// Wait for response control frame
 			<-time.After(time.Second)
-		***REMOVED***
+		}
 		err = conn.Close()
-		if err != nil ***REMOVED***
+		if err != nil {
 			return
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}
 
-func writeJSON(w io.Writer, v interface***REMOVED******REMOVED***) error ***REMOVED***
+func writeJSON(w io.Writer, v interface{}) error {
 	e := json.NewEncoder(w)
 	e.SetIndent("", "  ")
-	if err := e.Encode(v); err != nil ***REMOVED***
+	if err := e.Encode(v); err != nil {
 		return fmt.Errorf("failed to encode JSON: %w", err)
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}
 
-func getEncodedHandler(t testing.TB, compressionType string) http.Handler ***REMOVED***
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+func getEncodedHandler(t testing.TB, compressionType string) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		var (
 			encoding string
 			err      error
 			encw     io.WriteCloser
 		)
 
-		switch compressionType ***REMOVED***
+		switch compressionType {
 		case "br":
 			encw = brotli.NewWriter(rw)
 			encoding = "br"
 		case "zstd":
 			encw, _ = zstd.NewWriter(rw)
 			encoding = "zstd"
-		***REMOVED***
+		}
 
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Header().Add("Content-Encoding", encoding)
-		data := jsonBody***REMOVED***
+		data := jsonBody{
 			Header:      req.Header,
 			Compression: encoding,
-		***REMOVED***
+		}
 		err = writeJSON(encw, data)
-		if encw != nil ***REMOVED***
+		if encw != nil {
 			_ = encw.Close()
-		***REMOVED***
+		}
 		require.NoError(t, err)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func getZstdBrHandler(t testing.TB) http.Handler ***REMOVED***
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+func getZstdBrHandler(t testing.TB) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		encoding := "zstd, br"
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Header().Add("Content-Encoding", encoding)
-		data := jsonBody***REMOVED***
+		data := jsonBody{
 			Header:      req.Header,
 			Compression: encoding,
-		***REMOVED***
+		}
 
 		bw := brotli.NewWriter(rw)
 		zw, _ := zstd.NewWriter(bw)
-		defer func() ***REMOVED***
+		defer func() {
 			_ = zw.Close()
 			_ = bw.Close()
-		***REMOVED***()
+		}()
 
 		require.NoError(t, writeJSON(zw, data))
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
 // GRPCStub is an easily customisable TestServiceServer
-type GRPCStub struct ***REMOVED***
+type GRPCStub struct {
 	grpctest.TestServiceServer
 	EmptyCallFunc func(context.Context, *grpctest.Empty) (*grpctest.Empty, error)
 	UnaryCallFunc func(context.Context, *grpctest.SimpleRequest) (*grpctest.SimpleResponse, error)
-***REMOVED***
+}
 
 // EmptyCall implements the interface for the gRPC TestServiceServer
-func (s *GRPCStub) EmptyCall(ctx context.Context, req *grpctest.Empty) (*grpctest.Empty, error) ***REMOVED***
-	if s.EmptyCallFunc != nil ***REMOVED***
+func (s *GRPCStub) EmptyCall(ctx context.Context, req *grpctest.Empty) (*grpctest.Empty, error) {
+	if s.EmptyCallFunc != nil {
 		return s.EmptyCallFunc(ctx, req)
-	***REMOVED***
+	}
 
 	return nil, status.Errorf(codes.Unimplemented, "method EmptyCall not implemented")
-***REMOVED***
+}
 
 // UnaryCall implements the interface for the gRPC TestServiceServer
-func (s *GRPCStub) UnaryCall(ctx context.Context, req *grpctest.SimpleRequest) (*grpctest.SimpleResponse, error) ***REMOVED***
-	if s.UnaryCallFunc != nil ***REMOVED***
+func (s *GRPCStub) UnaryCall(ctx context.Context, req *grpctest.SimpleRequest) (*grpctest.SimpleResponse, error) {
+	if s.UnaryCallFunc != nil {
 		return s.UnaryCallFunc(ctx, req)
-	***REMOVED***
+	}
 
 	return nil, status.Errorf(codes.Unimplemented, "method UnaryCall not implemented")
-***REMOVED***
+}
 
 // StreamingOutputCall implements the interface for the gRPC TestServiceServer
 func (*GRPCStub) StreamingOutputCall(*grpctest.StreamingOutputCallRequest,
 	grpctest.TestService_StreamingOutputCallServer,
-) error ***REMOVED***
+) error {
 	return status.Errorf(codes.Unimplemented, "method StreamingOutputCall not implemented")
-***REMOVED***
+}
 
 // StreamingInputCall implements the interface for the gRPC TestServiceServer
-func (*GRPCStub) StreamingInputCall(grpctest.TestService_StreamingInputCallServer) error ***REMOVED***
+func (*GRPCStub) StreamingInputCall(grpctest.TestService_StreamingInputCallServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamingInputCall not implemented")
-***REMOVED***
+}
 
 // FullDuplexCall implements the interface for the gRPC TestServiceServer
-func (*GRPCStub) FullDuplexCall(grpctest.TestService_FullDuplexCallServer) error ***REMOVED***
+func (*GRPCStub) FullDuplexCall(grpctest.TestService_FullDuplexCallServer) error {
 	return status.Errorf(codes.Unimplemented, "method FullDuplexCall not implemented")
-***REMOVED***
+}
 
 // HalfDuplexCall implements the interface for the gRPC TestServiceServer
-func (*GRPCStub) HalfDuplexCall(grpctest.TestService_HalfDuplexCallServer) error ***REMOVED***
+func (*GRPCStub) HalfDuplexCall(grpctest.TestService_HalfDuplexCallServer) error {
 	return status.Errorf(codes.Unimplemented, "method HalfDuplexCall not implemented")
-***REMOVED***
+}
 
 // GRPCAnyStub is an easily customisable AnyTestServiceServer
-type GRPCAnyStub struct ***REMOVED***
+type GRPCAnyStub struct {
 	grpcanytesting.AnyTestServiceServer
 	SumFunc func(context.Context, *grpcanytesting.SumRequest) (*grpcanytesting.SumReply, error)
-***REMOVED***
+}
 
 // Sum implements the interface for the gRPC AnyTestServiceServer
-func (s *GRPCAnyStub) Sum(ctx context.Context, req *grpcanytesting.SumRequest) (*grpcanytesting.SumReply, error) ***REMOVED***
-	if s.SumFunc != nil ***REMOVED***
+func (s *GRPCAnyStub) Sum(ctx context.Context, req *grpcanytesting.SumRequest) (*grpcanytesting.SumReply, error) {
+	if s.SumFunc != nil {
 		return s.SumFunc(ctx, req)
-	***REMOVED***
+	}
 
 	return nil, status.Errorf(codes.Unimplemented, "method Sum not implemented")
-***REMOVED***
+}
 
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
 //nolint:funlen
-func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
+func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin {
 	// Create a http.ServeMux and set the httpbin handler as the default
 	mux := http.NewServeMux()
 	mux.Handle("/brotli", getEncodedHandler(t, "br"))
@@ -281,25 +281,25 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 
 	// Initialize the gRPC server
 	grpcSrv := grpc.NewServer()
-	stub := &GRPCStub***REMOVED******REMOVED***
+	stub := &GRPCStub{}
 	grpctest.RegisterTestServiceServer(grpcSrv, stub)
-	anyStub := &GRPCAnyStub***REMOVED******REMOVED***
+	anyStub := &GRPCAnyStub{}
 	grpcanytesting.RegisterAnyTestServiceServer(grpcSrv, anyStub)
 
-	cmux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") ***REMOVED***
+	cmux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			grpcSrv.ServeHTTP(w, r)
 
 			return
-		***REMOVED***
+		}
 		mux.ServeHTTP(w, r)
-	***REMOVED***)
+	})
 
 	// Initialize the HTTP2 server, with a copy of the https tls config
 	http2Srv := httptest.NewUnstartedServer(cmux)
 	http2Srv.EnableHTTP2 = true
 	http2Srv.TLS = &(*tlsConfig) // copy it
-	http2Srv.TLS.NextProtos = []string***REMOVED***http2.NextProtoTLS***REMOVED***
+	http2Srv.TLS.NextProtos = []string{http2.NextProtoTLS}
 	require.NoError(t, err)
 	http2Srv.StartTLS()
 	http2URL, err := url.Parse(http2Srv.URL)
@@ -313,26 +313,26 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	require.NoError(t, err)
 
 	// Set up the dialer with shorter timeouts and the custom domains
-	dialer := netext.NewDialer(net.Dialer***REMOVED***
+	dialer := netext.NewDialer(net.Dialer{
 		Timeout:   2 * time.Second,
 		KeepAlive: 10 * time.Second,
 		DualStack: true,
-	***REMOVED***, netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4))
-	dialer.Hosts = map[string]*libWorker.HostAddress***REMOVED***
+	}, netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4))
+	dialer.Hosts = map[string]*libWorker.HostAddress{
 		httpDomain:  httpDomainValue,
 		httpsDomain: httpsDomainValue,
-	***REMOVED***
+	}
 
 	// Pre-configure the HTTP client transport with the dialer and TLS config (incl. HTTP2 support)
-	transport := &http.Transport***REMOVED***
+	transport := &http.Transport{
 		DialContext:     dialer.DialContext,
 		TLSClientConfig: tlsConfig,
-	***REMOVED***
+	}
 	require.NoError(t, http2.ConfigureTransport(transport))
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
-	result := &HTTPMultiBin***REMOVED***
+	result := &HTTPMultiBin{
 		Mux:         mux,
 		ServerHTTP:  httpSrv,
 		ServerHTTPS: httpsSrv,
@@ -366,14 +366,14 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 		Dialer:          dialer,
 		HTTPTransport:   transport,
 		Context:         ctx,
-	***REMOVED***
+	}
 
-	t.Cleanup(func() ***REMOVED***
+	t.Cleanup(func() {
 		grpcSrv.Stop()
 		http2Srv.Close()
 		httpsSrv.Close()
 		httpSrv.Close()
 		ctxCancel()
-	***REMOVED***)
+	})
 	return result
-***REMOVED***
+}

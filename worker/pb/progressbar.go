@@ -12,11 +12,11 @@ import (
 //nolint:gochecknoglobals
 var (
 	colorFaint   = color.New(color.Faint)
-	statusColors = map[Status]*color.Color***REMOVED***
+	statusColors = map[Status]*color.Color{
 		Interrupted: color.New(color.FgRed),
 		Done:        color.New(color.FgGreen),
 		Waiting:     colorFaint,
-	***REMOVED***
+	}
 )
 
 const (
@@ -41,7 +41,7 @@ const (
 
 // ProgressBar is a simple thread-safe progressbar implementation with
 // callbacks.
-type ProgressBar struct ***REMOVED***
+type ProgressBar struct {
 	mutex  sync.RWMutex
 	width  int
 	logger *logrus.Entry
@@ -50,144 +50,144 @@ type ProgressBar struct ***REMOVED***
 	left     func() string
 	progress func() (progress float64, right []string)
 	hijack   func() string
-***REMOVED***
+}
 
 // ProgressBarOption is used for helper functions that modify the progressbar
 // parameters, either in the constructor or via the Modify() method.
 type ProgressBarOption func(*ProgressBar)
 
 // WithLeft modifies the function that returns the left progressbar value.
-func WithLeft(left func() string) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED*** pb.left = left ***REMOVED***
-***REMOVED***
+func WithLeft(left func() string) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.left = left }
+}
 
 // WithConstLeft sets the left progressbar value to the supplied const.
-func WithConstLeft(left string) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED***
-		pb.left = func() string ***REMOVED*** return left ***REMOVED***
-	***REMOVED***
-***REMOVED***
+func WithConstLeft(left string) ProgressBarOption {
+	return func(pb *ProgressBar) {
+		pb.left = func() string { return left }
+	}
+}
 
 // WithLogger modifies the logger instance
-func WithLogger(logger *logrus.Entry) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED*** pb.logger = logger ***REMOVED***
-***REMOVED***
+func WithLogger(logger *logrus.Entry) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.logger = logger }
+}
 
 // WithProgress modifies the progress calculation function.
-func WithProgress(progress func() (float64, []string)) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED*** pb.progress = progress ***REMOVED***
-***REMOVED***
+func WithProgress(progress func() (float64, []string)) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.progress = progress }
+}
 
 // WithStatus modifies the progressbar status
-func WithStatus(status Status) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED*** pb.status = status ***REMOVED***
-***REMOVED***
+func WithStatus(status Status) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.status = status }
+}
 
 // WithConstProgress sets the progress and right values to the supplied consts.
-func WithConstProgress(progress float64, right ...string) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED***
-		pb.progress = func() (float64, []string) ***REMOVED*** return progress, right ***REMOVED***
-	***REMOVED***
-***REMOVED***
+func WithConstProgress(progress float64, right ...string) ProgressBarOption {
+	return func(pb *ProgressBar) {
+		pb.progress = func() (float64, []string) { return progress, right }
+	}
+}
 
 // WithHijack replaces the progressbar Render function with the argument.
-func WithHijack(hijack func() string) ProgressBarOption ***REMOVED***
-	return func(pb *ProgressBar) ***REMOVED*** pb.hijack = hijack ***REMOVED***
-***REMOVED***
+func WithHijack(hijack func() string) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.hijack = hijack }
+}
 
 // New creates and initializes a new ProgressBar struct, calling all of the
 // supplied options
-func New(options ...ProgressBarOption) *ProgressBar ***REMOVED***
-	pb := &ProgressBar***REMOVED***
-		mutex: sync.RWMutex***REMOVED******REMOVED***,
+func New(options ...ProgressBarOption) *ProgressBar {
+	pb := &ProgressBar{
+		mutex: sync.RWMutex{},
 		width: DefaultWidth,
-	***REMOVED***
+	}
 	pb.Modify(options...)
 	return pb
-***REMOVED***
+}
 
 // Left returns the left part of the progressbar in a thread-safe way.
-func (pb *ProgressBar) Left() string ***REMOVED***
+func (pb *ProgressBar) Left() string {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
 	return pb.renderLeft(0)
-***REMOVED***
+}
 
 // renderLeft renders the left part of the progressbar, replacing text
 // exceeding maxLen with an ellipsis.
-func (pb *ProgressBar) renderLeft(maxLen int) string ***REMOVED***
+func (pb *ProgressBar) renderLeft(maxLen int) string {
 	var left string
-	if pb.left != nil ***REMOVED***
+	if pb.left != nil {
 		l := pb.left()
-		if maxLen > 0 && len(l) > maxLen ***REMOVED***
+		if maxLen > 0 && len(l) > maxLen {
 			l = l[:maxLen-3] + "..."
-		***REMOVED***
+		}
 		left = l
-	***REMOVED***
+	}
 	return left
-***REMOVED***
+}
 
 // Modify changes the progressbar options in a thread-safe way.
-func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
+func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
-	for _, option := range options ***REMOVED***
+	for _, option := range options {
 		option(pb)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // ProgressBarRender stores the different rendered parts of the
 // progress bar UI to allow dynamic positioning and padding of
 // elements in the terminal output (e.g. for responsive progress
 // bars).
-type ProgressBarRender struct ***REMOVED***
+type ProgressBarRender struct {
 	Right                                   []string
 	progress, progressFill, progressPadding string
 	Left, Hijack                            string
 	status                                  Status
 	Color                                   bool
-***REMOVED***
+}
 
 // Status returns an optionally colorized status string
-func (pbr *ProgressBarRender) Status() string ***REMOVED***
+func (pbr *ProgressBarRender) Status() string {
 	status := " "
 
-	if pbr.status > 0 ***REMOVED***
+	if pbr.status > 0 {
 		status = string(pbr.status)
-		if c, ok := statusColors[pbr.status]; pbr.Color && ok ***REMOVED***
+		if c, ok := statusColors[pbr.status]; pbr.Color && ok {
 			status = c.Sprint(status)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return status
-***REMOVED***
+}
 
 // Progress returns an assembled and optionally colorized progress string
-func (pbr *ProgressBarRender) Progress() string ***REMOVED***
+func (pbr *ProgressBarRender) Progress() string {
 	var body string
-	if pbr.progress != "" ***REMOVED***
+	if pbr.progress != "" {
 		body = fmt.Sprintf(" %s ", pbr.progress)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		padding := pbr.progressPadding
-		if pbr.Color ***REMOVED***
+		if pbr.Color {
 			padding = colorFaint.Sprint(pbr.progressPadding)
-		***REMOVED***
+		}
 		body = pbr.progressFill + padding
-	***REMOVED***
+	}
 	return fmt.Sprintf("[%s]", body)
-***REMOVED***
+}
 
-func (pbr ProgressBarRender) String() string ***REMOVED***
-	if pbr.Hijack != "" ***REMOVED***
+func (pbr ProgressBarRender) String() string {
+	if pbr.Hijack != "" {
 		return pbr.Hijack
-	***REMOVED***
+	}
 	var right string
-	if len(pbr.Right) > 0 ***REMOVED***
+	if len(pbr.Right) > 0 {
 		right = " " + strings.Join(pbr.Right, "  ")
-	***REMOVED***
+	}
 	return pbr.Left + " " + pbr.Status() + " " + pbr.Progress() + right
-***REMOVED***
+}
 
 // Render locks the progressbar struct for reading and calls all of
 // its methods to return the final output. A struct is returned over a
@@ -200,58 +200,58 @@ func (pbr ProgressBarRender) String() string ***REMOVED***
 //   characters. E.g. passing -2 would shorten the width by 2 chars.
 //   If the resulting width is lower than minWidth, progress will be
 //   rendered as a percentage instead of a filling bar.
-func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender ***REMOVED***
+func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
 	var out ProgressBarRender
-	if pb.hijack != nil ***REMOVED***
+	if pb.hijack != nil {
 		out.Hijack = pb.hijack()
 		return out
-	***REMOVED***
+	}
 
 	var progress float64
-	if pb.progress != nil ***REMOVED***
+	if pb.progress != nil {
 		progress, out.Right = pb.progress()
 		progressClamped := Clampf(progress, 0, 1)
-		if progress != progressClamped ***REMOVED***
+		if progress != progressClamped {
 			progress = progressClamped
-			if pb.logger != nil ***REMOVED***
+			if pb.logger != nil {
 				pb.logger.Warnf("progress value %.2f exceeds valid range, clamped between 0 and 1", progress)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	width := Clampf(float64(pb.width+widthDelta), minWidth, DefaultWidth)
 	pb.width = int(width)
 
-	if pb.width > minWidth ***REMOVED*** //nolint:nestif
+	if pb.width > minWidth { //nolint:nestif
 		space := pb.width - 2
 		filled := int(float64(space) * progress)
 
 		filling := ""
 		caret := ""
-		if filled > 0 ***REMOVED***
-			if filled < space ***REMOVED***
+		if filled > 0 {
+			if filled < space {
 				filling = strings.Repeat("=", filled-1)
 				caret = ">"
-			***REMOVED*** else ***REMOVED***
+			} else {
 				filling = strings.Repeat("=", filled)
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
 		out.progressPadding = ""
-		if space > filled ***REMOVED***
+		if space > filled {
 			out.progressPadding = strings.Repeat("-", space-filled)
-		***REMOVED***
+		}
 
 		out.progressFill = filling + caret
-	***REMOVED*** else ***REMOVED***
+	} else {
 		out.progress = fmt.Sprintf("%3.f%%", progress*100)
-	***REMOVED***
+	}
 
 	out.Left = pb.renderLeft(maxLeft)
 	out.status = pb.status
 
 	return out
-***REMOVED***
+}

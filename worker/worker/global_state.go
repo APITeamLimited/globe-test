@@ -22,11 +22,11 @@ const (
 )
 
 // globalFlags contains global config values that apply for all k6 sub-commands.
-type globalFlags struct ***REMOVED***
+type globalFlags struct {
 	configFilePath string
 	address        string
 	logOutput      string
-***REMOVED***
+}
 
 // globalState contains the globalFlags and accessors for most of the global
 // process-external state like CLI arguments, env vars, standard input, output
@@ -41,7 +41,7 @@ type globalFlags struct ***REMOVED***
 // `newGlobalState()` returns a globalState object with the real `os`
 // parameters, while `newGlobalTestState()` can be used in tests to create
 // simulated environments.
-type globalState struct ***REMOVED***
+type globalState struct {
 	ctx context.Context
 
 	fs      afero.Fs
@@ -69,9 +69,9 @@ type globalState struct ***REMOVED***
 	status     string
 
 	funcModeInfo *lib.FuncModeInfo
-***REMOVED***
+}
 
-var _ libWorker.BaseGlobalState = &globalState***REMOVED******REMOVED***
+var _ libWorker.BaseGlobalState = &globalState{}
 
 // Ideally, this should be the only function in the whole codebase where we use
 // global variables and functions from the os package. Anywhere else, things
@@ -80,12 +80,12 @@ var _ libWorker.BaseGlobalState = &globalState***REMOVED******REMOVED***
 
 // Care is needed to prevent leaking system info to malicious actors.
 
-func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo) *globalState ***REMOVED***
-	gs := &globalState***REMOVED***
+func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo) *globalState {
+	gs := &globalState{
 		ctx:          ctx,
 		fs:           afero.NewMemMapFs(),
 		getwd:        os.Getwd,
-		args:         []string***REMOVED******REMOVED***,
+		args:         []string{},
 		envVars:      make(map[string]string),
 		stdIn:        os.Stdin,
 		osExit:       os.Exit,
@@ -96,25 +96,25 @@ func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.Child
 		jobId:        job.Id,
 		childJobId:   job.ChildJobId,
 		funcModeInfo: funcModeInfo,
-	***REMOVED***
+	}
 
-	gs.stdOut = &consoleWriter***REMOVED***gs***REMOVED***
-	gs.stdErr = &consoleWriter***REMOVED***gs***REMOVED***
+	gs.stdOut = &consoleWriter{gs}
+	gs.stdErr = &consoleWriter{gs}
 
-	gs.logger = &logrus.Logger***REMOVED***
+	gs.logger = &logrus.Logger{
 		Out:       gs.stdOut,
 		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
-	***REMOVED***
+	}
 
 	gs.fallbackLogger = gs.logger
 
 	confDir, err := os.UserConfigDir()
-	if err != nil ***REMOVED***
+	if err != nil {
 		gs.logger.WithError(err).Warn("could not get config directory")
 		confDir = ".config"
-	***REMOVED***
+	}
 
 	defaultFlags := getDefaultFlags(confDir)
 
@@ -122,44 +122,44 @@ func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.Child
 	gs.flags = defaultFlags
 
 	return gs
-***REMOVED***
+}
 
-func getDefaultFlags(homeFolder string) globalFlags ***REMOVED***
-	return globalFlags***REMOVED***
+func getDefaultFlags(homeFolder string) globalFlags {
+	return globalFlags{
 		address:        "localhost:6565",
 		configFilePath: filepath.Join(homeFolder, "loadimpact", "k6", defaultConfigFileName),
 		logOutput:      "stderr",
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (gs *globalState) Ctx() context.Context ***REMOVED***
+func (gs *globalState) Ctx() context.Context {
 	return gs.ctx
-***REMOVED***
+}
 
-func (gs *globalState) Client() *redis.Client ***REMOVED***
+func (gs *globalState) Client() *redis.Client {
 	return gs.client
-***REMOVED***
+}
 
-func (gs *globalState) JobId() string ***REMOVED***
+func (gs *globalState) JobId() string {
 	return gs.jobId
-***REMOVED***
+}
 
-func (gs *globalState) ChildJobId() string ***REMOVED***
+func (gs *globalState) ChildJobId() string {
 	return gs.childJobId
-***REMOVED***
+}
 
-func (gs *globalState) WorkerId() string ***REMOVED***
+func (gs *globalState) WorkerId() string {
 	return gs.workerId
-***REMOVED***
+}
 
-func (gs *globalState) GetWorkerStatus() string ***REMOVED***
+func (gs *globalState) GetWorkerStatus() string {
 	return gs.status
-***REMOVED***
+}
 
-func (gs *globalState) SetWorkerStatus(status string) ***REMOVED***
+func (gs *globalState) SetWorkerStatus(status string) {
 	gs.status = status
-***REMOVED***
+}
 
-func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo ***REMOVED***
+func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
 	return gs.funcModeInfo
-***REMOVED***
+}

@@ -14,67 +14,67 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***
+func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	source, sourceName, err := validateSource(job, gs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	return compileAndGetOptions(source, sourceName, gs)
-***REMOVED***
+}
 
-func validateSource(job libOrch.Job, gs libOrch.BaseGlobalState) (string, string, error) ***REMOVED***
+func validateSource(job libOrch.Job, gs libOrch.BaseGlobalState) (string, string, error) {
 	// Check job.SourceName is set
-	if job.SourceName == "" ***REMOVED***
+	if job.SourceName == "" {
 		return "", "", errors.New("job.SourceName not set")
-	***REMOVED***
+	}
 
-	if len(job.SourceName) < 3 ***REMOVED***
+	if len(job.SourceName) < 3 {
 		return "", "", errors.New("job.SourceName must be a .js file")
-	***REMOVED***
+	}
 
-	if job.SourceName[len(job.SourceName)-3:] != ".js" ***REMOVED***
+	if job.SourceName[len(job.SourceName)-3:] != ".js" {
 		return "", "", errors.New("job.SourceName must be a .js file")
-	***REMOVED***
+	}
 
 	// Check source in options, if it is return it
-	if job.Source == "" ***REMOVED***
+	if job.Source == "" {
 		return "", "", errors.New("source not set")
-	***REMOVED***
+	}
 
 	return job.Source, job.SourceName, nil
-***REMOVED***
+}
 
-func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) ***REMOVED***
-	runtimeOptions := libWorker.RuntimeOptions***REMOVED***
+func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
+	runtimeOptions := libWorker.RuntimeOptions{
 		TestType:             null.StringFrom("js"),
 		IncludeSystemEnvVars: null.BoolFrom(false),
 		CompatibilityMode:    null.StringFrom("extended"),
 		NoThresholds:         null.BoolFrom(false),
 		SummaryExport:        null.StringFrom(""),
 		Env:                  make(map[string]string),
-	***REMOVED***
+	}
 
 	registry := workerMetrics.NewRegistry()
 
-	preInitState := &libWorker.TestPreInitState***REMOVED***
+	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.Logger(),
 		RuntimeOptions: runtimeOptions,
 		Registry:       registry,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
-	***REMOVED***
+	}
 
-	sourceData := &loader.SourceData***REMOVED***
+	sourceData := &loader.SourceData{
 		Data: []byte(source),
-		URL:  &url.URL***REMOVED***Path: sourceName***REMOVED***,
-	***REMOVED***
+		URL:  &url.URL{Path: sourceName},
+	}
 
 	filesytems := make(map[string]afero.Fs, 1)
 	filesytems["file"] = afero.NewMemMapFs()
 
 	// Pass orchestratorId as workerId, so that will dispatch as a worker message
-	orchestratorInfo := &libWorker.WorkerInfo***REMOVED***
+	orchestratorInfo := &libWorker.WorkerInfo{
 		Client:         gs.OrchestratorClient(),
 		JobId:          gs.JobId(),
 		OrchestratorId: gs.OrchestratorId(),
@@ -82,13 +82,13 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 		Ctx:            gs.Ctx(),
 		Environment:    nil,
 		Collection:     nil,
-	***REMOVED***
+	}
 
 	bundle, err := js.NewBundle(preInitState, sourceData, filesytems, orchestratorInfo)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse options: %w", err)
-	***REMOVED***
+	}
 
 	// Get the options export frrom the exports
 	return &bundle.Options, nil
-***REMOVED***
+}

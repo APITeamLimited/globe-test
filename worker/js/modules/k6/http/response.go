@@ -17,100 +17,100 @@ import (
 )
 
 // Response is a representation of an HTTP response to be returned to the goja VM
-type Response struct ***REMOVED***
+type Response struct {
 	*httpext.Response `js:"-"`
 	client            *Client
 
-	cachedJSON    interface***REMOVED******REMOVED***
+	cachedJSON    interface{}
 	validatedJSON bool
-***REMOVED***
+}
 
-type jsonError struct ***REMOVED***
+type jsonError struct {
 	line      int
 	character int
 	err       error
-***REMOVED***
+}
 
-func (j jsonError) Error() string ***REMOVED***
+func (j jsonError) Error() string {
 	errMessage := "cannot parse json due to an error at line"
 	return fmt.Sprintf("%s %d, character %d , error: %v", errMessage, j.line, j.character, j.err)
-***REMOVED***
+}
 
 // HTML returns the body as an html.Selection
-func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
+func (res *Response) HTML(selector ...string) html.Selection {
 	rt := res.client.moduleInstance.vu.Runtime()
-	if res.Body == nil ***REMOVED***
+	if res.Body == nil {
 		err := fmt.Errorf("the body is null so we can't transform it to HTML" +
 			" - this likely was because of a request error getting the response")
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	body, err := common.ToString(res.Body)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	sel, err := html.ParseHTML(rt, body)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	sel.URL = res.URL
-	if len(selector) > 0 ***REMOVED***
+	if len(selector) > 0 {
 		sel = sel.Find(selector[0])
-	***REMOVED***
+	}
 	return sel
-***REMOVED***
+}
 
 // JSON parses the body of a response as JSON and returns it to the goja VM.
-func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
+func (res *Response) JSON(selector ...string) goja.Value {
 	rt := res.client.moduleInstance.vu.Runtime()
 
-	if res.Body == nil ***REMOVED***
+	if res.Body == nil {
 		err := fmt.Errorf("the body is null so we can't transform it to JSON" +
 			" - this likely was because of a request error getting the response")
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	hasSelector := len(selector) > 0
-	if res.cachedJSON == nil || hasSelector ***REMOVED*** //nolint:nestif
-		var v interface***REMOVED******REMOVED***
+	if res.cachedJSON == nil || hasSelector { //nolint:nestif
+		var v interface{}
 
 		body, err := common.ToBytes(res.Body)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
+		}
 
-		if hasSelector ***REMOVED***
-			if !res.validatedJSON ***REMOVED***
-				if !gjson.ValidBytes(body) ***REMOVED***
+		if hasSelector {
+			if !res.validatedJSON {
+				if !gjson.ValidBytes(body) {
 					return goja.Undefined()
-				***REMOVED***
+				}
 				res.validatedJSON = true
-			***REMOVED***
+			}
 
 			result := gjson.GetBytes(body, selector[0])
 
-			if !result.Exists() ***REMOVED***
+			if !result.Exists() {
 				return goja.Undefined()
-			***REMOVED***
+			}
 			return rt.ToValue(result.Value())
-		***REMOVED***
+		}
 
-		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
+		if err := json.Unmarshal(body, &v); err != nil {
 			var syntaxError *json.SyntaxError
-			if errors.As(err, &syntaxError) ***REMOVED***
+			if errors.As(err, &syntaxError) {
 				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
-			***REMOVED***
+			}
 			common.Throw(rt, err)
-		***REMOVED***
+		}
 		res.validatedJSON = true
 		res.cachedJSON = v
-	***REMOVED***
+	}
 
 	return rt.ToValue(res.cachedJSON)
-***REMOVED***
+}
 
-func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
+func checkErrorInJSON(input []byte, offset int, err error) error {
 	lf := '\n'
 	str := string(input)
 
@@ -118,78 +118,78 @@ func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
 	line := 1
 	character := 0
 
-	for i, b := range str ***REMOVED***
-		if b == lf ***REMOVED***
+	for i, b := range str {
+		if b == lf {
 			line++
 			character = 0
-		***REMOVED***
+		}
 		character++
-		if i == offset ***REMOVED***
+		if i == offset {
 			break
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	return jsonError***REMOVED***line: line, character: character, err: err***REMOVED***
-***REMOVED***
+	return jsonError{line: line, character: character, err: err}
+}
 
 // SubmitForm parses the body as an html looking for a from and then submitting it
 // TODO: document the actual arguments that can be provided
-func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVED***
+func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) {
 	rt := res.client.moduleInstance.vu.Runtime()
 
 	formSelector := "form"
 	submitSelector := "[type=\"submit\"]"
 	var fields map[string]goja.Value
 	requestParams := goja.Null()
-	if len(args) > 0 ***REMOVED***
+	if len(args) > 0 {
 		params := args[0].ToObject(rt)
-		for _, k := range params.Keys() ***REMOVED***
-			switch k ***REMOVED***
+		for _, k := range params.Keys() {
+			switch k {
 			case "formSelector":
 				formSelector = params.Get(k).String()
 			case "submitSelector":
 				submitSelector = params.Get(k).String()
 			case "fields":
-				if rt.ExportTo(params.Get(k), &fields) != nil ***REMOVED***
+				if rt.ExportTo(params.Get(k), &fields) != nil {
 					fields = nil
-				***REMOVED***
+				}
 			case "params":
 				requestParams = params.Get(k)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	form := res.HTML(formSelector)
-	if form.Size() == 0 ***REMOVED***
+	if form.Size() == 0 {
 		common.Throw(rt, fmt.Errorf("no form found for selector '%s' in response '%s'", formSelector, res.URL))
-	***REMOVED***
+	}
 
 	methodAttr := form.Attr("method")
 	var requestMethod string
-	if methodAttr == goja.Undefined() ***REMOVED***
+	if methodAttr == goja.Undefined() {
 		// Use GET by default
 		requestMethod = http.MethodGet
-	***REMOVED*** else ***REMOVED***
+	} else {
 		requestMethod = strings.ToUpper(methodAttr.String())
-	***REMOVED***
+	}
 
 	responseURL, err := url.Parse(res.URL)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	actionAttr := form.Attr("action")
 	var requestURL *url.URL
-	if actionAttr == goja.Undefined() ***REMOVED***
+	if actionAttr == goja.Undefined() {
 		// Use the url of the response if no action is set
 		requestURL = responseURL
-	***REMOVED*** else ***REMOVED***
+	} else {
 		actionURL, err := url.Parse(actionAttr.String())
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(rt, err)
-		***REMOVED***
+		}
 		requestURL = responseURL.ResolveReference(actionURL)
-	***REMOVED***
+	}
 
 	// Set the body based on the form values
 	values := form.SerializeObject()
@@ -198,66 +198,66 @@ func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVE
 	submit := form.Find(submitSelector)
 	submitName := submit.Attr("name")
 	submitValue := submit.Val()
-	if submitName != goja.Undefined() && submitValue != goja.Undefined() ***REMOVED***
+	if submitName != goja.Undefined() && submitValue != goja.Undefined() {
 		values[submitName.String()] = submitValue
-	***REMOVED***
+	}
 
 	// Set the values supplied in the arguments, overriding automatically set values
-	for k, v := range fields ***REMOVED***
+	for k, v := range fields {
 		values[k] = v
-	***REMOVED***
+	}
 
-	if requestMethod == http.MethodGet ***REMOVED***
-		q := url.Values***REMOVED******REMOVED***
-		for k, v := range values ***REMOVED***
+	if requestMethod == http.MethodGet {
+		q := url.Values{}
+		for k, v := range values {
 			q.Add(k, v.String())
-		***REMOVED***
+		}
 		requestURL.RawQuery = q.Encode()
 		return res.client.Request(requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
-	***REMOVED***
+	}
 	return res.client.Request(
 		requestMethod, rt.ToValue(requestURL.String()),
 		rt.ToValue(values), requestParams,
 	)
-***REMOVED***
+}
 
 // ClickLink parses the body as an html, looks for a link and than makes a request as if the link was
 // clicked
-func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED***
+func (res *Response) ClickLink(args ...goja.Value) (*Response, error) {
 	rt := res.client.moduleInstance.vu.Runtime()
 
 	selector := "a[href]"
 	requestParams := goja.Null()
-	if len(args) > 0 ***REMOVED***
+	if len(args) > 0 {
 		params := args[0].ToObject(rt)
-		for _, k := range params.Keys() ***REMOVED***
-			switch k ***REMOVED***
+		for _, k := range params.Keys() {
+			switch k {
 			case "selector":
 				selector = params.Get(k).String()
 			case "params":
 				requestParams = params.Get(k)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	responseURL, err := url.Parse(res.URL)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 
 	link := res.HTML(selector)
-	if link.Size() == 0 ***REMOVED***
+	if link.Size() == 0 {
 		common.Throw(rt, fmt.Errorf("no element found for selector '%s' in response '%s'", selector, res.URL))
-	***REMOVED***
+	}
 	hrefAttr := link.Attr("href")
-	if hrefAttr == goja.Undefined() ***REMOVED***
+	if hrefAttr == goja.Undefined() {
 		common.Throw(rt, fmt.Errorf("no valid href attribute value found on element '%s' in response '%s'", selector, res.URL))
-	***REMOVED***
+	}
 	hrefURL, err := url.Parse(hrefAttr.String())
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(rt, err)
-	***REMOVED***
+	}
 	requestURL := responseURL.ResolveReference(hrefURL)
 
 	return res.client.Request(http.MethodGet, rt.ToValue(requestURL.String()), goja.Undefined(), requestParams)
-***REMOVED***
+}

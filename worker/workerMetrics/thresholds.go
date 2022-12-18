@@ -14,7 +14,7 @@ import (
 )
 
 // Threshold is a representation of a single threshold for a single metric
-type Threshold struct ***REMOVED***
+type Threshold struct {
 	// Source is the text based source of the threshold
 	Source string
 	// LastFailed is a marker if the last testing of this threshold failed
@@ -26,31 +26,31 @@ type Threshold struct ***REMOVED***
 	AbortGracePeriod types.NullDuration
 	// parsed is the threshold expression parsed from the Source
 	parsed *thresholdExpression
-***REMOVED***
+}
 
-func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) *Threshold ***REMOVED***
-	return &Threshold***REMOVED***
+func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) *Threshold {
+	return &Threshold{
 		Source:           src,
 		AbortOnFail:      abortOnFail,
 		AbortGracePeriod: gracePeriod,
 		parsed:           nil,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (t *Threshold) runNoTaint(sinks map[string]float64) (bool, error) ***REMOVED***
+func (t *Threshold) runNoTaint(sinks map[string]float64) (bool, error) {
 	// Extract the sink value for the aggregation method used in the threshold
 	// expression. Considering we already validated thresholds before starting
 	// the execution, we assume that a missing sink entry means that no samples
 	// are available yet, and that it's safe to ignore this run.
 	lhs, ok := sinks[t.parsed.SinkKey()]
-	if !ok ***REMOVED***
+	if !ok {
 		return true, nil
-	***REMOVED***
+	}
 
 	// Apply the threshold expression operator to the left and
 	// right hand side values
 	var passes bool
-	switch t.parsed.Operator ***REMOVED***
+	switch t.parsed.Operator {
 	case ">":
 		passes = lhs > t.parsed.Value
 	case ">=":
@@ -73,101 +73,101 @@ func (t *Threshold) runNoTaint(sinks map[string]float64) (bool, error) ***REMOVE
 			t.Source,
 			t.parsed.Operator,
 		)
-	***REMOVED***
+	}
 
 	// Perform the actual threshold verification
 	return passes, nil
-***REMOVED***
+}
 
-func (t *Threshold) run(sinks map[string]float64) (bool, error) ***REMOVED***
+func (t *Threshold) run(sinks map[string]float64) (bool, error) {
 	passes, err := t.runNoTaint(sinks)
 	t.LastFailed = !passes
 	return passes, err
-***REMOVED***
+}
 
-type thresholdConfig struct ***REMOVED***
+type thresholdConfig struct {
 	Threshold        string             `json:"threshold"`
 	AbortOnFail      bool               `json:"abortOnFail"`
 	AbortGracePeriod types.NullDuration `json:"delayAbortEval"`
-***REMOVED***
+}
 
 // used internally for JSON marshalling
 type rawThresholdConfig thresholdConfig
 
-func (tc *thresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
+func (tc *thresholdConfig) UnmarshalJSON(data []byte) error {
 	// shortcircuit unmarshalling for simple string format
-	if err := json.Unmarshal(data, &tc.Threshold); err == nil ***REMOVED***
+	if err := json.Unmarshal(data, &tc.Threshold); err == nil {
 		return nil
-	***REMOVED***
+	}
 
 	rawConfig := (*rawThresholdConfig)(tc)
 	return json.Unmarshal(data, rawConfig)
-***REMOVED***
+}
 
-func (tc thresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
-	var data interface***REMOVED******REMOVED*** = tc.Threshold
-	if tc.AbortOnFail ***REMOVED***
+func (tc thresholdConfig) MarshalJSON() ([]byte, error) {
+	var data interface{} = tc.Threshold
+	if tc.AbortOnFail {
 		data = rawThresholdConfig(tc)
-	***REMOVED***
+	}
 
 	return MarshalJSONWithoutHTMLEscape(data)
-***REMOVED***
+}
 
 // Thresholds is the combination of all Thresholds for a given metric
-type Thresholds struct ***REMOVED***
+type Thresholds struct {
 	Thresholds []*Threshold
 	Abort      bool
 	sinked     map[string]float64
-***REMOVED***
+}
 
 // NewThresholds returns Thresholds objects representing the provided source strings
-func NewThresholds(sources []string) Thresholds ***REMOVED***
+func NewThresholds(sources []string) Thresholds {
 	tcs := make([]thresholdConfig, len(sources))
-	for i, source := range sources ***REMOVED***
+	for i, source := range sources {
 		tcs[i].Threshold = source
-	***REMOVED***
+	}
 
 	return newThresholdsWithConfig(tcs)
-***REMOVED***
+}
 
-func newThresholdsWithConfig(configs []thresholdConfig) Thresholds ***REMOVED***
+func newThresholdsWithConfig(configs []thresholdConfig) Thresholds {
 	thresholds := make([]*Threshold, len(configs))
 	sinked := make(map[string]float64)
 
-	for i, config := range configs ***REMOVED***
+	for i, config := range configs {
 		t := newThreshold(config.Threshold, config.AbortOnFail, config.AbortGracePeriod)
 		thresholds[i] = t
-	***REMOVED***
+	}
 
-	return Thresholds***REMOVED***thresholds, false, sinked***REMOVED***
-***REMOVED***
+	return Thresholds{thresholds, false, sinked}
+}
 
-func (ts *Thresholds) runAll(timeSpentInTest time.Duration) (bool, error) ***REMOVED***
+func (ts *Thresholds) runAll(timeSpentInTest time.Duration) (bool, error) {
 	succeeded := true
-	for i, threshold := range ts.Thresholds ***REMOVED***
+	for i, threshold := range ts.Thresholds {
 		b, err := threshold.run(ts.sinked)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return false, fmt.Errorf("threshold %d run error: %w", i, err)
-		***REMOVED***
+		}
 
-		if !b ***REMOVED***
+		if !b {
 			succeeded = false
 
-			if ts.Abort || !threshold.AbortOnFail ***REMOVED***
+			if ts.Abort || !threshold.AbortOnFail {
 				continue
-			***REMOVED***
+			}
 
 			ts.Abort = !threshold.AbortGracePeriod.Valid ||
 				threshold.AbortGracePeriod.Duration < types.Duration(timeSpentInTest)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return succeeded, nil
-***REMOVED***
+}
 
 // Run processes all the thresholds with the provided Sink at the provided time and returns if any
 // of them fails
-func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***REMOVED***
+func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) {
 	// Initialize the sinks store
 	ts.sinked = make(map[string]float64)
 
@@ -178,7 +178,7 @@ func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***RE
 	// we instead implement the behavior directly here.
 	//
 	// For more details, see https://github.com/grafana/k6/issues/2320
-	switch sinkImpl := sink.(type) ***REMOVED***
+	switch sinkImpl := sink.(type) {
 	case *CounterSink:
 		ts.sinked["count"] = sinkImpl.Value
 		ts.sinked["rate"] = sinkImpl.Value / (float64(duration) / float64(time.Second))
@@ -192,45 +192,45 @@ func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***RE
 
 		// Parse the percentile thresholds and insert them in
 		// the sinks mapping.
-		for _, threshold := range ts.Thresholds ***REMOVED***
-			if threshold.parsed.AggregationMethod != tokenPercentile ***REMOVED***
+		for _, threshold := range ts.Thresholds {
+			if threshold.parsed.AggregationMethod != tokenPercentile {
 				continue
-			***REMOVED***
+			}
 
 			key := fmt.Sprintf("p(%g)", threshold.parsed.AggregationValue.Float64)
 			ts.sinked[key] = sinkImpl.P(threshold.parsed.AggregationValue.Float64 / 100)
-		***REMOVED***
+		}
 	case *RateSink:
 		// We want to avoid division by zero, which
 		// would lead to [#2520](https://github.com/grafana/k6/issues/2520)
-		if sinkImpl.Total > 0 ***REMOVED***
+		if sinkImpl.Total > 0 {
 			ts.sinked["rate"] = float64(sinkImpl.Trues) / float64(sinkImpl.Total)
-		***REMOVED***
+		}
 	case DummySink:
-		for k, v := range sinkImpl ***REMOVED***
+		for k, v := range sinkImpl {
 			ts.sinked[k] = v
-		***REMOVED***
+		}
 	default:
 		return false, fmt.Errorf("unable to run Thresholds; reason: unknown sink type")
-	***REMOVED***
+	}
 
 	return ts.runAll(duration)
-***REMOVED***
+}
 
 // Parse parses the Thresholds and fills each Threshold.parsed field with the result.
 // It effectively asserts they are syntaxically correct.
-func (ts *Thresholds) Parse() error ***REMOVED***
-	for _, t := range ts.Thresholds ***REMOVED***
+func (ts *Thresholds) Parse() error {
+	for _, t := range ts.Thresholds {
 		parsed, err := parseThresholdExpression(t.Source)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return err
-		***REMOVED***
+		}
 
 		t.parsed = parsed
-	***REMOVED***
+	}
 
 	return nil
-***REMOVED***
+}
 
 // ErrInvalidThreshold indicates a threshold is not valid
 var ErrInvalidThreshold = errors.New("invalid threshold")
@@ -241,39 +241,39 @@ var ErrInvalidThreshold = errors.New("invalid threshold")
 // provided metric. It returns an error otherwise.
 // Note that this function expects the passed in thresholds to have been parsed already, and
 // have their Parsed (ThresholdExpression) field already filled.
-func (ts *Thresholds) Validate(metricName string, r *Registry) error ***REMOVED***
+func (ts *Thresholds) Validate(metricName string, r *Registry) error {
 	parsedMetricName, _, err := ParseMetricName(metricName)
-	if err != nil ***REMOVED***
+	if err != nil {
 		parseErr := fmt.Errorf("unable to validate threshold expressions; reason: %w", err)
 		return errext.WithExitCodeIfNone(parseErr, exitcodes.InvalidConfig)
-	***REMOVED***
+	}
 
 	// Obtain the metric the thresholds apply to from the registry.
 	// if the metric doesn't exist, then we return an error indicating
 	// the InvalidConfig exitcode should be used.
 	metric := r.Get(parsedMetricName)
-	if metric == nil ***REMOVED***
+	if metric == nil {
 		err := fmt.Errorf("%w defined on %s; reason: no metric name %q found", ErrInvalidThreshold, metricName, metricName)
 		return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-	***REMOVED***
+	}
 
-	for _, threshold := range ts.Thresholds ***REMOVED***
+	for _, threshold := range ts.Thresholds {
 		// Return a digestable error if we attempt to validate a threshold
 		// that hasn't been parsed yet.
-		if threshold.parsed == nil ***REMOVED***
+		if threshold.parsed == nil {
 			thresholdExpression, err := parseThresholdExpression(threshold.Source)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return fmt.Errorf("unable to validate threshold %q on metric %s; reason: "+
 					"parsing threshold failed %w", threshold.Source, metricName, err)
-			***REMOVED***
+			}
 
 			threshold.parsed = thresholdExpression
-		***REMOVED***
+		}
 
 		// If the threshold's expression aggregation method is not
 		// supported for the metric we validate against, then we return
 		// an error indicating the InvalidConfig exitcode should be used.
-		if !metric.Type.supportsAggregationMethod(threshold.parsed.AggregationMethod) ***REMOVED***
+		if !metric.Type.supportsAggregationMethod(threshold.parsed.AggregationMethod) {
 			err := fmt.Errorf(
 				"%w %q applied on metric %s; reason: "+
 					"unsupported aggregation method %s on metric of type %s. "+
@@ -283,53 +283,53 @@ func (ts *Thresholds) Validate(metricName string, r *Registry) error ***REMOVED*
 				strings.Join(metric.Type.supportedAggregationMethods(), ", "),
 			)
 			return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return nil
-***REMOVED***
+}
 
 // UnmarshalJSON is implementation of json.Unmarshaler
-func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
+func (ts *Thresholds) UnmarshalJSON(data []byte) error {
 	var configs []thresholdConfig
-	if err := json.Unmarshal(data, &configs); err != nil ***REMOVED***
+	if err := json.Unmarshal(data, &configs); err != nil {
 		return err
-	***REMOVED***
+	}
 
 	*ts = newThresholdsWithConfig(configs)
 
 	return nil
-***REMOVED***
+}
 
 // MarshalJSON is implementation of json.Marshaler
-func (ts Thresholds) MarshalJSON() ([]byte, error) ***REMOVED***
+func (ts Thresholds) MarshalJSON() ([]byte, error) {
 	configs := make([]thresholdConfig, len(ts.Thresholds))
-	for i, t := range ts.Thresholds ***REMOVED***
+	for i, t := range ts.Thresholds {
 		configs[i].Threshold = t.Source
 		configs[i].AbortOnFail = t.AbortOnFail
 		configs[i].AbortGracePeriod = t.AbortGracePeriod
-	***REMOVED***
+	}
 
 	return MarshalJSONWithoutHTMLEscape(configs)
-***REMOVED***
+}
 
 // MarshalJSONWithoutHTMLEscape marshals t to JSON without escaping characters
 // for safe use in HTML.
-func MarshalJSONWithoutHTMLEscape(t interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
-	buffer := &bytes.Buffer***REMOVED******REMOVED***
+func MarshalJSONWithoutHTMLEscape(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
 	encoder.SetEscapeHTML(false)
 	err := encoder.Encode(t)
 	bytes := buffer.Bytes()
-	if err == nil && len(bytes) > 0 ***REMOVED***
+	if err == nil && len(bytes) > 0 {
 		// Remove the newline appended by Encode() :-/
 		// See https://github.com/golang/go/issues/37083
 		bytes = bytes[:len(bytes)-1]
-	***REMOVED***
+	}
 	return bytes, err
-***REMOVED***
+}
 
 var (
-	_ json.Unmarshaler = &Thresholds***REMOVED******REMOVED***
-	_ json.Marshaler   = &Thresholds***REMOVED******REMOVED***
+	_ json.Unmarshaler = &Thresholds{}
+	_ json.Marshaler   = &Thresholds{}
 )

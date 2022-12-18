@@ -15,102 +15,102 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/testutils"
 )
 
-func TestTransform(t *testing.T) ***REMOVED***
+func TestTransform(t *testing.T) {
 	t.Parallel()
-	t.Run("blank", func(t *testing.T) ***REMOVED***
+	t.Run("blank", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		src, _, err := c.Transform("", "test.js", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, `"use strict";`, src)
-	***REMOVED***)
-	t.Run("double-arrow", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("double-arrow", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		src, _, err := c.Transform("()=> true", "test.js", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, `"use strict";() => true;`, src)
-	***REMOVED***)
-	t.Run("longer", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("longer", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		src, _, err := c.Transform(strings.Join([]string***REMOVED***
-			`function add(a, b) ***REMOVED***`,
+		src, _, err := c.Transform(strings.Join([]string{
+			`function add(a, b) {`,
 			`    return a + b;`,
-			`***REMOVED***;`,
+			`};`,
 			``,
 			`let res = add(1, 2);`,
-		***REMOVED***, "\n"), "test.js", nil)
+		}, "\n"), "test.js", nil)
 		assert.NoError(t, err)
-		assert.Equal(t, strings.Join([]string***REMOVED***
-			`"use strict";function add(a, b) ***REMOVED***`,
+		assert.Equal(t, strings.Join([]string{
+			`"use strict";function add(a, b) {`,
 			`    return a + b;`,
-			`***REMOVED***;`,
+			`};`,
 			``,
 			`let res = add(1, 2);`,
-		***REMOVED***, "\n"), src)
-	***REMOVED***)
+		}, "\n"), src)
+	})
 
-	t.Run("double-arrow with sourceMap", func(t *testing.T) ***REMOVED***
+	t.Run("double-arrow with sourceMap", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		c.Options.SourceMapLoader = func(string) ([]byte, error) ***REMOVED*** return nil, errors.New("shouldn't be called") ***REMOVED***
+		c.Options.SourceMapLoader = func(string) ([]byte, error) { return nil, errors.New("shouldn't be called") }
 		src, _, err := c.Transform("()=> true", "test.js", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, `"use strict";
 
 () => true;
 //# sourceMappingURL=k6://internal-should-not-leak/file.map`, src)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestCompile(t *testing.T) ***REMOVED***
+func TestCompile(t *testing.T) {
 	t.Parallel()
-	t.Run("ES5", func(t *testing.T) ***REMOVED***
+	t.Run("ES5", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		src := `1+(function() ***REMOVED*** return 2; ***REMOVED***)()`
+		src := `1+(function() { return 2; })()`
 		pgm, code, err := c.Compile(src, "script.js", true)
 		require.NoError(t, err)
 		assert.Equal(t, src, code)
 		v, err := goja.New().RunProgram(pgm)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			assert.Equal(t, int64(3), v.Export())
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 
-	t.Run("ES5 Wrap", func(t *testing.T) ***REMOVED***
+	t.Run("ES5 Wrap", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		src := `exports.d=1+(function() ***REMOVED*** return 2; ***REMOVED***)()`
+		src := `exports.d=1+(function() { return 2; })()`
 		pgm, code, err := c.Compile(src, "script.js", false)
 		require.NoError(t, err)
-		assert.Equal(t, "(function(module, exports)***REMOVED***\nexports.d=1+(function() ***REMOVED*** return 2; ***REMOVED***)()\n***REMOVED***)\n", code)
+		assert.Equal(t, "(function(module, exports){\nexports.d=1+(function() { return 2; })()\n})\n", code)
 		rt := goja.New()
 		v, err := rt.RunProgram(pgm)
-		if assert.NoError(t, err) ***REMOVED***
+		if assert.NoError(t, err) {
 			fn, ok := goja.AssertFunction(v)
-			if assert.True(t, ok, "not a function") ***REMOVED***
+			if assert.True(t, ok, "not a function") {
 				exp := make(map[string]goja.Value)
 				_, err := fn(goja.Undefined(), goja.Undefined(), rt.ToValue(exp))
-				if assert.NoError(t, err) ***REMOVED***
+				if assert.NoError(t, err) {
 					assert.Equal(t, int64(3), exp["d"].Export())
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***)
+				}
+			}
+		}
+	})
 
-	t.Run("ES5 Invalid", func(t *testing.T) ***REMOVED***
+	t.Run("ES5 Invalid", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
-		src := `1+(function() ***REMOVED*** return 2; )()`
+		src := `1+(function() { return 2; )()`
 		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		_, _, err := c.Compile(src, "script.js", false)
-		assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+		assert.IsType(t, &goja.Exception{}, err)
 		assert.Contains(t, err.Error(), `SyntaxError: script.js: Unexpected token (1:26)
-> 1 | 1+(function() ***REMOVED*** return 2; )()`)
-	***REMOVED***)
-	t.Run("ES6", func(t *testing.T) ***REMOVED***
+> 1 | 1+(function() { return 2; )()`)
+	})
+	t.Run("ES6", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
@@ -120,31 +120,31 @@ func TestCompile(t *testing.T) ***REMOVED***
 			code)
 		rt := goja.New()
 		var requireCalled bool
-		require.NoError(t, rt.Set("require", func(s string) ***REMOVED***
+		require.NoError(t, rt.Set("require", func(s string) {
 			assert.Equal(t, "something", s)
 			requireCalled = true
-		***REMOVED***))
+		}))
 		_, err = rt.RunProgram(pgm)
 		require.NoError(t, err)
 		require.True(t, requireCalled)
-	***REMOVED***)
+	})
 
-	t.Run("Wrap", func(t *testing.T) ***REMOVED***
+	t.Run("Wrap", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		pgm, code, err := c.Compile(`import "something";`, "script.js", false)
 		require.NoError(t, err)
-		assert.Equal(t, `(function(module, exports)***REMOVED***
+		assert.Equal(t, `(function(module, exports){
 "use strict";require("something");
-***REMOVED***)
+})
 `, code)
 		var requireCalled bool
 		rt := goja.New()
-		require.NoError(t, rt.Set("require", func(s string) ***REMOVED***
+		require.NoError(t, rt.Set("require", func(s string) {
 			assert.Equal(t, "something", s)
 			requireCalled = true
-		***REMOVED***))
+		}))
 		v, err := rt.RunProgram(pgm)
 		require.NoError(t, err)
 		fn, ok := goja.AssertFunction(v)
@@ -152,38 +152,38 @@ func TestCompile(t *testing.T) ***REMOVED***
 		_, err = fn(goja.Undefined())
 		assert.NoError(t, err)
 		require.True(t, requireCalled)
-	***REMOVED***)
+	})
 
-	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+	t.Run("Invalid", func(t *testing.T) {
 		t.Parallel()
 		c := New(testutils.NewLogger(t))
 		c.Options.CompatibilityMode = libWorker.CompatibilityModeExtended
 		_, _, err := c.Compile(`1+(=>2)()`, "script.js", true)
-		assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+		assert.IsType(t, &goja.Exception{}, err)
 		assert.Contains(t, err.Error(), `SyntaxError: script.js: Unexpected token (1:3)
 > 1 | 1+(=>2)()`)
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestCorruptSourceMap(t *testing.T) ***REMOVED***
+func TestCorruptSourceMap(t *testing.T) {
 	t.Parallel()
-	corruptSourceMap := []byte(`***REMOVED***"mappings": 12***REMOVED***`) // 12 is a number not a string
+	corruptSourceMap := []byte(`{"mappings": 12}`) // 12 is a number not a string
 
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 	logger.Out = ioutil.Discard
-	hook := testutils.SimpleLogrusHook***REMOVED***
-		HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.WarnLevel***REMOVED***,
-	***REMOVED***
+	hook := testutils.SimpleLogrusHook{
+		HookedLevels: []logrus.Level{logrus.InfoLevel, logrus.WarnLevel},
+	}
 	logger.AddHook(&hook)
 
 	compiler := New(logger)
-	compiler.Options = Options***REMOVED***
+	compiler.Options = Options{
 		Strict: true,
-		SourceMapLoader: func(string) ([]byte, error) ***REMOVED***
+		SourceMapLoader: func(string) ([]byte, error) {
 			return corruptSourceMap, nil
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	_, _, err := compiler.Compile("var s = 5;\n//# sourceMappingURL=somefile", "somefile", false)
 	require.NoError(t, err)
 	entries := hook.Drain()
@@ -193,29 +193,29 @@ func TestCorruptSourceMap(t *testing.T) ***REMOVED***
 
 	require.Contains(t, msg, `Couldn't load source map for somefile`)
 	require.Contains(t, msg, `json: cannot unmarshal number into Go struct field v3.mappings of type string`)
-***REMOVED***
+}
 
-func TestCorruptSourceMapOnlyForBabel(t *testing.T) ***REMOVED***
+func TestCorruptSourceMapOnlyForBabel(t *testing.T) {
 	t.Parallel()
 	// this a valid source map for the go implementation but babel doesn't like it
-	corruptSourceMap := []byte(`***REMOVED***"mappings": ";"***REMOVED***`)
+	corruptSourceMap := []byte(`{"mappings": ";"}`)
 
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 	logger.Out = ioutil.Discard
-	hook := testutils.SimpleLogrusHook***REMOVED***
-		HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.WarnLevel***REMOVED***,
-	***REMOVED***
+	hook := testutils.SimpleLogrusHook{
+		HookedLevels: []logrus.Level{logrus.InfoLevel, logrus.WarnLevel},
+	}
 	logger.AddHook(&hook)
 
 	compiler := New(logger)
-	compiler.Options = Options***REMOVED***
+	compiler.Options = Options{
 		CompatibilityMode: libWorker.CompatibilityModeExtended,
 		Strict:            true,
-		SourceMapLoader: func(string) ([]byte, error) ***REMOVED***
+		SourceMapLoader: func(string) ([]byte, error) {
 			return corruptSourceMap, nil
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	_, _, err := compiler.Compile("import 'something';\n//# sourceMappingURL=somefile", "somefile", false)
 	require.NoError(t, err)
 	entries := hook.Drain()
@@ -225,30 +225,30 @@ func TestCorruptSourceMapOnlyForBabel(t *testing.T) ***REMOVED***
 
 	require.Contains(t, msg, `needs to be transpiled by Babel, but its source map will not be accepted by Babel`)
 	require.Contains(t, msg, `source map missing required 'version' field`)
-***REMOVED***
+}
 
-func TestMinimalSourceMap(t *testing.T) ***REMOVED***
+func TestMinimalSourceMap(t *testing.T) {
 	t.Parallel()
 	// this is the minimal sourcemap valid for both go and babel implementations
-	corruptSourceMap := []byte(`***REMOVED***"version":3,"mappings":";","sources":[]***REMOVED***`)
+	corruptSourceMap := []byte(`{"version":3,"mappings":";","sources":[]}`)
 
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 	logger.Out = ioutil.Discard
-	hook := testutils.SimpleLogrusHook***REMOVED***
-		HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.WarnLevel***REMOVED***,
-	***REMOVED***
+	hook := testutils.SimpleLogrusHook{
+		HookedLevels: []logrus.Level{logrus.InfoLevel, logrus.WarnLevel},
+	}
 	logger.AddHook(&hook)
 
 	compiler := New(logger)
-	compiler.Options = Options***REMOVED***
+	compiler.Options = Options{
 		CompatibilityMode: libWorker.CompatibilityModeExtended,
 		Strict:            true,
-		SourceMapLoader: func(string) ([]byte, error) ***REMOVED***
+		SourceMapLoader: func(string) ([]byte, error) {
 			return corruptSourceMap, nil
-		***REMOVED***,
-	***REMOVED***
-	_, _, err := compiler.Compile("class s ***REMOVED******REMOVED***;\n//# sourceMappingURL=somefile", "somefile", false)
+		},
+	}
+	_, _, err := compiler.Compile("class s {};\n//# sourceMappingURL=somefile", "somefile", false)
 	require.NoError(t, err)
 	require.Empty(t, hook.Drain())
-***REMOVED***
+}

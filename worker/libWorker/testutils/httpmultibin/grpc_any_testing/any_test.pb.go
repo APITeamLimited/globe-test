@@ -26,213 +26,213 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SumRequest struct ***REMOVED***
+type SumRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	Data *anypb.Any `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-***REMOVED***
+}
 
-func (x *SumRequest) Reset() ***REMOVED***
-	*x = SumRequest***REMOVED******REMOVED***
-	if protoimpl.UnsafeEnabled ***REMOVED***
+func (x *SumRequest) Reset() {
+	*x = SumRequest{}
+	if protoimpl.UnsafeEnabled {
 		mi := &file_any_test_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (x *SumRequest) String() string ***REMOVED***
+func (x *SumRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
-***REMOVED***
+}
 
-func (*SumRequest) ProtoMessage() ***REMOVED******REMOVED***
+func (*SumRequest) ProtoMessage() {}
 
-func (x *SumRequest) ProtoReflect() protoreflect.Message ***REMOVED***
+func (x *SumRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_any_test_proto_msgTypes[0]
-	if protoimpl.UnsafeEnabled && x != nil ***REMOVED***
+	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil ***REMOVED***
+		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
-		***REMOVED***
+		}
 		return ms
-	***REMOVED***
+	}
 	return mi.MessageOf(x)
-***REMOVED***
+}
 
 // Deprecated: Use SumRequest.ProtoReflect.Descriptor instead.
-func (*SumRequest) Descriptor() ([]byte, []int) ***REMOVED***
-	return file_any_test_proto_rawDescGZIP(), []int***REMOVED***0***REMOVED***
-***REMOVED***
+func (*SumRequest) Descriptor() ([]byte, []int) {
+	return file_any_test_proto_rawDescGZIP(), []int{0}
+}
 
-func (x *SumRequest) GetData() *anypb.Any ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumRequest) GetData() *anypb.Any {
+	if x != nil {
 		return x.Data
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}
 
-type SumRequestData struct ***REMOVED***
+type SumRequestData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	A int64 `protobuf:"varint,1,opt,name=a,proto3" json:"a,omitempty"`
 	B int64 `protobuf:"varint,2,opt,name=b,proto3" json:"b,omitempty"`
-***REMOVED***
+}
 
-func (x *SumRequestData) Reset() ***REMOVED***
-	*x = SumRequestData***REMOVED******REMOVED***
-	if protoimpl.UnsafeEnabled ***REMOVED***
+func (x *SumRequestData) Reset() {
+	*x = SumRequestData{}
+	if protoimpl.UnsafeEnabled {
 		mi := &file_any_test_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (x *SumRequestData) String() string ***REMOVED***
+func (x *SumRequestData) String() string {
 	return protoimpl.X.MessageStringOf(x)
-***REMOVED***
+}
 
-func (*SumRequestData) ProtoMessage() ***REMOVED******REMOVED***
+func (*SumRequestData) ProtoMessage() {}
 
-func (x *SumRequestData) ProtoReflect() protoreflect.Message ***REMOVED***
+func (x *SumRequestData) ProtoReflect() protoreflect.Message {
 	mi := &file_any_test_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil ***REMOVED***
+	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil ***REMOVED***
+		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
-		***REMOVED***
+		}
 		return ms
-	***REMOVED***
+	}
 	return mi.MessageOf(x)
-***REMOVED***
+}
 
 // Deprecated: Use SumRequestData.ProtoReflect.Descriptor instead.
-func (*SumRequestData) Descriptor() ([]byte, []int) ***REMOVED***
-	return file_any_test_proto_rawDescGZIP(), []int***REMOVED***1***REMOVED***
-***REMOVED***
+func (*SumRequestData) Descriptor() ([]byte, []int) {
+	return file_any_test_proto_rawDescGZIP(), []int{1}
+}
 
-func (x *SumRequestData) GetA() int64 ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumRequestData) GetA() int64 {
+	if x != nil {
 		return x.A
-	***REMOVED***
+	}
 	return 0
-***REMOVED***
+}
 
-func (x *SumRequestData) GetB() int64 ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumRequestData) GetB() int64 {
+	if x != nil {
 		return x.B
-	***REMOVED***
+	}
 	return 0
-***REMOVED***
+}
 
-type SumReply struct ***REMOVED***
+type SumReply struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	Data *anypb.Any `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-***REMOVED***
+}
 
-func (x *SumReply) Reset() ***REMOVED***
-	*x = SumReply***REMOVED******REMOVED***
-	if protoimpl.UnsafeEnabled ***REMOVED***
+func (x *SumReply) Reset() {
+	*x = SumReply{}
+	if protoimpl.UnsafeEnabled {
 		mi := &file_any_test_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (x *SumReply) String() string ***REMOVED***
+func (x *SumReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
-***REMOVED***
+}
 
-func (*SumReply) ProtoMessage() ***REMOVED******REMOVED***
+func (*SumReply) ProtoMessage() {}
 
-func (x *SumReply) ProtoReflect() protoreflect.Message ***REMOVED***
+func (x *SumReply) ProtoReflect() protoreflect.Message {
 	mi := &file_any_test_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil ***REMOVED***
+	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil ***REMOVED***
+		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
-		***REMOVED***
+		}
 		return ms
-	***REMOVED***
+	}
 	return mi.MessageOf(x)
-***REMOVED***
+}
 
 // Deprecated: Use SumReply.ProtoReflect.Descriptor instead.
-func (*SumReply) Descriptor() ([]byte, []int) ***REMOVED***
-	return file_any_test_proto_rawDescGZIP(), []int***REMOVED***2***REMOVED***
-***REMOVED***
+func (*SumReply) Descriptor() ([]byte, []int) {
+	return file_any_test_proto_rawDescGZIP(), []int{2}
+}
 
-func (x *SumReply) GetData() *anypb.Any ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumReply) GetData() *anypb.Any {
+	if x != nil {
 		return x.Data
-	***REMOVED***
+	}
 	return nil
-***REMOVED***
+}
 
-type SumReplyData struct ***REMOVED***
+type SumReplyData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	V   int64  `protobuf:"varint,1,opt,name=v,proto3" json:"v,omitempty"`
 	Err string `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
-***REMOVED***
+}
 
-func (x *SumReplyData) Reset() ***REMOVED***
-	*x = SumReplyData***REMOVED******REMOVED***
-	if protoimpl.UnsafeEnabled ***REMOVED***
+func (x *SumReplyData) Reset() {
+	*x = SumReplyData{}
+	if protoimpl.UnsafeEnabled {
 		mi := &file_any_test_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (x *SumReplyData) String() string ***REMOVED***
+func (x *SumReplyData) String() string {
 	return protoimpl.X.MessageStringOf(x)
-***REMOVED***
+}
 
-func (*SumReplyData) ProtoMessage() ***REMOVED******REMOVED***
+func (*SumReplyData) ProtoMessage() {}
 
-func (x *SumReplyData) ProtoReflect() protoreflect.Message ***REMOVED***
+func (x *SumReplyData) ProtoReflect() protoreflect.Message {
 	mi := &file_any_test_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil ***REMOVED***
+	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil ***REMOVED***
+		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
-		***REMOVED***
+		}
 		return ms
-	***REMOVED***
+	}
 	return mi.MessageOf(x)
-***REMOVED***
+}
 
 // Deprecated: Use SumReplyData.ProtoReflect.Descriptor instead.
-func (*SumReplyData) Descriptor() ([]byte, []int) ***REMOVED***
-	return file_any_test_proto_rawDescGZIP(), []int***REMOVED***3***REMOVED***
-***REMOVED***
+func (*SumReplyData) Descriptor() ([]byte, []int) {
+	return file_any_test_proto_rawDescGZIP(), []int{3}
+}
 
-func (x *SumReplyData) GetV() int64 ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumReplyData) GetV() int64 {
+	if x != nil {
 		return x.V
-	***REMOVED***
+	}
 	return 0
-***REMOVED***
+}
 
-func (x *SumReplyData) GetErr() string ***REMOVED***
-	if x != nil ***REMOVED***
+func (x *SumReplyData) GetErr() string {
+	if x != nil {
 		return x.Err
-	***REMOVED***
+	}
 	return ""
-***REMOVED***
+}
 
 var File_any_test_proto protoreflect.FileDescriptor
 
-var file_any_test_proto_rawDesc = []byte***REMOVED***
+var file_any_test_proto_rawDesc = []byte{
 	0x0a, 0x0e, 0x61, 0x6e, 0x79, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x12, 0x10, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x61, 0x6e, 0x79, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x69,
 	0x6e, 0x67, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
@@ -257,29 +257,29 @@ var file_any_test_proto_rawDesc = []byte***REMOVED***
 	0x69, 0x6e, 0x67, 0x2e, 0x53, 0x75, 0x6d, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x42, 0x14,
 	0x5a, 0x12, 0x2e, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x5f, 0x61, 0x6e, 0x79, 0x5f, 0x74, 0x65, 0x73,
 	0x74, 0x69, 0x6e, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
-***REMOVED***
+}
 
 var (
 	file_any_test_proto_rawDescOnce sync.Once
 	file_any_test_proto_rawDescData = file_any_test_proto_rawDesc
 )
 
-func file_any_test_proto_rawDescGZIP() []byte ***REMOVED***
-	file_any_test_proto_rawDescOnce.Do(func() ***REMOVED***
+func file_any_test_proto_rawDescGZIP() []byte {
+	file_any_test_proto_rawDescOnce.Do(func() {
 		file_any_test_proto_rawDescData = protoimpl.X.CompressGZIP(file_any_test_proto_rawDescData)
-	***REMOVED***)
+	})
 	return file_any_test_proto_rawDescData
-***REMOVED***
+}
 
 var file_any_test_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_any_test_proto_goTypes = []interface***REMOVED******REMOVED******REMOVED***
+var file_any_test_proto_goTypes = []interface{}{
 	(*SumRequest)(nil),     // 0: grpc.any.testing.SumRequest
 	(*SumRequestData)(nil), // 1: grpc.any.testing.SumRequestData
 	(*SumReply)(nil),       // 2: grpc.any.testing.SumReply
 	(*SumReplyData)(nil),   // 3: grpc.any.testing.SumReplyData
 	(*anypb.Any)(nil),      // 4: google.protobuf.Any
-***REMOVED***
-var file_any_test_proto_depIdxs = []int32***REMOVED***
+}
+var file_any_test_proto_depIdxs = []int32{
 	4, // 0: grpc.any.testing.SumRequest.data:type_name -> google.protobuf.Any
 	4, // 1: grpc.any.testing.SumReply.data:type_name -> google.protobuf.Any
 	0, // 2: grpc.any.testing.AnyTestService.Sum:input_type -> grpc.any.testing.SumRequest
@@ -289,16 +289,16 @@ var file_any_test_proto_depIdxs = []int32***REMOVED***
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
-***REMOVED***
+}
 
-func init() ***REMOVED*** file_any_test_proto_init() ***REMOVED***
-func file_any_test_proto_init() ***REMOVED***
-	if File_any_test_proto != nil ***REMOVED***
+func init() { file_any_test_proto_init() }
+func file_any_test_proto_init() {
+	if File_any_test_proto != nil {
 		return
-	***REMOVED***
-	if !protoimpl.UnsafeEnabled ***REMOVED***
-		file_any_test_proto_msgTypes[0].Exporter = func(v interface***REMOVED******REMOVED***, i int) interface***REMOVED******REMOVED*** ***REMOVED***
-			switch v := v.(*SumRequest); i ***REMOVED***
+	}
+	if !protoimpl.UnsafeEnabled {
+		file_any_test_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SumRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -307,10 +307,10 @@ func file_any_test_proto_init() ***REMOVED***
 				return &v.unknownFields
 			default:
 				return nil
-			***REMOVED***
-		***REMOVED***
-		file_any_test_proto_msgTypes[1].Exporter = func(v interface***REMOVED******REMOVED***, i int) interface***REMOVED******REMOVED*** ***REMOVED***
-			switch v := v.(*SumRequestData); i ***REMOVED***
+			}
+		}
+		file_any_test_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SumRequestData); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -319,10 +319,10 @@ func file_any_test_proto_init() ***REMOVED***
 				return &v.unknownFields
 			default:
 				return nil
-			***REMOVED***
-		***REMOVED***
-		file_any_test_proto_msgTypes[2].Exporter = func(v interface***REMOVED******REMOVED***, i int) interface***REMOVED******REMOVED*** ***REMOVED***
-			switch v := v.(*SumReply); i ***REMOVED***
+			}
+		}
+		file_any_test_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SumReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -331,10 +331,10 @@ func file_any_test_proto_init() ***REMOVED***
 				return &v.unknownFields
 			default:
 				return nil
-			***REMOVED***
-		***REMOVED***
-		file_any_test_proto_msgTypes[3].Exporter = func(v interface***REMOVED******REMOVED***, i int) interface***REMOVED******REMOVED*** ***REMOVED***
-			switch v := v.(*SumReplyData); i ***REMOVED***
+			}
+		}
+		file_any_test_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SumReplyData); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -343,28 +343,28 @@ func file_any_test_proto_init() ***REMOVED***
 				return &v.unknownFields
 			default:
 				return nil
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	type x struct***REMOVED******REMOVED***
-	out := protoimpl.TypeBuilder***REMOVED***
-		File: protoimpl.DescBuilder***REMOVED***
-			GoPackagePath: reflect.TypeOf(x***REMOVED******REMOVED***).PkgPath(),
+			}
+		}
+	}
+	type x struct{}
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_any_test_proto_rawDesc,
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
-		***REMOVED***,
+		},
 		GoTypes:           file_any_test_proto_goTypes,
 		DependencyIndexes: file_any_test_proto_depIdxs,
 		MessageInfos:      file_any_test_proto_msgTypes,
-	***REMOVED***.Build()
+	}.Build()
 	File_any_test_proto = out.File
 	file_any_test_proto_rawDesc = nil
 	file_any_test_proto_goTypes = nil
 	file_any_test_proto_depIdxs = nil
-***REMOVED***
+}
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
@@ -377,71 +377,71 @@ const _ = grpc.SupportPackageIsVersion6
 // AnyTestServiceClient is the client API for AnyTestService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type AnyTestServiceClient interface ***REMOVED***
+type AnyTestServiceClient interface {
 	Sum(ctx context.Context, in *SumRequest, opts ...grpc.CallOption) (*SumReply, error)
-***REMOVED***
+}
 
-type anyTestServiceClient struct ***REMOVED***
+type anyTestServiceClient struct {
 	cc grpc.ClientConnInterface
-***REMOVED***
+}
 
-func NewAnyTestServiceClient(cc grpc.ClientConnInterface) AnyTestServiceClient ***REMOVED***
-	return &anyTestServiceClient***REMOVED***cc***REMOVED***
-***REMOVED***
+func NewAnyTestServiceClient(cc grpc.ClientConnInterface) AnyTestServiceClient {
+	return &anyTestServiceClient{cc}
+}
 
-func (c *anyTestServiceClient) Sum(ctx context.Context, in *SumRequest, opts ...grpc.CallOption) (*SumReply, error) ***REMOVED***
+func (c *anyTestServiceClient) Sum(ctx context.Context, in *SumRequest, opts ...grpc.CallOption) (*SumReply, error) {
 	out := new(SumReply)
 	err := c.cc.Invoke(ctx, "/grpc.any.testing.AnyTestService/Sum", in, out, opts...)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	return out, nil
-***REMOVED***
+}
 
 // AnyTestServiceServer is the server API for AnyTestService service.
-type AnyTestServiceServer interface ***REMOVED***
+type AnyTestServiceServer interface {
 	Sum(context.Context, *SumRequest) (*SumReply, error)
-***REMOVED***
+}
 
 // UnimplementedAnyTestServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedAnyTestServiceServer struct ***REMOVED***
-***REMOVED***
+type UnimplementedAnyTestServiceServer struct {
+}
 
-func (*UnimplementedAnyTestServiceServer) Sum(context.Context, *SumRequest) (*SumReply, error) ***REMOVED***
+func (*UnimplementedAnyTestServiceServer) Sum(context.Context, *SumRequest) (*SumReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sum not implemented")
-***REMOVED***
+}
 
-func RegisterAnyTestServiceServer(s *grpc.Server, srv AnyTestServiceServer) ***REMOVED***
+func RegisterAnyTestServiceServer(s *grpc.Server, srv AnyTestServiceServer) {
 	s.RegisterService(&_AnyTestService_serviceDesc, srv)
-***REMOVED***
+}
 
-func _AnyTestService_Sum_Handler(srv interface***REMOVED******REMOVED***, ctx context.Context, dec func(interface***REMOVED******REMOVED***) error, interceptor grpc.UnaryServerInterceptor) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+func _AnyTestService_Sum_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SumRequest)
-	if err := dec(in); err != nil ***REMOVED***
+	if err := dec(in); err != nil {
 		return nil, err
-	***REMOVED***
-	if interceptor == nil ***REMOVED***
+	}
+	if interceptor == nil {
 		return srv.(AnyTestServiceServer).Sum(ctx, in)
-	***REMOVED***
-	info := &grpc.UnaryServerInfo***REMOVED***
+	}
+	info := &grpc.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/grpc.any.testing.AnyTestService/Sum",
-	***REMOVED***
-	handler := func(ctx context.Context, req interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AnyTestServiceServer).Sum(ctx, req.(*SumRequest))
-	***REMOVED***
+	}
 	return interceptor(ctx, in, info, handler)
-***REMOVED***
+}
 
-var _AnyTestService_serviceDesc = grpc.ServiceDesc***REMOVED***
+var _AnyTestService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "grpc.any.testing.AnyTestService",
 	HandlerType: (*AnyTestServiceServer)(nil),
-	Methods: []grpc.MethodDesc***REMOVED***
-		***REMOVED***
+	Methods: []grpc.MethodDesc{
+		{
 			MethodName: "Sum",
 			Handler:    _AnyTestService_Sum_Handler,
-		***REMOVED***,
-	***REMOVED***,
-	Streams:  []grpc.StreamDesc***REMOVED******REMOVED***,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "any_test.proto",
-***REMOVED***
+}

@@ -15,7 +15,7 @@ import (
 
 // Dialer wraps net.Dialer and provides k6 specific functionality -
 // tracing, blacklists and DNS cache and aliases.
-type Dialer struct ***REMOVED***
+type Dialer struct {
 	net.Dialer
 
 	Resolver         Resolver
@@ -25,49 +25,49 @@ type Dialer struct ***REMOVED***
 
 	BytesRead    int64
 	BytesWritten int64
-***REMOVED***
+}
 
 // NewDialer constructs a new Dialer with the given DNS resolver.
-func NewDialer(dialer net.Dialer, resolver Resolver) *Dialer ***REMOVED***
-	return &Dialer***REMOVED***
+func NewDialer(dialer net.Dialer, resolver Resolver) *Dialer {
+	return &Dialer{
 		Dialer:   dialer,
 		Resolver: resolver,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // BlackListedIPError is an error that is returned when a given IP is blacklisted
-type BlackListedIPError struct ***REMOVED***
+type BlackListedIPError struct {
 	ip  net.IP
 	net *libWorker.IPNet
-***REMOVED***
+}
 
-func (b BlackListedIPError) Error() string ***REMOVED***
+func (b BlackListedIPError) Error() string {
 	return fmt.Sprintf("IP (%s) is in a blacklisted range (%s)", b.ip, b.net)
-***REMOVED***
+}
 
 // BlockedHostError is returned when a given hostname is blocked
-type BlockedHostError struct ***REMOVED***
+type BlockedHostError struct {
 	hostname string
 	match    string
-***REMOVED***
+}
 
-func (b BlockedHostError) Error() string ***REMOVED***
+func (b BlockedHostError) Error() string {
 	return fmt.Sprintf("hostname (%s) is in a blocked pattern (%s)", b.hostname, b.match)
-***REMOVED***
+}
 
 // DialContext wraps the net.Dialer.DialContext and handles the k6 specifics
-func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
+func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) {
 	dialAddr, err := d.getDialAddr(addr)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	conn, err := d.Dialer.DialContext(ctx, proto, dialAddr)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
-	conn = &Conn***REMOVED***conn, &d.BytesRead, &d.BytesWritten***REMOVED***
+	}
+	conn = &Conn{conn, &d.BytesRead, &d.BytesWritten}
 	return conn, err
-***REMOVED***
+}
 
 // GetTrail creates a new NetTrail instance with the Dialer
 // sent and received data metrics and the supplied times and tags.
@@ -76,41 +76,41 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 func (d *Dialer) GetTrail(
 	startTime, endTime time.Time, fullIteration bool, emitIterations bool, tags *workerMetrics.SampleTags,
 	builtinMetrics *workerMetrics.BuiltinMetrics,
-) *NetTrail ***REMOVED***
+) *NetTrail {
 	bytesWritten := atomic.SwapInt64(&d.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&d.BytesRead, 0)
-	samples := []workerMetrics.Sample***REMOVED***
-		***REMOVED***
+	samples := []workerMetrics.Sample{
+		{
 			Time:   endTime,
 			Metric: builtinMetrics.DataSent,
 			Value:  float64(bytesWritten),
 			Tags:   tags,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			Time:   endTime,
 			Metric: builtinMetrics.DataReceived,
 			Value:  float64(bytesRead),
 			Tags:   tags,
-		***REMOVED***,
-	***REMOVED***
-	if fullIteration ***REMOVED***
-		samples = append(samples, workerMetrics.Sample***REMOVED***
+		},
+	}
+	if fullIteration {
+		samples = append(samples, workerMetrics.Sample{
 			Time:   endTime,
 			Metric: builtinMetrics.IterationDuration,
 			Value:  workerMetrics.D(endTime.Sub(startTime)),
 			Tags:   tags,
-		***REMOVED***)
-		if emitIterations ***REMOVED***
-			samples = append(samples, workerMetrics.Sample***REMOVED***
+		})
+		if emitIterations {
+			samples = append(samples, workerMetrics.Sample{
 				Time:   endTime,
 				Metric: builtinMetrics.Iterations,
 				Value:  1,
 				Tags:   tags,
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***
+			})
+		}
+	}
 
-	return &NetTrail***REMOVED***
+	return &NetTrail{
 		BytesRead:     bytesRead,
 		BytesWritten:  bytesWritten,
 		FullIteration: fullIteration,
@@ -118,85 +118,85 @@ func (d *Dialer) GetTrail(
 		EndTime:       endTime,
 		Tags:          tags,
 		Samples:       samples,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (d *Dialer) getDialAddr(addr string) (string, error) ***REMOVED***
+func (d *Dialer) getDialAddr(addr string) (string, error) {
 	remote, err := d.findRemote(addr)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return "", err
-	***REMOVED***
+	}
 
-	for _, ipnet := range d.Blacklist ***REMOVED***
-		if ipnet.Contains(remote.IP) ***REMOVED***
-			return "", BlackListedIPError***REMOVED***ip: remote.IP, net: ipnet***REMOVED***
-		***REMOVED***
-	***REMOVED***
+	for _, ipnet := range d.Blacklist {
+		if ipnet.Contains(remote.IP) {
+			return "", BlackListedIPError{ip: remote.IP, net: ipnet}
+		}
+	}
 
 	return remote.String(), nil
-***REMOVED***
+}
 
-func (d *Dialer) findRemote(addr string) (*libWorker.HostAddress, error) ***REMOVED***
+func (d *Dialer) findRemote(addr string) (*libWorker.HostAddress, error) {
 	host, port, err := net.SplitHostPort(addr)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	ip := net.ParseIP(host)
-	if d.BlockedHostnames != nil && ip == nil ***REMOVED***
-		if match, blocked := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
-			return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
-		***REMOVED***
-	***REMOVED***
+	if d.BlockedHostnames != nil && ip == nil {
+		if match, blocked := d.BlockedHostnames.Contains(host); blocked {
+			return nil, BlockedHostError{hostname: host, match: match}
+		}
+	}
 
 	remote, err := d.getConfiguredHost(addr, host, port)
-	if err != nil || remote != nil ***REMOVED***
+	if err != nil || remote != nil {
 		return remote, err
-	***REMOVED***
+	}
 
-	if ip != nil ***REMOVED***
+	if ip != nil {
 		return libWorker.NewHostAddress(ip, port)
-	***REMOVED***
+	}
 
 	ip, err = d.Resolver.LookupIP(host)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	if ip == nil ***REMOVED***
+	if ip == nil {
 		return nil, fmt.Errorf("lookup %s: no such host", host)
-	***REMOVED***
+	}
 
 	return libWorker.NewHostAddress(ip, port)
-***REMOVED***
+}
 
-func (d *Dialer) getConfiguredHost(addr, host, port string) (*libWorker.HostAddress, error) ***REMOVED***
-	if remote, ok := d.Hosts[addr]; ok ***REMOVED***
+func (d *Dialer) getConfiguredHost(addr, host, port string) (*libWorker.HostAddress, error) {
+	if remote, ok := d.Hosts[addr]; ok {
 		return remote, nil
-	***REMOVED***
+	}
 
-	if remote, ok := d.Hosts[host]; ok ***REMOVED***
-		if remote.Port != 0 || port == "" ***REMOVED***
+	if remote, ok := d.Hosts[host]; ok {
+		if remote.Port != 0 || port == "" {
 			return remote, nil
-		***REMOVED***
+		}
 
 		newPort, err := strconv.Atoi(port)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 
 		newRemote := *remote
 		newRemote.Port = newPort
 
 		return &newRemote, nil
-	***REMOVED***
+	}
 
 	return nil, nil
-***REMOVED***
+}
 
 // NetTrail contains information about the exchanged data size and length of a
 // series of connections from a particular netext.Dialer
-type NetTrail struct ***REMOVED***
+type NetTrail struct {
 	BytesRead     int64
 	BytesWritten  int64
 	FullIteration bool
@@ -204,45 +204,45 @@ type NetTrail struct ***REMOVED***
 	EndTime       time.Time
 	Tags          *workerMetrics.SampleTags
 	Samples       []workerMetrics.Sample
-***REMOVED***
+}
 
 // Ensure that interfaces are implemented correctly
-var _ workerMetrics.ConnectedSampleContainer = &NetTrail***REMOVED******REMOVED***
+var _ workerMetrics.ConnectedSampleContainer = &NetTrail{}
 
 // GetSamples implements the workerMetrics.SampleContainer interface.
-func (ntr *NetTrail) GetSamples() []workerMetrics.Sample ***REMOVED***
+func (ntr *NetTrail) GetSamples() []workerMetrics.Sample {
 	return ntr.Samples
-***REMOVED***
+}
 
 // GetTags implements the workerMetrics.ConnectedSampleContainer interface.
-func (ntr *NetTrail) GetTags() *workerMetrics.SampleTags ***REMOVED***
+func (ntr *NetTrail) GetTags() *workerMetrics.SampleTags {
 	return ntr.Tags
-***REMOVED***
+}
 
 // GetTime implements the workerMetrics.ConnectedSampleContainer interface.
-func (ntr *NetTrail) GetTime() time.Time ***REMOVED***
+func (ntr *NetTrail) GetTime() time.Time {
 	return ntr.EndTime
-***REMOVED***
+}
 
 // Conn wraps net.Conn and keeps track of sent and received data size
-type Conn struct ***REMOVED***
+type Conn struct {
 	net.Conn
 
 	BytesRead, BytesWritten *int64
-***REMOVED***
+}
 
-func (c *Conn) Read(b []byte) (int, error) ***REMOVED***
+func (c *Conn) Read(b []byte) (int, error) {
 	n, err := c.Conn.Read(b)
-	if n > 0 ***REMOVED***
+	if n > 0 {
 		atomic.AddInt64(c.BytesRead, int64(n))
-	***REMOVED***
+	}
 	return n, err
-***REMOVED***
+}
 
-func (c *Conn) Write(b []byte) (int, error) ***REMOVED***
+func (c *Conn) Write(b []byte) (int, error) {
 	n, err := c.Conn.Write(b)
-	if n > 0 ***REMOVED***
+	if n > 0 {
 		atomic.AddInt64(c.BytesWritten, int64(n))
-	***REMOVED***
+	}
 	return n, err
-***REMOVED***
+}

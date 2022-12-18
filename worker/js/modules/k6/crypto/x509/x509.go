@@ -19,44 +19,44 @@ import (
 type (
 	// RootModule is the global module instance that will create module
 	// instances for each VU.
-	RootModule struct***REMOVED******REMOVED***
+	RootModule struct{}
 
 	// X509 represents an instance of the X509 certificate module.
-	X509 struct ***REMOVED***
+	X509 struct {
 		vu modules.VU
-	***REMOVED***
+	}
 )
 
 var (
-	_ modules.Module   = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance = &X509***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &X509{}
 )
 
 // New returns a pointer to a new RootModule instance.
-func New() *RootModule ***REMOVED***
-	return &RootModule***REMOVED******REMOVED***
-***REMOVED***
+func New() *RootModule {
+	return &RootModule{}
+}
 
 // NewModuleInstance implements the modules.Module interface to return
 // a new instance for each VU.
-func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &X509***REMOVED***vu: vu***REMOVED***
-***REMOVED***
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &X509{vu: vu}
+}
 
 // Exports returns the exports of the execution module.
-func (mi *X509) Exports() modules.Exports ***REMOVED***
-	return modules.Exports***REMOVED***
-		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+func (mi *X509) Exports() modules.Exports {
+	return modules.Exports{
+		Named: map[string]interface{}{
 			"parse":       mi.parse,
 			"getAltNames": mi.altNames,
 			"getIssuer":   mi.issuer,
 			"getSubject":  mi.subject,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
 // Certificate is an X.509 certificate
-type Certificate struct ***REMOVED***
+type Certificate struct {
 	Subject            Subject
 	Issuer             Issuer
 	NotBefore          string    `js:"notBefore"`
@@ -65,16 +65,16 @@ type Certificate struct ***REMOVED***
 	SignatureAlgorithm string    `js:"signatureAlgorithm"`
 	FingerPrint        []byte    `js:"fingerPrint"`
 	PublicKey          PublicKey `js:"publicKey"`
-***REMOVED***
+}
 
 // RDN is a component of an X.509 distinguished name
-type RDN struct ***REMOVED***
+type RDN struct {
 	Type  string
 	Value string
-***REMOVED***
+}
 
 // Subject is a certificate subject
-type Subject struct ***REMOVED***
+type Subject struct {
 	CommonName             string `js:"commonName"`
 	Country                string
 	PostalCode             string   `js:"postalCode"`
@@ -84,82 +84,82 @@ type Subject struct ***REMOVED***
 	OrganizationName       string   `js:"organizationName"`
 	OrganizationalUnitName []string `js:"organizationalUnitName"`
 	Names                  []RDN
-***REMOVED***
+}
 
 // Issuer is a certificate issuer
-type Issuer struct ***REMOVED***
+type Issuer struct {
 	CommonName          string `js:"commonName"`
 	Country             string
 	StateOrProvinceName string `js:"stateOrProvinceName"`
 	LocalityName        string `js:"localityName"`
 	OrganizationName    string `js:"organizationName"`
 	Names               []RDN
-***REMOVED***
+}
 
 // PublicKey is used for decryption and signature verification
-type PublicKey struct ***REMOVED***
+type PublicKey struct {
 	Algorithm string
-	Key       interface***REMOVED******REMOVED***
-***REMOVED***
+	Key       interface{}
+}
 
 // parse produces an entire X.509 certificate
-func (mi X509) parse(encoded []byte) (Certificate, error) ***REMOVED***
+func (mi X509) parse(encoded []byte) (Certificate, error) {
 	parsed, err := parseCertificate(encoded)
-	if err != nil ***REMOVED***
-		return Certificate***REMOVED******REMOVED***, err
-	***REMOVED***
+	if err != nil {
+		return Certificate{}, err
+	}
 	certificate, err := makeCertificate(parsed)
-	if err != nil ***REMOVED***
-		return Certificate***REMOVED******REMOVED***, err
-	***REMOVED***
+	if err != nil {
+		return Certificate{}, err
+	}
 	return certificate, nil
-***REMOVED***
+}
 
 // altNames extracts alt names
-func (mi X509) altNames(encoded []byte) ([]string, error) ***REMOVED***
+func (mi X509) altNames(encoded []byte) ([]string, error) {
 	parsed, err := parseCertificate(encoded)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	return altNames(parsed), nil
-***REMOVED***
+}
 
 // issuer extracts certificate issuer
-func (mi X509) issuer(encoded []byte) (Issuer, error) ***REMOVED***
+func (mi X509) issuer(encoded []byte) (Issuer, error) {
 	parsed, err := parseCertificate(encoded)
-	if err != nil ***REMOVED***
-		return Issuer***REMOVED******REMOVED***, err
-	***REMOVED***
+	if err != nil {
+		return Issuer{}, err
+	}
 	return makeIssuer(parsed.Issuer), nil
-***REMOVED***
+}
 
 // subject extracts certificate subject
-func (mi X509) subject(encoded []byte) Subject ***REMOVED***
+func (mi X509) subject(encoded []byte) Subject {
 	parsed, err := parseCertificate(encoded)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(mi.vu.Runtime(), err)
-	***REMOVED***
+	}
 	return makeSubject(parsed.Subject)
-***REMOVED***
+}
 
-func parseCertificate(encoded []byte) (*x509.Certificate, error) ***REMOVED***
+func parseCertificate(encoded []byte) (*x509.Certificate, error) {
 	decoded, _ := pem.Decode(encoded)
-	if decoded == nil ***REMOVED***
+	if decoded == nil {
 		return nil, fmt.Errorf("failed to decode certificate PEM file")
-	***REMOVED***
+	}
 	parsed, err := x509.ParseCertificate(decoded.Bytes)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
-	***REMOVED***
+	}
 	return parsed, nil
-***REMOVED***
+}
 
-func makeCertificate(parsed *x509.Certificate) (Certificate, error) ***REMOVED***
+func makeCertificate(parsed *x509.Certificate) (Certificate, error) {
 	publicKey, err := makePublicKey(parsed.PublicKey)
-	if err != nil ***REMOVED***
-		return Certificate***REMOVED******REMOVED***, err
-	***REMOVED***
-	return Certificate***REMOVED***
+	if err != nil {
+		return Certificate{}, err
+	}
+	return Certificate{
 		Subject:            makeSubject(parsed.Subject),
 		Issuer:             makeIssuer(parsed.Issuer),
 		NotBefore:          iso8601(parsed.NotBefore),
@@ -168,11 +168,11 @@ func makeCertificate(parsed *x509.Certificate) (Certificate, error) ***REMOVED**
 		SignatureAlgorithm: signatureAlgorithm(parsed.SignatureAlgorithm),
 		FingerPrint:        fingerPrint(parsed),
 		PublicKey:          publicKey,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
-func makeSubject(subject pkix.Name) Subject ***REMOVED***
-	return Subject***REMOVED***
+func makeSubject(subject pkix.Name) Subject {
+	return Subject{
 		CommonName:             subject.CommonName,
 		Country:                first(subject.Country),
 		PostalCode:             first(subject.PostalCode),
@@ -182,23 +182,23 @@ func makeSubject(subject pkix.Name) Subject ***REMOVED***
 		OrganizationName:       first(subject.Organization),
 		OrganizationalUnitName: subject.OrganizationalUnit,
 		Names:                  makeRdns(subject.Names),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func makeIssuer(issuer pkix.Name) Issuer ***REMOVED***
-	return Issuer***REMOVED***
+func makeIssuer(issuer pkix.Name) Issuer {
+	return Issuer{
 		CommonName:          issuer.CommonName,
 		Country:             first(issuer.Country),
 		StateOrProvinceName: first(issuer.Province),
 		LocalityName:        first(issuer.Locality),
 		OrganizationName:    first(issuer.Organization),
 		Names:               makeRdns(issuer.Names),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func makePublicKey(parsed interface***REMOVED******REMOVED***) (PublicKey, error) ***REMOVED***
+func makePublicKey(parsed interface{}) (PublicKey, error) {
 	var algorithm string
-	switch parsed.(type) ***REMOVED***
+	switch parsed.(type) {
 	case *dsa.PublicKey:
 		algorithm = "DSA"
 	case *ecdsa.PublicKey:
@@ -207,73 +207,73 @@ func makePublicKey(parsed interface***REMOVED******REMOVED***) (PublicKey, error
 		algorithm = "RSA"
 	default:
 		err := errors.New("unsupported public key algorithm")
-		return PublicKey***REMOVED******REMOVED***, err
-	***REMOVED***
-	return PublicKey***REMOVED***
+		return PublicKey{}, err
+	}
+	return PublicKey{
 		Algorithm: algorithm,
 		Key:       parsed,
-	***REMOVED***, nil
-***REMOVED***
+	}, nil
+}
 
-func first(values []string) string ***REMOVED***
-	if len(values) > 0 ***REMOVED***
+func first(values []string) string {
+	if len(values) > 0 {
 		return values[0]
-	***REMOVED***
+	}
 	return ""
-***REMOVED***
+}
 
-func iso8601(value time.Time) string ***REMOVED***
+func iso8601(value time.Time) string {
 	return value.Format(time.RFC3339)
-***REMOVED***
+}
 
-func makeRdns(names []pkix.AttributeTypeAndValue) []RDN ***REMOVED***
+func makeRdns(names []pkix.AttributeTypeAndValue) []RDN {
 	result := make([]RDN, len(names))
-	for i, name := range names ***REMOVED***
+	for i, name := range names {
 		result[i] = makeRdn(name)
-	***REMOVED***
+	}
 	return result
-***REMOVED***
+}
 
-func makeRdn(name pkix.AttributeTypeAndValue) RDN ***REMOVED***
-	return RDN***REMOVED***
+func makeRdn(name pkix.AttributeTypeAndValue) RDN {
+	return RDN{
 		Type:  name.Type.String(),
 		Value: fmt.Sprintf("%v", name.Value),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func altNames(parsed *x509.Certificate) []string ***REMOVED***
+func altNames(parsed *x509.Certificate) []string {
 	var names []string
 	names = append(names, parsed.DNSNames...)
 	names = append(names, parsed.EmailAddresses...)
 	names = append(names, ipAddresses(parsed)...)
 	names = append(names, uris(parsed)...)
 	return names
-***REMOVED***
+}
 
-func ipAddresses(parsed *x509.Certificate) []string ***REMOVED***
+func ipAddresses(parsed *x509.Certificate) []string {
 	strings := make([]string, len(parsed.IPAddresses))
-	for i, item := range parsed.IPAddresses ***REMOVED***
+	for i, item := range parsed.IPAddresses {
 		strings[i] = item.String()
-	***REMOVED***
+	}
 	return strings
-***REMOVED***
+}
 
-func uris(parsed *x509.Certificate) []string ***REMOVED***
+func uris(parsed *x509.Certificate) []string {
 	strings := make([]string, len(parsed.URIs))
-	for i, item := range parsed.URIs ***REMOVED***
+	for i, item := range parsed.URIs {
 		strings[i] = item.String()
-	***REMOVED***
+	}
 	return strings
-***REMOVED***
+}
 
-func signatureAlgorithm(value x509.SignatureAlgorithm) string ***REMOVED***
-	if value == x509.UnknownSignatureAlgorithm ***REMOVED***
+func signatureAlgorithm(value x509.SignatureAlgorithm) string {
+	if value == x509.UnknownSignatureAlgorithm {
 		return "UnknownSignatureAlgorithm"
-	***REMOVED***
+	}
 	return value.String()
-***REMOVED***
+}
 
-func fingerPrint(parsed *x509.Certificate) []byte ***REMOVED***
+func fingerPrint(parsed *x509.Certificate) []byte {
 	bytes := sha1.Sum(parsed.Raw) // #nosec G401
 	return bytes[:]
-***REMOVED***
+}

@@ -14,48 +14,48 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-func simpleRunner(vuFn func(context.Context, *libWorker.State) error) libWorker.Runner ***REMOVED***
-	return &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, state *libWorker.State, _ chan<- workerMetrics.SampleContainer) error ***REMOVED***
+func simpleRunner(vuFn func(context.Context, *libWorker.State) error) libWorker.Runner {
+	return &minirunner.MiniRunner{
+		Fn: func(ctx context.Context, state *libWorker.State, _ chan<- workerMetrics.SampleContainer) error {
 			return vuFn(ctx, state)
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
-func getTestRunState(tb testing.TB, options libWorker.Options, runner libWorker.Runner) *libWorker.TestRunState ***REMOVED***
+func getTestRunState(tb testing.TB, options libWorker.Options, runner libWorker.Runner) *libWorker.TestRunState {
 	reg := workerMetrics.NewRegistry()
-	piState := &libWorker.TestPreInitState***REMOVED***
+	piState := &libWorker.TestPreInitState{
 		Logger:         testutils.NewLogger(tb),
-		RuntimeOptions: libWorker.RuntimeOptions***REMOVED******REMOVED***,
+		RuntimeOptions: libWorker.RuntimeOptions{},
 		Registry:       reg,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
-	***REMOVED***
+	}
 
 	require.NoError(tb, runner.SetOptions(options))
 
-	return &libWorker.TestRunState***REMOVED***
+	return &libWorker.TestRunState{
 		TestPreInitState: piState,
 		Options:          options,
 		Runner:           runner,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 func setupExecutor(t testing.TB, config libWorker.ExecutorConfig, es *libWorker.ExecutionState) (
 	context.Context, context.CancelFunc, libWorker.Executor, *testutils.SimpleLogrusHook,
-) ***REMOVED***
+) {
 	ctx, cancel := context.WithCancel(context.Background())
 	engineOut := make(chan workerMetrics.SampleContainer, 100) // TODO: return this for more complicated tests?
 
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
 	testLog.SetOutput(ioutil.Discard)
 	logEntry := logrus.NewEntry(testLog)
 
-	initVUFunc := func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) ***REMOVED***
+	initVUFunc := func(_ context.Context, logger *logrus.Entry, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 		idl, idg := es.GetUniqueVUIdentifiers()
 		return es.Test.Runner.NewVU(idl, idg, engineOut, libWorker.GetTestWorkerInfo())
-	***REMOVED***
+	}
 	es.SetInitVUFunc(initVUFunc)
 
 	maxPlannedVUs := libWorker.GetMaxPlannedVUs(config.GetExecutionRequirements(es.ExecutionTuple))
@@ -67,22 +67,22 @@ func setupExecutor(t testing.TB, config libWorker.ExecutorConfig, es *libWorker.
 	err = executor.Init(ctx)
 	require.NoError(t, err)
 	return ctx, cancel, executor, logHook
-***REMOVED***
+}
 
 func initializeVUs(
 	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *libWorker.ExecutionState, number uint64, initVU libWorker.InitVUFunc,
-) ***REMOVED***
+) {
 	// This is not how the local ExecutionScheduler initializes VUs, but should do the same job
-	for i := uint64(0); i < number; i++ ***REMOVED***
+	for i := uint64(0); i < number; i++ {
 		// Not calling es.InitializeNewVU() here to avoid a double increment of initializedVUs,
 		// which is done in es.AddInitializedVU().
 		vu, err := initVU(ctx, logEntry, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		es.AddInitializedVU(vu)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-type executorTest struct ***REMOVED***
+type executorTest struct {
 	options libWorker.Options
 	state   *libWorker.ExecutionState
 
@@ -90,32 +90,32 @@ type executorTest struct ***REMOVED***
 	cancel   context.CancelFunc
 	executor libWorker.Executor
 	logHook  *testutils.SimpleLogrusHook
-***REMOVED***
+}
 
 func setupExecutorTest(
 	t testing.TB, segmentStr, sequenceStr string, extraOptions libWorker.Options,
 	runner libWorker.Runner, config libWorker.ExecutorConfig,
-) *executorTest ***REMOVED***
+) *executorTest {
 	var err error
 	var segment *libWorker.ExecutionSegment
-	if segmentStr != "" ***REMOVED***
+	if segmentStr != "" {
 		segment, err = libWorker.NewExecutionSegmentFromString(segmentStr)
 		require.NoError(t, err)
-	***REMOVED***
+	}
 
 	var sequence libWorker.ExecutionSegmentSequence
-	if sequenceStr != "" ***REMOVED***
+	if sequenceStr != "" {
 		sequence, err = libWorker.NewExecutionSegmentSequenceFromString(sequenceStr)
 		require.NoError(t, err)
-	***REMOVED***
+	}
 
 	et, err := libWorker.NewExecutionTuple(segment, &sequence)
 	require.NoError(t, err)
 
-	options := libWorker.Options***REMOVED***
+	options := libWorker.Options{
 		ExecutionSegment:         segment,
 		ExecutionSegmentSequence: &sequence,
-	***REMOVED***.Apply(runner.GetOptions()).Apply(extraOptions)
+	}.Apply(runner.GetOptions()).Apply(extraOptions)
 
 	testRunState := getTestRunState(t, options, runner)
 
@@ -123,12 +123,12 @@ func setupExecutorTest(
 	es := libWorker.NewExecutionState(testRunState, et, libWorker.GetMaxPlannedVUs(execReqs), libWorker.GetMaxPossibleVUs(execReqs))
 	ctx, cancel, executor, logHook := setupExecutor(t, config, es)
 
-	return &executorTest***REMOVED***
+	return &executorTest{
 		options:  options,
 		state:    es,
 		ctx:      ctx,
 		cancel:   cancel,
 		executor: executor,
 		logHook:  logHook,
-	***REMOVED***
-***REMOVED***
+	}
+}

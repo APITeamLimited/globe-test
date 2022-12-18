@@ -7,12 +7,12 @@ import (
 )
 
 // UnwrapGojaInterruptedError returns the internal error handled by goja.
-func UnwrapGojaInterruptedError(err error) error ***REMOVED***
+func UnwrapGojaInterruptedError(err error) error {
 	var gojaErr *goja.InterruptedError
-	if errors.As(err, &gojaErr) ***REMOVED***
-		if e, ok := gojaErr.Value().(error); ok ***REMOVED***
+	if errors.As(err, &gojaErr) {
+		if e, ok := gojaErr.Value().(error); ok {
 			return e
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return err
-***REMOVED***
+}

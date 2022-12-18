@@ -5,10 +5,10 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func InsecureSkipTLSVerify(options *libWorker.Options) ***REMOVED***
+func InsecureSkipTLSVerify(options *libWorker.Options) {
 	// Ensure that user duration is within the allowed range
 
-	if !options.InsecureSkipTLSVerify.Valid ***REMOVED***
+	if !options.InsecureSkipTLSVerify.Valid {
 		options.InsecureSkipTLSVerify = null.BoolFrom(false)
-	***REMOVED***
-***REMOVED***
+	}
+}

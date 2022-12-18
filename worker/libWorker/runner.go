@@ -8,34 +8,34 @@ import (
 )
 
 // ActiveVU represents an actively running virtual user.
-type ActiveVU interface ***REMOVED***
+type ActiveVU interface {
 	// Run the configured exported function in the VU once. The only
 	// way to interrupt the execution is to cancel the context given
 	// to InitializedVU.Activate()
 	RunOnce() error
-***REMOVED***
+}
 
 // InitializedVU represents a virtual user ready for work. It needs to be
 // activated (i.e. given a context) before it can actually be used. Activation
 // also requires a callback function, which will be called when the supplied
 // context is done. That way, VUs can be returned to a pool and reused.
-type InitializedVU interface ***REMOVED***
+type InitializedVU interface {
 	// Fully activate the VU so it will be able to run code
 	Activate(*VUActivationParams) ActiveVU
 
 	// GetID returns the unique VU ID
 	GetID() uint64
-***REMOVED***
+}
 
 // VUActivationParams are supplied by each executor when it retrieves a VU from
 // the buffer pool and activates it for use.
-type VUActivationParams struct ***REMOVED***
+type VUActivationParams struct {
 	RunContext               context.Context
 	DeactivateCallback       func(InitializedVU)
 	Env, Tags                map[string]string
 	Exec, Scenario           string
 	GetNextIterationCounters func() (uint64, uint64)
-***REMOVED***
+}
 
 // A Runner is a factory for VUs. It should precompute as much as possible upon
 // creation (parse ASTs, load files into memory, etc.), so that spawning VUs
@@ -45,7 +45,7 @@ type VUActivationParams struct ***REMOVED***
 //
 // TODO: Rename this to something more obvious? This name made sense a very long
 // time ago.
-type Runner interface ***REMOVED***
+type Runner interface {
 	// Spawns a new VU. It's fine to make this function rather heavy, if it means a performance
 	// improvement at runtime. Remember, this is called once per VU and normally only at the start
 	// of a test - RunOnce() may be called hundreds of thousands of times, and must be fast.
@@ -67,7 +67,7 @@ type Runner interface ***REMOVED***
 	GetDefaultGroup() *Group
 
 	// Get and set options. The initial value will be whatever the script specifies (for JS,
-	// `export let options = ***REMOVED******REMOVED***`); cmd/run.go will mix this in with CLI-, config- and env-provided
+	// `export let options = {}`); cmd/run.go will mix this in with CLI-, config- and env-provided
 	// values and write it back to the runner.
 	GetOptions() Options
 	SetOptions(opts Options) error
@@ -79,19 +79,19 @@ type Runner interface ***REMOVED***
 	//HandleSummary(context.Context, *Summary) (map[string]io.Reader, error)
 
 	RetrieveMetricsJSON(context.Context, *Summary) ([]byte, error)
-***REMOVED***
+}
 
 // UIState describes the state of the UI, which might influence what
 // handleSummary() returns.
-type UIState struct ***REMOVED***
+type UIState struct {
 	IsStdOutTTY bool
 	IsStdErrTTY bool
-***REMOVED***
+}
 
 // Summary contains all of the data the summary handler gets.
-type Summary struct ***REMOVED***
+type Summary struct {
 	Metrics         map[string]*workerMetrics.Metric `json:"metrics"`
 	RootGroup       *Group                           `json:"rootGroup"`
 	TestRunDuration time.Duration                    `json:"testRunDuration"`
 	UIState         UIState                          `json:"uiState"`
-***REMOVED***
+}

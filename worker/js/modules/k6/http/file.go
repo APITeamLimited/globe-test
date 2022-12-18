@@ -9,39 +9,39 @@ import (
 )
 
 // FileData represents a binary file requiring multipart request encoding
-type FileData struct ***REMOVED***
+type FileData struct {
 	Data        []byte
 	Filename    string
 	ContentType string
-***REMOVED***
+}
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
-func escapeQuotes(s string) string ***REMOVED***
+func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
-***REMOVED***
+}
 
 // File returns a FileData object.
-func (mi *ModuleInstance) file(data interface***REMOVED******REMOVED***, args ...string) FileData ***REMOVED***
+func (mi *ModuleInstance) file(data interface{}, args ...string) FileData {
 	// supply valid default if filename and content-type are not specified
 	fname, ct := fmt.Sprintf("%d", time.Now().UnixNano()), "application/octet-stream"
 
-	if len(args) > 0 ***REMOVED***
+	if len(args) > 0 {
 		fname = args[0]
 
-		if len(args) > 1 ***REMOVED***
+		if len(args) > 1 {
 			ct = args[1]
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	dt, err := common.ToBytes(data)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(mi.vu.Runtime(), err)
-	***REMOVED***
+	}
 
-	return FileData***REMOVED***
+	return FileData{
 		Data:        dt,
 		Filename:    fname,
 		ContentType: ct,
-	***REMOVED***
-***REMOVED***
+	}
+}

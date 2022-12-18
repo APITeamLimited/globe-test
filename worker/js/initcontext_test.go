@@ -26,24 +26,24 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
-func TestInitContextRequire(t *testing.T) ***REMOVED***
+func TestInitContextRequire(t *testing.T) {
 	t.Parallel()
-	t.Run("Modules", func(t *testing.T) ***REMOVED***
-		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
+	t.Run("Modules", func(t *testing.T) {
+		t.Run("Nonexistent", func(t *testing.T) {
 			t.Parallel()
 			_, err := getSimpleBundle(t, "/script.js", `import "k6/NONEXISTENT";`, libWorker.GetTestWorkerInfo())
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "unknown module: k6/NONEXISTENT")
-		***REMOVED***)
+		})
 
-		t.Run("k6", func(t *testing.T) ***REMOVED***
+		t.Run("k6", func(t *testing.T) {
 			t.Parallel()
 			logger := testutils.NewLogger(t)
 			b, err := getSimpleBundle(t, "/script.js", `
 					import k6 from "k6";
 					export let _k6 = k6;
 					export let dummy = "abc123";
-					export default function() ***REMOVED******REMOVED***
+					export default function() {}
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err, "bundle error")
 
@@ -60,16 +60,16 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			require.NotNil(t, k6)
 			_, groupOk := goja.AssertFunction(k6.Get("group"))
 			assert.True(t, groupOk, "k6.group is not a function")
-		***REMOVED***)
+		})
 
-		t.Run("group", func(t *testing.T) ***REMOVED***
+		t.Run("group", func(t *testing.T) {
 			logger := testutils.NewLogger(t)
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-						import ***REMOVED*** group ***REMOVED*** from "k6";
+						import { group } from "k6";
 						export let _group = group;
 						export let dummy = "abc123";
-						export default function() ***REMOVED******REMOVED***
+						export default function() {}
 				`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
@@ -83,91 +83,91 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			assert.Equal(t, "abc123", exports.Get("dummy").String())
 
 			_, groupOk := goja.AssertFunction(exports.Get("_group"))
-			assert.True(t, groupOk, "***REMOVED*** group ***REMOVED*** is not a function")
-		***REMOVED***)
-	***REMOVED***)
+			assert.True(t, groupOk, "{ group } is not a function")
+		})
+	})
 
-	t.Run("Files", func(t *testing.T) ***REMOVED***
+	t.Run("Files", func(t *testing.T) {
 		t.Parallel()
-		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
+		t.Run("Nonexistent", func(t *testing.T) {
 			t.Parallel()
 			path := filepath.FromSlash("/nonexistent.js")
-			_, err := getSimpleBundle(t, "/script.js", `import "/nonexistent.js"; export default function() ***REMOVED******REMOVED***`, libWorker.GetTestWorkerInfo())
+			_, err := getSimpleBundle(t, "/script.js", `import "/nonexistent.js"; export default function() {}`, libWorker.GetTestWorkerInfo())
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), fmt.Sprintf(`"%s" couldn't be found on local disk`, filepath.ToSlash(path)))
-		***REMOVED***)
-		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Invalid", func(t *testing.T) {
 			t.Parallel()
 			fs := afero.NewMemMapFs()
-			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte***REMOVED***0x00***REMOVED***, 0o755))
-			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, libWorker.GetTestWorkerInfo(), fs)
+			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte{0x00}, 0o755))
+			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "SyntaxError: file:///file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
-		***REMOVED***)
-		t.Run("Error", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Error", func(t *testing.T) {
 			t.Parallel()
 			fs := afero.NewMemMapFs()
 			require.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0o755))
-			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, libWorker.GetTestWorkerInfo(), fs)
+			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 			assert.EqualError(t, err,
 				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat github.com/APITeamLimited/globe-test/worker/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n\tat native\n")
-		***REMOVED***)
+		})
 
-		imports := map[string]struct ***REMOVED***
+		imports := map[string]struct {
 			LibPath    string
 			ConstPaths map[string]string
-		***REMOVED******REMOVED***
-			"./libWorker.js": ***REMOVED***"/path/to/libWorker.js", map[string]string***REMOVED***
+		}{
+			"./libWorker.js": {"/path/to/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/const.js",
 				"../const.js":    "/path/const.js",
 				"./sub/const.js": "/path/to/sub/const.js",
-			***REMOVED******REMOVED***,
-			"../libWorker.js": ***REMOVED***"/path/libWorker.js", map[string]string***REMOVED***
+			}},
+			"../libWorker.js": {"/path/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/const.js",
 				"../const.js":    "/const.js",
 				"./sub/const.js": "/path/sub/const.js",
-			***REMOVED******REMOVED***,
-			"./dir/libWorker.js": ***REMOVED***"/path/to/dir/libWorker.js", map[string]string***REMOVED***
+			}},
+			"./dir/libWorker.js": {"/path/to/dir/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/dir/const.js",
 				"../const.js":    "/path/to/const.js",
 				"./sub/const.js": "/path/to/dir/sub/const.js",
-			***REMOVED******REMOVED***,
-			"/path/to/libWorker.js": ***REMOVED***"/path/to/libWorker.js", map[string]string***REMOVED***
+			}},
+			"/path/to/libWorker.js": {"/path/to/libWorker.js", map[string]string{
 				"":               "",
 				"./const.js":     "/path/to/const.js",
 				"../const.js":    "/path/const.js",
 				"./sub/const.js": "/path/to/sub/const.js",
-			***REMOVED******REMOVED***,
-		***REMOVED***
-		for libName, data := range imports ***REMOVED***
+			}},
+		}
+		for libName, data := range imports {
 			libName, data := libName, data
-			t.Run("lib=\""+libName+"\"", func(t *testing.T) ***REMOVED***
+			t.Run("lib=\""+libName+"\"", func(t *testing.T) {
 				t.Parallel()
-				for constName, constPath := range data.ConstPaths ***REMOVED***
+				for constName, constPath := range data.ConstPaths {
 					constName, constPath := constName, constPath
 					name := "inline"
-					if constName != "" ***REMOVED***
+					if constName != "" {
 						name = "const=\"" + constName + "\""
-					***REMOVED***
-					t.Run(name, func(t *testing.T) ***REMOVED***
+					}
+					t.Run(name, func(t *testing.T) {
 						t.Parallel()
 						fs := afero.NewMemMapFs()
 						logger := testutils.NewLogger(t)
 
-						jsLib := `export default function() ***REMOVED*** return 12345; ***REMOVED***`
-						if constName != "" ***REMOVED***
+						jsLib := `export default function() { return 12345; }`
+						if constName != "" {
 							jsLib = fmt.Sprintf(
-								`import ***REMOVED*** c ***REMOVED*** from "%s"; export default function() ***REMOVED*** return c; ***REMOVED***`,
+								`import { c } from "%s"; export default function() { return c; }`,
 								constName,
 							)
 
 							constsrc := `export let c = 12345;`
 							require.NoError(t, fs.MkdirAll(filepath.Dir(constPath), 0o755))
 							require.NoError(t, afero.WriteFile(fs, constPath, []byte(constsrc), 0o644))
-						***REMOVED***
+						}
 
 						require.NoError(t, fs.MkdirAll(filepath.Dir(data.LibPath), 0o755))
 						require.NoError(t, afero.WriteFile(fs, data.LibPath, []byte(jsLib), 0o644))
@@ -175,22 +175,22 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 						data := fmt.Sprintf(`
 								import fn from "%s";
 								let v = fn();
-								export default function() ***REMOVED******REMOVED***;`,
+								export default function() {};`,
 							libName)
 						b, err := getSimpleBundle(t, "/path/to/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 						require.NoError(t, err)
-						if constPath != "" ***REMOVED***
+						if constPath != "" {
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
-						***REMOVED***
+						}
 
 						_, err = b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 						require.NoError(t, err)
-					***REMOVED***)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
+					})
+				}
+			})
+		}
 
-		t.Run("Isolation", func(t *testing.T) ***REMOVED***
+		t.Run("Isolation", func(t *testing.T) {
 			t.Parallel()
 			logger := testutils.NewLogger(t)
 			fs := afero.NewMemMapFs()
@@ -199,11 +199,11 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			data := `
 				import "./a.js";
 				import "./b.js";
-				export default function() ***REMOVED***
-					if (typeof myvar != "undefined") ***REMOVED***
+				export default function() {
+					if (typeof myvar != "undefined") {
 						throw new Error("myvar is set in global scope");
-					***REMOVED***
-				***REMOVED***;`
+					}
+				};`
 			b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 			require.NoError(t, err)
 
@@ -211,11 +211,11 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			assert.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+		})
+	})
+}
 
-func createAndReadFile(t *testing.T, file string, content []byte, expectedLength int, binary string) (*BundleInstance, error) ***REMOVED***
+func createAndReadFile(t *testing.T, file string, content []byte, expectedLength int, binary string) (*BundleInstance, error) {
 	t.Helper()
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/path/to", 0o755))
@@ -226,109 +226,109 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		export let data = open("/path/to/%s", binArg);
 		var expectedLength = %d;
 		var len = binArg === "b" ? "byteLength" : "length";
-		if (data[len] != expectedLength) ***REMOVED***
+		if (data[len] != expectedLength) {
 			throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data[len]);
-		***REMOVED***
-		export default function() ***REMOVED******REMOVED***
+		}
+		export default function() {}
 	`, binary, file, expectedLength)
 	b, err := getSimpleBundle(t, "/path/to/script.js", data, libWorker.GetTestWorkerInfo(), fs)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	bi, err := b.Instantiate(testutils.NewLogger(t), 0, libWorker.GetTestWorkerInfo())
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	return bi, nil
-***REMOVED***
+}
 
-func TestInitContextOpen(t *testing.T) ***REMOVED***
+func TestInitContextOpen(t *testing.T) {
 	t.Parallel()
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		content []byte
 		file    string
 		length  int
-	***REMOVED******REMOVED***
-		***REMOVED***[]byte("hello world!"), "ascii", 12***REMOVED***,
-		***REMOVED***[]byte("?((¯°·._.• ţ€$ţɨɲǥ µɲɨȼ๏ď€ΣSЫ ɨɲ Ќ6 •._.·°¯))؟•"), "utf", 47***REMOVED***,
-		***REMOVED***[]byte***REMOVED***0o44, 226, 130, 172***REMOVED***, "utf-8", 2***REMOVED***, // $€
-		//***REMOVED***[]byte***REMOVED***00, 36, 32, 127***REMOVED***, "utf-16", 2***REMOVED***,   // $€
-	***REMOVED***
-	for _, tc := range testCases ***REMOVED***
+	}{
+		{[]byte("hello world!"), "ascii", 12},
+		{[]byte("?((¯°·._.• ţ€$ţɨɲǥ µɲɨȼ๏ď€ΣSЫ ɨɲ Ќ6 •._.·°¯))؟•"), "utf", 47},
+		{[]byte{0o44, 226, 130, 172}, "utf-8", 2}, // $€
+		//{[]byte{00, 36, 32, 127}, "utf-16", 2},   // $€
+	}
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.file, func(t *testing.T) ***REMOVED***
+		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, "")
 			require.NoError(t, err)
 			assert.Equal(t, string(tc.content), bi.pgm.exports.Get("data").Export())
-		***REMOVED***)
-	***REMOVED***
+		})
+	}
 
-	t.Run("Binary", func(t *testing.T) ***REMOVED***
+	t.Run("Binary", func(t *testing.T) {
 		t.Parallel()
 		bi, err := createAndReadFile(t, "/path/to/file.bin", []byte("hi!\x0f\xff\x01"), 6, "b")
 		require.NoError(t, err)
-		buf := bi.Runtime.NewArrayBuffer([]byte***REMOVED***104, 105, 33, 15, 255, 1***REMOVED***)
+		buf := bi.Runtime.NewArrayBuffer([]byte{104, 105, 33, 15, 255, 1})
 		assert.Equal(t, buf, bi.pgm.exports.Get("data").Export())
-	***REMOVED***)
+	})
 
-	testdata := map[string]string***REMOVED***
+	testdata := map[string]string{
 		"Absolute": "/path/to/file",
 		"Relative": "./file",
-	***REMOVED***
+	}
 
-	for name, loadPath := range testdata ***REMOVED***
+	for name, loadPath := range testdata {
 		loadPath := loadPath
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, "")
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
+		})
+	}
 
-	t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
+	t.Run("Nonexistent", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.FromSlash("/nonexistent.txt")
-		_, err := getSimpleBundle(t, "/script.js", `open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`, libWorker.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `open("/nonexistent.txt"); export default function() {}`, libWorker.GetTestWorkerInfo())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("open %s: file does not exist", path))
-	***REMOVED***)
+	})
 
-	t.Run("Directory", func(t *testing.T) ***REMOVED***
+	t.Run("Directory", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.FromSlash("/some/dir")
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll(path, 0o755))
-		_, err := getSimpleBundle(t, "/script.js", `open("/some/dir"); export default function() ***REMOVED******REMOVED***`, libWorker.GetTestWorkerInfo(), fs)
+		_, err := getSimpleBundle(t, "/script.js", `open("/some/dir"); export default function() {}`, libWorker.GetTestWorkerInfo(), fs)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("open() can't be used with directories, path: %q", path))
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
+func TestRequestWithBinaryFile(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan bool, 1)
 
-	h := func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		defer func() ***REMOVED***
+	h := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
 			ch <- true
-		***REMOVED***()
+		}()
 
 		require.NoError(t, r.ParseMultipartForm(32<<20))
 		file, _, err := r.FormFile("file")
 		require.NoError(t, err)
-		defer func() ***REMOVED***
+		defer func() {
 			require.NoError(t, file.Close())
-		***REMOVED***()
+		}()
 		bytes := make([]byte, 3)
 		_, err = file.Read(bytes)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("hi!"), bytes)
 		assert.Equal(t, "this is a standard form field", r.FormValue("field"))
-	***REMOVED***
+	}
 
 	srv := httptest.NewServer(http.HandlerFunc(h))
 	defer srv.Close()
@@ -341,14 +341,14 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 		fmt.Sprintf(`
 			import http from "k6/http";
 			let binFile = open("/path/to/file.bin", "b");
-			export default function() ***REMOVED***
-				var data = ***REMOVED***
+			export default function() {
+				var data = {
 					field: "this is a standard form field",
 					file: http.file(binFile, "test.bin")
-				***REMOVED***;
+				};
 				var res = http.post("%s", data);
 				return true;
-			***REMOVED***
+			}
 			`, srv.URL), libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
@@ -364,25 +364,25 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
-	bi.moduleVUImpl.state = &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED******REMOVED***,
+	bi.moduleVUImpl.state = &libWorker.State{
+		Options: libWorker.Options{},
 		Logger:  logger,
 		Group:   root,
-		Transport: &http.Transport***REMOVED***
+		Transport: &http.Transport{
 			DialContext: (netext.NewDialer(
-				net.Dialer***REMOVED***
+				net.Dialer{
 					Timeout:   10 * time.Second,
 					KeepAlive: 60 * time.Second,
 					DualStack: true,
-				***REMOVED***,
+				},
 				netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
 			)).DialContext,
-		***REMOVED***,
+		},
 		BPool:          bpool.NewBufferPool(1),
 		Samples:        make(chan workerMetrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
 		Tags:           libWorker.NewTagMap(nil),
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -394,34 +394,34 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	assert.Equal(t, true, v.Export())
 
 	<-ch
-***REMOVED***
+}
 
-func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
+func TestRequestWithMultipleBinaryFiles(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan bool, 1)
 
-	h := func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		defer func() ***REMOVED***
+	h := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
 			ch <- true
-		***REMOVED***()
+		}()
 
 		require.NoError(t, r.ParseMultipartForm(32<<20))
 		require.Len(t, r.MultipartForm.File["files"], 2)
-		for i, fh := range r.MultipartForm.File["files"] ***REMOVED***
+		for i, fh := range r.MultipartForm.File["files"] {
 			f, _ := fh.Open()
-			defer func() ***REMOVED*** require.NoError(t, f.Close()) ***REMOVED***()
+			defer func() { require.NoError(t, f.Close()) }()
 			bytes := make([]byte, 5)
 			_, err := f.Read(bytes)
 			require.NoError(t, err)
-			switch i ***REMOVED***
+			switch i {
 			case 0:
 				assert.Equal(t, []byte("file1"), bytes)
 			case 1:
 				assert.Equal(t, []byte("file2"), bytes)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	srv := httptest.NewServer(http.HandlerFunc(h))
 	defer srv.Close()
@@ -435,40 +435,40 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 		fmt.Sprintf(`
 	import http from 'k6/http';
 
-	function toByteArray(obj) ***REMOVED***
+	function toByteArray(obj) {
 		let arr = [];
-		if (typeof obj === 'string') ***REMOVED***
-			for (let i=0; i < obj.length; i++) ***REMOVED***
+		if (typeof obj === 'string') {
+			for (let i=0; i < obj.length; i++) {
 			  arr.push(obj.charCodeAt(i) & 0xff);
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
+			}
+		} else {
 			obj = new Uint8Array(obj);
-			for (let i=0; i < obj.byteLength; i++) ***REMOVED***
+			for (let i=0; i < obj.byteLength; i++) {
 			  arr.push(obj[i] & 0xff);
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 		return arr;
-	***REMOVED***
+	}
 
 	// A more robust version of this polyfill is available here:
 	// https://jslibWorker.k6.io/formdata/0.0.1/index.js
-	function FormData() ***REMOVED***
+	function FormData() {
 		this.boundary = '----boundary';
 		this.files = [];
-	***REMOVED***
+	}
 
-	FormData.prototype.append = function(name, value, filename) ***REMOVED***
-		this.files.push(***REMOVED***
+	FormData.prototype.append = function(name, value, filename) {
+		this.files.push({
 			name: name,
 			value: value,
 			filename: filename,
-		***REMOVED***);
-	***REMOVED***
+		});
+	}
 
-	FormData.prototype.body = function(name, value, filename) ***REMOVED***
+	FormData.prototype.body = function(name, value, filename) {
 		let body = [];
 		let barr = toByteArray('--' + this.boundary + '\r\n');
-		for (let i=0; i < this.files.length; i++) ***REMOVED***
+		for (let i=0; i < this.files.length; i++) {
 			body.push(...barr);
 			let cdarr = toByteArray('Content-Disposition: form-data; name="'
 							+ this.files[i].name + '"; filename="'
@@ -477,25 +477,25 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 			body.push(...cdarr);
 			body.push(...toByteArray(this.files[i].value));
 			body.push(...toByteArray('\r\n'));
-		***REMOVED***
+		}
 		body.push(...toByteArray('--' + this.boundary + '--\r\n'));
 		return new Uint8Array(body).buffer;
-	***REMOVED***
+	}
 
 	const file1 = open('/path/to/file1.bin', 'b');
 	const file2 = open('/path/to/file2.bin', 'b');
 
-	export default function () ***REMOVED***
+	export default function () {
 		const fd = new FormData();
 		fd.append('files', file1, 'file1.bin');
 		fd.append('files', file2, 'file2.bin');
 		let res = http.post('%s', fd.body(),
-				***REMOVED*** headers: ***REMOVED*** 'Content-Type': 'multipart/form-data; boundary=' + fd.boundary ***REMOVED******REMOVED***);
-		if (res.status !== 200) ***REMOVED***
+				{ headers: { 'Content-Type': 'multipart/form-data; boundary=' + fd.boundary }});
+		if (res.status !== 200) {
 			throw new Error('Expected HTTP 200 response, received: ' + res.status);
-		***REMOVED***
+		}
 		return true;
-	***REMOVED***
+	}
 			`, srv.URL), libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
 
@@ -511,25 +511,25 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
-	bi.moduleVUImpl.state = &libWorker.State***REMOVED***
-		Options: libWorker.Options***REMOVED******REMOVED***,
+	bi.moduleVUImpl.state = &libWorker.State{
+		Options: libWorker.Options{},
 		Logger:  logger,
 		Group:   root,
-		Transport: &http.Transport***REMOVED***
+		Transport: &http.Transport{
 			DialContext: (netext.NewDialer(
-				net.Dialer***REMOVED***
+				net.Dialer{
 					Timeout:   10 * time.Second,
 					KeepAlive: 60 * time.Second,
 					DualStack: true,
-				***REMOVED***,
+				},
 				netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
 			)).DialContext,
-		***REMOVED***,
+		},
 		BPool:          bpool.NewBufferPool(1),
 		Samples:        make(chan workerMetrics.SampleContainer, 500),
 		BuiltinMetrics: builtinMetrics,
 		Tags:           libWorker.NewTagMap(nil),
-	***REMOVED***
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -541,13 +541,13 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 	assert.Equal(t, true, v.Export())
 
 	<-ch
-***REMOVED***
+}
 
-func TestInitContextVU(t *testing.T) ***REMOVED***
+func TestInitContextVU(t *testing.T) {
 	t.Parallel()
 	b, err := getSimpleBundle(t, "/script.js", `
 		let vu = __VU;
-		export default function() ***REMOVED*** return vu; ***REMOVED***
+		export default function() { return vu; }
 	`, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	bi, err := b.Instantiate(testutils.NewLogger(t), 5, libWorker.GetTestWorkerInfo())
@@ -555,30 +555,30 @@ func TestInitContextVU(t *testing.T) ***REMOVED***
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), v.Export())
-***REMOVED***
+}
 
-func TestSourceMaps(t *testing.T) ***REMOVED***
+func TestSourceMaps(t *testing.T) {
 	t.Parallel()
 	logger := testutils.NewLogger(t)
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/module1.js", []byte(`
-export function f2()***REMOVED***
+export function f2(){
     throw "exception in line 2"
     console.log("in f2")
-***REMOVED***
-export function f1()***REMOVED***
+}
+export function f1(){
     throw "exception in line 6"
     console.log("in f1")
-***REMOVED***
+}
 `[1:]), 0o644))
 	data := `
 import * as module1 from "./module1.js"
 
-export default function()***REMOVED***
+export default function(){
 //    throw "exception in line 4"
     module1.f2()
     console.log("in default")
-***REMOVED***
+}
 `[1:]
 	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
@@ -590,26 +590,26 @@ export default function()***REMOVED***
 	exception := new(goja.Exception)
 	require.ErrorAs(t, err, &exception)
 	require.Equal(t, exception.String(), "exception in line 2\n\tat f2 (file:///module1.js:2:4(2))\n\tat file:///script.js:5:4(3)\n\tat native\n")
-***REMOVED***
+}
 
-func TestSourceMapsExternal(t *testing.T) ***REMOVED***
+func TestSourceMapsExternal(t *testing.T) {
 	t.Parallel()
 	logger := testutils.NewLogger(t)
 	fs := afero.NewMemMapFs()
 	// This example is created through the template-typescript
 	require.NoError(t, afero.WriteFile(fs, "/test1.js", []byte(`
-(()=>***REMOVED***"use strict";var e=***REMOVED******REMOVED***;(()=>***REMOVED***var o=e;Object.defineProperty(o,"__esModule",***REMOVED***value:!0***REMOVED***),o.default=function()***REMOVED***!function(e)***REMOVED***throw"cool is cool"***REMOVED***()***REMOVED******REMOVED***)();var o=exports;for(var r in e)o[r]=e[r];e.__esModule&&Object.defineProperty(o,"__esModule",***REMOVED***value:!0***REMOVED***)***REMOVED***)();
+(()=>{"use strict";var e={};(()=>{var o=e;Object.defineProperty(o,"__esModule",{value:!0}),o.default=function(){!function(e){throw"cool is cool"}()}})();var o=exports;for(var r in e)o[r]=e[r];e.__esModule&&Object.defineProperty(o,"__esModule",{value:!0})})();
 //# sourceMappingURL=test1.js.map
 `[1:]), 0o644))
 	require.NoError(t, afero.WriteFile(fs, "/test1.js.map", []byte(`
-***REMOVED***"version":3,"sources":["webpack:///./test1.ts"],"names":["s","coolThrow"],"mappings":"2FAGA,sBAHA,SAAmBA,GACf,KAAM,eAGNC,K","file":"test1.js","sourcesContent":["function coolThrow(s: string) ***REMOVED***\n    throw \"cool \"+ s\n***REMOVED***\nexport default () => ***REMOVED***\n    coolThrow(\"is cool\")\n***REMOVED***;\n"],"sourceRoot":""***REMOVED***
+{"version":3,"sources":["webpack:///./test1.ts"],"names":["s","coolThrow"],"mappings":"2FAGA,sBAHA,SAAmBA,GACf,KAAM,eAGNC,K","file":"test1.js","sourcesContent":["function coolThrow(s: string) {\n    throw \"cool \"+ s\n}\nexport default () => {\n    coolThrow(\"is cool\")\n};\n"],"sourceRoot":""}
 `[1:]), 0o644))
 	data := `
 import l from "./test1.js"
 
-export default function () ***REMOVED***
+export default function () {
 		l()
-***REMOVED***;
+};
 `[1:]
 	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
@@ -621,27 +621,27 @@ export default function () ***REMOVED***
 	exception := new(goja.Exception)
 	require.ErrorAs(t, err, &exception)
 	require.Equal(t, "cool is cool\n\tat webpack:///./test1.ts:2:4(2)\n\tat webpack:///./test1.ts:5:4(3)\n\tat file:///script.js:4:2(4)\n\tat native\n", exception.String())
-***REMOVED***
+}
 
-func TestSourceMapsExternalExtented(t *testing.T) ***REMOVED***
+func TestSourceMapsExternalExtented(t *testing.T) {
 	t.Parallel()
 	logger := testutils.NewLogger(t)
 	fs := afero.NewMemMapFs()
 	// This example is created through the template-typescript
 	// but was exported to use import/export syntax so it has to go through babel
 	require.NoError(t, afero.WriteFile(fs, "/test1.js", []byte(`
-var o=***REMOVED***d:(e,r)=>***REMOVED***for(var t in r)o.o(r,t)&&!o.o(e,t)&&Object.defineProperty(e,t,***REMOVED***enumerable:!0,get:r[t]***REMOVED***)***REMOVED***,o:(o,e)=>Object.prototype.hasOwnProperty.call(o,e)***REMOVED***,e=***REMOVED******REMOVED***;o.d(e,***REMOVED***Z:()=>r***REMOVED***);const r=()=>***REMOVED***!function(o)***REMOVED***throw"cool is cool"***REMOVED***()***REMOVED***;var t=e.Z;export***REMOVED***t as default***REMOVED***;
+var o={d:(e,r)=>{for(var t in r)o.o(r,t)&&!o.o(e,t)&&Object.defineProperty(e,t,{enumerable:!0,get:r[t]})},o:(o,e)=>Object.prototype.hasOwnProperty.call(o,e)},e={};o.d(e,{Z:()=>r});const r=()=>{!function(o){throw"cool is cool"}()};var t=e.Z;export{t as default};
 //# sourceMappingURL=test1.js.map
 `[1:]), 0o644))
 	require.NoError(t, afero.WriteFile(fs, "/test1.js.map", []byte(`
-***REMOVED***"version":3,"sources":["webpack:///webpack/bootstrap","webpack:///webpack/runtime/define property getters","webpack:///webpack/runtime/hasOwnProperty shorthand","webpack:///./test1.ts"],"names":["__webpack_require__","exports","definition","key","o","Object","defineProperty","enumerable","get","obj","prop","prototype","hasOwnProperty","call","s","coolThrow"],"mappings":"AACA,IAAIA,EAAsB,CCA1B,EAAwB,CAACC,EAASC,KACjC,IAAI,IAAIC,KAAOD,EACXF,EAAoBI,EAAEF,EAAYC,KAASH,EAAoBI,EAAEH,EAASE,IAC5EE,OAAOC,eAAeL,EAASE,EAAK,CAAEI,YAAY,EAAMC,IAAKN,EAAWC,MCJ3E,EAAwB,CAACM,EAAKC,IAAUL,OAAOM,UAAUC,eAAeC,KAAKJ,EAAKC,I,sBCGlF,cAHA,SAAmBI,GACf,KAAM,eAGNC,I","file":"test1.js","sourcesContent":["// The require scope\nvar __webpack_require__ = ***REMOVED******REMOVED***;\n\n","// define getter functions for harmony exports\n__webpack_require__.d = (exports, definition) => ***REMOVED***\n\tfor(var key in definition) ***REMOVED***\n\t\tif(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) ***REMOVED***\n\t\t\tObject.defineProperty(exports, key, ***REMOVED*** enumerable: true, get: definition[key] ***REMOVED***);\n\t\t***REMOVED***\n\t***REMOVED***\n***REMOVED***;","__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))","function coolThrow(s: string) ***REMOVED***\n    throw \"cool \"+ s\n***REMOVED***\nexport default () => ***REMOVED***\n    coolThrow(\"is cool\")\n***REMOVED***;\n"],"sourceRoot":""***REMOVED***
+{"version":3,"sources":["webpack:///webpack/bootstrap","webpack:///webpack/runtime/define property getters","webpack:///webpack/runtime/hasOwnProperty shorthand","webpack:///./test1.ts"],"names":["__webpack_require__","exports","definition","key","o","Object","defineProperty","enumerable","get","obj","prop","prototype","hasOwnProperty","call","s","coolThrow"],"mappings":"AACA,IAAIA,EAAsB,CCA1B,EAAwB,CAACC,EAASC,KACjC,IAAI,IAAIC,KAAOD,EACXF,EAAoBI,EAAEF,EAAYC,KAASH,EAAoBI,EAAEH,EAASE,IAC5EE,OAAOC,eAAeL,EAASE,EAAK,CAAEI,YAAY,EAAMC,IAAKN,EAAWC,MCJ3E,EAAwB,CAACM,EAAKC,IAAUL,OAAOM,UAAUC,eAAeC,KAAKJ,EAAKC,I,sBCGlF,cAHA,SAAmBI,GACf,KAAM,eAGNC,I","file":"test1.js","sourcesContent":["// The require scope\nvar __webpack_require__ = {};\n\n","// define getter functions for harmony exports\n__webpack_require__.d = (exports, definition) => {\n\tfor(var key in definition) {\n\t\tif(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {\n\t\t\tObject.defineProperty(exports, key, { enumerable: true, get: definition[key] });\n\t\t}\n\t}\n};","__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))","function coolThrow(s: string) {\n    throw \"cool \"+ s\n}\nexport default () => {\n    coolThrow(\"is cool\")\n};\n"],"sourceRoot":""}
 `[1:]), 0o644))
 	data := `
 import l from "./test1.js"
 
-export default function () ***REMOVED***
+export default function () {
 		l()
-***REMOVED***;
+};
 `[1:]
 	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
@@ -655,24 +655,24 @@ export default function () ***REMOVED***
 	// TODO figure out why those are not the same as the one in the previous test TestSourceMapsExternal
 	// likely settings in the transpilers
 	require.Equal(t, "cool is cool\n\tat webpack:///./test1.ts:2:4(2)\n\tat r (webpack:///./test1.ts:5:4(3))\n\tat file:///script.js:4:2(4)\n\tat native\n", exception.String())
-***REMOVED***
+}
 
-func TestSourceMapsExternalExtentedInlined(t *testing.T) ***REMOVED***
+func TestSourceMapsExternalExtentedInlined(t *testing.T) {
 	t.Parallel()
 	logger := testutils.NewLogger(t)
 	fs := afero.NewMemMapFs()
 	// This example is created through the template-typescript
 	// but was exported to use import/export syntax so it has to go through babel
 	require.NoError(t, afero.WriteFile(fs, "/test1.js", []byte(`
-var o=***REMOVED***d:(e,r)=>***REMOVED***for(var t in r)o.o(r,t)&&!o.o(e,t)&&Object.defineProperty(e,t,***REMOVED***enumerable:!0,get:r[t]***REMOVED***)***REMOVED***,o:(o,e)=>Object.prototype.hasOwnProperty.call(o,e)***REMOVED***,e=***REMOVED******REMOVED***;o.d(e,***REMOVED***Z:()=>r***REMOVED***);const r=()=>***REMOVED***!function(o)***REMOVED***throw"cool is cool"***REMOVED***()***REMOVED***;var t=e.Z;export***REMOVED***t as default***REMOVED***;
+var o={d:(e,r)=>{for(var t in r)o.o(r,t)&&!o.o(e,t)&&Object.defineProperty(e,t,{enumerable:!0,get:r[t]})},o:(o,e)=>Object.prototype.hasOwnProperty.call(o,e)},e={};o.d(e,{Z:()=>r});const r=()=>{!function(o){throw"cool is cool"}()};var t=e.Z;export{t as default};
 //# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8vd2VicGFjay9ib290c3RyYXAiLCJ3ZWJwYWNrOi8vL3dlYnBhY2svcnVudGltZS9kZWZpbmUgcHJvcGVydHkgZ2V0dGVycyIsIndlYnBhY2s6Ly8vd2VicGFjay9ydW50aW1lL2hhc093blByb3BlcnR5IHNob3J0aGFuZCIsIndlYnBhY2s6Ly8vLi90ZXN0MS50cyJdLCJuYW1lcyI6WyJfX3dlYnBhY2tfcmVxdWlyZV9fIiwiZXhwb3J0cyIsImRlZmluaXRpb24iLCJrZXkiLCJvIiwiT2JqZWN0IiwiZGVmaW5lUHJvcGVydHkiLCJlbnVtZXJhYmxlIiwiZ2V0Iiwib2JqIiwicHJvcCIsInByb3RvdHlwZSIsImhhc093blByb3BlcnR5IiwiY2FsbCIsInMiLCJjb29sVGhyb3ciXSwibWFwcGluZ3MiOiJBQUNBLElBQUlBLEVBQXNCLENDQTFCLEVBQXdCLENBQUNDLEVBQVNDLEtBQ2pDLElBQUksSUFBSUMsS0FBT0QsRUFDWEYsRUFBb0JJLEVBQUVGLEVBQVlDLEtBQVNILEVBQW9CSSxFQUFFSCxFQUFTRSxJQUM1RUUsT0FBT0MsZUFBZUwsRUFBU0UsRUFBSyxDQUFFSSxZQUFZLEVBQU1DLElBQUtOLEVBQVdDLE1DSjNFLEVBQXdCLENBQUNNLEVBQUtDLElBQVVMLE9BQU9NLFVBQVVDLGVBQWVDLEtBQUtKLEVBQUtDLEksc0JDR2xGLGNBSEEsU0FBbUJJLEdBQ2YsS0FBTSxlQUdOQyxJIiwiZmlsZSI6InRlc3QxLmpzIiwic291cmNlc0NvbnRlbnQiOlsiLy8gVGhlIHJlcXVpcmUgc2NvcGVcbnZhciBfX3dlYnBhY2tfcmVxdWlyZV9fID0ge307XG5cbiIsIi8vIGRlZmluZSBnZXR0ZXIgZnVuY3Rpb25zIGZvciBoYXJtb255IGV4cG9ydHNcbl9fd2VicGFja19yZXF1aXJlX18uZCA9IChleHBvcnRzLCBkZWZpbml0aW9uKSA9PiB7XG5cdGZvcih2YXIga2V5IGluIGRlZmluaXRpb24pIHtcblx0XHRpZihfX3dlYnBhY2tfcmVxdWlyZV9fLm8oZGVmaW5pdGlvbiwga2V5KSAmJiAhX193ZWJwYWNrX3JlcXVpcmVfXy5vKGV4cG9ydHMsIGtleSkpIHtcblx0XHRcdE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCBrZXksIHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBkZWZpbml0aW9uW2tleV0gfSk7XG5cdFx0fVxuXHR9XG59OyIsIl9fd2VicGFja19yZXF1aXJlX18ubyA9IChvYmosIHByb3ApID0+IChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwob2JqLCBwcm9wKSkiLCJmdW5jdGlvbiBjb29sVGhyb3coczogc3RyaW5nKSB7XG4gICAgdGhyb3cgXCJjb29sIFwiKyBzXG59XG5leHBvcnQgZGVmYXVsdCAoKSA9PiB7XG4gICAgY29vbFRocm93KFwiaXMgY29vbFwiKVxufTtcbiJdLCJzb3VyY2VSb290IjoiIn0=
 `[1:]), 0o644))
 	data := `
 import l from "./test1.js"
 
-export default function () ***REMOVED***
+export default function () {
 		l()
-***REMOVED***;
+};
 `[1:]
 	b, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), fs)
 	require.NoError(t, err)
@@ -686,4 +686,4 @@ export default function () ***REMOVED***
 	// TODO figure out why those are not the same as the one in the previous test TestSourceMapsExternal
 	// likely settings in the transpilers
 	require.Equal(t, "cool is cool\n\tat webpack:///./test1.ts:2:4(2)\n\tat r (webpack:///./test1.ts:5:4(3))\n\tat file:///script.js:4:2(4)\n\tat native\n", exception.String())
-***REMOVED***
+}

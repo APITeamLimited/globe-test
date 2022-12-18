@@ -12,26 +12,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChangePathFs(t *testing.T) ***REMOVED***
+func TestChangePathFs(t *testing.T) {
 	t.Parallel()
 	filePath := "/another/path/to/file.txt"
-	newTestFS := func() *ChangePathFs ***REMOVED***
+	newTestFS := func() *ChangePathFs {
 		m := afero.NewMemMapFs()
 		prefix := "/another/"
-		c := NewChangePathFs(m, ChangePathFunc(func(name string) (string, error) ***REMOVED***
-			if !strings.HasPrefix(name, prefix) ***REMOVED***
+		c := NewChangePathFs(m, ChangePathFunc(func(name string) (string, error) {
+			if !strings.HasPrefix(name, prefix) {
 				return "", fmt.Errorf("path %s doesn't  start with `%s`", name, prefix)
-			***REMOVED***
+			}
 			return name[len(prefix):], nil
-		***REMOVED***))
+		}))
 
 		require.Equal(t, c.Name(), "ChangePathFs")
 		f, err := c.Create(filePath)
 		require.NoError(t, err)
 		require.Equal(t, filePath, f.Name())
 		return c
-	***REMOVED***
-	t.Run("Create", func(t *testing.T) ***REMOVED***
+	}
+	t.Run("Create", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 
@@ -43,23 +43,23 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 
 		_, err := c.Create("/notanother/path/to/file.txt")
 		checkErrorPath(t, err, "/notanother/path/to/file.txt")
-	***REMOVED***)
+	})
 
-	t.Run("Mkdir", func(t *testing.T) ***REMOVED***
+	t.Run("Mkdir", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		require.NoError(t, c.Mkdir("/another/path/too", 0o644))
 		checkErrorPath(t, c.Mkdir("/notanother/path/too", 0o644), "/notanother/path/too")
-	***REMOVED***)
+	})
 
-	t.Run("MkdirAll", func(t *testing.T) ***REMOVED***
+	t.Run("MkdirAll", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		require.NoError(t, c.MkdirAll("/another/pattth/too", 0o644))
 		checkErrorPath(t, c.MkdirAll("/notanother/pattth/too", 0o644), "/notanother/pattth/too")
-	***REMOVED***)
+	})
 
-	t.Run("Open", func(t *testing.T) ***REMOVED***
+	t.Run("Open", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		f, err := c.Open(filePath)
@@ -68,9 +68,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 
 		_, err = c.Open("/notanother/path/to/file.txt")
 		checkErrorPath(t, err, "/notanother/path/to/file.txt")
-	***REMOVED***)
+	})
 
-	t.Run("OpenFile", func(t *testing.T) ***REMOVED***
+	t.Run("OpenFile", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		f, err := c.OpenFile(filePath, os.O_RDWR, 0o644)
@@ -82,9 +82,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 
 		_, err = c.OpenFile("/another/nonexistant", os.O_RDWR, 0o644)
 		require.True(t, os.IsNotExist(err))
-	***REMOVED***)
+	})
 
-	t.Run("Stat Chmod Chtimes", func(t *testing.T) ***REMOVED***
+	t.Run("Stat Chmod Chtimes", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		info, err := c.Stat(filePath)
@@ -107,9 +107,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 		checkErrorPath(t, c.Chtimes("/notanother/path/to/file.txt", time.Now(), time.Now()), "/notanother/path/to/file.txt")
 
 		checkErrorPath(t, c.Chmod("/notanother/path/to/file.txt", mode), "/notanother/path/to/file.txt")
-	***REMOVED***)
+	})
 
-	t.Run("LstatIfPossible", func(t *testing.T) ***REMOVED***
+	t.Run("LstatIfPossible", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		info, ok, err := c.LstatIfPossible(filePath)
@@ -119,9 +119,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 
 		_, _, err = c.LstatIfPossible("/notanother/path/to/file.txt")
 		checkErrorPath(t, err, "/notanother/path/to/file.txt")
-	***REMOVED***)
+	})
 
-	t.Run("Rename", func(t *testing.T) ***REMOVED***
+	t.Run("Rename", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		info, err := c.Stat(filePath)
@@ -145,9 +145,9 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 		checkErrorPath(t,
 			c.Rename(filePath, "/notanother/path/to/file.doc"),
 			"/notanother/path/to/file.doc")
-	***REMOVED***)
+	})
 
-	t.Run("Remove", func(t *testing.T) ***REMOVED***
+	t.Run("Remove", func(t *testing.T) {
 		t.Parallel()
 		c := newTestFS()
 		removeFilePath := "/another/file/to/remove.txt"
@@ -176,12 +176,12 @@ func TestChangePathFs(t *testing.T) ***REMOVED***
 		checkErrorPath(t,
 			c.RemoveAll("/notanother/path/to"),
 			"/notanother/path/to")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func checkErrorPath(t *testing.T, err error, path string) ***REMOVED***
+func checkErrorPath(t *testing.T, err error, path string) {
 	require.Error(t, err)
 	p, ok := err.(*os.PathError)
 	require.True(t, ok)
 	require.Equal(t, p.Path, path)
-***REMOVED***
+}

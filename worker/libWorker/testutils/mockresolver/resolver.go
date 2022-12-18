@@ -8,54 +8,54 @@ import (
 
 // MockResolver implements netext.Resolver, and allows changing the host
 // mapping at runtime.
-type MockResolver struct ***REMOVED***
+type MockResolver struct {
 	m        sync.RWMutex
 	hosts    map[string][]net.IP
 	fallback func(host string) ([]net.IP, error)
-***REMOVED***
+}
 
 // New returns a new MockResolver.
-func New(hosts map[string][]net.IP, fallback func(host string) ([]net.IP, error)) *MockResolver ***REMOVED***
-	if hosts == nil ***REMOVED***
+func New(hosts map[string][]net.IP, fallback func(host string) ([]net.IP, error)) *MockResolver {
+	if hosts == nil {
 		hosts = make(map[string][]net.IP)
-	***REMOVED***
-	return &MockResolver***REMOVED***hosts: hosts, fallback: fallback***REMOVED***
-***REMOVED***
+	}
+	return &MockResolver{hosts: hosts, fallback: fallback}
+}
 
 // LookupIP returns the first IP mapped for host.
-func (r *MockResolver) LookupIP(host string) (net.IP, error) ***REMOVED***
-	if ips, err := r.LookupIPAll(host); err != nil ***REMOVED***
+func (r *MockResolver) LookupIP(host string) (net.IP, error) {
+	if ips, err := r.LookupIPAll(host); err != nil {
 		return nil, err
-	***REMOVED*** else if len(ips) > 0 ***REMOVED***
+	} else if len(ips) > 0 {
 		return ips[0], nil
-	***REMOVED***
+	}
 	return nil, nil
-***REMOVED***
+}
 
 // LookupIPAll returns all IPs mapped for host. It mimics the net.LookupIP
 // signature so that it can be used to mock netext.LookupIP in tests.
-func (r *MockResolver) LookupIPAll(host string) ([]net.IP, error) ***REMOVED***
+func (r *MockResolver) LookupIPAll(host string) ([]net.IP, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if ips, ok := r.hosts[host]; ok ***REMOVED***
+	if ips, ok := r.hosts[host]; ok {
 		return ips, nil
-	***REMOVED***
-	if r.fallback != nil ***REMOVED***
+	}
+	if r.fallback != nil {
 		return r.fallback(host)
-	***REMOVED***
+	}
 	return nil, fmt.Errorf("lookup %s: no such host", host)
-***REMOVED***
+}
 
 // Set the host to resolve to ip.
-func (r *MockResolver) Set(host, ip string) ***REMOVED***
+func (r *MockResolver) Set(host, ip string) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.hosts[host] = []net.IP***REMOVED***net.ParseIP(ip)***REMOVED***
-***REMOVED***
+	r.hosts[host] = []net.IP{net.ParseIP(ip)}
+}
 
 // Unset removes the host.
-func (r *MockResolver) Unset(host string) ***REMOVED***
+func (r *MockResolver) Unset(host string) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	delete(r.hosts, host)
-***REMOVED***
+}

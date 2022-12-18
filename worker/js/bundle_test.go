@@ -30,28 +30,28 @@ import (
 
 const isWindows = runtime.GOOS == "windows"
 
-func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *libWorker.RuntimeOptions) *libWorker.TestPreInitState ***REMOVED***
-	if logger == nil ***REMOVED***
+func getTestPreInitState(tb testing.TB, logger *logrus.Logger, rtOpts *libWorker.RuntimeOptions) *libWorker.TestPreInitState {
+	if logger == nil {
 		logger = testutils.NewLogger(tb)
-	***REMOVED***
-	if rtOpts == nil ***REMOVED***
-		rtOpts = &libWorker.RuntimeOptions***REMOVED******REMOVED***
-	***REMOVED***
+	}
+	if rtOpts == nil {
+		rtOpts = &libWorker.RuntimeOptions{}
+	}
 	reg := workerMetrics.NewRegistry()
-	return &libWorker.TestPreInitState***REMOVED***
+	return &libWorker.TestPreInitState{
 		Logger:         logger,
 		RuntimeOptions: *rtOpts,
 		Registry:       reg,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(reg),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *libWorker.WorkerInfo, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
+func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *libWorker.WorkerInfo, opts ...interface{}) (*Bundle, error) {
 	fs := afero.NewMemMapFs()
 	var rtOpts *libWorker.RuntimeOptions
 	var logger *logrus.Logger
-	for _, o := range opts ***REMOVED***
-		switch opt := o.(type) ***REMOVED***
+	for _, o := range opts {
+		switch opt := o.(type) {
 		case afero.Fs:
 			fs = opt
 		case libWorker.RuntimeOptions:
@@ -60,321 +60,321 @@ func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *libWorker
 			logger = opt
 		default:
 			tb.Fatalf("unknown test option %q", opt)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return NewBundle(
 		getTestPreInitState(tb, logger, rtOpts),
-		&loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
+		&loader.SourceData{
+			URL:  &url.URL{Path: filename, Scheme: "file"},
 			Data: []byte(data),
-		***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
+		},
+		map[string]afero.Fs{"file": fs, "https": afero.NewMemMapFs()},
 		workerInfo,
 	)
-***REMOVED***
+}
 
-func TestNewBundle(t *testing.T) ***REMOVED***
+func TestNewBundle(t *testing.T) {
 	t.Parallel()
-	t.Run("Blank", func(t *testing.T) ***REMOVED***
+	t.Run("Blank", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "", libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
-	***REMOVED***)
-	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Invalid", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "\x00", libWorker.GetTestWorkerInfo())
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
-	***REMOVED***)
-	t.Run("Error", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`, libWorker.GetTestWorkerInfo())
 		exception := new(scriptException)
 		require.ErrorAs(t, err, &exception)
 		require.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:2:7(3)\n\tat native\n")
-	***REMOVED***)
-	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("InvalidExports", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `module.exports = null`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "exports must be an object")
-	***REMOVED***)
-	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("DefaultUndefined", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
-	***REMOVED***)
-	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("DefaultNull", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default null;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
-	***REMOVED***)
-	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("DefaultWrongType", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`, libWorker.GetTestWorkerInfo())
 		require.EqualError(t, err, "no exported functions in script")
-	***REMOVED***)
-	t.Run("Minimal", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("Minimal", func(t *testing.T) {
 		t.Parallel()
-		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`, libWorker.GetTestWorkerInfo())
+		_, err := getSimpleBundle(t, "/script.js", `export default function() {};`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
-	***REMOVED***)
-	t.Run("stdin", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("stdin", func(t *testing.T) {
 		t.Parallel()
-		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`, libWorker.GetTestWorkerInfo())
+		b, err := getSimpleBundle(t, "-", `export default function() {};`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		assert.Equal(t, "file://-", b.Filename.String())
 		assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
-	***REMOVED***)
-	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("CompatibilityMode", func(t *testing.T) {
 		t.Parallel()
-		t.Run("Extended/ok/global", func(t *testing.T) ***REMOVED***
+		t.Run("Extended/ok/global", func(t *testing.T) {
 			t.Parallel()
-			rtOpts := libWorker.RuntimeOptions***REMOVED***
+			rtOpts := libWorker.RuntimeOptions{
 				CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeExtended.String()),
-			***REMOVED***
+			}
 			_, err := getSimpleBundle(t, "/script.js",
-				`module.exports.default = function() ***REMOVED******REMOVED***
-				if (global.Math != Math) ***REMOVED***
+				`module.exports.default = function() {}
+				if (global.Math != Math) {
 					throw new Error("global is not defined");
-				***REMOVED***`, libWorker.GetTestWorkerInfo(), rtOpts)
+				}`, libWorker.GetTestWorkerInfo(), rtOpts)
 
 			require.NoError(t, err)
-		***REMOVED***)
-		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Base/ok/Minimal", func(t *testing.T) {
 			t.Parallel()
-			rtOpts := libWorker.RuntimeOptions***REMOVED***
+			rtOpts := libWorker.RuntimeOptions{
 				CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeBase.String()),
-			***REMOVED***
+			}
 			_, err := getSimpleBundle(t, "/script.js",
-				`module.exports.default = function() ***REMOVED******REMOVED***;`, libWorker.GetTestWorkerInfo(), rtOpts)
+				`module.exports.default = function() {};`, libWorker.GetTestWorkerInfo(), rtOpts)
 			require.NoError(t, err)
-		***REMOVED***)
-		t.Run("Base/err", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Base/err", func(t *testing.T) {
 			t.Parallel()
-			testCases := []struct ***REMOVED***
+			testCases := []struct {
 				name       string
 				compatMode string
 				code       string
 				expErr     string
-			***REMOVED******REMOVED***
-				***REMOVED***
-					"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
+			}{
+				{
+					"InvalidCompat", "es1", `export default function() {};`,
 					`invalid compatibility mode "es1". Use: "extended", "base"`,
-				***REMOVED***,
+				},
 				// ES2015 modules are not supported
-				***REMOVED***
-					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
+				{
+					"Modules", "base", `export default function() {};`,
 					"file:///script.js: Line 2:1 Unexpected reserved word (and 2 more errors)",
-				***REMOVED***,
+				},
 				// BigInt is not supported
-				***REMOVED***
+				{
 					"BigInt", "base",
-					`module.exports.default = function() ***REMOVED******REMOVED***; BigInt(1231412444)`,
+					`module.exports.default = function() {}; BigInt(1231412444)`,
 					"ReferenceError: BigInt is not defined\n\tat file:///script.js:2:47(7)\n\tat native\n",
-				***REMOVED***,
-			***REMOVED***
+				},
+			}
 
-			for _, tc := range testCases ***REMOVED***
+			for _, tc := range testCases {
 				tc := tc
-				t.Run(tc.name, func(t *testing.T) ***REMOVED***
+				t.Run(tc.name, func(t *testing.T) {
 					t.Parallel()
-					rtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
+					rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.compatMode)}
 					_, err := getSimpleBundle(t, "/script.js", tc.code, libWorker.GetTestWorkerInfo(), rtOpts)
 					require.EqualError(t, err, tc.expErr)
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("Options", func(t *testing.T) ***REMOVED***
+				})
+			}
+		})
+	})
+	t.Run("Options", func(t *testing.T) {
 		t.Parallel()
-		t.Run("Empty", func(t *testing.T) ***REMOVED***
+		t.Run("Empty", func(t *testing.T) {
 			t.Parallel()
 			_, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED******REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				export let options = {};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
-		***REMOVED***)
-		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Invalid", func(t *testing.T) {
 			t.Parallel()
-			invalidOptions := map[string]struct ***REMOVED***
+			invalidOptions := map[string]struct {
 				Expr, Error string
-			***REMOVED******REMOVED***
-				"Array":    ***REMOVED***`[]`, "json: cannot unmarshal array into Go value of type libWorker.Options"***REMOVED***,
-				"Function": ***REMOVED***`function()***REMOVED******REMOVED***`, "json: unsupported type: func(goja.FunctionCall) goja.Value"***REMOVED***,
-			***REMOVED***
-			for name, data := range invalidOptions ***REMOVED***
-				t.Run(name, func(t *testing.T) ***REMOVED***
+			}{
+				"Array":    {`[]`, "json: cannot unmarshal array into Go value of type libWorker.Options"},
+				"Function": {`function(){}`, "json: unsupported type: func(goja.FunctionCall) goja.Value"},
+			}
+			for name, data := range invalidOptions {
+				t.Run(name, func(t *testing.T) {
 					_, err := getSimpleBundle(t, "/script.js", fmt.Sprintf(`
 						export let options = %s;
-						export default function() ***REMOVED******REMOVED***;
+						export default function() {};
 					`, data.Expr), libWorker.GetTestWorkerInfo())
 					require.EqualError(t, err, data.Error)
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
+				})
+			}
+		})
 
-		t.Run("Paused", func(t *testing.T) ***REMOVED***
+		t.Run("Paused", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					paused: true,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.Paused)
-		***REMOVED***)
-		t.Run("VUs", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("VUs", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					vus: 100,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.VUs)
-		***REMOVED***)
-		t.Run("Duration", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Duration", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					duration: "10s",
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
-		***REMOVED***)
-		t.Run("Iterations", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Iterations", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					iterations: 100,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(100), b.Options.Iterations)
-		***REMOVED***)
-		t.Run("Stages", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("Stages", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					stages: [],
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Stages, 0)
 
-			t.Run("Empty", func(t *testing.T) ***REMOVED***
+			t.Run("Empty", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						stages: [
-							***REMOVED******REMOVED***,
+							{},
 						],
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, libWorker.Stage***REMOVED******REMOVED***, b.Options.Stages[0])
-			***REMOVED***)
-			t.Run("Target", func(t *testing.T) ***REMOVED***
+				require.Equal(t, libWorker.Stage{}, b.Options.Stages[0])
+			})
+			t.Run("Target", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						stages: [
-							***REMOVED***target: 10***REMOVED***,
+							{target: 10},
 						],
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, libWorker.Stage***REMOVED***Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-			***REMOVED***)
-			t.Run("Duration", func(t *testing.T) ***REMOVED***
+				require.Equal(t, libWorker.Stage{Target: null.IntFrom(10)}, b.Options.Stages[0])
+			})
+			t.Run("Duration", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						stages: [
-							***REMOVED***duration: "10s"***REMOVED***,
+							{duration: "10s"},
 						],
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, libWorker.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
-			***REMOVED***)
-			t.Run("DurationAndTarget", func(t *testing.T) ***REMOVED***
+				require.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second)}, b.Options.Stages[0])
+			})
+			t.Run("DurationAndTarget", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						stages: [
-							***REMOVED***duration: "10s", target: 10***REMOVED***,
+							{duration: "10s", target: 10},
 						],
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 1)
-				require.Equal(t, libWorker.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-			***REMOVED***)
-			t.Run("RampUpAndPlateau", func(t *testing.T) ***REMOVED***
+				require.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
+			})
+			t.Run("RampUpAndPlateau", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						stages: [
-							***REMOVED***duration: "10s", target: 10***REMOVED***,
-							***REMOVED***duration: "5s"***REMOVED***,
+							{duration: "10s", target: 10},
+							{duration: "5s"},
 						],
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				require.Len(t, b.Options.Stages, 2)
-				assert.Equal(t, libWorker.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-				assert.Equal(t, libWorker.Stage***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
-			***REMOVED***)
-		***REMOVED***)
-		t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
+				assert.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)}, b.Options.Stages[0])
+				assert.Equal(t, libWorker.Stage{Duration: types.NullDurationFrom(5 * time.Second)}, b.Options.Stages[1])
+			})
+		})
+		t.Run("MaxRedirects", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					maxRedirects: 10,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.IntFrom(10), b.Options.MaxRedirects)
-		***REMOVED***)
-		t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("InsecureSkipTLSVerify", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
+				export let options = {
 					insecureSkipTLSVerify: true,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
-		***REMOVED***)
-		t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
+		})
+		t.Run("TLSCipherSuites", func(t *testing.T) {
 			t.Parallel()
-			for suiteName, suiteID := range libWorker.SupportedTLSCipherSuites ***REMOVED***
-				t.Run(suiteName, func(t *testing.T) ***REMOVED***
+			for suiteName, suiteID := range libWorker.SupportedTLSCipherSuites {
+				t.Run(suiteName, func(t *testing.T) {
 					t.Parallel()
 					script := `
-					export let options = ***REMOVED***
+					export let options = {
 						tlsCipherSuites: ["%s"]
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 					`
 					script = fmt.Sprintf(script, suiteName)
 
@@ -382,71 +382,71 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					require.NoError(t, err)
 					require.Len(t, *b.Options.TLSCipherSuites, 1)
 					require.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-		t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
+				})
+			}
+		})
+		t.Run("TLSVersion", func(t *testing.T) {
 			t.Parallel()
-			t.Run("Object", func(t *testing.T) ***REMOVED***
+			t.Run("Object", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
-						tlsVersion: ***REMOVED***
+					export let options = {
+						tlsVersion: {
 							min: "tls1.0",
 							max: "tls1.2"
-						***REMOVED***
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+						}
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				assert.Equal(t, b.Options.TLSVersion.Min, libWorker.TLSVersion(tls.VersionTLS10))
 				assert.Equal(t, b.Options.TLSVersion.Max, libWorker.TLSVersion(tls.VersionTLS12))
-			***REMOVED***)
-			t.Run("String", func(t *testing.T) ***REMOVED***
+			})
+			t.Run("String", func(t *testing.T) {
 				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
-					export let options = ***REMOVED***
+					export let options = {
 						tlsVersion: "tls1.0"
-					***REMOVED***;
-					export default function() ***REMOVED******REMOVED***;
+					};
+					export default function() {};
 				`, libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 				assert.Equal(t, b.Options.TLSVersion.Min, libWorker.TLSVersion(tls.VersionTLS10))
 				assert.Equal(t, b.Options.TLSVersion.Max, libWorker.TLSVersion(tls.VersionTLS10))
-			***REMOVED***)
-		***REMOVED***)
-		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
+			})
+		})
+		t.Run("Thresholds", func(t *testing.T) {
 			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
-					thresholds: ***REMOVED***
+				export let options = {
+					thresholds: {
 						http_req_duration: ["avg<100"],
-					***REMOVED***,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+					},
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			require.Len(t, b.Options.Thresholds["http_req_duration"].Thresholds, 1)
 			require.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
-		***REMOVED***)
+		})
 
-		t.Run("Unknown field", func(t *testing.T) ***REMOVED***
+		t.Run("Unknown field", func(t *testing.T) {
 			t.Parallel()
 			logger := logrus.New()
 			logger.SetLevel(logrus.InfoLevel)
 			logger.Out = ioutil.Discard
-			hook := testutils.SimpleLogrusHook***REMOVED***
-				HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel, logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel***REMOVED***,
-			***REMOVED***
+			hook := testutils.SimpleLogrusHook{
+				HookedLevels: []logrus.Level{logrus.WarnLevel, logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel},
+			}
 			logger.AddHook(&hook)
 
 			_, err := getSimpleBundle(t, "/script.js", `
-				export let options = ***REMOVED***
-					something: ***REMOVED***
+				export let options = {
+					something: {
 						http_req_duration: ["avg<100"],
-					***REMOVED***,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
+					},
+				};
+				export default function() {};
 			`, libWorker.GetTestWorkerInfo(), logger)
 			require.NoError(t, err)
 			entries := hook.Drain()
@@ -454,112 +454,112 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			assert.Equal(t, logrus.WarnLevel, entries[0].Level)
 			assert.Contains(t, entries[0].Message, "There were unknown fields")
 			assert.Contains(t, entries[0].Data["error"].(error).Error(), "unknown field \"something\"")
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+		})
+	})
+}
 
-func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
+func TestNewBundleFromArchive(t *testing.T) {
 	t.Parallel()
 
-	es5Code := `module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***; module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`
-	es6Code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`
-	baseCompatModeRtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeBase.String())***REMOVED***
-	extCompatModeRtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeExtended.String())***REMOVED***
+	es5Code := `module.exports.options = { vus: 12345 }; module.exports.default = function() { return "hi!" };`
+	es6Code := `export let options = { vus: 12345 }; export default function() { return "hi!"; };`
+	baseCompatModeRtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeBase.String())}
+	extCompatModeRtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(libWorker.CompatibilityModeExtended.String())}
 
 	logger := testutils.NewLogger(t)
-	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
-		require.Equal(t, libWorker.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+	checkBundle := func(t *testing.T, b *Bundle) {
+		require.Equal(t, libWorker.Options{VUs: null.IntFrom(12345)}, b.Options)
 		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
 		require.Equal(t, "hi!", val.Export())
-	***REMOVED***
+	}
 
-	checkArchive := func(t *testing.T, arc *libWorker.Archive, rtOpts libWorker.RuntimeOptions, expError string) ***REMOVED***
+	checkArchive := func(t *testing.T, arc *libWorker.Archive, rtOpts libWorker.RuntimeOptions, expError string) {
 		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, &rtOpts), arc, libWorker.GetTestWorkerInfo())
-		if expError != "" ***REMOVED***
+		if expError != "" {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), expError)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			require.NoError(t, err)
 			checkBundle(t, b)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	t.Run("es6_script_default", func(t *testing.T) ***REMOVED***
+	t.Run("es6_script_default", func(t *testing.T) {
 		t.Parallel()
-		arc, err := getArchive(t, es6Code, libWorker.RuntimeOptions***REMOVED******REMOVED***) // default options
+		arc, err := getArchive(t, es6Code, libWorker.RuntimeOptions{}) // default options
 		require.NoError(t, err)
 		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, libWorker.RuntimeOptions***REMOVED******REMOVED***, "") // default options
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "") // default options
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
-	***REMOVED***)
+	})
 
-	t.Run("es6_script_explicit", func(t *testing.T) ***REMOVED***
+	t.Run("es6_script_explicit", func(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
 		require.NoError(t, err)
 		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, libWorker.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
-	***REMOVED***)
+	})
 
-	t.Run("es5_script_with_extended", func(t *testing.T) ***REMOVED***
+	t.Run("es5_script_with_extended", func(t *testing.T) {
 		t.Parallel()
-		arc, err := getArchive(t, es5Code, libWorker.RuntimeOptions***REMOVED******REMOVED***)
+		arc, err := getArchive(t, es5Code, libWorker.RuntimeOptions{})
 		require.NoError(t, err)
 		require.Equal(t, libWorker.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, libWorker.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "")
-	***REMOVED***)
+	})
 
-	t.Run("es5_script", func(t *testing.T) ***REMOVED***
+	t.Run("es5_script", func(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es5Code, baseCompatModeRtOpts)
 		require.NoError(t, err)
 		require.Equal(t, libWorker.CompatibilityModeBase.String(), arc.CompatibilityMode)
 
-		checkArchive(t, arc, libWorker.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "")
 		checkArchive(t, arc, extCompatModeRtOpts, "")
 		checkArchive(t, arc, baseCompatModeRtOpts, "")
-	***REMOVED***)
+	})
 
-	t.Run("es6_archive_with_wrong_compat_mode", func(t *testing.T) ***REMOVED***
+	t.Run("es6_archive_with_wrong_compat_mode", func(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es6Code, baseCompatModeRtOpts)
 		require.Error(t, err)
 		require.Nil(t, arc)
-	***REMOVED***)
+	})
 
-	t.Run("messed_up_archive", func(t *testing.T) ***REMOVED***
+	t.Run("messed_up_archive", func(t *testing.T) {
 		t.Parallel()
 		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
 		require.NoError(t, err)
 		arc.CompatibilityMode = "blah"                                                 // intentionally break the archive
-		checkArchive(t, arc, libWorker.RuntimeOptions***REMOVED******REMOVED***, "invalid compatibility mode") // fails when it uses the archive one
+		checkArchive(t, arc, libWorker.RuntimeOptions{}, "invalid compatibility mode") // fails when it uses the archive one
 		checkArchive(t, arc, extCompatModeRtOpts, "")                                  // works when I force the compat mode
 		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")         // failes because of ES6
-	***REMOVED***)
+	})
 
-	t.Run("script_options_dont_overwrite_metadata", func(t *testing.T) ***REMOVED***
+	t.Run("script_options_dont_overwrite_metadata", func(t *testing.T) {
 		t.Parallel()
-		code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return options.vus; ***REMOVED***;`
-		arc := &libWorker.Archive***REMOVED***
+		code := `export let options = { vus: 12345 }; export default function() { return options.vus; };`
+		arc := &libWorker.Archive{
 			Type:        "js",
-			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: "/script"***REMOVED***,
+			FilenameURL: &url.URL{Scheme: "file", Path: "/script"},
 			K6Version:   consts.Version,
 			Data:        []byte(code),
-			Options:     libWorker.Options***REMOVED***VUs: null.IntFrom(999)***REMOVED***,
-			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
+			Options:     libWorker.Options{VUs: null.IntFrom(999)},
+			PwdURL:      &url.URL{Scheme: "file", Path: "/"},
 			Filesystems: nil,
-		***REMOVED***
+		}
 		b, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), arc, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
@@ -567,177 +567,177 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
 		require.Equal(t, int64(999), val.Export())
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestOpen(t *testing.T) ***REMOVED***
-	testCases := [...]struct ***REMOVED***
+func TestOpen(t *testing.T) {
+	testCases := [...]struct {
 		name           string
 		openPath       string
 		pwd            string
 		isError        bool
 		isArchiveError bool
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:     "notOpeningUrls",
 			openPath: "github.com",
 			isError:  true,
 			pwd:      "/path/to",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "simple",
 			openPath: "file.txt",
 			pwd:      "/path/to",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "simple with dot",
 			openPath: "./file.txt",
 			pwd:      "/path/to",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "simple with two dots",
 			openPath: "../to/file.txt",
 			pwd:      "/path/not",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "fullpath",
 			openPath: "/path/to/file.txt",
 			pwd:      "/path/to",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "fullpath2",
 			openPath: "/path/to/file.txt",
 			pwd:      "/path",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "file is dir",
 			openPath: "/path/to/",
 			pwd:      "/path/to",
 			isError:  true,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "file is missing",
 			openPath: "/path/to/missing.txt",
 			isError:  true,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "relative1",
 			openPath: "to/file.txt",
 			pwd:      "/path",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "relative2",
 			openPath: "./path/to/file.txt",
 			pwd:      "/",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "relative wonky",
 			openPath: "../path/to/file.txt",
 			pwd:      "/path",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:     "empty open doesn't panic",
 			openPath: "",
 			pwd:      "/path",
 			isError:  true,
-		***REMOVED***,
-	***REMOVED***
-	fss := map[string]func() (afero.Fs, string, func())***REMOVED***
-		"MemMapFS": func() (afero.Fs, string, func()) ***REMOVED***
+		},
+	}
+	fss := map[string]func() (afero.Fs, string, func()){
+		"MemMapFS": func() (afero.Fs, string, func()) {
 			fs := afero.NewMemMapFs()
 			require.NoError(t, fs.MkdirAll("/path/to", 0o755))
 			require.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644))
-			return fs, "", func() ***REMOVED******REMOVED***
-		***REMOVED***,
-		"OsFS": func() (afero.Fs, string, func()) ***REMOVED***
+			return fs, "", func() {}
+		},
+		"OsFS": func() (afero.Fs, string, func()) {
 			prefix, err := ioutil.TempDir("", "k6_open_test")
 			require.NoError(t, err)
 			fs := afero.NewOsFs()
 			filePath := filepath.Join(prefix, "/path/to/file.txt")
 			require.NoError(t, fs.MkdirAll(filepath.Join(prefix, "/path/to"), 0o755))
 			require.NoError(t, afero.WriteFile(fs, filePath, []byte(`hi`), 0o644))
-			if isWindows ***REMOVED***
+			if isWindows {
 				fs = fsext.NewTrimFilePathSeparatorFs(fs)
-			***REMOVED***
-			return fs, prefix, func() ***REMOVED*** require.NoError(t, os.RemoveAll(prefix)) ***REMOVED***
-		***REMOVED***,
-	***REMOVED***
+			}
+			return fs, prefix, func() { require.NoError(t, os.RemoveAll(prefix)) }
+		},
+	}
 
 	logger := testutils.NewLogger(t)
 
-	for name, fsInit := range fss ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
+	for name, fsInit := range fss {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			for _, tCase := range testCases ***REMOVED***
+			for _, tCase := range testCases {
 				tCase := tCase
 
-				testFunc := func(t *testing.T) ***REMOVED***
+				testFunc := func(t *testing.T) {
 					t.Parallel()
 					fs, prefix, cleanUp := fsInit()
 					defer cleanUp()
 					fs = afero.NewReadOnlyFs(fs)
 					openPath := tCase.openPath
 					// if fullpath prepend prefix
-					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
+					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') {
 						openPath = filepath.Join(prefix, openPath)
-					***REMOVED***
-					if isWindows ***REMOVED***
+					}
+					if isWindows {
 						openPath = strings.Replace(openPath, `\`, `\\`, -1)
-					***REMOVED***
+					}
 					pwd := tCase.pwd
-					if pwd == "" ***REMOVED***
+					if pwd == "" {
 						pwd = "/path/to/"
-					***REMOVED***
+					}
 					data := `
 						export let file = open("` + openPath + `");
-						export default function() ***REMOVED*** return file ***REMOVED***;`
+						export default function() { return file };`
 
 					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, libWorker.GetTestWorkerInfo(), fs)
-					if tCase.isError ***REMOVED***
+					if tCase.isError {
 						require.Error(t, err)
 						return
-					***REMOVED***
+					}
 					require.NoError(t, err)
 
 					arcBundle, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), sourceBundle.makeArchive(), libWorker.GetTestWorkerInfo())
 
 					require.NoError(t, err)
 
-					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
+					for source, b := range map[string]*Bundle{"source": sourceBundle, "archive": arcBundle} {
 						b := b
-						t.Run(source, func(t *testing.T) ***REMOVED***
+						t.Run(source, func(t *testing.T) {
 							bi, err := b.Instantiate(logger, 0, libWorker.GetTestWorkerInfo())
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
 							require.Equal(t, "hi", v.Export())
-						***REMOVED***)
-					***REMOVED***
-				***REMOVED***
+						})
+					}
+				}
 
 				t.Run(tCase.name, testFunc)
-				if isWindows ***REMOVED***
+				if isWindows {
 					// windowsify the testcase
 					tCase.openPath = strings.Replace(tCase.openPath, `/`, `\`, -1)
 					tCase.pwd = strings.Replace(tCase.pwd, `/`, `\`, -1)
 					t.Run(tCase.name+" with windows slash", testFunc)
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
-func TestBundleInstantiate(t *testing.T) ***REMOVED***
+func TestBundleInstantiate(t *testing.T) {
 	t.Parallel()
-	t.Run("Run", func(t *testing.T) ***REMOVED***
+	t.Run("Run", func(t *testing.T) {
 		t.Parallel()
 		b, err := getSimpleBundle(t, "/script.js", `
-		export let options = ***REMOVED***
+		export let options = {
 			vus: 5,
 			teardownTimeout: '1s',
-		***REMOVED***;
+		};
 		let val = true;
-		export default function() ***REMOVED*** return val; ***REMOVED***
+		export default function() { return val; }
 	`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
@@ -747,17 +747,17 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
 		require.Equal(t, true, v.Export())
-	***REMOVED***)
+	})
 
-	t.Run("Options", func(t *testing.T) ***REMOVED***
+	t.Run("Options", func(t *testing.T) {
 		t.Parallel()
 		b, err := getSimpleBundle(t, "/script.js", `
-			export let options = ***REMOVED***
+			export let options = {
 				vus: 5,
 				teardownTimeout: '1s',
-			***REMOVED***;
+			};
 			let val = true;
-			export default function() ***REMOVED*** return val; ***REMOVED***
+			export default function() { return val; }
 		`, libWorker.GetTestWorkerInfo())
 		require.NoError(t, err)
 		logger := testutils.NewLogger(t)
@@ -780,20 +780,20 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		vus = jsOptions.Get("vus").Export()
 		require.Equal(t, int64(10), vus)
 		b.Options.VUs = optOrig
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestBundleEnv(t *testing.T) ***REMOVED***
+func TestBundleEnv(t *testing.T) {
 	t.Parallel()
-	rtOpts := libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***
+	rtOpts := libWorker.RuntimeOptions{Env: map[string]string{
 		"TEST_A": "1",
 		"TEST_B": "",
-	***REMOVED******REMOVED***
+	}}
 	data := `
-		export default function() ***REMOVED***
-			if (__ENV.TEST_A !== "1") ***REMOVED*** throw new Error("Invalid TEST_A: " + __ENV.TEST_A); ***REMOVED***
-			if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
-		***REMOVED***
+		export default function() {
+			if (__ENV.TEST_A !== "1") { throw new Error("Invalid TEST_A: " + __ENV.TEST_A); }
+			if (__ENV.TEST_B !== "") { throw new Error("Invalid TEST_B: " + __ENV.TEST_B); }
+		}
 	`
 	b1, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo(), rtOpts)
 	require.NoError(t, err)
@@ -802,10 +802,10 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
-	for name, b := range bundles ***REMOVED***
+	bundles := map[string]*Bundle{"Source": b1, "Archive": b2}
+	for name, b := range bundles {
 		b := b
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
 			require.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
@@ -814,23 +814,23 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestBundleNotSharable(t *testing.T) ***REMOVED***
+func TestBundleNotSharable(t *testing.T) {
 	t.Parallel()
 	data := `
-		export default function() ***REMOVED***
-			if (__ITER == 0) ***REMOVED***
-				if (typeof __ENV.something !== "undefined") ***REMOVED***
+		export default function() {
+			if (__ITER == 0) {
+				if (typeof __ENV.something !== "undefined") {
 					throw new Error("invalid something: " + __ENV.something + " should be undefined");
-				***REMOVED***
+				}
 				__ENV.something = __VU;
-			***REMOVED*** else if (__ENV.something != __VU) ***REMOVED***
+			} else if (__ENV.something != __VU) {
 				throw new Error("invalid something: " + __ENV.something+ " should be "+ __VU);
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 	`
 	b1, err := getSimpleBundle(t, "/script.js", data, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
@@ -839,67 +839,67 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	b2, err := NewBundleFromArchive(getTestPreInitState(t, logger, nil), b1.makeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
+	bundles := map[string]*Bundle{"Source": b1, "Archive": b2}
 	vus, iters := 10, 1000
-	for name, b := range bundles ***REMOVED***
+	for name, b := range bundles {
 		b := b
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			for i := 0; i < vus; i++ ***REMOVED***
+			for i := 0; i < vus; i++ {
 				bi, err := b.Instantiate(logger, uint64(i), libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
-				for j := 0; j < iters; j++ ***REMOVED***
+				for j := 0; j < iters; j++ {
 					bi.Runtime.Set("__ITER", j)
 					_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 					require.NoError(t, err)
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
-func TestBundleMakeArchive(t *testing.T) ***REMOVED***
+func TestBundleMakeArchive(t *testing.T) {
 	t.Parallel()
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		cm      libWorker.CompatibilityMode
 		script  string
 		exclaim string
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			libWorker.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export let options = { vus: 12345 };
 				export let file = open("./file.txt");
-				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
-			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
-		***REMOVED***,
-		***REMOVED***
+				export default function() { return exclaim(file); };`,
+			`export default function(s) { return s + "!" };`,
+		},
+		{
 			libWorker.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
-				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				module.exports.options = { vus: 12345 };
 				module.exports.file = open("./file.txt");
-				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
-			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
-		***REMOVED***,
-	***REMOVED***
+				module.exports.default = function() { return exclaim(module.exports.file); };`,
+			`module.exports.default = function(s) { return s + "!" };`,
+		},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+		t.Run(tc.cm.String(), func(t *testing.T) {
 			t.Parallel()
 			fs := afero.NewMemMapFs()
 			_ = fs.MkdirAll("/path/to", 0o755)
 			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644)
 			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0o644)
 
-			rtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
+			rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom(tc.cm.String())}
 			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, libWorker.GetTestWorkerInfo(), fs, rtOpts)
 			require.NoError(t, err)
 
 			arc := b.makeArchive()
 
 			assert.Equal(t, "js", arc.Type)
-			assert.Equal(t, libWorker.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
+			assert.Equal(t, libWorker.Options{VUs: null.IntFrom(12345)}, arc.Options)
 			assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
 			assert.Equal(t, tc.script, string(arc.Data))
 			assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
@@ -913,6 +913,6 @@ func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 			assert.Equal(t, `hi`, string(fileData))
 			assert.Equal(t, consts.Version, arc.K6Version)
 			assert.Equal(t, tc.cm.String(), arc.CompatibilityMode)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

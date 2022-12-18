@@ -7,88 +7,88 @@ import (
 
 // TODO fix it not working really well with setupData or just make it more broken
 // TODO fix it working with console.log
-type sharedArray struct ***REMOVED***
+type sharedArray struct {
 	arr []string
-***REMOVED***
+}
 
-type wrappedSharedArray struct ***REMOVED***
+type wrappedSharedArray struct {
 	sharedArray
 
 	rt       *goja.Runtime
 	freeze   goja.Callable
 	isFrozen goja.Callable
 	parse    goja.Callable
-***REMOVED***
+}
 
-func (s sharedArray) wrap(rt *goja.Runtime) goja.Value ***REMOVED***
+func (s sharedArray) wrap(rt *goja.Runtime) goja.Value {
 	freeze, _ := goja.AssertFunction(rt.GlobalObject().Get("Object").ToObject(rt).Get("freeze"))
 	isFrozen, _ := goja.AssertFunction(rt.GlobalObject().Get("Object").ToObject(rt).Get("isFrozen"))
 	parse, _ := goja.AssertFunction(rt.GlobalObject().Get("JSON").ToObject(rt).Get("parse"))
-	return rt.NewDynamicArray(wrappedSharedArray***REMOVED***
+	return rt.NewDynamicArray(wrappedSharedArray{
 		sharedArray: s,
 		rt:          rt,
 		freeze:      freeze,
 		isFrozen:    isFrozen,
 		parse:       parse,
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func (s wrappedSharedArray) Set(index int, val goja.Value) bool ***REMOVED***
+func (s wrappedSharedArray) Set(index int, val goja.Value) bool {
 	panic(s.rt.NewTypeError("SharedArray is immutable")) // this is specifically a type error
-***REMOVED***
+}
 
-func (s wrappedSharedArray) SetLen(len int) bool ***REMOVED***
+func (s wrappedSharedArray) SetLen(len int) bool {
 	panic(s.rt.NewTypeError("SharedArray is immutable")) // this is specifically a type error
-***REMOVED***
+}
 
-func (s wrappedSharedArray) Get(index int) goja.Value ***REMOVED***
-	if index < 0 || index >= len(s.arr) ***REMOVED***
+func (s wrappedSharedArray) Get(index int) goja.Value {
+	if index < 0 || index >= len(s.arr) {
 		return goja.Undefined()
-	***REMOVED***
+	}
 	val, err := s.parse(goja.Undefined(), s.rt.ToValue(s.arr[index]))
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(s.rt, err)
-	***REMOVED***
+	}
 	err = s.deepFreeze(s.rt, val)
-	if err != nil ***REMOVED***
+	if err != nil {
 		common.Throw(s.rt, err)
-	***REMOVED***
+	}
 
 	return val
-***REMOVED***
+}
 
-func (s wrappedSharedArray) Len() int ***REMOVED***
+func (s wrappedSharedArray) Len() int {
 	return len(s.arr)
-***REMOVED***
+}
 
-func (s wrappedSharedArray) deepFreeze(rt *goja.Runtime, val goja.Value) error ***REMOVED***
-	if val != nil && goja.IsNull(val) ***REMOVED***
+func (s wrappedSharedArray) deepFreeze(rt *goja.Runtime, val goja.Value) error {
+	if val != nil && goja.IsNull(val) {
 		return nil
-	***REMOVED***
+	}
 
 	_, err := s.freeze(goja.Undefined(), val)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return err
-	***REMOVED***
+	}
 
 	o := val.ToObject(rt)
-	if o == nil ***REMOVED***
+	if o == nil {
 		return nil
-	***REMOVED***
-	for _, key := range o.Keys() ***REMOVED***
+	}
+	for _, key := range o.Keys() {
 		prop := o.Get(key)
-		if prop != nil ***REMOVED***
+		if prop != nil {
 			// isFrozen returns true for all non objects so it we don't need to check that
 			frozen, err := s.isFrozen(goja.Undefined(), prop)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return err
-			***REMOVED***
-			if !frozen.ToBoolean() ***REMOVED*** // prevent cycles
-				if err = s.deepFreeze(rt, prop); err != nil ***REMOVED***
+			}
+			if !frozen.ToBoolean() { // prevent cycles
+				if err = s.deepFreeze(rt, prop); err != nil {
 					return err
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+				}
+			}
+		}
+	}
 	return nil
-***REMOVED***
+}

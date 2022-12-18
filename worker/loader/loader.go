@@ -20,23 +20,23 @@ import (
 )
 
 // SourceData wraps a source file; data and filename.
-type SourceData struct ***REMOVED***
+type SourceData struct {
 	Data []byte
 	URL  *url.URL
-***REMOVED***
+}
 
 type loaderFunc func(logger logrus.FieldLogger, path string, parts []string) (string, error)
 
 //nolint:gochecknoglobals
 var (
-	loaders = []struct ***REMOVED***
+	loaders = []struct {
 		name string
 		fn   loaderFunc
 		expr *regexp.Regexp
-	***REMOVED******REMOVED***
-		***REMOVED***"cdnjs", cdnjs, regexp.MustCompile(`^cdnjs\.com/libraries/([^/]+)(?:/([(\d\.)]+-?[^/]*))?(?:/(.*))?$`)***REMOVED***,
-		***REMOVED***"github", github, regexp.MustCompile(`^github\.com/([^/]+)/([^/]+)/(.*)$`)***REMOVED***,
-	***REMOVED***
+	}{
+		{"cdnjs", cdnjs, regexp.MustCompile(`^cdnjs\.com/libraries/([^/]+)(?:/([(\d\.)]+-?[^/]*))?(?:/(.*))?$`)},
+		{"github", github, regexp.MustCompile(`^github\.com/([^/]+)/([^/]+)/(.*)$`)},
+	}
 	httpsSchemeCouldntBeLoadedMsg = `The moduleSpecifier "%s" couldn't be retrieved from` +
 		` the resolved url "%s". Error : "%s"`
 	fileSchemeCouldntBeLoadedMsg = `The moduleSpecifier "%s" couldn't be found on ` +
@@ -54,151 +54,151 @@ var (
 
 // noSchemeRemoteModuleResolutionError is returned when a url with no scheme was tried to be
 // resolved and errored out
-type noSchemeRemoteModuleResolutionError struct ***REMOVED***
+type noSchemeRemoteModuleResolutionError struct {
 	err             error // original error
 	moduleSpecifier string
-***REMOVED***
+}
 
-func (n noSchemeRemoteModuleResolutionError) Error() string ***REMOVED***
+func (n noSchemeRemoteModuleResolutionError) Error() string {
 	return fmt.Sprintf(
 		`Module specifier "%s" was tried to be loaded as remote module by prepending "https://" to it, `+
 			`which didn't work. If you are trying to import a nodejs module, this is not supported `+
 			`as k6 is _not_ nodejs based. Please read https://k6.io/docs/using-k6/modules for more information. `+
 			`Remote resolution error: "%s"`, n.moduleSpecifier, n.err)
-***REMOVED***
+}
 
 // Unwrap returns the wrapped error.
-func (n noSchemeRemoteModuleResolutionError) Unwrap() error ***REMOVED***
+func (n noSchemeRemoteModuleResolutionError) Unwrap() error {
 	return n.err
-***REMOVED***
+}
 
 // Resolve a relative path to an absolute one.
-func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED***
-	if moduleSpecifier == "" ***REMOVED***
+func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) {
+	if moduleSpecifier == "" {
 		return nil, errors.New("local or remote path required")
-	***REMOVED***
+	}
 
-	if moduleSpecifier[0] == '.' || moduleSpecifier[0] == '/' || filepath.IsAbs(moduleSpecifier) ***REMOVED***
+	if moduleSpecifier[0] == '.' || moduleSpecifier[0] == '/' || filepath.IsAbs(moduleSpecifier) {
 		return resolveFilePath(pwd, moduleSpecifier)
-	***REMOVED***
+	}
 
-	if strings.Contains(moduleSpecifier, "://") ***REMOVED***
+	if strings.Contains(moduleSpecifier, "://") {
 		u, err := url.Parse(moduleSpecifier)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-		if u.Scheme != "file" && u.Scheme != "https" ***REMOVED***
+		}
+		if u.Scheme != "file" && u.Scheme != "https" {
 			return nil,
 				fmt.Errorf("only supported schemes for imports are file and https, %s has `%s`",
 					moduleSpecifier, u.Scheme)
-		***REMOVED***
-		if u.Scheme == "file" && pwd.Scheme == "https" ***REMOVED***
+		}
+		if u.Scheme == "file" && pwd.Scheme == "https" {
 			return nil, fmt.Errorf("origin (%s) not allowed to load local file: %s", pwd, moduleSpecifier)
-		***REMOVED***
+		}
 		return u, err
-	***REMOVED***
+	}
 	// here we only care if a loader is pickable, if it is and later there is an error in the loading
 	// from it we don't want to try another resolve
 	_, loader, _ := pickLoader(moduleSpecifier)
-	if loader == nil ***REMOVED***
+	if loader == nil {
 		u, err := url.Parse("https://" + moduleSpecifier)
-		if err != nil ***REMOVED***
-			return nil, noSchemeRemoteModuleResolutionError***REMOVED***err: err, moduleSpecifier: moduleSpecifier***REMOVED***
-		***REMOVED***
+		if err != nil {
+			return nil, noSchemeRemoteModuleResolutionError{err: err, moduleSpecifier: moduleSpecifier}
+		}
 		u.Scheme = ""
 		return u, nil
-	***REMOVED***
-	return &url.URL***REMOVED***Opaque: moduleSpecifier***REMOVED***, nil
-***REMOVED***
+	}
+	return &url.URL{Opaque: moduleSpecifier}, nil
+}
 
-func resolveFilePath(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED***
-	if pwd.Opaque != "" ***REMOVED*** // this is a loader reference
+func resolveFilePath(pwd *url.URL, moduleSpecifier string) (*url.URL, error) {
+	if pwd.Opaque != "" { // this is a loader reference
 		parts := strings.SplitN(pwd.Opaque, "/", 2)
-		if moduleSpecifier[0] == '/' ***REMOVED***
-			return &url.URL***REMOVED***Opaque: path.Join(parts[0], moduleSpecifier)***REMOVED***, nil
-		***REMOVED***
-		return &url.URL***REMOVED***Opaque: path.Join(parts[0], path.Join(path.Dir(parts[1]+"/"), moduleSpecifier))***REMOVED***, nil
-	***REMOVED***
+		if moduleSpecifier[0] == '/' {
+			return &url.URL{Opaque: path.Join(parts[0], moduleSpecifier)}, nil
+		}
+		return &url.URL{Opaque: path.Join(parts[0], path.Join(path.Dir(parts[1]+"/"), moduleSpecifier))}, nil
+	}
 
 	// The file is in format like C:/something/path.js. But this will be decoded as scheme `C`
 	// ... which is not what we want we want it to be decode as file:///C:/something/path.js
-	if filepath.VolumeName(moduleSpecifier) != "" ***REMOVED***
+	if filepath.VolumeName(moduleSpecifier) != "" {
 		moduleSpecifier = "/" + moduleSpecifier
-	***REMOVED***
+	}
 
 	// we always want for the pwd to end in a slash, but filepath/path.Clean strips it so we read
 	// it if it's missing
 	finalPwd := pwd
-	if pwd.Opaque != "" ***REMOVED***
-		if !strings.HasSuffix(pwd.Opaque, "/") ***REMOVED***
-			finalPwd = &url.URL***REMOVED***Opaque: pwd.Opaque + "/"***REMOVED***
-		***REMOVED***
-	***REMOVED*** else if !strings.HasSuffix(pwd.Path, "/") ***REMOVED***
-		finalPwd = &url.URL***REMOVED******REMOVED***
+	if pwd.Opaque != "" {
+		if !strings.HasSuffix(pwd.Opaque, "/") {
+			finalPwd = &url.URL{Opaque: pwd.Opaque + "/"}
+		}
+	} else if !strings.HasSuffix(pwd.Path, "/") {
+		finalPwd = &url.URL{}
 		*finalPwd = *pwd
 		finalPwd.Path += "/"
-	***REMOVED***
+	}
 	return finalPwd.Parse(moduleSpecifier)
-***REMOVED***
+}
 
 // Dir returns the directory for the path.
-func Dir(old *url.URL) *url.URL ***REMOVED***
-	if old.Opaque != "" ***REMOVED*** // loader
-		return &url.URL***REMOVED***Opaque: path.Join(old.Opaque, "../")***REMOVED***
-	***REMOVED***
-	return old.ResolveReference(&url.URL***REMOVED***Path: "./"***REMOVED***)
-***REMOVED***
+func Dir(old *url.URL) *url.URL {
+	if old.Opaque != "" { // loader
+		return &url.URL{Opaque: path.Join(old.Opaque, "../")}
+	}
+	return old.ResolveReference(&url.URL{Path: "./"})
+}
 
 // Load loads the provided moduleSpecifier from the given filesystems which are map of afero.Fs
 // for a given scheme which is they key of the map. If the scheme is https then a request will
 // be made if the files is not found in the map and written to the map.
 func Load(
 	logger logrus.FieldLogger, filesystems map[string]afero.Fs, moduleSpecifier *url.URL, originalModuleSpecifier string,
-) (*SourceData, error) ***REMOVED***
+) (*SourceData, error) {
 	logger.WithFields(
-		logrus.Fields***REMOVED***
+		logrus.Fields{
 			"moduleSpecifier":         moduleSpecifier,
 			"originalModuleSpecifier": originalModuleSpecifier,
-		***REMOVED***).Debug("Loading...")
+		}).Debug("Loading...")
 
 	var pathOnFs string
-	switch ***REMOVED***
+	switch {
 	case moduleSpecifier.Opaque != "": // This is loader
 		pathOnFs = filepath.Join(afero.FilePathSeparator, moduleSpecifier.Opaque)
 	case moduleSpecifier.Scheme == "":
 		pathOnFs = path.Clean(moduleSpecifier.String())
 	default:
 		pathOnFs = path.Clean(moduleSpecifier.String()[len(moduleSpecifier.Scheme)+len(":/"):])
-	***REMOVED***
+	}
 	scheme := moduleSpecifier.Scheme
-	if scheme == "" ***REMOVED***
+	if scheme == "" {
 		scheme = "https"
-	***REMOVED***
+	}
 
 	pathOnFs, err := url.PathUnescape(filepath.FromSlash(pathOnFs))
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	data, err := afero.ReadFile(filesystems[scheme], pathOnFs)
 
 	fmt.Println("data", string(data))
 
-	if err == nil ***REMOVED***
-		return &SourceData***REMOVED***URL: moduleSpecifier, Data: data***REMOVED***, nil
-	***REMOVED***
-	if !os.IsNotExist(err) ***REMOVED***
+	if err == nil {
+		return &SourceData{URL: moduleSpecifier, Data: data}, nil
+	}
+	if !os.IsNotExist(err) {
 		return nil, err
-	***REMOVED***
-	if scheme == "https" ***REMOVED***
-		finalModuleSpecifierURL := &url.URL***REMOVED******REMOVED***
+	}
+	if scheme == "https" {
+		finalModuleSpecifierURL := &url.URL{}
 
-		switch ***REMOVED***
+		switch {
 		case moduleSpecifier.Opaque != "": // This is loader
 			finalModuleSpecifierURL, err = resolveUsingLoaders(logger, moduleSpecifier.Opaque)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return nil, err
-			***REMOVED***
+			}
 		case moduleSpecifier.Scheme == "":
 			logger.Warningf(`The moduleSpecifier "%s" has no scheme but we will try to resolve it as remote module. `+
 				`This will be deprecated in the future and all remote modules will `+
@@ -207,109 +207,109 @@ func Load(
 			finalModuleSpecifierURL.Scheme = scheme
 		default:
 			finalModuleSpecifierURL = moduleSpecifier
-		***REMOVED***
+		}
 		var result *SourceData
 		result, err = loadRemoteURL(logger, finalModuleSpecifierURL)
-		if err == nil ***REMOVED***
+		if err == nil {
 			result.URL = moduleSpecifier
 			// TODO maybe make an afero.Fs which makes request directly and than use CacheOnReadFs
 			// on top of as with the `file` scheme fs
 			_ = afero.WriteFile(filesystems[scheme], pathOnFs, result.Data, 0o644)
 			return result, nil
-		***REMOVED***
+		}
 
-		if moduleSpecifier.Scheme == "" && moduleSpecifier.Opaque == "" ***REMOVED***
+		if moduleSpecifier.Scheme == "" && moduleSpecifier.Opaque == "" {
 			// we have an error and we did remote module resolution without a scheme
 			// let's write the coolest error message to try to help the lost soul who got to here
-			return nil, noSchemeRemoteModuleResolutionError***REMOVED***err: err, moduleSpecifier: originalModuleSpecifier***REMOVED***
-		***REMOVED***
+			return nil, noSchemeRemoteModuleResolutionError{err: err, moduleSpecifier: originalModuleSpecifier}
+		}
 		return nil, fmt.Errorf(httpsSchemeCouldntBeLoadedMsg, originalModuleSpecifier, finalModuleSpecifierURL, err)
-	***REMOVED***
+	}
 
 	return nil, fmt.Errorf(fileSchemeCouldntBeLoadedMsg, originalModuleSpecifier)
-***REMOVED***
+}
 
-func resolveUsingLoaders(logger logrus.FieldLogger, name string) (*url.URL, error) ***REMOVED***
+func resolveUsingLoaders(logger logrus.FieldLogger, name string) (*url.URL, error) {
 	_, loader, loaderArgs := pickLoader(name)
-	if loader != nil ***REMOVED***
+	if loader != nil {
 		urlString, err := loader(logger, name, loaderArgs)
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
+		}
 		return url.Parse(urlString)
-	***REMOVED***
+	}
 
 	return nil, errNoLoaderMatched
-***REMOVED***
+}
 
-func loadRemoteURL(logger logrus.FieldLogger, u *url.URL) (*SourceData, error) ***REMOVED***
+func loadRemoteURL(logger logrus.FieldLogger, u *url.URL) (*SourceData, error) {
 	oldQuery := u.RawQuery
-	if u.RawQuery != "" ***REMOVED***
+	if u.RawQuery != "" {
 		u.RawQuery += "&"
-	***REMOVED***
+	}
 	u.RawQuery += "_k6=1"
 
 	data, err := fetch(logger, u.String())
 
 	u.RawQuery = oldQuery
 	// If this fails, try to fetch without ?_k6=1 - some sources act weird around unknown GET args.
-	if err != nil ***REMOVED***
+	if err != nil {
 		data, err = fetch(logger, u.String())
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	// TODO: Parse the HTML, look for meta tags!!
 	// <meta name="k6-import" content="example.com/path/to/real/file.txt" />
 	// <meta name="k6-import" content="github.com/myusername/repo/file.txt" />
 
-	return &SourceData***REMOVED***URL: u, Data: data***REMOVED***, nil
-***REMOVED***
+	return &SourceData{URL: u, Data: data}, nil
+}
 
-func pickLoader(path string) (string, loaderFunc, []string) ***REMOVED***
-	for _, loader := range loaders ***REMOVED***
+func pickLoader(path string) (string, loaderFunc, []string) {
+	for _, loader := range loaders {
 		matches := loader.expr.FindAllStringSubmatch(path, -1)
-		if len(matches) > 0 ***REMOVED***
+		if len(matches) > 0 {
 			return loader.name, loader.fn, matches[0][1:]
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	return "", nil, nil
-***REMOVED***
+}
 
-func fetch(logger logrus.FieldLogger, u string) ([]byte, error) ***REMOVED***
+func fetch(logger logrus.FieldLogger, u string) ([]byte, error) {
 	logger.WithField("url", u).Debug("Fetching source...")
 	startTime := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 	res, err := http.DefaultClient.Do(req)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
-	defer func() ***REMOVED*** _ = res.Body.Close() ***REMOVED***()
+	}
+	defer func() { _ = res.Body.Close() }()
 
-	if res.StatusCode != 200 ***REMOVED***
-		switch res.StatusCode ***REMOVED***
+	if res.StatusCode != 200 {
+		switch res.StatusCode {
 		case 404:
 			return nil, fmt.Errorf("not found: %s", u)
 		default:
 			return nil, fmt.Errorf("wrong status code (%d) for: %s", res.StatusCode, u)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	data, err := ioutil.ReadAll(res.Body)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	logger.WithFields(logrus.Fields***REMOVED***
+	logger.WithFields(logrus.Fields{
 		"url": u,
 		"t":   time.Since(startTime),
 		"len": len(data),
-	***REMOVED***).Debug("Fetched!")
+	}).Debug("Fetched!")
 	return data, nil
-***REMOVED***
+}

@@ -30,22 +30,22 @@ const (
 	TLS_1_3                            = "tls1.3"
 )
 
-type TLSInfo struct ***REMOVED***
+type TLSInfo struct {
 	Version     string
 	CipherSuite string
-***REMOVED***
-type OCSP struct ***REMOVED***
+}
+type OCSP struct {
 	ProducedAt       int64  `json:"produced_at"`
 	ThisUpdate       int64  `json:"this_update"`
 	NextUpdate       int64  `json:"next_update"`
 	RevokedAt        int64  `json:"revoked_at"`
 	RevocationReason string `json:"revocation_reason"`
 	Status           string `json:"status"`
-***REMOVED***
+}
 
-func ParseTLSConnState(tlsState *tls.ConnectionState) (TLSInfo, OCSP) ***REMOVED***
-	tlsInfo := TLSInfo***REMOVED******REMOVED***
-	switch tlsState.Version ***REMOVED***
+func ParseTLSConnState(tlsState *tls.ConnectionState) (TLSInfo, OCSP) {
+	tlsInfo := TLSInfo{}
+	switch tlsState.Version {
 	case tls.VersionTLS10:
 		tlsInfo.Version = TLS_1_0
 	case tls.VersionTLS11:
@@ -54,13 +54,13 @@ func ParseTLSConnState(tlsState *tls.ConnectionState) (TLSInfo, OCSP) ***REMOVED
 		tlsInfo.Version = TLS_1_2
 	case tls.VersionTLS13:
 		tlsInfo.Version = TLS_1_3
-	***REMOVED***
+	}
 
 	tlsInfo.CipherSuite = libWorker.SupportedTLSCipherSuitesToString[tlsState.CipherSuite]
-	ocspStapledRes := OCSP***REMOVED***Status: OCSP_STATUS_UNKNOWN***REMOVED***
+	ocspStapledRes := OCSP{Status: OCSP_STATUS_UNKNOWN}
 
-	if ocspRes, err := ocsp.ParseResponse(tlsState.OCSPResponse, nil); err == nil ***REMOVED***
-		switch ocspRes.Status ***REMOVED***
+	if ocspRes, err := ocsp.ParseResponse(tlsState.OCSPResponse, nil); err == nil {
+		switch ocspRes.Status {
 		case ocsp.Good:
 			ocspStapledRes.Status = OCSP_STATUS_GOOD
 		case ocsp.Revoked:
@@ -69,8 +69,8 @@ func ParseTLSConnState(tlsState *tls.ConnectionState) (TLSInfo, OCSP) ***REMOVED
 			ocspStapledRes.Status = OCSP_STATUS_SERVER_FAILED
 		case ocsp.Unknown:
 			ocspStapledRes.Status = OCSP_STATUS_UNKNOWN
-		***REMOVED***
-		switch ocspRes.RevocationReason ***REMOVED***
+		}
+		switch ocspRes.RevocationReason {
 		case ocsp.Unspecified:
 			ocspStapledRes.RevocationReason = OCSP_REASON_UNSPECIFIED
 		case ocsp.KeyCompromise:
@@ -91,12 +91,12 @@ func ParseTLSConnState(tlsState *tls.ConnectionState) (TLSInfo, OCSP) ***REMOVED
 			ocspStapledRes.RevocationReason = OCSP_REASON_PRIVILEGE_WITHDRAWN
 		case ocsp.AACompromise:
 			ocspStapledRes.RevocationReason = OCSP_REASON_AA_COMPROMISE
-		***REMOVED***
+		}
 		ocspStapledRes.ProducedAt = ocspRes.ProducedAt.Unix()
 		ocspStapledRes.ThisUpdate = ocspRes.ThisUpdate.Unix()
 		ocspStapledRes.NextUpdate = ocspRes.NextUpdate.Unix()
 		ocspStapledRes.RevokedAt = ocspRes.RevokedAt.Unix()
-	***REMOVED***
+	}
 
 	return tlsInfo, ocspStapledRes
-***REMOVED***
+}

@@ -31,12 +31,12 @@ import (
 	"github.com/spf13/afero"
 )
 
-type programWithSource struct ***REMOVED***
+type programWithSource struct {
 	pgm     *goja.Program
 	src     string
 	module  *goja.Object
 	exports *goja.Object
-***REMOVED***
+}
 
 const openCantBeUsedOutsideInitContextMsg = `The "open()" function is only available in the init stage ` +
 	`(i.e. the global scope), see https://k6.io/docs/using-k6/test-life-cycle for more information`
@@ -44,7 +44,7 @@ const openCantBeUsedOutsideInitContextMsg = `The "open()" function is only avail
 // InitContext provides APIs for use in the init context.
 //
 // TODO: refactor most/all of this state away, use common.InitEnvironment instead
-type InitContext struct ***REMOVED***
+type InitContext struct {
 	// Bound runtime; used to instantiate objects.
 	compiler *compiler.Compiler
 
@@ -61,14 +61,14 @@ type InitContext struct ***REMOVED***
 
 	logger logrus.FieldLogger
 
-	modules map[string]interface***REMOVED******REMOVED***
-***REMOVED***
+	modules map[string]interface{}
+}
 
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
 	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode libWorker.CompatibilityMode,
-	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *libWorker.WorkerInfo) *InitContext ***REMOVED***
-	return &InitContext***REMOVED***
+	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *libWorker.WorkerInfo) *InitContext {
+	return &InitContext{
 		compiler:          c,
 		filesystems:       filesystems,
 		pwd:               pwd,
@@ -76,25 +76,25 @@ func NewInitContext(
 		compatibilityMode: compatMode,
 		logger:            logger,
 		modules:           getJSModules(workerInfo),
-		moduleVUImpl: &moduleVUImpl***REMOVED***
+		moduleVUImpl: &moduleVUImpl{
 			ctx:     context.Background(),
 			runtime: rt,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
+		},
+	}
+}
 
-func newBoundInitContext(base *InitContext, vuImpl *moduleVUImpl) *InitContext ***REMOVED***
+func newBoundInitContext(base *InitContext, vuImpl *moduleVUImpl) *InitContext {
 	// we don't copy the exports as otherwise they will be shared and we don't want this.
 	// this means that all the files will be executed again but once again only once per compilation
 	// of the main file.
 	programs := make(map[string]programWithSource, len(base.programs))
-	for key, program := range base.programs ***REMOVED***
-		programs[key] = programWithSource***REMOVED***
+	for key, program := range base.programs {
+		programs[key] = programWithSource{
 			src: program.src,
 			pgm: program.pgm,
-		***REMOVED***
-	***REMOVED***
-	return &InitContext***REMOVED***
+		}
+	}
+	return &InitContext{
 		filesystems: base.filesystems,
 		pwd:         base.pwd,
 		compiler:    base.compiler,
@@ -104,65 +104,65 @@ func newBoundInitContext(base *InitContext, vuImpl *moduleVUImpl) *InitContext *
 		logger:            base.logger,
 		modules:           base.modules,
 		moduleVUImpl:      vuImpl,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 // Require is called when a module/file needs to be loaded by a script
-func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
-	switch ***REMOVED***
+func (i *InitContext) Require(arg string) goja.Value {
+	switch {
 	case arg == "k6", strings.HasPrefix(arg, "k6/"):
 		// Builtin or external modules ("k6", "k6/*", or "k6/x/*") are handled
 		// specially, as they don't exist on the filesystem. This intentionally
 		// shadows attempts to name your own modules this.
 		v, err := i.requireModule(arg)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(i.moduleVUImpl.runtime, err)
-		***REMOVED***
+		}
 		return v
 	case arg == "apiteam", strings.HasPrefix(arg, "apiteam/"):
 		// Handle apiteam modules like k6 modules
 		v, err := i.requireModule(arg)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(i.moduleVUImpl.runtime, err)
-		***REMOVED***
+		}
 		return v
 	default:
 		// Fall back to loading from the filesystem.
 		v, err := i.requireFile(arg)
-		if err != nil ***REMOVED***
+		if err != nil {
 			common.Throw(i.moduleVUImpl.runtime, err)
-		***REMOVED***
+		}
 		return v
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-type moduleVUImpl struct ***REMOVED***
+type moduleVUImpl struct {
 	ctx       context.Context
 	initEnv   *common.InitEnvironment
 	state     *libWorker.State
 	runtime   *goja.Runtime
 	eventLoop *eventloop.EventLoop
-***REMOVED***
+}
 
-func (m *moduleVUImpl) Context() context.Context ***REMOVED***
+func (m *moduleVUImpl) Context() context.Context {
 	return m.ctx
-***REMOVED***
+}
 
-func (m *moduleVUImpl) InitEnv() *common.InitEnvironment ***REMOVED***
+func (m *moduleVUImpl) InitEnv() *common.InitEnvironment {
 	return m.initEnv
-***REMOVED***
+}
 
-func (m *moduleVUImpl) State() *libWorker.State ***REMOVED***
+func (m *moduleVUImpl) State() *libWorker.State {
 	return m.state
-***REMOVED***
+}
 
-func (m *moduleVUImpl) Runtime() *goja.Runtime ***REMOVED***
+func (m *moduleVUImpl) Runtime() *goja.Runtime {
 	return m.runtime
-***REMOVED***
+}
 
-func (m *moduleVUImpl) RegisterCallback() func(func() error) ***REMOVED***
+func (m *moduleVUImpl) RegisterCallback() func(func() error) {
 	return m.eventLoop.RegisterCallback()
-***REMOVED***
+}
 
 /* This is here to illustrate how to use RegisterCallback to get a promise to work with the event loop
 // TODO move this to a common function or remove before merging
@@ -170,32 +170,32 @@ func (m *moduleVUImpl) RegisterCallback() func(func() error) ***REMOVED***
 // MakeHandledPromise will create and promise and return it's resolve, reject methods as well wrapped in such a way that
 // it will block the eventloop from exiting before they are called even if the promise isn't resolved by the time the
 // current script ends executing
-func (m *moduleVUImpl) MakeHandledPromise() (*goja.Promise, func(interface***REMOVED******REMOVED***), func(interface***REMOVED******REMOVED***)) ***REMOVED***
+func (m *moduleVUImpl) MakeHandledPromise() (*goja.Promise, func(interface{}), func(interface{})) {
 	callback := m.eventLoop.registerCallback()
 	p, resolve, reject := m.runtime.NewPromise()
-	return p, func(i interface***REMOVED******REMOVED***) ***REMOVED***
+	return p, func(i interface{}) {
 			// more stuff
-			callback(func() ***REMOVED*** resolve(i) ***REMOVED***)
-		***REMOVED***, func(i interface***REMOVED******REMOVED***) ***REMOVED***
+			callback(func() { resolve(i) })
+		}, func(i interface{}) {
 			// more stuff
-			callback(func() ***REMOVED*** reject(i) ***REMOVED***)
-		***REMOVED***
-***REMOVED***
+			callback(func() { reject(i) })
+		}
+}
 */
 
-func toESModuleExports(exp modules.Exports) interface***REMOVED******REMOVED*** ***REMOVED***
-	if exp.Named == nil ***REMOVED***
+func toESModuleExports(exp modules.Exports) interface{} {
+	if exp.Named == nil {
 		return exp.Default
-	***REMOVED***
-	if exp.Default == nil ***REMOVED***
+	}
+	if exp.Default == nil {
 		return exp.Named
-	***REMOVED***
+	}
 
-	result := make(map[string]interface***REMOVED******REMOVED***, len(exp.Named)+2)
+	result := make(map[string]interface{}, len(exp.Named)+2)
 
-	for k, v := range exp.Named ***REMOVED***
+	for k, v := range exp.Named {
 		result[k] = v
-	***REMOVED***
+	}
 	// Maybe check that those weren't set
 	result["default"] = exp.Default
 	// this so babel works with the `default` when it transpiles from ESM to commonjs.
@@ -204,155 +204,155 @@ func toESModuleExports(exp modules.Exports) interface***REMOVED******REMOVED*** 
 	result["__esModule"] = true
 
 	return result
-***REMOVED***
+}
 
-func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED***
+func (i *InitContext) requireModule(name string) (goja.Value, error) {
 	mod, ok := i.modules[name]
-	if !ok ***REMOVED***
+	if !ok {
 		return nil, fmt.Errorf("unknown module: %s", name)
-	***REMOVED***
-	if m, ok := mod.(modules.Module); ok ***REMOVED***
+	}
+	if m, ok := mod.(modules.Module); ok {
 		instance := m.NewModuleInstance(i.moduleVUImpl)
 		return i.moduleVUImpl.runtime.ToValue(toESModuleExports(instance.Exports())), nil
-	***REMOVED***
+	}
 
 	return i.moduleVUImpl.runtime.ToValue(mod), nil
-***REMOVED***
+}
 
-func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
+func (i *InitContext) requireFile(name string) (goja.Value, error) {
 	// Resolve the file path, push the target directory as pwd to make relative imports work.
 	pwd := i.pwd
 	fileURL, err := loader.Resolve(pwd, name)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
 	// First, check if we have a cached program already.
 	pgm, ok := i.programs[fileURL.String()]
-	if !ok || pgm.module == nil ***REMOVED***
-		if filepath.IsAbs(name) && runtime.GOOS == "windows" ***REMOVED***
+	if !ok || pgm.module == nil {
+		if filepath.IsAbs(name) && runtime.GOOS == "windows" {
 			i.logger.Warnf("'%s' was imported with an absolute path - this won't be cross-platform and won't work if"+
 				" you move the script between machines or run it with `k6 cloud`; if absolute paths are required,"+
 				" import them with the `file://` schema for slightly better compatibility",
 				name)
-		***REMOVED***
+		}
 		i.pwd = loader.Dir(fileURL)
-		defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
+		defer func() { i.pwd = pwd }()
 		exports := i.moduleVUImpl.runtime.NewObject()
 		pgm.module = i.moduleVUImpl.runtime.NewObject()
 		_ = pgm.module.Set("exports", exports)
 
-		if pgm.pgm == nil ***REMOVED***
+		if pgm.pgm == nil {
 			// Load the sources; the loader takes care of remote loading, etc.
 			data, err := loader.Load(i.logger, i.filesystems, fileURL, name)
-			if err != nil ***REMOVED***
+			if err != nil {
 				return goja.Undefined(), err
-			***REMOVED***
+			}
 
 			pgm.src = string(data.Data)
 
 			// Compile the sources; this handles ES5 vs ES6 automatically.
 			pgm.pgm, err = i.compileImport(pgm.src, data.URL.String())
-			if err != nil ***REMOVED***
+			if err != nil {
 				return goja.Undefined(), err
-			***REMOVED***
-		***REMOVED***
+			}
+		}
 
 		i.programs[fileURL.String()] = pgm
 
 		// Run the program.
 		f, err := i.moduleVUImpl.runtime.RunProgram(pgm.pgm)
-		if err != nil ***REMOVED***
+		if err != nil {
 			delete(i.programs, fileURL.String())
 			return goja.Undefined(), err
-		***REMOVED***
-		if call, ok := goja.AssertFunction(f); ok ***REMOVED***
-			if _, err = call(exports, pgm.module, exports); err != nil ***REMOVED***
+		}
+		if call, ok := goja.AssertFunction(f); ok {
+			if _, err = call(exports, pgm.module, exports); err != nil {
 				return nil, err
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	return pgm.module.Get("exports"), nil
-***REMOVED***
+}
 
-func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
+func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) {
 	pgm, _, err := i.compiler.Compile(src, filename, false)
 	return pgm, err
-***REMOVED***
+}
 
 // Open implements open() in the init context and will read and return the
 // contents of a file. If the second argument is "b" it returns an ArrayBuffer
 // instance, otherwise a string representation.
-func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) ***REMOVED***
-	if i.moduleVUImpl.State() != nil ***REMOVED***
+func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) {
+	if i.moduleVUImpl.State() != nil {
 		return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
-	***REMOVED***
+	}
 
-	if filename == "" ***REMOVED***
+	if filename == "" {
 		return nil, errors.New("open() can't be used with an empty filename")
-	***REMOVED***
+	}
 
 	// Here IsAbs should be enough but unfortunately it doesn't handle absolute paths starting from
 	// the current drive on windows like `\users\noname\...`. Also it makes it more easy to test and
 	// will probably be need for archive execution under windows if always consider '/...' as an
 	// absolute path.
-	if filename[0] != '/' && filename[0] != '\\' && !filepath.IsAbs(filename) ***REMOVED***
+	if filename[0] != '/' && filename[0] != '\\' && !filepath.IsAbs(filename) {
 		filename = filepath.Join(i.pwd.Path, filename)
-	***REMOVED***
+	}
 	filename = filepath.Clean(filename)
 	fs := i.filesystems["file"]
-	if filename[0:1] != afero.FilePathSeparator ***REMOVED***
+	if filename[0:1] != afero.FilePathSeparator {
 		filename = afero.FilePathSeparator + filename
-	***REMOVED***
+	}
 
 	data, err := readFile(fs, filename)
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	if len(args) > 0 && args[0] == "b" ***REMOVED***
+	if len(args) > 0 && args[0] == "b" {
 		ab := i.moduleVUImpl.runtime.NewArrayBuffer(data)
 		return i.moduleVUImpl.runtime.ToValue(&ab), nil
-	***REMOVED***
+	}
 	return i.moduleVUImpl.runtime.ToValue(string(data)), nil
-***REMOVED***
+}
 
-func readFile(fileSystem afero.Fs, filename string) (data []byte, err error) ***REMOVED***
-	defer func() ***REMOVED***
-		if errors.Is(err, fsext.ErrPathNeverRequestedBefore) ***REMOVED***
+func readFile(fileSystem afero.Fs, filename string) (data []byte, err error) {
+	defer func() {
+		if errors.Is(err, fsext.ErrPathNeverRequestedBefore) {
 			// loading different files per VU is not supported, so all files should are going
 			// to be used inside the scenario should be opened during the init step (without any conditions)
 			err = fmt.Errorf(
 				"open() can't be used with files that weren't previously opened during initialization (__VU==0), path: %q",
 				filename,
 			)
-		***REMOVED***
-	***REMOVED***()
+		}
+	}()
 
 	// Workaround for https://github.com/spf13/afero/issues/201
-	if isDir, err := afero.IsDir(fileSystem, filename); err != nil ***REMOVED***
+	if isDir, err := afero.IsDir(fileSystem, filename); err != nil {
 		return nil, err
-	***REMOVED*** else if isDir ***REMOVED***
+	} else if isDir {
 		return nil, fmt.Errorf("open() can't be used with directories, path: %q", filename)
-	***REMOVED***
+	}
 
 	return afero.ReadFile(fileSystem, filename)
-***REMOVED***
+}
 
 // allowOnlyOpenedFiles enables seen only files
-func (i *InitContext) allowOnlyOpenedFiles() ***REMOVED***
+func (i *InitContext) allowOnlyOpenedFiles() {
 	fs := i.filesystems["file"]
 
 	alreadyOpenedFS, ok := fs.(fsext.OnlyCachedEnabler)
-	if !ok ***REMOVED***
+	if !ok {
 		return
-	***REMOVED***
+	}
 
 	alreadyOpenedFS.AllowOnlyCached()
-***REMOVED***
+}
 
-func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface{} {
 	k6Module := k6.New()
 	kyCryptoModule := crypto.New()
 	k6Crypto509Module := x509.New()
@@ -363,7 +363,7 @@ func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface
 	k6HTTPModule := http.New(workerInfo)
 	k6MetricsModule := metrics.New()
 
-	return map[string]interface***REMOVED******REMOVED******REMOVED***
+	return map[string]interface{}{
 		"k6":             k6Module,
 		"k6/crypto":      kyCryptoModule,
 		"k6/crypto/x509": k6Crypto509Module,
@@ -386,17 +386,17 @@ func getInternalJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface
 		"apiteam/metrics": k6MetricsModule,
 		//"k6/ws":               ws.New(),
 		"apiteam/context": apiteamContext.New(workerInfo),
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func getJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+func getJSModules(workerInfo *libWorker.WorkerInfo) map[string]interface{} {
 	result := getInternalJSModules(workerInfo)
 	external := modules.GetJSModules()
 
 	// external is always prefixed with `k6/x`
-	for k, v := range external ***REMOVED***
+	for k, v := range external {
 		result[k] = v
-	***REMOVED***
+	}
 
 	return result
-***REMOVED***
+}

@@ -13,7 +13,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func TestNewThreshold(t *testing.T) ***REMOVED***
+func TestNewThreshold(t *testing.T) {
 	t.Parallel()
 
 	src := `rate<0.01`
@@ -27,123 +27,123 @@ func TestNewThreshold(t *testing.T) ***REMOVED***
 	assert.Equal(t, abortOnFail, gotThreshold.AbortOnFail)
 	assert.Equal(t, gracePeriod, gotThreshold.AbortGracePeriod)
 	assert.Nil(t, gotThreshold.parsed)
-***REMOVED***
+}
 
-func TestThreshold_runNoTaint(t *testing.T) ***REMOVED***
+func TestThreshold_runNoTaint(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct ***REMOVED***
+	tests := []struct {
 		name             string
 		parsed           *thresholdExpression
 		abortGracePeriod types.NullDuration
 		sinks            map[string]float64
 		wantOk           bool
 		wantErr          bool
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:             "valid expression using the > operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreater, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 1***REMOVED***,
+			sinks:            map[string]float64{"rate": 1},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the > operator over passing threshold and defined abort grace period",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreater, 0.01},
 			abortGracePeriod: types.NullDurationFrom(2 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 1***REMOVED***,
+			sinks:            map[string]float64{"rate": 1},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the >= operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreaterEqual, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreaterEqual, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.01***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.01},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the <= operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenLessEqual, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenLessEqual, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.01***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.01},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the < operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenLess, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenLess, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.00001***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.00001},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the == operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenLooselyEqual, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenLooselyEqual, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.01***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.01},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using the === operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenStrictlyEqual, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenStrictlyEqual, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.01***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.01},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression using != operator over passing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenBangEqual, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenBangEqual, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.02***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.02},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression over failing threshold",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreater, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.00001***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.00001},
 			wantOk:           false,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:             "valid expression over non-existing sink",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreater, 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"med": 27.2***REMOVED***,
+			sinks:            map[string]float64{"med": 27.2},
 			wantOk:           true,
 			wantErr:          false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			// The ParseThresholdCondition constructor should ensure that no invalid
 			// operator gets through, but let's protect our future selves anyhow.
 			name:             "invalid expression operator",
-			parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, "&", 0.01***REMOVED***,
+			parsed:           &thresholdExpression{tokenRate, null.Float{}, "&", 0.01},
 			abortGracePeriod: types.NullDurationFrom(0 * time.Second),
-			sinks:            map[string]float64***REMOVED***"rate": 0.00001***REMOVED***,
+			sinks:            map[string]float64{"rate": 0.00001},
 			wantOk:           false,
 			wantErr:          true,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, testCase := range tests ***REMOVED***
+	for _, testCase := range tests {
 		testCase := testCase
 
-		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			threshold := &Threshold***REMOVED***
+			threshold := &Threshold{
 				LastFailed:       false,
 				AbortOnFail:      false,
 				AbortGracePeriod: testCase.abortGracePeriod,
 				parsed:           testCase.parsed,
-			***REMOVED***
+			}
 
 			gotOk, gotErr := threshold.runNoTaint(testCase.sinks)
 
@@ -158,180 +158,180 @@ func TestThreshold_runNoTaint(t *testing.T) ***REMOVED***
 				gotOk,
 				"Threshold.runNoTaint() gotOk = %v, want %v", gotOk, testCase.wantOk,
 			)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func BenchmarkRunNoTaint(b *testing.B) ***REMOVED***
-	threshold := &Threshold***REMOVED***
+func BenchmarkRunNoTaint(b *testing.B) {
+	threshold := &Threshold{
 		Source:           "rate>0.01",
 		LastFailed:       false,
 		AbortOnFail:      false,
 		AbortGracePeriod: types.NullDurationFrom(2 * time.Second),
-		parsed:           &thresholdExpression***REMOVED***tokenRate, null.Float***REMOVED******REMOVED***, tokenGreater, 0.01***REMOVED***,
-	***REMOVED***
+		parsed:           &thresholdExpression{tokenRate, null.Float{}, tokenGreater, 0.01},
+	}
 
-	sinks := map[string]float64***REMOVED***"rate": 1***REMOVED***
+	sinks := map[string]float64{"rate": 1}
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ ***REMOVED***
+	for i := 0; i < b.N; i++ {
 		threshold.runNoTaint(sinks) // nolint
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestThresholdRun(t *testing.T) ***REMOVED***
+func TestThresholdRun(t *testing.T) {
 	t.Parallel()
 
-	t.Run("true", func(t *testing.T) ***REMOVED***
+	t.Run("true", func(t *testing.T) {
 		t.Parallel()
 
-		sinks := map[string]float64***REMOVED***"rate": 0.0001***REMOVED***
+		sinks := map[string]float64{"rate": 0.0001}
 		parsed, parseErr := parseThresholdExpression("rate<0.01")
 		require.NoError(t, parseErr)
-		threshold := newThreshold(`rate<0.01`, false, types.NullDuration***REMOVED******REMOVED***)
+		threshold := newThreshold(`rate<0.01`, false, types.NullDuration{})
 		threshold.parsed = parsed
 
-		t.Run("no taint", func(t *testing.T) ***REMOVED***
+		t.Run("no taint", func(t *testing.T) {
 			b, err := threshold.runNoTaint(sinks)
 			assert.NoError(t, err)
 			assert.True(t, b)
 			assert.False(t, threshold.LastFailed)
-		***REMOVED***)
+		})
 
-		t.Run("taint", func(t *testing.T) ***REMOVED***
+		t.Run("taint", func(t *testing.T) {
 			t.Parallel()
 
 			b, err := threshold.run(sinks)
 			assert.NoError(t, err)
 			assert.True(t, b)
 			assert.False(t, threshold.LastFailed)
-		***REMOVED***)
-	***REMOVED***)
+		})
+	})
 
-	t.Run("false", func(t *testing.T) ***REMOVED***
+	t.Run("false", func(t *testing.T) {
 		t.Parallel()
 
-		sinks := map[string]float64***REMOVED***"rate": 1***REMOVED***
+		sinks := map[string]float64{"rate": 1}
 		parsed, parseErr := parseThresholdExpression("rate<0.01")
 		require.NoError(t, parseErr)
-		threshold := newThreshold(`rate<0.01`, false, types.NullDuration***REMOVED******REMOVED***)
+		threshold := newThreshold(`rate<0.01`, false, types.NullDuration{})
 		threshold.parsed = parsed
 
-		t.Run("no taint", func(t *testing.T) ***REMOVED***
+		t.Run("no taint", func(t *testing.T) {
 			b, err := threshold.runNoTaint(sinks)
 			assert.NoError(t, err)
 			assert.False(t, b)
 			assert.False(t, threshold.LastFailed)
-		***REMOVED***)
+		})
 
-		t.Run("taint", func(t *testing.T) ***REMOVED***
+		t.Run("taint", func(t *testing.T) {
 			b, err := threshold.run(sinks)
 			assert.NoError(t, err)
 			assert.False(t, b)
 			assert.True(t, threshold.LastFailed)
-		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
+		})
+	})
+}
 
-func TestThresholdsParse(t *testing.T) ***REMOVED***
+func TestThresholdsParse(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid threshold expressions", func(t *testing.T) ***REMOVED***
+	t.Run("valid threshold expressions", func(t *testing.T) {
 		t.Parallel()
 
 		// Prepare a Thresholds collection containing syntaxically
 		// correct thresholds
-		ts := Thresholds***REMOVED***
-			Thresholds: []*Threshold***REMOVED***
-				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
-			***REMOVED***,
-		***REMOVED***
+		ts := Thresholds{
+			Thresholds: []*Threshold{
+				newThreshold("rate<1", false, types.NullDuration{}),
+			},
+		}
 
 		// Collect the result of the parsing operation
 		gotErr := ts.Parse()
 
 		assert.NoError(t, gotErr, "Parse shouldn't fail parsing valid expressions")
-		assert.Condition(t, func() bool ***REMOVED***
-			for _, threshold := range ts.Thresholds ***REMOVED***
-				if threshold.parsed == nil ***REMOVED***
+		assert.Condition(t, func() bool {
+			for _, threshold := range ts.Thresholds {
+				if threshold.parsed == nil {
 					return false
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 
 			return true
-		***REMOVED***, "Parse did not fail, but some Thresholds' parsed field is left empty")
-	***REMOVED***)
+		}, "Parse did not fail, but some Thresholds' parsed field is left empty")
+	})
 
-	t.Run("invalid threshold expressions", func(t *testing.T) ***REMOVED***
+	t.Run("invalid threshold expressions", func(t *testing.T) {
 		t.Parallel()
 
 		// Prepare a Thresholds collection containing syntaxically
 		// correct thresholds
-		ts := Thresholds***REMOVED***
-			Thresholds: []*Threshold***REMOVED***
-				newThreshold("foo&1", false, types.NullDuration***REMOVED******REMOVED***),
-			***REMOVED***,
-		***REMOVED***
+		ts := Thresholds{
+			Thresholds: []*Threshold{
+				newThreshold("foo&1", false, types.NullDuration{}),
+			},
+		}
 
 		// Collect the result of the parsing operation
 		gotErr := ts.Parse()
 
 		assert.Error(t, gotErr, "Parse should fail parsing invalid expressions")
-		assert.Condition(t, func() bool ***REMOVED***
-			for _, threshold := range ts.Thresholds ***REMOVED***
-				if threshold.parsed == nil ***REMOVED***
+		assert.Condition(t, func() bool {
+			for _, threshold := range ts.Thresholds {
+				if threshold.parsed == nil {
 					return true
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 
 			return false
-		***REMOVED***, "Parse failed, but some Thresholds' parsed field was not empty")
-	***REMOVED***)
+		}, "Parse failed, but some Thresholds' parsed field was not empty")
+	})
 
-	t.Run("mixed valid/invalid threshold expressions", func(t *testing.T) ***REMOVED***
+	t.Run("mixed valid/invalid threshold expressions", func(t *testing.T) {
 		t.Parallel()
 
 		// Prepare a Thresholds collection containing syntaxically
 		// correct thresholds
-		ts := Thresholds***REMOVED***
-			Thresholds: []*Threshold***REMOVED***
-				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
-				newThreshold("foo&1", false, types.NullDuration***REMOVED******REMOVED***),
-			***REMOVED***,
-		***REMOVED***
+		ts := Thresholds{
+			Thresholds: []*Threshold{
+				newThreshold("rate<1", false, types.NullDuration{}),
+				newThreshold("foo&1", false, types.NullDuration{}),
+			},
+		}
 
 		// Collect the result of the parsing operation
 		gotErr := ts.Parse()
 
 		assert.Error(t, gotErr, "Parse should fail parsing invalid expressions")
-		assert.Condition(t, func() bool ***REMOVED***
-			for _, threshold := range ts.Thresholds ***REMOVED***
-				if threshold.parsed == nil ***REMOVED***
+		assert.Condition(t, func() bool {
+			for _, threshold := range ts.Thresholds {
+				if threshold.parsed == nil {
 					return true
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 
 			return false
-		***REMOVED***, "Parse failed, but some Thresholds' parsed field was not empty")
-	***REMOVED***)
-***REMOVED***
+		}, "Parse failed, but some Thresholds' parsed field was not empty")
+	})
+}
 
-func TestThresholdsValidate(t *testing.T) ***REMOVED***
+func TestThresholdsValidate(t *testing.T) {
 	t.Parallel()
 
-	t.Run("validating thresholds applied to a non existing metric fails", func(t *testing.T) ***REMOVED***
+	t.Run("validating thresholds applied to a non existing metric fails", func(t *testing.T) {
 		t.Parallel()
 
 		testRegistry := NewRegistry()
 
 		// Prepare a Thresholds collection containing syntaxically
 		// correct thresholds
-		ts := Thresholds***REMOVED***
-			Thresholds: []*Threshold***REMOVED***
-				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
-			***REMOVED***,
-		***REMOVED***
+		ts := Thresholds{
+			Thresholds: []*Threshold{
+				newThreshold("rate<1", false, types.NullDuration{}),
+			},
+		}
 
 		parseErr := ts.Parse()
 		require.NoError(t, parseErr)
@@ -345,9 +345,9 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 		assert.ErrorIs(t, gotErr, ErrInvalidThreshold)
 		assert.ErrorAs(t, gotErr, &wantErr)
 		assert.Equal(t, exitcodes.InvalidConfig, wantErr.ExitCode())
-	***REMOVED***)
+	})
 
-	t.Run("validating unparsed thresholds fails", func(t *testing.T) ***REMOVED***
+	t.Run("validating unparsed thresholds fails", func(t *testing.T) {
 		t.Parallel()
 
 		testRegistry := NewRegistry()
@@ -356,11 +356,11 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 
 		// Prepare a Thresholds collection containing syntaxically
 		// correct thresholds
-		ts := Thresholds***REMOVED***
-			Thresholds: []*Threshold***REMOVED***
-				newThreshold("rate<1", false, types.NullDuration***REMOVED******REMOVED***),
-			***REMOVED***,
-		***REMOVED***
+		ts := Thresholds{
+			Thresholds: []*Threshold{
+				newThreshold("rate<1", false, types.NullDuration{}),
+			},
+		}
 
 		// Note that we're not parsing the thresholds
 
@@ -368,9 +368,9 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 		gotErr := ts.Validate("non-existing", testRegistry)
 
 		assert.Error(t, gotErr)
-	***REMOVED***)
+	})
 
-	t.Run("thresholds supported aggregation methods for metrics", func(t *testing.T) ***REMOVED***
+	t.Run("thresholds supported aggregation methods for metrics", func(t *testing.T) {
 		t.Parallel()
 
 		testRegistry := NewRegistry()
@@ -390,106 +390,106 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 		_, err = testRegistry.NewMetric("test_trend", Trend)
 		require.NoError(t, err)
 
-		tests := []struct ***REMOVED***
+		tests := []struct {
 			name       string
 			metricName string
 			thresholds Thresholds
 			wantErr    bool
-		***REMOVED******REMOVED***
-			***REMOVED***
+		}{
+			{
 				name:       "threshold expression using 'count' is valid against a counter metric",
 				metricName: "test_counter",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("count==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("count==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'rate' is valid against a counter metric",
 				metricName: "test_counter",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("rate==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'rate' is valid against a counter single tag submetric",
-				metricName: "test_counter***REMOVED***foo:bar***REMOVED***",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				metricName: "test_counter{foo:bar}",
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("rate==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'rate' is valid against a counter multi-tag submetric",
-				metricName: "test_counter***REMOVED***abc:123,easyas:doremi***REMOVED***",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				metricName: "test_counter{abc:123,easyas:doremi}",
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("rate==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'value' is valid against a gauge metric",
 				metricName: "test_gauge",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("value==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("value==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'rate' is valid against a rate metric",
 				metricName: "test_rate",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("rate==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("rate==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'avg' is valid against a trend metric",
 				metricName: "test_trend",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("avg==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("avg==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'min' is valid against a trend metric",
 				metricName: "test_trend",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("min==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("min==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'max' is valid against a trend metric",
 				metricName: "test_trend",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("max==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("max==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'med' is valid against a trend metric",
 				metricName: "test_trend",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("med==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("med==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-			***REMOVED***
+			},
+			{
 				name:       "threshold expression using 'p(value)' is valid against a trend metric",
 				metricName: "test_trend",
-				thresholds: Thresholds***REMOVED***
-					Thresholds: []*Threshold***REMOVED***newThreshold("p(99)==1", false, types.NullDuration***REMOVED******REMOVED***)***REMOVED***,
-				***REMOVED***,
+				thresholds: Thresholds{
+					Thresholds: []*Threshold{newThreshold("p(99)==1", false, types.NullDuration{})},
+				},
 				wantErr: false,
-			***REMOVED***,
-		***REMOVED***
+			},
+		}
 
-		for _, testCase := range tests ***REMOVED***
+		for _, testCase := range tests {
 			testCase := testCase
 
-			t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			t.Run(testCase.name, func(t *testing.T) {
 				t.Parallel()
 
 				// Ensure thresholds are parsed
@@ -504,7 +504,7 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 					"Thresholds.Validate() error = %v, wantErr %v", gotErr, testCase.wantErr,
 				)
 
-				if testCase.wantErr ***REMOVED***
+				if testCase.wantErr {
 					var targetErr errext.HasExitCode
 
 					assert.ErrorIs(t,
@@ -524,92 +524,92 @@ func TestThresholdsValidate(t *testing.T) ***REMOVED***
 						targetErr.ExitCode(),
 						"Validate error should have been exitcodes.InvalidConfig",
 					)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+				}
+			})
+		}
+	})
+}
 
-func TestNewThresholds(t *testing.T) ***REMOVED***
+func TestNewThresholds(t *testing.T) {
 	t.Parallel()
 
-	t.Run("empty", func(t *testing.T) ***REMOVED***
+	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
 
-		ts := NewThresholds([]string***REMOVED******REMOVED***)
+		ts := NewThresholds([]string{})
 		assert.Len(t, ts.Thresholds, 0)
-	***REMOVED***)
-	t.Run("two", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("two", func(t *testing.T) {
 		t.Parallel()
 
-		sources := []string***REMOVED***`rate<0.01`, `p(95)<200`***REMOVED***
+		sources := []string{`rate<0.01`, `p(95)<200`}
 		ts := NewThresholds(sources)
 		assert.Len(t, ts.Thresholds, 2)
-		for i, th := range ts.Thresholds ***REMOVED***
+		for i, th := range ts.Thresholds {
 			assert.Equal(t, sources[i], th.Source)
 			assert.False(t, th.LastFailed)
 			assert.False(t, th.AbortOnFail)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}
 
-func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
+func TestNewThresholdsWithConfig(t *testing.T) {
 	t.Parallel()
 
-	t.Run("empty", func(t *testing.T) ***REMOVED***
+	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
 
-		ts := NewThresholds([]string***REMOVED******REMOVED***)
+		ts := NewThresholds([]string{})
 		assert.Len(t, ts.Thresholds, 0)
-	***REMOVED***)
-	t.Run("two", func(t *testing.T) ***REMOVED***
+	})
+	t.Run("two", func(t *testing.T) {
 		t.Parallel()
 
-		configs := []thresholdConfig***REMOVED***
-			***REMOVED***`rate<0.01`, false, types.NullDuration***REMOVED******REMOVED******REMOVED***,
-			***REMOVED***`p(95)<200`, true, types.NullDuration***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***
+		configs := []thresholdConfig{
+			{`rate<0.01`, false, types.NullDuration{}},
+			{`p(95)<200`, true, types.NullDuration{}},
+		}
 		ts := newThresholdsWithConfig(configs)
 		assert.Len(t, ts.Thresholds, 2)
-		for i, th := range ts.Thresholds ***REMOVED***
+		for i, th := range ts.Thresholds {
 			assert.Equal(t, configs[i].Threshold, th.Source)
 			assert.False(t, th.LastFailed)
 			assert.Equal(t, configs[i].AbortOnFail, th.AbortOnFail)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}
 
-func TestThresholdsRunAll(t *testing.T) ***REMOVED***
+func TestThresholdsRunAll(t *testing.T) {
 	t.Parallel()
 
-	zero := types.NullDuration***REMOVED******REMOVED***
+	zero := types.NullDuration{}
 	oneSec := types.NullDurationFrom(time.Second)
 	twoSec := types.NullDurationFrom(2 * time.Second)
-	testdata := map[string]struct ***REMOVED***
+	testdata := map[string]struct {
 		succeeded bool
 		err       bool
 		abort     bool
 		grace     types.NullDuration
 		sources   []string
-	***REMOVED******REMOVED***
-		"one passing":                ***REMOVED***true, false, false, zero, []string***REMOVED***`rate<0.01`***REMOVED******REMOVED***,
-		"one failing":                ***REMOVED***false, false, false, zero, []string***REMOVED***`p(95)<200`***REMOVED******REMOVED***,
-		"two passing":                ***REMOVED***true, false, false, zero, []string***REMOVED***`rate<0.1`, `rate<0.01`***REMOVED******REMOVED***,
-		"two failing":                ***REMOVED***false, false, false, zero, []string***REMOVED***`p(95)<200`, `rate<0.1`***REMOVED******REMOVED***,
-		"two mixed":                  ***REMOVED***false, false, false, zero, []string***REMOVED***`rate<0.01`, `p(95)<200`***REMOVED******REMOVED***,
-		"one aborting":               ***REMOVED***false, false, true, zero, []string***REMOVED***`p(95)<200`***REMOVED******REMOVED***,
-		"abort with grace period":    ***REMOVED***false, false, true, oneSec, []string***REMOVED***`p(95)<200`***REMOVED******REMOVED***,
-		"no abort with grace period": ***REMOVED***false, false, true, twoSec, []string***REMOVED***`p(95)<200`***REMOVED******REMOVED***,
-	***REMOVED***
+	}{
+		"one passing":                {true, false, false, zero, []string{`rate<0.01`}},
+		"one failing":                {false, false, false, zero, []string{`p(95)<200`}},
+		"two passing":                {true, false, false, zero, []string{`rate<0.1`, `rate<0.01`}},
+		"two failing":                {false, false, false, zero, []string{`p(95)<200`, `rate<0.1`}},
+		"two mixed":                  {false, false, false, zero, []string{`rate<0.01`, `p(95)<200`}},
+		"one aborting":               {false, false, true, zero, []string{`p(95)<200`}},
+		"abort with grace period":    {false, false, true, oneSec, []string{`p(95)<200`}},
+		"no abort with grace period": {false, false, true, twoSec, []string{`p(95)<200`}},
+	}
 
-	for name, data := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
+	for name, data := range testdata {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			thresholds := NewThresholds(data.sources)
 			gotParseErr := thresholds.Parse()
 			require.NoError(t, gotParseErr)
-			thresholds.sinked = map[string]float64***REMOVED***"rate": 0.0001, "p(95)": 500***REMOVED***
+			thresholds.sinked = map[string]float64{"rate": 0.0001, "p(95)": 500}
 			thresholds.Thresholds[0].AbortOnFail = data.abort
 			thresholds.Thresholds[0].AbortGracePeriod = data.grace
 
@@ -617,191 +617,191 @@ func TestThresholdsRunAll(t *testing.T) ***REMOVED***
 
 			succeeded, err := thresholds.runAll(runDuration)
 
-			if data.err ***REMOVED***
+			if data.err {
 				assert.Error(t, err)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				assert.NoError(t, err)
-			***REMOVED***
+			}
 
-			if data.succeeded ***REMOVED***
+			if data.succeeded {
 				assert.True(t, succeeded)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				assert.False(t, succeeded)
-			***REMOVED***
+			}
 
-			if data.abort && data.grace.Duration < types.Duration(runDuration) ***REMOVED***
+			if data.abort && data.grace.Duration < types.Duration(runDuration) {
 				assert.True(t, thresholds.Abort)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				assert.False(t, thresholds.Abort)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestThresholds_Run(t *testing.T) ***REMOVED***
+func TestThresholds_Run(t *testing.T) {
 	t.Parallel()
 
-	type args struct ***REMOVED***
+	type args struct {
 		sink     Sink
 		duration time.Duration
-	***REMOVED***
-	tests := []struct ***REMOVED***
+	}
+	tests := []struct {
 		name    string
 		args    args
 		want    bool
 		wantErr bool
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:    "Running thresholds of existing sink",
-			args:    args***REMOVED***DummySink***REMOVED***"p(95)": 1234.5***REMOVED***, 0***REMOVED***,
+			args:    args{DummySink{"p(95)": 1234.5}, 0},
 			want:    true,
 			wantErr: false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:    "Running thresholds of existing sink but failing threshold",
-			args:    args***REMOVED***DummySink***REMOVED***"p(95)": 3000***REMOVED***, 0***REMOVED***,
+			args:    args{DummySink{"p(95)": 3000}, 0},
 			want:    false,
 			wantErr: false,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:    "Running threshold on non existing sink does not fail",
-			args:    args***REMOVED***DummySink***REMOVED***"dummy": 0***REMOVED***, 0***REMOVED***,
+			args:    args{DummySink{"dummy": 0}, 0},
 			want:    true,
 			wantErr: false,
-		***REMOVED***,
-	***REMOVED***
-	for _, testCase := range tests ***REMOVED***
+		},
+	}
+	for _, testCase := range tests {
 		testCase := testCase
-		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			thresholds := NewThresholds([]string***REMOVED***"p(95)<2000"***REMOVED***)
+			thresholds := NewThresholds([]string{"p(95)<2000"})
 			gotParseErr := thresholds.Parse()
 			require.NoError(t, gotParseErr)
 
 			gotOk, gotErr := thresholds.Run(testCase.args.sink, testCase.args.duration)
 			assert.Equal(t, gotErr != nil, testCase.wantErr, "Thresholds.Run() error = %v, wantErr %v", gotErr, testCase.wantErr)
 			assert.Equal(t, gotOk, testCase.want, "Thresholds.Run() = %v, want %v", gotOk, testCase.want)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestThresholdsJSON(t *testing.T) ***REMOVED***
+func TestThresholdsJSON(t *testing.T) {
 	t.Parallel()
 
-	testdata := []struct ***REMOVED***
+	testdata := []struct {
 		JSON        string
 		sources     []string
 		abortOnFail bool
 		gracePeriod types.NullDuration
 		outputJSON  string
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			`[]`,
-			[]string***REMOVED******REMOVED***,
+			[]string{},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			"",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			`["rate<0.01"]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+			[]string{"rate<0.01"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			"",
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			`["rate<0.01"]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+			[]string{"rate<0.01"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			`["rate<0.01"]`,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			`["rate<0.01","p(95)<200"]`,
-			[]string***REMOVED***"rate<0.01", "p(95)<200"***REMOVED***,
+			[]string{"rate<0.01", "p(95)<200"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			"",
-		***REMOVED***,
-		***REMOVED***
-			`[***REMOVED***"threshold":"rate<0.01"***REMOVED***]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+		},
+		{
+			`[{"threshold":"rate<0.01"}]`,
+			[]string{"rate<0.01"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			`["rate<0.01"]`,
-		***REMOVED***,
-		***REMOVED***
-			`[***REMOVED***"threshold":"rate<0.01","abortOnFail":true,"delayAbortEval":null***REMOVED***]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+		},
+		{
+			`[{"threshold":"rate<0.01","abortOnFail":true,"delayAbortEval":null}]`,
+			[]string{"rate<0.01"},
 			true,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			"",
-		***REMOVED***,
-		***REMOVED***
-			`[***REMOVED***"threshold":"rate<0.01","abortOnFail":true,"delayAbortEval":"2s"***REMOVED***]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+		},
+		{
+			`[{"threshold":"rate<0.01","abortOnFail":true,"delayAbortEval":"2s"}]`,
+			[]string{"rate<0.01"},
 			true,
 			types.NullDurationFrom(2 * time.Second),
 			"",
-		***REMOVED***,
-		***REMOVED***
-			`[***REMOVED***"threshold":"rate<0.01","abortOnFail":false***REMOVED***]`,
-			[]string***REMOVED***"rate<0.01"***REMOVED***,
+		},
+		{
+			`[{"threshold":"rate<0.01","abortOnFail":false}]`,
+			[]string{"rate<0.01"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			`["rate<0.01"]`,
-		***REMOVED***,
-		***REMOVED***
-			`[***REMOVED***"threshold":"rate<0.01"***REMOVED***, "p(95)<200"]`,
-			[]string***REMOVED***"rate<0.01", "p(95)<200"***REMOVED***,
+		},
+		{
+			`[{"threshold":"rate<0.01"}, "p(95)<200"]`,
+			[]string{"rate<0.01", "p(95)<200"},
 			false,
-			types.NullDuration***REMOVED******REMOVED***,
+			types.NullDuration{},
 			`["rate<0.01","p(95)<200"]`,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, data := range testdata ***REMOVED***
+	for _, data := range testdata {
 		data := data
 
-		t.Run(data.JSON, func(t *testing.T) ***REMOVED***
+		t.Run(data.JSON, func(t *testing.T) {
 			t.Parallel()
 
 			var ts Thresholds
 			assert.NoError(t, json.Unmarshal([]byte(data.JSON), &ts))
 			assert.Equal(t, len(data.sources), len(ts.Thresholds))
-			for i, src := range data.sources ***REMOVED***
+			for i, src := range data.sources {
 				assert.Equal(t, src, ts.Thresholds[i].Source)
 				assert.Equal(t, data.abortOnFail, ts.Thresholds[i].AbortOnFail)
 				assert.Equal(t, data.gracePeriod, ts.Thresholds[i].AbortGracePeriod)
-			***REMOVED***
+			}
 
-			t.Run("marshal", func(t *testing.T) ***REMOVED***
+			t.Run("marshal", func(t *testing.T) {
 				data2, err := MarshalJSONWithoutHTMLEscape(ts)
 				assert.NoError(t, err)
 				output := data.JSON
-				if data.outputJSON != "" ***REMOVED***
+				if data.outputJSON != "" {
 					output = data.outputJSON
-				***REMOVED***
+				}
 				assert.Equal(t, output, string(data2))
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***
+			})
+		})
+	}
 
-	t.Run("bad JSON", func(t *testing.T) ***REMOVED***
+	t.Run("bad JSON", func(t *testing.T) {
 		t.Parallel()
 
 		var ts Thresholds
 		assert.Error(t, json.Unmarshal([]byte("42"), &ts))
 		assert.Nil(t, ts.Thresholds)
 		assert.False(t, ts.Abort)
-	***REMOVED***)
+	})
 
-	t.Run("bad source", func(t *testing.T) ***REMOVED***
+	t.Run("bad source", func(t *testing.T) {
 		t.Parallel()
 
 		var ts Thresholds
 		assert.Nil(t, ts.Thresholds)
 		assert.False(t, ts.Abort)
-	***REMOVED***)
-***REMOVED***
+	})
+}

@@ -13,22 +13,22 @@ const (
 	tc39MaxTestGroupSize = 1000 // to prevent race detector complaining about too many goroutines
 )
 
-func (ctx *tc39TestCtx) runTest(name string, f func(t *testing.T)) ***REMOVED***
-	ctx.testQueue = append(ctx.testQueue, tc39Test***REMOVED***name: name, f: f***REMOVED***)
-	if len(ctx.testQueue) >= tc39MaxTestGroupSize ***REMOVED***
+func (ctx *tc39TestCtx) runTest(name string, f func(t *testing.T)) {
+	ctx.testQueue = append(ctx.testQueue, tc39Test{name: name, f: f})
+	if len(ctx.testQueue) >= tc39MaxTestGroupSize {
 		ctx.flush()
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (ctx *tc39TestCtx) flush() ***REMOVED***
-	ctx.t.Run("tc39", func(t *testing.T) ***REMOVED***
-		for _, tc := range ctx.testQueue ***REMOVED***
+func (ctx *tc39TestCtx) flush() {
+	ctx.t.Run("tc39", func(t *testing.T) {
+		for _, tc := range ctx.testQueue {
 			tc := tc
-			t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				tc.f(t)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
+			})
+		}
+	})
 	ctx.testQueue = ctx.testQueue[:0]
-***REMOVED***
+}

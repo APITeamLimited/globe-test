@@ -13,12 +13,13 @@ import (
 )
 
 type (
-	consoleWriter struct ***REMOVED***
+	consoleWriter struct {
 		gs *globalState
-	***REMOVED***
+	}
 
-	globalState struct ***REMOVED***
+	globalState struct {
 		ctx            context.Context
+		environment    string
 		logger         *logrus.Logger
 		client         *redis.Client
 		jobId          string
@@ -28,133 +29,133 @@ type (
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
 		standalone     bool
-		funcMode       *lib.FuncModeInfo
-	***REMOVED***
+		funcModeInfo   *lib.FuncModeInfo
+	}
 )
 
-var _ libOrch.BaseGlobalState = &globalState***REMOVED******REMOVED***
+var _ libOrch.BaseGlobalState = &globalState{}
 
 func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job,
-	orchestratorId string, creditsClient *redis.Client, standalone bool) *globalState ***REMOVED***
-	gs := &globalState***REMOVED***
+	orchestratorId string, creditsClient *redis.Client, standalone bool) *globalState {
+	gs := &globalState{
 		ctx:            ctx,
 		client:         orchestratorClient,
 		jobId:          job.Id,
 		orchestratorId: orchestratorId,
-		childJobStates: []libOrch.WorkerState***REMOVED******REMOVED***,
+		childJobStates: []libOrch.WorkerState{},
 		standalone:     standalone,
-		funcMode:       job.FuncModeInfo,
-	***REMOVED***
+		funcModeInfo:   job.FuncModeInfo,
+	}
 
-	if creditsClient != nil ***REMOVED***
+	if creditsClient != nil {
 		gs.creditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
-	***REMOVED***
+	}
 
-	gs.logger = &logrus.Logger***REMOVED***
-		Out:       &consoleWriter***REMOVED***gs: gs***REMOVED***,
+	gs.logger = &logrus.Logger{
+		Out:       &consoleWriter{gs: gs},
 		Formatter: new(logrus.JSONFormatter),
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
-	***REMOVED***
+	}
 
 	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
 
 	return gs
-***REMOVED***
+}
 
-var _ io.Writer = &consoleWriter***REMOVED******REMOVED***
+var _ io.Writer = &consoleWriter{}
 
-func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
+func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	origLen := len(p)
 
 	// Intercept the write message so can assess log errors parse json
-	parsed := make(map[string]interface***REMOVED******REMOVED***)
-	if err := json.Unmarshal(p, &parsed); err != nil ***REMOVED***
+	parsed := make(map[string]interface{})
+	if err := json.Unmarshal(p, &parsed); err != nil {
 
 		return origLen, err
-	***REMOVED***
+	}
 
 	// Check message level, if error then log error
-	if parsed["level"] == "error" ***REMOVED***
-		if parsed["error"] != nil ***REMOVED***
+	if parsed["level"] == "error" {
+		if parsed["error"] != nil {
 			libOrch.HandleStringError(w.gs, parsed["error"].(string))
-		***REMOVED*** else ***REMOVED***
+		} else {
 			libOrch.HandleStringError(w.gs, parsed["msg"].(string))
-		***REMOVED***
+		}
 		return
-	***REMOVED***
+	}
 
 	libOrch.DispatchMessage(w.gs, string(p), "STDOUT")
 
 	return origLen, err
-***REMOVED***
+}
 
-func (g *globalState) Ctx() context.Context ***REMOVED***
+func (g *globalState) Ctx() context.Context {
 	return g.ctx
-***REMOVED***
+}
 
-func (g *globalState) Logger() *logrus.Logger ***REMOVED***
+func (g *globalState) Logger() *logrus.Logger {
 	return g.logger
-***REMOVED***
+}
 
-func (g *globalState) OrchestratorClient() *redis.Client ***REMOVED***
+func (g *globalState) OrchestratorClient() *redis.Client {
 	return g.client
-***REMOVED***
+}
 
-func (g *globalState) JobId() string ***REMOVED***
+func (g *globalState) JobId() string {
 	return g.jobId
-***REMOVED***
+}
 
-func (g *globalState) OrchestratorId() string ***REMOVED***
+func (g *globalState) OrchestratorId() string {
 	return g.orchestratorId
-***REMOVED***
+}
 
-func (g *globalState) MetricsStore() *libOrch.BaseMetricsStore ***REMOVED***
+func (g *globalState) MetricsStore() *libOrch.BaseMetricsStore {
 	return &g.metricsStore
-***REMOVED***
+}
 
-func (g *globalState) GetStatus() string ***REMOVED***
+func (g *globalState) GetStatus() string {
 	return g.status
-***REMOVED***
+}
 
-func (g *globalState) SetStatus(status string) ***REMOVED***
+func (g *globalState) SetStatus(status string) {
 	g.status = status
-***REMOVED***
+}
 
-func (g *globalState) GetChildJobStates() []libOrch.WorkerState ***REMOVED***
+func (g *globalState) GetChildJobStates() []libOrch.WorkerState {
 	return g.childJobStates
-***REMOVED***
+}
 
-func (g *globalState) SetChildJobState(workerId string, childJobId string, status string) ***REMOVED***
+func (g *globalState) SetChildJobState(workerId string, childJobId string, status string) {
 	foundCurrent := false
 
-	for i, childJobState := range g.childJobStates ***REMOVED***
-		if childJobState.ChildJobId == childJobId ***REMOVED***
-			if g.childJobStates[i].Status != status ***REMOVED***
+	for i, childJobState := range g.childJobStates {
+		if childJobState.ChildJobId == childJobId {
+			if g.childJobStates[i].Status != status {
 				g.childJobStates[i].Status = status
-			***REMOVED***
+			}
 
 			foundCurrent = true
 			break
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	if !foundCurrent ***REMOVED***
-		g.childJobStates = append(g.childJobStates, libOrch.WorkerState***REMOVED***
+	if !foundCurrent {
+		g.childJobStates = append(g.childJobStates, libOrch.WorkerState{
 			WorkerId: workerId,
 			Status:   status,
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func (g *globalState) CreditsManager() *lib.CreditsManager ***REMOVED***
+func (g *globalState) CreditsManager() *lib.CreditsManager {
 	return g.creditsManager
-***REMOVED***
+}
 
-func (g *globalState) Standalone() bool ***REMOVED***
+func (g *globalState) Standalone() bool {
 	return g.standalone
-***REMOVED***
+}
 
-func (g *globalState) FuncModeInfo() *lib.FuncModeInfo ***REMOVED***
-	return g.funcMode
-***REMOVED***
+func (g *globalState) FuncModeInfo() *lib.FuncModeInfo {
+	return g.funcModeInfo
+}

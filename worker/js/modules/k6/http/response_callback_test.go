@@ -12,79 +12,79 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExpectedStatuses(t *testing.T) ***REMOVED***
+func TestExpectedStatuses(t *testing.T) {
 	t.Parallel()
 	rt, _, _ := getTestModuleInstance(t)
 
-	cases := map[string]struct ***REMOVED***
+	cases := map[string]struct {
 		code, err string
 		expected  expectedStatuses
-	***REMOVED******REMOVED***
-		"good example": ***REMOVED***
-			expected: expectedStatuses***REMOVED***exact: []int***REMOVED***200, 300***REMOVED***, minmax: [][2]int***REMOVED******REMOVED***200, 300***REMOVED******REMOVED******REMOVED***,
-			code:     `(http.expectedStatuses(200, 300, ***REMOVED***min: 200, max:300***REMOVED***))`,
-		***REMOVED***,
+	}{
+		"good example": {
+			expected: expectedStatuses{exact: []int{200, 300}, minmax: [][2]int{{200, 300}}},
+			code:     `(http.expectedStatuses(200, 300, {min: 200, max:300}))`,
+		},
 
-		"strange example": ***REMOVED***
-			expected: expectedStatuses***REMOVED***exact: []int***REMOVED***200, 300***REMOVED***, minmax: [][2]int***REMOVED******REMOVED***200, 300***REMOVED******REMOVED******REMOVED***,
-			code:     `(http.expectedStatuses(200, 300, ***REMOVED***min: 200, max:300, other: "attribute"***REMOVED***))`,
-		***REMOVED***,
+		"strange example": {
+			expected: expectedStatuses{exact: []int{200, 300}, minmax: [][2]int{{200, 300}}},
+			code:     `(http.expectedStatuses(200, 300, {min: 200, max:300, other: "attribute"}))`,
+		},
 
-		"string status code": ***REMOVED***
-			code: `(http.expectedStatuses(200, "300", ***REMOVED***min: 200, max:300***REMOVED***))`,
-			err:  "argument number 2 to expectedStatuses was neither an integer nor an object like ***REMOVED***min:100, max:329***REMOVED***",
-		***REMOVED***,
+		"string status code": {
+			code: `(http.expectedStatuses(200, "300", {min: 200, max:300}))`,
+			err:  "argument number 2 to expectedStatuses was neither an integer nor an object like {min:100, max:329}",
+		},
 
-		"string max status code": ***REMOVED***
-			code: `(http.expectedStatuses(200, 300, ***REMOVED***min: 200, max:"300"***REMOVED***))`,
+		"string max status code": {
+			code: `(http.expectedStatuses(200, 300, {min: 200, max:"300"}))`,
 			err:  "both min and max need to be integers for argument number 3",
-		***REMOVED***,
-		"float status code": ***REMOVED***
-			err:  "argument number 2 to expectedStatuses was neither an integer nor an object like ***REMOVED***min:100, max:329***REMOVED***",
-			code: `(http.expectedStatuses(200, 300.5, ***REMOVED***min: 200, max:300***REMOVED***))`,
-		***REMOVED***,
+		},
+		"float status code": {
+			err:  "argument number 2 to expectedStatuses was neither an integer nor an object like {min:100, max:329}",
+			code: `(http.expectedStatuses(200, 300.5, {min: 200, max:300}))`,
+		},
 
-		"float max status code": ***REMOVED***
+		"float max status code": {
 			err:  "both min and max need to be integers for argument number 3",
-			code: `(http.expectedStatuses(200, 300, ***REMOVED***min: 200, max:300.5***REMOVED***))`,
-		***REMOVED***,
-		"no arguments": ***REMOVED***
+			code: `(http.expectedStatuses(200, 300, {min: 200, max:300.5}))`,
+		},
+		"no arguments": {
 			code: `(http.expectedStatuses())`,
 			err:  "no arguments",
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for name, testCase := range cases ***REMOVED***
+	for name, testCase := range cases {
 		name, testCase := name, testCase
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			val, err := rt.RunString(testCase.code)
-			if testCase.err == "" ***REMOVED***
+			if testCase.err == "" {
 				require.NoError(t, err)
 				got := new(expectedStatuses)
 				err = rt.ExportTo(val, &got)
 				require.NoError(t, err)
 				require.Equal(t, testCase.expected, *got)
 				return // the t.Run
-			***REMOVED***
+			}
 
 			require.Error(t, err)
 			exc := err.(*goja.Exception)
 			require.Contains(t, exc.Error(), testCase.err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-type expectedSample struct ***REMOVED***
+type expectedSample struct {
 	tags    map[string]string
 	metrics []string
-***REMOVED***
+}
 
-func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
+func TestResponseCallbackInAction(t *testing.T) {
 	t.Parallel()
 	tb, _, samples, rt, mii := newRuntime(t)
 	sr := tb.Replacer.Replace
 
-	HTTPMetricsWithoutFailed := []string***REMOVED***
+	HTTPMetricsWithoutFailed := []string{
 		workerMetrics.HTTPReqsName,
 		workerMetrics.HTTPReqBlockedName,
 		workerMetrics.HTTPReqConnectingName,
@@ -93,19 +93,19 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 		workerMetrics.HTTPReqWaitingName,
 		workerMetrics.HTTPReqSendingName,
 		workerMetrics.HTTPReqTLSHandshakingName,
-	***REMOVED***
+	}
 
 	allHTTPMetrics := append(HTTPMetricsWithoutFailed, workerMetrics.HTTPReqFailedName)
 
-	testCases := map[string]struct ***REMOVED***
+	testCases := map[string]struct {
 		code            string
 		expectedSamples []expectedSample
-	***REMOVED******REMOVED***
-		"basic": ***REMOVED***
+	}{
+		"basic": {
 			code: `http.request("GET", "HTTPBIN_URL/redirect/1");`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/redirect/1"),
 						"name":              sr("HTTPBIN_URL/redirect/1"),
@@ -113,11 +113,11 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/get"),
 						"name":              sr("HTTPBIN_URL/get"),
@@ -125,19 +125,19 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"overwrite per request": ***REMOVED***
+				},
+			},
+		},
+		"overwrite per request": {
 			code: `
 			http.setResponseCallback(http.expectedStatuses(200));
 			res = http.request("GET", "HTTPBIN_URL/redirect/1");
 			`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/redirect/1"),
 						"name":              sr("HTTPBIN_URL/redirect/1"),
@@ -145,11 +145,11 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "false", // this is on purpose
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/get"),
 						"name":              sr("HTTPBIN_URL/get"),
@@ -157,17 +157,17 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
+				},
+			},
+		},
 
-		"global overwrite": ***REMOVED***
-			code: `http.request("GET", "HTTPBIN_URL/redirect/1", null, ***REMOVED***responseCallback: http.expectedStatuses(200)***REMOVED***);`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+		"global overwrite": {
+			code: `http.request("GET", "HTTPBIN_URL/redirect/1", null, {responseCallback: http.expectedStatuses(200)});`,
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/redirect/1"),
 						"name":              sr("HTTPBIN_URL/redirect/1"),
@@ -175,11 +175,11 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "false", // this is on purpose
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/get"),
 						"name":              sr("HTTPBIN_URL/get"),
@@ -187,72 +187,72 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"per request overwrite with null": ***REMOVED***
-			code: `http.request("GET", "HTTPBIN_URL/redirect/1", null, ***REMOVED***responseCallback: null***REMOVED***);`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+			},
+		},
+		"per request overwrite with null": {
+			code: `http.request("GET", "HTTPBIN_URL/redirect/1", null, {responseCallback: null});`,
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method": "GET",
 						"url":    sr("HTTPBIN_URL/redirect/1"),
 						"name":   sr("HTTPBIN_URL/redirect/1"),
 						"status": "302",
 						"group":  "",
 						"proto":  "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: HTTPMetricsWithoutFailed,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method": "GET",
 						"url":    sr("HTTPBIN_URL/get"),
 						"name":   sr("HTTPBIN_URL/get"),
 						"status": "200",
 						"group":  "",
 						"proto":  "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: HTTPMetricsWithoutFailed,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"global overwrite with null": ***REMOVED***
+				},
+			},
+		},
+		"global overwrite with null": {
 			code: `
 			http.setResponseCallback(null);
 			res = http.request("GET", "HTTPBIN_URL/redirect/1");
 			`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method": "GET",
 						"url":    sr("HTTPBIN_URL/redirect/1"),
 						"name":   sr("HTTPBIN_URL/redirect/1"),
 						"status": "302",
 						"group":  "",
 						"proto":  "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: HTTPMetricsWithoutFailed,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method": "GET",
 						"url":    sr("HTTPBIN_URL/get"),
 						"name":   sr("HTTPBIN_URL/get"),
 						"status": "200",
 						"group":  "",
 						"proto":  "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: HTTPMetricsWithoutFailed,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	for name, testCase := range testCases ***REMOVED***
+				},
+			},
+		},
+	}
+	for name, testCase := range testCases {
 		testCase := testCase
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			mii.defaultClient.responseCallback = defaultExpectedStatuses.match
 
 			_, err := rt.RunString(sr(testCase.code))
@@ -260,29 +260,29 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 			bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
-			for _, container := range bufSamples ***REMOVED***
-				for _, sample := range container.GetSamples() ***REMOVED***
-					if sample.Metric.Name == "http_reqs" ***REMOVED***
+			for _, container := range bufSamples {
+				for _, sample := range container.GetSamples() {
+					if sample.Metric.Name == "http_reqs" {
 						reqsCount++
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
+					}
+				}
+			}
 
 			require.Equal(t, len(testCase.expectedSamples), reqsCount)
 
-			for i, expectedSample := range testCase.expectedSamples ***REMOVED***
+			for i, expectedSample := range testCase.expectedSamples {
 				assertRequestMetricsEmittedSingle(t, bufSamples[i], expectedSample.tags, expectedSample.metrics, nil)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
+func TestResponseCallbackBatch(t *testing.T) {
 	t.Parallel()
 	tb, _, samples, rt, mii := newRuntime(t)
 	sr := tb.Replacer.Replace
 
-	HTTPMetricsWithoutFailed := []string***REMOVED***
+	HTTPMetricsWithoutFailed := []string{
 		workerMetrics.HTTPReqsName,
 		workerMetrics.HTTPReqBlockedName,
 		workerMetrics.HTTPReqConnectingName,
@@ -291,36 +291,36 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 		workerMetrics.HTTPReqWaitingName,
 		workerMetrics.HTTPReqSendingName,
 		workerMetrics.HTTPReqTLSHandshakingName,
-	***REMOVED***
+	}
 
 	allHTTPMetrics := append(HTTPMetricsWithoutFailed, workerMetrics.HTTPReqFailedName)
 	// IMPORTANT: the tests here depend on the fact that the url they hit can be ordered in the same
 	// order as the expectedSamples even if they are made concurrently
-	testCases := map[string]struct ***REMOVED***
+	testCases := map[string]struct {
 		code            string
 		expectedSamples []expectedSample
-	***REMOVED******REMOVED***
-		"basic": ***REMOVED***
+	}{
+		"basic": {
 			code: `
-	http.batch([["GET", "HTTPBIN_URL/status/200", null, ***REMOVED***responseCallback: null***REMOVED***],
+	http.batch([["GET", "HTTPBIN_URL/status/200", null, {responseCallback: null}],
 			["GET", "HTTPBIN_URL/status/201"],
-			["GET", "HTTPBIN_URL/status/202", null, ***REMOVED***responseCallback: http.expectedStatuses(4)***REMOVED***],
-			["GET", "HTTPBIN_URL/status/405", null, ***REMOVED***responseCallback: http.expectedStatuses(405)***REMOVED***],
+			["GET", "HTTPBIN_URL/status/202", null, {responseCallback: http.expectedStatuses(4)}],
+			["GET", "HTTPBIN_URL/status/405", null, {responseCallback: http.expectedStatuses(405)}],
 	]);`,
-			expectedSamples: []expectedSample***REMOVED***
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+			expectedSamples: []expectedSample{
+				{
+					tags: map[string]string{
 						"method": "GET",
 						"url":    sr("HTTPBIN_URL/status/200"),
 						"name":   sr("HTTPBIN_URL/status/200"),
 						"status": "200",
 						"group":  "",
 						"proto":  "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: HTTPMetricsWithoutFailed,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/status/201"),
 						"name":              sr("HTTPBIN_URL/status/201"),
@@ -328,11 +328,11 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/status/202"),
 						"name":              sr("HTTPBIN_URL/status/202"),
@@ -340,11 +340,11 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "false",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-				***REMOVED***
-					tags: map[string]string***REMOVED***
+				},
+				{
+					tags: map[string]string{
 						"method":            "GET",
 						"url":               sr("HTTPBIN_URL/status/405"),
 						"name":              sr("HTTPBIN_URL/status/405"),
@@ -353,15 +353,15 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 						"group":             "",
 						"expected_response": "true",
 						"proto":             "HTTP/1.1",
-					***REMOVED***,
+					},
 					metrics: allHTTPMetrics,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	for name, testCase := range testCases ***REMOVED***
+				},
+			},
+		},
+	}
+	for name, testCase := range testCases {
 		testCase := testCase
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			mii.defaultClient.responseCallback = defaultExpectedStatuses.match
 
 			_, err := rt.RunString(sr(testCase.code))
@@ -369,33 +369,33 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 			bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 			reqsCount := 0
-			for _, container := range bufSamples ***REMOVED***
-				for _, sample := range container.GetSamples() ***REMOVED***
-					if sample.Metric.Name == "http_reqs" ***REMOVED***
+			for _, container := range bufSamples {
+				for _, sample := range container.GetSamples() {
+					if sample.Metric.Name == "http_reqs" {
 						reqsCount++
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
-			sort.Slice(bufSamples, func(i, j int) bool ***REMOVED***
+					}
+				}
+			}
+			sort.Slice(bufSamples, func(i, j int) bool {
 				iURL, _ := bufSamples[i].GetSamples()[0].Tags.Get("url")
 				jURL, _ := bufSamples[j].GetSamples()[0].Tags.Get("url")
 				return iURL < jURL
-			***REMOVED***)
+			})
 
 			require.Equal(t, len(testCase.expectedSamples), reqsCount)
 
-			for i, expectedSample := range testCase.expectedSamples ***REMOVED***
+			for i, expectedSample := range testCase.expectedSamples {
 				assertRequestMetricsEmittedSingle(t, bufSamples[i], expectedSample.tags, expectedSample.metrics, nil)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
+func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) {
 	t.Parallel()
 	tb, state, samples, rt, _ := newRuntime(t)
 	sr := tb.Replacer.Replace
-	allHTTPMetrics := []string***REMOVED***
+	allHTTPMetrics := []string{
 		workerMetrics.HTTPReqsName,
 		workerMetrics.HTTPReqFailedName,
 		workerMetrics.HTTPReqBlockedName,
@@ -405,48 +405,48 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 		workerMetrics.HTTPReqSendingName,
 		workerMetrics.HTTPReqWaitingName,
 		workerMetrics.HTTPReqTLSHandshakingName,
-	***REMOVED***
+	}
 	deleteSystemTag(state, workerMetrics.TagExpectedResponse.String())
 
-	_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/redirect/1", null, ***REMOVED***responseCallback: http.expectedStatuses(200)***REMOVED***);`))
+	_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/redirect/1", null, {responseCallback: http.expectedStatuses(200)});`))
 	assert.NoError(t, err)
 	bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
-	for _, container := range bufSamples ***REMOVED***
-		for _, sample := range container.GetSamples() ***REMOVED***
-			if sample.Metric.Name == "http_reqs" ***REMOVED***
+	for _, container := range bufSamples {
+		for _, sample := range container.GetSamples() {
+			if sample.Metric.Name == "http_reqs" {
 				reqsCount++
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	require.Equal(t, 2, reqsCount)
 
-	tags := map[string]string***REMOVED***
+	tags := map[string]string{
 		"method": "GET",
 		"url":    sr("HTTPBIN_URL/redirect/1"),
 		"name":   sr("HTTPBIN_URL/redirect/1"),
 		"status": "302",
 		"group":  "",
 		"proto":  "HTTP/1.1",
-	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
-		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
+	}
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) {
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName {
 			require.EqualValues(t, sample.Value, 1)
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 	tags["url"] = sr("HTTPBIN_URL/get")
 	tags["name"] = tags["url"]
 	tags["status"] = "200"
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
-		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) {
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName {
 			require.EqualValues(t, sample.Value, 0)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}
 
-func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
+func TestDigestWithResponseCallback(t *testing.T) {
 	t.Parallel()
 	tb, _, samples, rt, _ := newRuntime(t)
 
@@ -454,7 +454,7 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		"http://testuser:testpwd@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/testuser/testpwd",
 	)
 
-	allHTTPMetrics := []string***REMOVED***
+	allHTTPMetrics := []string{
 		workerMetrics.HTTPReqsName,
 		workerMetrics.HTTPReqFailedName,
 		workerMetrics.HTTPReqBlockedName,
@@ -464,30 +464,30 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		workerMetrics.HTTPReqSendingName,
 		workerMetrics.HTTPReqWaitingName,
 		workerMetrics.HTTPReqTLSHandshakingName,
-	***REMOVED***
+	}
 	_, err := rt.RunString(fmt.Sprintf(`
-		var res = http.get(%q,  ***REMOVED*** auth: "digest" ***REMOVED***);
-		if (res.status !== 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-		if (res.error_code !== 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
+		var res = http.get(%q,  { auth: "digest" });
+		if (res.status !== 200) { throw new Error("wrong status: " + res.status); }
+		if (res.error_code !== 0) { throw new Error("wrong error code: " + res.error_code); }
 	`, urlWithCreds))
 	require.NoError(t, err)
 	bufSamples := workerMetrics.GetBufferedSamples(samples)
 
 	reqsCount := 0
-	for _, container := range bufSamples ***REMOVED***
-		for _, sample := range container.GetSamples() ***REMOVED***
-			if sample.Metric.Name == "http_reqs" ***REMOVED***
+	for _, container := range bufSamples {
+		for _, sample := range container.GetSamples() {
+			if sample.Metric.Name == "http_reqs" {
 				reqsCount++
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
+			}
+		}
+	}
 
 	require.Equal(t, 2, reqsCount)
 
 	urlRaw := tb.Replacer.Replace(
 		"http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/testuser/testpwd")
 
-	tags := map[string]string***REMOVED***
+	tags := map[string]string{
 		"method":            "GET",
 		"url":               urlRaw,
 		"name":              urlRaw,
@@ -496,27 +496,27 @@ func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 		"proto":             "HTTP/1.1",
 		"expected_response": "true",
 		"error_code":        "1401",
-	***REMOVED***
-	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
-		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
+	}
+	assertRequestMetricsEmittedSingle(t, bufSamples[0], tags, allHTTPMetrics, func(sample workerMetrics.Sample) {
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName {
 			require.EqualValues(t, sample.Value, 0)
-		***REMOVED***
-	***REMOVED***)
+		}
+	})
 	tags["status"] = "200"
 	delete(tags, "error_code")
-	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) ***REMOVED***
-		if sample.Metric.Name == workerMetrics.HTTPReqFailedName ***REMOVED***
+	assertRequestMetricsEmittedSingle(t, bufSamples[1], tags, allHTTPMetrics, func(sample workerMetrics.Sample) {
+		if sample.Metric.Name == workerMetrics.HTTPReqFailedName {
 			require.EqualValues(t, sample.Value, 0)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+		}
+	})
+}
 
-func deleteSystemTag(state *libWorker.State, tag string) ***REMOVED***
+func deleteSystemTag(state *libWorker.State, tag string) {
 	enabledTags := state.Options.SystemTags.Map()
 	delete(enabledTags, tag)
 	tagsList := make([]string, 0, len(enabledTags))
-	for k := range enabledTags ***REMOVED***
+	for k := range enabledTags {
 		tagsList = append(tagsList, k)
-	***REMOVED***
+	}
 	state.Options.SystemTags = workerMetrics.ToSystemTagSet(tagsList)
-***REMOVED***
+}

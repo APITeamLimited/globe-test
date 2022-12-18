@@ -2,265 +2,265 @@ package local
 
 //TODO: translate this test to the new paradigm
 /*
-func TestProcessStages(t *testing.T) ***REMOVED***
-	type checkpoint struct ***REMOVED***
+func TestProcessStages(t *testing.T) {
+	type checkpoint struct {
 		D    time.Duration
 		Keep bool
 		VUs  null.Int
-	***REMOVED***
-	testdata := map[string]struct ***REMOVED***
+	}
+	testdata := map[string]struct {
 		Start       int64
 		Stages      []libWorker.Stage
 		Checkpoints []checkpoint
-	***REMOVED******REMOVED***
-		"none": ***REMOVED***
+	}{
+		"none": {
 			0,
-			[]libWorker.Stage***REMOVED******REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, false, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***10 * time.Second, false, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***24 * time.Hour, false, null.NewInt(0, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"one": ***REMOVED***
+			[]libWorker.Stage{},
+			[]checkpoint{
+				{0 * time.Second, false, null.NewInt(0, false)},
+				{10 * time.Second, false, null.NewInt(0, false)},
+				{24 * time.Hour, false, null.NewInt(0, false)},
+			},
+		},
+		"one": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.NewInt(0, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"one/start": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(10 * time.Second)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(0, false)},
+				{1 * time.Second, true, null.NewInt(0, false)},
+				{10 * time.Second, true, null.NewInt(0, false)},
+				{11 * time.Second, false, null.NewInt(0, false)},
+			},
+		},
+		"one/start": {
 			5,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.NewInt(5, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"one/targeted": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(10 * time.Second)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(5, false)},
+				{1 * time.Second, true, null.NewInt(5, false)},
+				{10 * time.Second, true, null.NewInt(5, false)},
+				{11 * time.Second, false, null.NewInt(5, false)},
+			},
+		},
+		"one/targeted": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.IntFrom(10)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.IntFrom(30)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.IntFrom(40)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.IntFrom(50)***REMOVED***,
-				***REMOVED***6 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.IntFrom(70)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.IntFrom(90)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.IntFrom(100)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.IntFrom(100)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"one/targeted/start": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.IntFrom(0)},
+				{1 * time.Second, true, null.IntFrom(10)},
+				{2 * time.Second, true, null.IntFrom(20)},
+				{3 * time.Second, true, null.IntFrom(30)},
+				{4 * time.Second, true, null.IntFrom(40)},
+				{5 * time.Second, true, null.IntFrom(50)},
+				{6 * time.Second, true, null.IntFrom(60)},
+				{7 * time.Second, true, null.IntFrom(70)},
+				{8 * time.Second, true, null.IntFrom(80)},
+				{9 * time.Second, true, null.IntFrom(90)},
+				{10 * time.Second, true, null.IntFrom(100)},
+				{11 * time.Second, false, null.IntFrom(100)},
+			},
+		},
+		"one/targeted/start": {
 			50,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.IntFrom(50)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.IntFrom(55)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.IntFrom(65)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.IntFrom(70)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.IntFrom(75)***REMOVED***,
-				***REMOVED***6 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.IntFrom(85)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.IntFrom(90)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.IntFrom(95)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.IntFrom(100)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.IntFrom(100)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"two": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.IntFrom(50)},
+				{1 * time.Second, true, null.IntFrom(55)},
+				{2 * time.Second, true, null.IntFrom(60)},
+				{3 * time.Second, true, null.IntFrom(65)},
+				{4 * time.Second, true, null.IntFrom(70)},
+				{5 * time.Second, true, null.IntFrom(75)},
+				{6 * time.Second, true, null.IntFrom(80)},
+				{7 * time.Second, true, null.IntFrom(85)},
+				{8 * time.Second, true, null.IntFrom(90)},
+				{9 * time.Second, true, null.IntFrom(95)},
+				{10 * time.Second, true, null.IntFrom(100)},
+				{11 * time.Second, false, null.IntFrom(100)},
+			},
+		},
+		"two": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.NewInt(0, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"two/start": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(0, false)},
+				{1 * time.Second, true, null.NewInt(0, false)},
+				{11 * time.Second, false, null.NewInt(0, false)},
+			},
+		},
+		"two/start": {
 			5,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.NewInt(5, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"two/targeted": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(5, false)},
+				{1 * time.Second, true, null.NewInt(5, false)},
+				{11 * time.Second, false, null.NewInt(5, false)},
+			},
+		},
+		"two/targeted": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.IntFrom(40)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.IntFrom(100)***REMOVED***,
-				***REMOVED***6 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.IntFrom(40)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.IntFrom(0)***REMOVED***,
-				***REMOVED***11 * time.Second, false, null.IntFrom(0)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"three": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.IntFrom(0)},
+				{1 * time.Second, true, null.IntFrom(20)},
+				{2 * time.Second, true, null.IntFrom(40)},
+				{3 * time.Second, true, null.IntFrom(60)},
+				{4 * time.Second, true, null.IntFrom(80)},
+				{5 * time.Second, true, null.IntFrom(100)},
+				{6 * time.Second, true, null.IntFrom(80)},
+				{7 * time.Second, true, null.IntFrom(60)},
+				{8 * time.Second, true, null.IntFrom(40)},
+				{9 * time.Second, true, null.IntFrom(20)},
+				{10 * time.Second, true, null.IntFrom(0)},
+				{11 * time.Second, false, null.IntFrom(0)},
+			},
+		},
+		"three": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(15 * time.Second)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***15 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***30 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***31 * time.Second, false, null.NewInt(0, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"three/targeted": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(10 * time.Second)},
+				{Duration: types.NullDurationFrom(15 * time.Second)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(0, false)},
+				{1 * time.Second, true, null.NewInt(0, false)},
+				{15 * time.Second, true, null.NewInt(0, false)},
+				{30 * time.Second, true, null.NewInt(0, false)},
+				{31 * time.Second, false, null.NewInt(0, false)},
+			},
+		},
+		"three/targeted": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
-				***REMOVED***1 * time.Second, true, null.IntFrom(10)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.IntFrom(30)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.IntFrom(40)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.IntFrom(50)***REMOVED***,
-				***REMOVED***6 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.IntFrom(70)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.IntFrom(90)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.IntFrom(100)***REMOVED***,
-				***REMOVED***11 * time.Second, true, null.IntFrom(80)***REMOVED***,
-				***REMOVED***12 * time.Second, true, null.IntFrom(60)***REMOVED***,
-				***REMOVED***13 * time.Second, true, null.IntFrom(40)***REMOVED***,
-				***REMOVED***14 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***15 * time.Second, true, null.IntFrom(0)***REMOVED***,
-				***REMOVED***16 * time.Second, false, null.IntFrom(0)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"mix": ***REMOVED***
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.IntFrom(0)},
+				{1 * time.Second, true, null.IntFrom(10)},
+				{2 * time.Second, true, null.IntFrom(20)},
+				{3 * time.Second, true, null.IntFrom(30)},
+				{4 * time.Second, true, null.IntFrom(40)},
+				{5 * time.Second, true, null.IntFrom(50)},
+				{6 * time.Second, true, null.IntFrom(60)},
+				{7 * time.Second, true, null.IntFrom(70)},
+				{8 * time.Second, true, null.IntFrom(80)},
+				{9 * time.Second, true, null.IntFrom(90)},
+				{10 * time.Second, true, null.IntFrom(100)},
+				{11 * time.Second, true, null.IntFrom(80)},
+				{12 * time.Second, true, null.IntFrom(60)},
+				{13 * time.Second, true, null.IntFrom(40)},
+				{14 * time.Second, true, null.IntFrom(20)},
+				{15 * time.Second, true, null.IntFrom(0)},
+				{16 * time.Second, false, null.IntFrom(0)},
+			},
+		},
+		"mix": {
 			0,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)},
+				{Duration: types.NullDurationFrom(2 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)},
+				{Duration: types.NullDurationFrom(2 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.IntFrom(0)},
 
-				***REMOVED***1 * time.Second, true, null.IntFrom(4)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.IntFrom(8)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.IntFrom(12)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.IntFrom(16)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.IntFrom(20)***REMOVED***,
+				{1 * time.Second, true, null.IntFrom(4)},
+				{2 * time.Second, true, null.IntFrom(8)},
+				{3 * time.Second, true, null.IntFrom(12)},
+				{4 * time.Second, true, null.IntFrom(16)},
+				{5 * time.Second, true, null.IntFrom(20)},
 
-				***REMOVED***6 * time.Second, true, null.IntFrom(18)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.IntFrom(16)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.IntFrom(14)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.IntFrom(12)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.IntFrom(10)***REMOVED***,
+				{6 * time.Second, true, null.IntFrom(18)},
+				{7 * time.Second, true, null.IntFrom(16)},
+				{8 * time.Second, true, null.IntFrom(14)},
+				{9 * time.Second, true, null.IntFrom(12)},
+				{10 * time.Second, true, null.IntFrom(10)},
 
-				***REMOVED***11 * time.Second, true, null.IntFrom(10)***REMOVED***,
-				***REMOVED***12 * time.Second, true, null.IntFrom(10)***REMOVED***,
+				{11 * time.Second, true, null.IntFrom(10)},
+				{12 * time.Second, true, null.IntFrom(10)},
 
-				***REMOVED***13 * time.Second, true, null.IntFrom(12)***REMOVED***,
-				***REMOVED***14 * time.Second, true, null.IntFrom(14)***REMOVED***,
-				***REMOVED***15 * time.Second, true, null.IntFrom(16)***REMOVED***,
-				***REMOVED***16 * time.Second, true, null.IntFrom(18)***REMOVED***,
-				***REMOVED***17 * time.Second, true, null.IntFrom(20)***REMOVED***,
+				{13 * time.Second, true, null.IntFrom(12)},
+				{14 * time.Second, true, null.IntFrom(14)},
+				{15 * time.Second, true, null.IntFrom(16)},
+				{16 * time.Second, true, null.IntFrom(18)},
+				{17 * time.Second, true, null.IntFrom(20)},
 
-				***REMOVED***18 * time.Second, true, null.IntFrom(20)***REMOVED***,
-				***REMOVED***19 * time.Second, true, null.IntFrom(20)***REMOVED***,
+				{18 * time.Second, true, null.IntFrom(20)},
+				{19 * time.Second, true, null.IntFrom(20)},
 
-				***REMOVED***20 * time.Second, true, null.IntFrom(18)***REMOVED***,
-				***REMOVED***21 * time.Second, true, null.IntFrom(16)***REMOVED***,
-				***REMOVED***22 * time.Second, true, null.IntFrom(14)***REMOVED***,
-				***REMOVED***23 * time.Second, true, null.IntFrom(12)***REMOVED***,
-				***REMOVED***24 * time.Second, true, null.IntFrom(10)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"mix/start": ***REMOVED***
+				{20 * time.Second, true, null.IntFrom(18)},
+				{21 * time.Second, true, null.IntFrom(16)},
+				{22 * time.Second, true, null.IntFrom(14)},
+				{23 * time.Second, true, null.IntFrom(12)},
+				{24 * time.Second, true, null.IntFrom(10)},
+			},
+		},
+		"mix/start": {
 			5,
-			[]libWorker.Stage***REMOVED***
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-			***REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+			[]libWorker.Stage{
+				{Duration: types.NullDurationFrom(5 * time.Second)},
+				{Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)},
+			},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(5, false)},
 
-				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***2 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***3 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***4 * time.Second, true, null.NewInt(5, false)***REMOVED***,
-				***REMOVED***5 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				{1 * time.Second, true, null.NewInt(5, false)},
+				{2 * time.Second, true, null.NewInt(5, false)},
+				{3 * time.Second, true, null.NewInt(5, false)},
+				{4 * time.Second, true, null.NewInt(5, false)},
+				{5 * time.Second, true, null.NewInt(5, false)},
 
-				***REMOVED***6 * time.Second, true, null.NewInt(6, true)***REMOVED***,
-				***REMOVED***7 * time.Second, true, null.NewInt(7, true)***REMOVED***,
-				***REMOVED***8 * time.Second, true, null.NewInt(8, true)***REMOVED***,
-				***REMOVED***9 * time.Second, true, null.NewInt(9, true)***REMOVED***,
-				***REMOVED***10 * time.Second, true, null.NewInt(10, true)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-		"infinite": ***REMOVED***
+				{6 * time.Second, true, null.NewInt(6, true)},
+				{7 * time.Second, true, null.NewInt(7, true)},
+				{8 * time.Second, true, null.NewInt(8, true)},
+				{9 * time.Second, true, null.NewInt(9, true)},
+				{10 * time.Second, true, null.NewInt(10, true)},
+			},
+		},
+		"infinite": {
 			0,
-			[]libWorker.Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
-			[]checkpoint***REMOVED***
-				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***1 * time.Minute, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***1 * time.Hour, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***24 * time.Hour, true, null.NewInt(0, false)***REMOVED***,
-				***REMOVED***365 * 24 * time.Hour, true, null.NewInt(0, false)***REMOVED***,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	for name, data := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			for _, ckp := range data.Checkpoints ***REMOVED***
-				t.Run(ckp.D.String(), func(t *testing.T) ***REMOVED***
+			[]libWorker.Stage{{}},
+			[]checkpoint{
+				{0 * time.Second, true, null.NewInt(0, false)},
+				{1 * time.Minute, true, null.NewInt(0, false)},
+				{1 * time.Hour, true, null.NewInt(0, false)},
+				{24 * time.Hour, true, null.NewInt(0, false)},
+				{365 * 24 * time.Hour, true, null.NewInt(0, false)},
+			},
+		},
+	}
+	for name, data := range testdata {
+		t.Run(name, func(t *testing.T) {
+			for _, ckp := range data.Checkpoints {
+				t.Run(ckp.D.String(), func(t *testing.T) {
 					vus, keepRunning := ProcessStages(data.Start, data.Stages, ckp.D)
 					assert.Equal(t, ckp.VUs, vus)
 					assert.Equal(t, ckp.Keep, keepRunning)
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				})
+			}
+		})
+	}
+}
 */

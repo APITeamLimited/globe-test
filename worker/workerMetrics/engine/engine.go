@@ -17,7 +17,7 @@ import (
 // MetricsEngine is the internal metrics engine that k6 uses to keep track of
 // aggregated metric sample values. They are used to generate the end-of-test
 // summary and to evaluate the test thresholds.
-type MetricsEngine struct ***REMOVED***
+type MetricsEngine struct {
 	es     *libWorker.ExecutionState
 	logger logrus.FieldLogger
 
@@ -31,115 +31,115 @@ type MetricsEngine struct ***REMOVED***
 	//     the metrics are decoupled from their types
 	MetricsLock     sync.Mutex
 	ObservedMetrics map[string]*workerMetrics.Metric
-***REMOVED***
+}
 
 // NewMetricsEngine creates a new metrics Engine with the given parameters.
-func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) ***REMOVED***
-	me := &MetricsEngine***REMOVED***
+func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) {
+	me := &MetricsEngine{
 		es:     es,
 		logger: es.Test.Logger.WithField("component", "metrics-engine"),
 
 		ObservedMetrics: make(map[string]*workerMetrics.Metric),
-	***REMOVED***
+	}
 
-	if !me.es.Test.RuntimeOptions.NoThresholds.Bool ***REMOVED***
+	if !me.es.Test.RuntimeOptions.NoThresholds.Bool {
 		err := me.initSubMetricsAndThresholds()
-		if err != nil ***REMOVED***
+		if err != nil {
 			return nil, err
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return me, nil
-***REMOVED***
+}
 
 // GetIngester returns a pseudo-Output that uses the given metric samples to
 // update the engine's inner state.
-func (me *MetricsEngine) GetIngester() output.Output ***REMOVED***
-	return &outputIngester***REMOVED***
+func (me *MetricsEngine) GetIngester() output.Output {
+	return &outputIngester{
 		logger:        me.logger.WithField("component", "metrics-engine-ingester"),
 		metricsEngine: me,
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*workerMetrics.Metric, error) ***REMOVED***
+func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*workerMetrics.Metric, error) {
 	// TODO: replace with strings.Cut after Go 1.18
-	nameParts := strings.SplitN(name, "***REMOVED***", 2)
+	nameParts := strings.SplitN(name, "{", 2)
 
 	metric := me.es.Test.Registry.Get(nameParts[0])
-	if metric == nil ***REMOVED***
+	if metric == nil {
 		return nil, fmt.Errorf("metric '%s' does not exist in the script", nameParts[0])
-	***REMOVED***
-	if len(nameParts) == 1 ***REMOVED*** // no sub-metric
+	}
+	if len(nameParts) == 1 { // no sub-metric
 		return metric, nil
-	***REMOVED***
+	}
 
 	submetricDefinition := nameParts[1]
-	if submetricDefinition[len(submetricDefinition)-1] != '***REMOVED***' ***REMOVED***
-		return nil, fmt.Errorf("missing ending bracket, sub-metric format needs to be 'metric***REMOVED***key:value***REMOVED***'")
-	***REMOVED***
+	if submetricDefinition[len(submetricDefinition)-1] != '}' {
+		return nil, fmt.Errorf("missing ending bracket, sub-metric format needs to be 'metric{key:value}'")
+	}
 	sm, err := metric.AddSubmetric(submetricDefinition[:len(submetricDefinition)-1])
-	if err != nil ***REMOVED***
+	if err != nil {
 		return nil, err
-	***REMOVED***
+	}
 
-	if sm.Metric.Observed ***REMOVED***
+	if sm.Metric.Observed {
 		// Do not repeat warnings for the same sub-metrics
 		return sm.Metric, nil
-	***REMOVED***
+	}
 
 	// TODO: reword these from "will be deprecated" to "were deprecated" and
 	// maybe make them errors, not warnings, when we introduce un-indexable tags
 
-	if _, ok := sm.Tags.Get("url"); ok ***REMOVED***
+	if _, ok := sm.Tags.Get("url"); ok {
 		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'url' metric tag, "+
 			"are deprecated and will not be supported in future k6 releases. "+
 			"To prevent breaking changes and reduce bugs, use the 'name' metric tag instead, see"+
 			"URL grouping (https://k6.io/docs/using-k6/http-requests/#url-grouping) for more information.", name,
 		)
-	***REMOVED***
+	}
 
-	if _, ok := sm.Tags.Get("error"); ok ***REMOVED***
+	if _, ok := sm.Tags.Get("error"); ok {
 		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'error' metric tag, "+
 			"are deprecated and will not be supported in future k6 releases. "+
 			"To prevent breaking changes and reduce bugs, use the 'error_code' metric tag instead", name,
 		)
-	***REMOVED***
-	if _, ok := sm.Tags.Get("vu"); ok ***REMOVED***
+	}
+	if _, ok := sm.Tags.Get("vu"); ok {
 		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'vu' metric tag, "+
 			"are deprecated and will not be supported in future k6 releases.", name,
 		)
-	***REMOVED***
+	}
 
-	if _, ok := sm.Tags.Get("iter"); ok ***REMOVED***
+	if _, ok := sm.Tags.Get("iter"); ok {
 		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'iter' metric tag, "+
 			"are deprecated and will not be supported in future k6 releases.", name,
 		)
-	***REMOVED***
+	}
 
 	return sm.Metric, nil
-***REMOVED***
+}
 
-func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) ***REMOVED***
-	if !metric.Observed ***REMOVED***
+func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) {
+	if !metric.Observed {
 		metric.Observed = true
 		me.ObservedMetrics[metric.Name] = metric
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
-	for metricName, thresholds := range me.es.Test.Options.Thresholds ***REMOVED***
+func (me *MetricsEngine) initSubMetricsAndThresholds() error {
+	for metricName, thresholds := range me.es.Test.Options.Thresholds {
 		metric, err := me.getThresholdMetricOrSubmetric(metricName)
 
-		if me.es.Test.RuntimeOptions.NoThresholds.Bool ***REMOVED***
-			if err != nil ***REMOVED***
+		if me.es.Test.RuntimeOptions.NoThresholds.Bool {
+			if err != nil {
 				me.logger.WithError(err).Warnf("Invalid metric '%s' in threshold definitions", metricName)
-			***REMOVED***
+			}
 			continue
-		***REMOVED***
+		}
 
-		if err != nil ***REMOVED***
+		if err != nil {
 			return fmt.Errorf("invalid metric '%s' in threshold definitions: %w", metricName, err)
-		***REMOVED***
+		}
 
 		metric.Thresholds = thresholds
 		me.metricsWithThresholds = append(me.metricsWithThresholds, metric)
@@ -148,56 +148,56 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error ***REMOVED***
 		// submetric) as observed, so they are shown in the end-of-test summary,
 		// even if they don't have any metric samples during the test run
 		me.markObserved(metric)
-		if metric.Sub != nil ***REMOVED***
+		if metric.Sub != nil {
 			me.markObserved(metric.Sub.Parent)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	// TODO: refactor out of here when https://github.com/grafana/k6/issues/1321
 	// lands and there is a better way to enable a metric with tag
-	if me.es.Test.Options.SystemTags.Has(workerMetrics.TagExpectedResponse) ***REMOVED***
-		_, err := me.getThresholdMetricOrSubmetric("http_req_duration***REMOVED***expected_response:true***REMOVED***")
-		if err != nil ***REMOVED***
+	if me.es.Test.Options.SystemTags.Has(workerMetrics.TagExpectedResponse) {
+		_, err := me.getThresholdMetricOrSubmetric("http_req_duration{expected_response:true}")
+		if err != nil {
 			return err // shouldn't happen, but ¯\_(ツ)_/¯
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return nil
-***REMOVED***
+}
 
 // EvaluateThresholds processes all of the thresholds.
 //
 // TODO: refactor, make private, optimize
-func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTainted, shouldAbort bool) ***REMOVED***
+func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTainted, shouldAbort bool) {
 	me.MetricsLock.Lock()
 	defer me.MetricsLock.Unlock()
 
 	t := me.es.GetCurrentTestRunDuration()
 
-	for _, m := range me.metricsWithThresholds ***REMOVED***
+	for _, m := range me.metricsWithThresholds {
 		// If either the metric has no thresholds defined, or its sinks
 		// are empty, let's ignore its thresholds execution at this point.
-		if len(m.Thresholds.Thresholds) == 0 || (ignoreEmptySinks && m.Sink.IsEmpty()) ***REMOVED***
+		if len(m.Thresholds.Thresholds) == 0 || (ignoreEmptySinks && m.Sink.IsEmpty()) {
 			continue
-		***REMOVED***
+		}
 		m.Tainted = null.BoolFrom(false)
 
 		me.logger.WithField("metric_name", m.Name).Debug("running thresholds")
 		succ, err := m.Thresholds.Run(m.Sink, t)
-		if err != nil ***REMOVED***
+		if err != nil {
 			me.logger.WithField("metric_name", m.Name).WithError(err).Error("Threshold error")
 			continue
-		***REMOVED***
-		if succ ***REMOVED***
+		}
+		if succ {
 			continue // threshold passed
-		***REMOVED***
+		}
 		me.logger.WithField("metric_name", m.Name).Debug("Thresholds failed")
 		m.Tainted = null.BoolFrom(true)
 		thresholdsTainted = true
-		if m.Thresholds.Abort ***REMOVED***
+		if m.Thresholds.Abort {
 			shouldAbort = true
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	return thresholdsTainted, shouldAbort
-***REMOVED***
+}

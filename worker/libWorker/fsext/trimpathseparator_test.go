@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTrimAferoPathSeparatorFs(t *testing.T) ***REMOVED***
+func TestTrimAferoPathSeparatorFs(t *testing.T) {
 	t.Parallel()
 	m := afero.NewMemMapFs()
 	fs := NewTrimFilePathSeparatorFs(m)
@@ -28,4 +28,4 @@ func TestTrimAferoPathSeparatorFs(t *testing.T) ***REMOVED***
 	err = afero.WriteFile(fs, filepath.FromSlash("path/without/separtor"), expecteData, 0o644)
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
-***REMOVED***
+}

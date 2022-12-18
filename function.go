@@ -5,6 +5,6 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
-func init() ***REMOVED***
+func init() {
 	functions.HTTP("WorkerCloud", worker.RunGoogleCloud)
-***REMOVED***
+}

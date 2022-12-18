@@ -50,17 +50,17 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/output"
 )
 
-func TestRunnerNew(t *testing.T) ***REMOVED***
+func TestRunnerNew(t *testing.T) {
 	t.Parallel()
-	t.Run("Valid", func(t *testing.T) ***REMOVED***
+	t.Run("Valid", func(t *testing.T) {
 		t.Parallel()
 		r, err := getSimpleRunner(t, "/script.js", `
 			exports.counter = 0;
-			exports.default = function() ***REMOVED*** exports.counter++; ***REMOVED***
+			exports.default = function() { exports.counter++; }
 		`)
 		require.NoError(t, err)
 
-		t.Run("NewVU", func(t *testing.T) ***REMOVED***
+		t.Run("NewVU", func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
@@ -70,145 +70,145 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-			t.Run("RunOnce", func(t *testing.T) ***REMOVED***
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
+			t.Run("RunOnce", func(t *testing.T) {
 				err = vu.RunOnce()
 				require.NoError(t, err)
 				assert.Equal(t, int64(1), vuc.pgm.exports.Get("counter").Export())
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***)
+			})
+		})
+	})
 
-	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+	t.Run("Invalid", func(t *testing.T) {
 		t.Parallel()
 		_, err := getSimpleRunner(t, "/script.js", `blarg`)
 		assert.EqualError(t, err, "ReferenceError: blarg is not defined\n\tat file:///script.js:2:1(1)\n\tat native\n")
-	***REMOVED***)
-***REMOVED***
+	})
+}
 
-func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
+func TestRunnerGetDefaultGroup(t *testing.T) {
 	t.Parallel()
-	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() {};`)
 	require.NoError(t, err)
 	assert.NotNil(t, r1.GetDefaultGroup())
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	assert.NotNil(t, r2.GetDefaultGroup())
-***REMOVED***
+}
 
-func TestRunnerOptions(t *testing.T) ***REMOVED***
+func TestRunnerOptions(t *testing.T) {
 	t.Parallel()
-	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() {};`)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		name, r := name, r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, false), r.Bundle.Options.Paused)
-			r.SetOptions(libWorker.Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
+			r.SetOptions(libWorker.Options{Paused: null.BoolFrom(true)})
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(true, true), r.Bundle.Options.Paused)
-			r.SetOptions(libWorker.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
+			r.SetOptions(libWorker.Options{Paused: null.BoolFrom(false)})
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestRunnerRPSLimit(t *testing.T) ***REMOVED***
+func TestRunnerRPSLimit(t *testing.T) {
 	t.Parallel()
 
 	var nilLimiter *rate.Limiter
 
-	variants := []struct ***REMOVED***
+	variants := []struct {
 		name    string
 		options libWorker.Options
 		limiter *rate.Limiter
-	***REMOVED******REMOVED***
-		***REMOVED***
+	}{
+		{
 			name:    "RPS not defined",
-			options: libWorker.Options***REMOVED******REMOVED***,
+			options: libWorker.Options{},
 			limiter: nilLimiter,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:    "RPS set to non-zero int",
-			options: libWorker.Options***REMOVED***RPS: null.IntFrom(9)***REMOVED***,
+			options: libWorker.Options{RPS: null.IntFrom(9)},
 			limiter: rate.NewLimiter(rate.Limit(9), 1),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:    "RPS set to zero",
-			options: libWorker.Options***REMOVED***RPS: null.IntFrom(0)***REMOVED***,
+			options: libWorker.Options{RPS: null.IntFrom(0)},
 			limiter: nilLimiter,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			name:    "RPS set to below zero value",
-			options: libWorker.Options***REMOVED***RPS: null.IntFrom(-1)***REMOVED***,
+			options: libWorker.Options{RPS: null.IntFrom(-1)},
 			limiter: nilLimiter,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for _, variant := range variants ***REMOVED***
+	for _, variant := range variants {
 		variant := variant
 
-		t.Run(variant.name, func(t *testing.T) ***REMOVED***
+		t.Run(variant.name, func(t *testing.T) {
 			t.Parallel()
 
-			r, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+			r, err := getSimpleRunner(t, "/script.js", `exports.default = function() {};`)
 			require.NoError(t, err)
 			err = r.SetOptions(variant.options)
 			require.NoError(t, err)
 			assert.Equal(t, variant.limiter, r.RPSLimit)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
+func TestOptionsSettingToScript(t *testing.T) {
 	t.Parallel()
 
-	optionVariants := []string***REMOVED***
-		"export var options = ***REMOVED******REMOVED***;",
-		"export var options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
-	***REMOVED***
+	optionVariants := []string{
+		"export var options = {};",
+		"export var options = {teardownTimeout: '1s'};",
+	}
 
-	for i, variant := range optionVariants ***REMOVED***
+	for i, variant := range optionVariants {
 		variant := variant
-		t.Run(fmt.Sprintf("Variant#%d", i), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("Variant#%d", i), func(t *testing.T) {
 			t.Parallel()
 			data := variant + `
-					exports.default = function() ***REMOVED***
-						if (!options) ***REMOVED***
+					exports.default = function() {
+						if (!options) {
 							throw new Error("Expected options to be defined!");
-						***REMOVED***
-						if (options.teardownTimeout != __ENV.expectedTeardownTimeout) ***REMOVED***
+						}
+						if (options.teardownTimeout != __ENV.expectedTeardownTimeout) {
 							throw new Error("expected teardownTimeout to be " + __ENV.expectedTeardownTimeout + " but it was " + options.teardownTimeout);
-						***REMOVED***
-					***REMOVED***;`
+						}
+					};`
 			r, err := getSimpleRunner(t, "/script.js", data,
-				libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
+				libWorker.RuntimeOptions{Env: map[string]string{"expectedTeardownTimeout": "4s"}})
 			require.NoError(t, err)
 
-			newOptions := libWorker.Options***REMOVED***TeardownTimeout: types.NullDurationFrom(4 * time.Second)***REMOVED***
+			newOptions := libWorker.Options{TeardownTimeout: types.NullDurationFrom(4 * time.Second)}
 			r.SetOptions(newOptions)
 			require.Equal(t, newOptions, r.GetOptions())
 
@@ -217,56 +217,56 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, vu.RunOnce())
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
+func TestOptionsPropagationToScript(t *testing.T) {
 	t.Parallel()
 	data := `
-			var options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
+			var options = { setupTimeout: "1s", myOption: "test" };
 			exports.options = options;
-			exports.default = function() ***REMOVED***
-				if (options.external) ***REMOVED***
+			exports.default = function() {
+				if (options.external) {
 					throw new Error("Unexpected property external!");
-				***REMOVED***
-				if (options.myOption != "test") ***REMOVED***
+				}
+				if (options.myOption != "test") {
 					throw new Error("expected myOption to remain unchanged but it was '" + options.myOption + "'");
-				***REMOVED***
-				if (options.setupTimeout != __ENV.expectedSetupTimeout) ***REMOVED***
+				}
+				if (options.setupTimeout != __ENV.expectedSetupTimeout) {
 					throw new Error("expected setupTimeout to be " + __ENV.expectedSetupTimeout + " but it was " + options.setupTimeout);
-				***REMOVED***
-			***REMOVED***;`
+				}
+			};`
 
-	expScriptOptions := libWorker.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
+	expScriptOptions := libWorker.Options{SetupTimeout: types.NullDurationFrom(1 * time.Second)}
 	r1, err := getSimpleRunner(t, "/script.js", data,
-		libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
+		libWorker.RuntimeOptions{Env: map[string]string{"expectedSetupTimeout": "1s"}})
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-			RuntimeOptions: libWorker.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+			RuntimeOptions: libWorker.RuntimeOptions{Env: map[string]string{"expectedSetupTimeout": "3s"}},
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r2.GetOptions())
 
-	newOptions := libWorker.Options***REMOVED***SetupTimeout: types.NullDurationFrom(3 * time.Second)***REMOVED***
+	newOptions := libWorker.Options{SetupTimeout: types.NullDurationFrom(3 * time.Second)}
 	require.NoError(t, r2.SetOptions(newOptions))
 	require.Equal(t, newOptions, r2.GetOptions())
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 
@@ -274,13 +274,13 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, vu.RunOnce())
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestMetricName(t *testing.T) ***REMOVED***
+func TestMetricName(t *testing.T) {
 	t.Parallel()
 
 	script := `
@@ -288,52 +288,52 @@ func TestMetricName(t *testing.T) ***REMOVED***
 
 		var myCounter = new Counter("not ok name @");
 
-		exports.default = function(data) ***REMOVED***
+		exports.default = function(data) {
 			myCounter.add(1);
-		***REMOVED***
+		}
 	`
 
 	_, err := getSimpleRunner(t, "/script.js", script)
 	require.Error(t, err)
-***REMOVED***
+}
 
-func TestSetupDataIsolation(t *testing.T) ***REMOVED***
+func TestSetupDataIsolation(t *testing.T) {
 	t.Parallel()
 
 	script := `
 		var Counter = require("k6/metrics").Counter;
 
-		exports.options = ***REMOVED***
-			scenarios: ***REMOVED***
-				shared_iters: ***REMOVED***
+		exports.options = {
+			scenarios: {
+				shared_iters: {
 					executor: "shared-iterations",
 					vus: 5,
 					iterations: 500,
-				***REMOVED***,
-			***REMOVED***,
+				},
+			},
 			teardownTimeout: "5s",
 			setupTimeout: "5s",
-		***REMOVED***;
+		};
 		var myCounter = new Counter("mycounter");
 
-		exports.setup = function() ***REMOVED***
-			return ***REMOVED*** v: 0 ***REMOVED***;
-		***REMOVED***
+		exports.setup = function() {
+			return { v: 0 };
+		}
 
-		exports.default = function(data) ***REMOVED***
-			if (data.v !== __ITER) ***REMOVED***
+		exports.default = function(data) {
+			if (data.v !== __ITER) {
 				throw new Error("default: wrong data for iter " + __ITER + ": " + JSON.stringify(data));
-			***REMOVED***
+			}
 			data.v += 1;
 			myCounter.add(1);
-		***REMOVED***
+		}
 
-		exports.teardown = function(data) ***REMOVED***
-			if (data.v !== 0) ***REMOVED***
+		exports.teardown = function(data) {
+			if (data.v !== 0) {
 				throw new Error("teardown: wrong data: " + data.v);
-			***REMOVED***
+			}
 			myCounter.add(1);
-		***REMOVED***
+		}
 	`
 
 	runner, err := getSimpleRunner(t, "/script.js", script)
@@ -342,17 +342,17 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	options := runner.GetOptions()
 	require.Empty(t, options.Validate())
 
-	testRunState := &libWorker.TestRunState***REMOVED***
+	testRunState := &libWorker.TestRunState{
 		TestPreInitState: runner.preInitState,
 		Options:          options,
 		Runner:           runner,
-	***REMOVED***
+	}
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
-	engine, err := core.NewEngine(testRunState, execScheduler, []output.Output***REMOVED***mockOutput***REMOVED***)
+	engine, err := core.NewEngine(testRunState, execScheduler, []output.Output{mockOutput})
 	require.NoError(t, err)
 	require.NoError(t, engine.OutputManager.StartOutputs())
 	defer engine.OutputManager.StopOutputs()
@@ -364,9 +364,9 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	require.Empty(t, runner.defaultGroup.Groups)
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+	go func() { errC <- run() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(10 * time.Second):
 		cancel()
 		t.Fatal("Test timed out")
@@ -375,32 +375,32 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		wait()
 		require.False(t, engine.IsTainted())
-	***REMOVED***
+	}
 	require.Contains(t, runner.defaultGroup.Groups, "setup")
 	require.Contains(t, runner.defaultGroup.Groups, "teardown")
 	var count int
-	for _, s := range mockOutput.Samples ***REMOVED***
-		if s.Metric.Name == "mycounter" ***REMOVED***
+	for _, s := range mockOutput.Samples {
+		if s.Metric.Name == "mycounter" {
 			count += int(s.Value)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 	require.Equal(t, 501, count, "mycounter should be the number of iterations + 1 for the teardown")
-***REMOVED***
+}
 
-func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
+func testSetupDataHelper(t *testing.T, data string) {
 	t.Helper()
-	expScriptOptions := libWorker.Options***REMOVED***
+	expScriptOptions := libWorker.Options{
 		SetupTimeout:    types.NullDurationFrom(1 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(1 * time.Second),
-	***REMOVED***
+	}
 	r1, err := getSimpleRunner(t, "/script.js", data) // TODO fix this
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -409,196 +409,196 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 			require.NoError(t, r.Setup(ctx, samples))
 			initVU, err := r.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, vu.RunOnce())
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
+func TestSetupDataReturnValue(t *testing.T) {
 	t.Parallel()
 	testSetupDataHelper(t, `
-	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	exports.setup = function() ***REMOVED***
+	exports.options = { setupTimeout: "1s", teardownTimeout: "1s" };
+	exports.setup = function() {
 		return 42;
-	***REMOVED***
-	exports.default = function(data) ***REMOVED***
-		if (data != 42) ***REMOVED***
+	}
+	exports.default = function(data) {
+		if (data != 42) {
 			throw new Error("default: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;
+		}
+	};
 
-	exports.teardown = function(data) ***REMOVED***
-		if (data != 42) ***REMOVED***
+	exports.teardown = function(data) {
+		if (data != 42) {
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;`)
-***REMOVED***
+		}
+	};`)
+}
 
-func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
+func TestSetupDataNoSetup(t *testing.T) {
 	t.Parallel()
 	testSetupDataHelper(t, `
-	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	exports.default = function(data) ***REMOVED***
-		if (data !== undefined) ***REMOVED***
+	exports.options = { setupTimeout: "1s", teardownTimeout: "1s" };
+	exports.default = function(data) {
+		if (data !== undefined) {
 			throw new Error("default: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;
+		}
+	};
 
-	exports.teardown = function(data) ***REMOVED***
-		if (data !== undefined) ***REMOVED***
+	exports.teardown = function(data) {
+		if (data !== undefined) {
 			console.log(data);
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;`)
-***REMOVED***
+		}
+	};`)
+}
 
-func TestConsoleInInitContext(t *testing.T) ***REMOVED***
+func TestConsoleInInitContext(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 			console.log("1");
-			exports.default = function(data) ***REMOVED***
-			***REMOVED***;
+			exports.default = function(data) {
+			};
 		`)
 	require.NoError(t, err)
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 			initVU, err := r.NewVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			require.NoError(t, vu.RunOnce())
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
+func TestSetupDataNoReturn(t *testing.T) {
 	t.Parallel()
 	testSetupDataHelper(t, `
-	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	exports.setup = function() ***REMOVED*** ***REMOVED***
-	exports.default = function(data) ***REMOVED***
-		if (data !== undefined) ***REMOVED***
+	exports.options = { setupTimeout: "1s", teardownTimeout: "1s" };
+	exports.setup = function() { }
+	exports.default = function(data) {
+		if (data !== undefined) {
 			throw new Error("default: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;
+		}
+	};
 
-	exports.teardown = function(data) ***REMOVED***
-		if (data !== undefined) ***REMOVED***
+	exports.teardown = function(data) {
+		if (data !== undefined) {
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
-		***REMOVED***
-	***REMOVED***;`)
-***REMOVED***
+		}
+	};`)
+}
 
-func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
+func TestRunnerIntegrationImports(t *testing.T) {
 	t.Parallel()
-	t.Run("Modules", func(t *testing.T) ***REMOVED***
+	t.Run("Modules", func(t *testing.T) {
 		t.Parallel()
-		modules := []string***REMOVED***
+		modules := []string{
 			"k6",
 			"k6/http",
 			"k6/metrics",
 			"k6/html",
-		***REMOVED***
-		rtOpts := libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***
-		for _, mod := range modules ***REMOVED***
+		}
+		rtOpts := libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("extended")}
+		for _, mod := range modules {
 			mod := mod
-			t.Run(mod, func(t *testing.T) ***REMOVED***
-				t.Run("Source", func(t *testing.T) ***REMOVED***
-					_, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`import "%s"; exports.default = function() ***REMOVED******REMOVED***`, mod), rtOpts)
+			t.Run(mod, func(t *testing.T) {
+				t.Run("Source", func(t *testing.T) {
+					_, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`import "%s"; exports.default = function() {}`, mod), rtOpts)
 					require.NoError(t, err)
-				***REMOVED***)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
+				})
+			})
+		}
+	})
 
-	t.Run("Files", func(t *testing.T) ***REMOVED***
+	t.Run("Files", func(t *testing.T) {
 		t.Parallel()
 
-		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
-			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/libWorker.js"***REMOVED***,
-			"Relative":       ***REMOVED***"/path/script.js", "./to/libWorker.js"***REMOVED***,
-			"Adjacent":       ***REMOVED***"/path/to/script.js", "./libWorker.js"***REMOVED***,
-			"STDIN-Absolute": ***REMOVED***"-", "/path/to/libWorker.js"***REMOVED***,
-			"STDIN-Relative": ***REMOVED***"-", "./path/to/libWorker.js"***REMOVED***,
-		***REMOVED***
-		for name, data := range testdata ***REMOVED***
+		testdata := map[string]struct{ filename, path string }{
+			"Absolute":       {"/path/script.js", "/path/to/libWorker.js"},
+			"Relative":       {"/path/script.js", "./to/libWorker.js"},
+			"Adjacent":       {"/path/to/script.js", "./libWorker.js"},
+			"STDIN-Absolute": {"-", "/path/to/libWorker.js"},
+			"STDIN-Relative": {"-", "./path/to/libWorker.js"},
+		}
+		for name, data := range testdata {
 			name, data := name, data
-			t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				fs := afero.NewMemMapFs()
 				require.NoError(t, fs.MkdirAll("/path/to", 0o755))
 				require.NoError(t, afero.WriteFile(fs, "/path/to/libWorker.js", []byte(`exports.default = "hi!";`), 0o644))
 				r1, err := getSimpleRunner(t, data.filename, fmt.Sprintf(`
 					var hi = require("%s").default;
-					exports.default = function() ***REMOVED***
-						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
-					***REMOVED***`, data.path), fs)
+					exports.default = function() {
+						if (hi != "hi!") { throw new Error("incorrect value"); }
+					}`, data.path), fs)
 				require.NoError(t, err)
 
 				registry := workerMetrics.NewRegistry()
 				builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 				r2, err := NewFromArchive(
-					&libWorker.TestPreInitState***REMOVED***
+					&libWorker.TestPreInitState{
 						Logger:         testutils.NewLogger(t),
 						BuiltinMetrics: builtinMetrics,
 						Registry:       registry,
-					***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+					}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 				require.NoError(t, err)
 
-				testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-				for name, r := range testdata ***REMOVED***
+				testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+				for name, r := range testdata {
 					r := r
-					t.Run(name, func(t *testing.T) ***REMOVED***
+					t.Run(name, func(t *testing.T) {
 						initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 						require.NoError(t, err)
 						ctx, cancel := context.WithCancel(context.Background())
 						defer cancel()
-						vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+						vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 						err = vu.RunOnce()
 						require.NoError(t, err)
-					***REMOVED***)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-***REMOVED***
+					})
+				}
+			})
+		}
+	})
+}
 
-func TestVURunContext(t *testing.T) ***REMOVED***
+func TestVURunContext(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
-		exports.options = ***REMOVED*** vus: 10 ***REMOVED***;
-		exports.default = function() ***REMOVED*** fn(); ***REMOVED***
+		exports.options = { vus: 10 };
+		exports.default = function() { fn(); }
 	`)
 	require.NoError(t, err)
-	r1.SetOptions(r1.GetOptions().Apply(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
+	r1.SetOptions(r1.GetOptions().Apply(libWorker.Options{Throw: null.BoolFrom(true)}))
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			vu, err := r.newVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			fnCalled := false
-			vu.Runtime.Set("fn", func() ***REMOVED***
+			vu.Runtime.Set("fn", func() {
 				fnCalled = true
 
 				require.NotNil(t, vu.moduleVUImpl.Runtime())
@@ -611,146 +611,146 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 				assert.NotNil(t, state.Logger)
 				assert.Equal(t, r.GetDefaultGroup(), state.Group)
 				assert.Equal(t, vu.Transport, state.Transport)
-			***REMOVED***)
+			})
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = activeVU.RunOnce()
 			require.NoError(t, err)
 			assert.True(t, fnCalled, "fn() not called")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVURunInterrupt(t *testing.T) ***REMOVED***
+func TestVURunInterrupt(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
-		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		exports.default = function() { while(true) {} }
 		`)
 	require.NoError(t, err)
-	require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
+	require.NoError(t, r1.SetOptions(libWorker.Options{Throw: null.BoolFrom(true)}))
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		name, r := name, r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 			defer close(samples)
-			go func() ***REMOVED***
-				for range samples ***REMOVED***
-				***REMOVED***
-			***REMOVED***()
+			go func() {
+				for range samples {
+				}
+			}()
 
 			vu, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 			defer cancel()
-			activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = activeVU.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "context canceled")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
+func TestVURunInterruptDoesntPanic(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
-		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		exports.default = function() { while(true) {} }
 		`)
 	require.NoError(t, err)
-	require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
+	require.NoError(t, r1.SetOptions(libWorker.Options{Throw: null.BoolFrom(true)}))
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 			defer close(samples)
-			go func() ***REMOVED***
-				for range samples ***REMOVED***
-				***REMOVED***
-			***REMOVED***()
+			go func() {
+				for range samples {
+				}
+			}()
 			var wg sync.WaitGroup
 
 			initVU, err := r.newVU(1, 1, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
-			for i := 0; i < 1000; i++ ***REMOVED***
+			for i := 0; i < 1000; i++ {
 				wg.Add(1)
 				newCtx, newCancel := context.WithCancel(ctx)
-				vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***
+				vu := initVU.Activate(&libWorker.VUActivationParams{
 					RunContext:         newCtx,
-					DeactivateCallback: func(_ libWorker.InitializedVU) ***REMOVED*** wg.Done() ***REMOVED***,
-				***REMOVED***)
-				ch := make(chan struct***REMOVED******REMOVED***)
-				go func() ***REMOVED***
+					DeactivateCallback: func(_ libWorker.InitializedVU) { wg.Done() },
+				})
+				ch := make(chan struct{})
+				go func() {
 					close(ch)
 					vuErr := vu.RunOnce()
 					require.Error(t, vuErr)
 					assert.Contains(t, vuErr.Error(), "context canceled")
-				***REMOVED***()
+				}()
 				<-ch
 				time.Sleep(time.Millisecond * 1) // NOTE: increase this in case of problems ;)
 				newCancel()
 				wg.Wait()
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
+func TestVUIntegrationGroups(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
-		exports.default = function() ***REMOVED***
+		exports.default = function() {
 			fnOuter();
-			group("my group", function() ***REMOVED***
+			group("my group", function() {
 				fnInner();
-				group("nested group", function() ***REMOVED***
+				group("nested group", function() {
 					fnNested();
-				***REMOVED***)
-			***REMOVED***);
-		***REMOVED***
+				})
+			});
+		}
 		`)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			vu, err := r.newVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
@@ -758,59 +758,59 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 			fnOuterCalled := false
 			fnInnerCalled := false
 			fnNestedCalled := false
-			vu.Runtime.Set("fnOuter", func() ***REMOVED***
+			vu.Runtime.Set("fnOuter", func() {
 				fnOuterCalled = true
 				assert.Equal(t, r.GetDefaultGroup(), vu.state.Group)
-			***REMOVED***)
-			vu.Runtime.Set("fnInner", func() ***REMOVED***
+			})
+			vu.Runtime.Set("fnInner", func() {
 				fnInnerCalled = true
 				g := vu.state.Group
 				assert.Equal(t, "my group", g.Name)
 				assert.Equal(t, r.GetDefaultGroup(), g.Parent)
-			***REMOVED***)
-			vu.Runtime.Set("fnNested", func() ***REMOVED***
+			})
+			vu.Runtime.Set("fnNested", func() {
 				fnNestedCalled = true
 				g := vu.state.Group
 				assert.Equal(t, "nested group", g.Name)
 				assert.Equal(t, "my group", g.Parent.Name)
 				assert.Equal(t, r.GetDefaultGroup(), g.Parent.Parent)
-			***REMOVED***)
+			})
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = activeVU.RunOnce()
 			require.NoError(t, err)
 			assert.True(t, fnOuterCalled, "fnOuter() not called")
 			assert.True(t, fnInnerCalled, "fnInner() not called")
 			assert.True(t, fnNestedCalled, "fnNested() not called")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
+func TestVUIntegrationMetrics(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
 		var Trend = require("k6/metrics").Trend;
 		var myMetric = new Trend("my_metric");
-		exports.default = function() ***REMOVED*** myMetric.add(5); ***REMOVED***
+		exports.default = function() { myMetric.add(5); }
 		`)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
+	testdata := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range testdata {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 			defer close(samples)
@@ -819,14 +819,14 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = activeVU.RunOnce()
 			require.NoError(t, err)
 			sampleCount := 0
-			for i, sampleC := range workerMetrics.GetBufferedSamples(samples) ***REMOVED***
-				for j, s := range sampleC.GetSamples() ***REMOVED***
+			for i, sampleC := range workerMetrics.GetBufferedSamples(samples) {
+				for j, s := range sampleC.GetSamples() {
 					sampleCount++
-					switch i + j ***REMOVED***
+					switch i + j {
 					case 0:
 						assert.Equal(t, 5.0, s.Value)
 						assert.Equal(t, "my_metric", s.Metric.Name)
@@ -842,15 +842,15 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 					case 4:
 						assert.Equal(t, builtinMetrics..Iterations, s.Metric, "`iterations` sample is after `iteration_duration`")
 						assert.Equal(t, float64(1), s.Value)
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
+					}
+				}
+			}
 			assert.Equal(t, sampleCount, 5)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, validFor time.Duration) ([]byte, []byte) ***REMOVED***
+func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, validFor time.Duration) ([]byte, []byte) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
@@ -868,28 +868,28 @@ func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, vali
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	require.NoError(t, err)
 
-	template := x509.Certificate***REMOVED***
+	template := x509.Certificate{
 		SerialNumber: serialNumber,
-		Subject: pkix.Name***REMOVED***
-			Organization: []string***REMOVED***"Acme Co"***REMOVED***,
-		***REMOVED***,
+		Subject: pkix.Name{
+			Organization: []string{"Acme Co"},
+		},
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
 
 		KeyUsage:              keyUsage,
-		ExtKeyUsage:           []x509.ExtKeyUsage***REMOVED***x509.ExtKeyUsageServerAuth***REMOVED***,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		SignatureAlgorithm:    x509.SHA256WithRSA,
-	***REMOVED***
+	}
 
 	hosts := strings.Split(host, ",")
-	for _, h := range hosts ***REMOVED***
-		if ip := net.ParseIP(h); ip != nil ***REMOVED***
+	for _, h := range hosts {
+		if ip := net.ParseIP(h); ip != nil {
 			template.IPAddresses = append(template.IPAddresses, ip)
-		***REMOVED*** else ***REMOVED***
+		} else {
 			template.DNSNames = append(template.DNSNames, h)
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
 	template.IsCA = true
 	template.KeyUsage |= x509.KeyUsageCertSign
@@ -897,72 +897,72 @@ func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, vali
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	require.NoError(t, err)
 
-	certPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "CERTIFICATE", Bytes: derBytes***REMOVED***)
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	require.NoError(t, err)
 
 	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	require.NoError(t, err)
-	keyPem := pem.EncodeToMemory(&pem.Block***REMOVED***Type: "PRIVATE KEY", Bytes: privBytes***REMOVED***)
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
 	require.NoError(t, err)
 	return certPem, keyPem
-***REMOVED***
+}
 
-func GetTestServerWithCertificate(t *testing.T, certPem, key []byte) *httptest.Server ***REMOVED***
-	server := &http.Server***REMOVED***
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+func GetTestServerWithCertificate(t *testing.T, certPem, key []byte) *httptest.Server {
+	server := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
-		***REMOVED***),
+		}),
 		ReadHeaderTimeout: time.Second,
 		ReadTimeout:       time.Second,
-	***REMOVED***
-	s := &httptest.Server***REMOVED******REMOVED***
+	}
+	s := &httptest.Server{}
 	s.Config = server
 
 	s.TLS = new(tls.Config)
-	if s.TLS.NextProtos == nil ***REMOVED***
-		nextProtos := []string***REMOVED***"http/1.1"***REMOVED***
-		if s.EnableHTTP2 ***REMOVED***
-			nextProtos = []string***REMOVED***"h2"***REMOVED***
-		***REMOVED***
+	if s.TLS.NextProtos == nil {
+		nextProtos := []string{"http/1.1"}
+		if s.EnableHTTP2 {
+			nextProtos = []string{"h2"}
+		}
 		s.TLS.NextProtos = nextProtos
-	***REMOVED***
+	}
 	cert, err := tls.X509KeyPair(certPem, key)
 	require.NoError(t, err)
 	s.TLS.Certificates = append(s.TLS.Certificates, cert)
-	for _, suite := range tls.CipherSuites() ***REMOVED***
-		if !strings.Contains(suite.Name, "256") ***REMOVED***
+	for _, suite := range tls.CipherSuites() {
+		if !strings.Contains(suite.Name, "256") {
 			continue
-		***REMOVED***
+		}
 		s.TLS.CipherSuites = append(s.TLS.CipherSuites, suite.ID)
-	***REMOVED***
+	}
 	certpool := x509.NewCertPool()
 	certificate, err := x509.ParseCertificate(cert.Certificate[0])
 	require.NoError(t, err)
 	certpool.AddCert(certificate)
-	client := &http.Client***REMOVED***Transport: &http.Transport***REMOVED******REMOVED******REMOVED***
-	client.Transport = &http.Transport***REMOVED***
-		TLSClientConfig: &tls.Config***REMOVED*** //nolint:gosec
+	client := &http.Client{Transport: &http.Transport{}}
+	client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{ //nolint:gosec
 			RootCAs: certpool,
-		***REMOVED***,
+		},
 		ForceAttemptHTTP2: s.EnableHTTP2,
-	***REMOVED***
+	}
 	s.Listener, err = net.Listen("tcp", "")
 	require.NoError(t, err)
 	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
 	return s
-***REMOVED***
+}
 
-func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
+func TestVUIntegrationInsecureRequests(t *testing.T) {
 	t.Parallel()
 	certPem, keyPem := GenerateTLSCertificate(t, "mybadssl.localhost", time.Now(), 0)
 	s := GetTestServerWithCertificate(t, certPem, keyPem)
-	go func() ***REMOVED***
+	go func() {
 		_ = s.Config.Serve(s.Listener)
-	***REMOVED***()
-	t.Cleanup(func() ***REMOVED***
+	}()
+	t.Cleanup(func() {
 		require.NoError(t, s.Config.Close())
-	***REMOVED***)
+	})
 	host, port, err := net.SplitHostPort(s.Listener.Addr().String())
 	require.NoError(t, err)
 	ip := net.ParseIP(host)
@@ -971,50 +971,50 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	cert, err := x509.ParseCertificate(s.TLS.Certificates[0].Certificate[0])
 	require.NoError(t, err)
 
-	testdata := map[string]struct ***REMOVED***
+	testdata := map[string]struct {
 		opts   libWorker.Options
 		errMsg string
-	***REMOVED******REMOVED***
-		"Null": ***REMOVED***
-			libWorker.Options***REMOVED******REMOVED***,
+	}{
+		"Null": {
+			libWorker.Options{},
 			"x509: certificate has expired or is not yet valid",
-		***REMOVED***,
-		"False": ***REMOVED***
-			libWorker.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(false)***REMOVED***,
+		},
+		"False": {
+			libWorker.Options{InsecureSkipTLSVerify: null.BoolFrom(false)},
 			"x509: certificate has expired or is not yet valid",
-		***REMOVED***,
-		"True": ***REMOVED***
-			libWorker.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***,
+		},
+		"True": {
+			libWorker.Options{InsecureSkipTLSVerify: null.BoolFrom(true)},
 			"",
-		***REMOVED***,
-	***REMOVED***
-	for name, data := range testdata ***REMOVED***
+		},
+	}
+	for name, data := range testdata {
 		data := data
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
 			  var http = require("k6/http");;
-        exports.default = function() ***REMOVED*** http.get("https://mybadssl.localhost/"); ***REMOVED***
+        exports.default = function() { http.get("https://mybadssl.localhost/"); }
 				`)
 			require.NoError(t, err)
-			require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
+			require.NoError(t, r1.SetOptions(libWorker.Options{Throw: null.BoolFrom(true)}.Apply(data.opts)))
 
-			r1.Bundle.Options.Hosts = map[string]*libWorker.HostAddress***REMOVED***
+			r1.Bundle.Options.Hosts = map[string]*libWorker.HostAddress{
 				"mybadssl.localhost": mybadsslHostname,
-			***REMOVED***
+			}
 			registry := workerMetrics.NewRegistry()
 			builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 			r2, err := NewFromArchive(
-				&libWorker.TestPreInitState***REMOVED***
+				&libWorker.TestPreInitState{
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+				}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
-			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-			for name, r := range runners ***REMOVED***
+			runners := map[string]*Runner{"Source": r1, "Archive": r2}
+			for name, r := range runners {
 				r := r
-				t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Run(name, func(t *testing.T) {
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
 
@@ -1025,192 +1025,192 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 					err = vu.RunOnce()
-					if data.errMsg != "" ***REMOVED***
+					if data.errMsg != "" {
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
-					***REMOVED*** else ***REMOVED***
+					} else {
 						require.NoError(t, err)
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				})
+			}
+		})
+	}
+}
 
-func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
+func TestVUIntegrationBlacklistOption(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
-					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+					exports.default = function() { http.get("http://10.1.2.3/"); }
 				`)
 	require.NoError(t, err)
 
 	cidr, err := libWorker.ParseCIDR("10.0.0.0/8")
 
 	require.NoError(t, err)
-	require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(libWorker.Options{
 		Throw:        null.BoolFrom(true),
-		BlacklistIPs: []*libWorker.IPNet***REMOVED***cidr***REMOVED***,
-	***REMOVED***))
+		BlacklistIPs: []*libWorker.IPNet{cidr},
+	}))
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
+func TestVUIntegrationBlacklistScript(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 
-					exports.options = ***REMOVED***
+					exports.options = {
 						throw: true,
 						blacklistIPs: ["10.0.0.0/8"],
-					***REMOVED***;
+					};
 
-					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+					exports.default = function() { http.get("http://10.1.2.3/"); }
 				`)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
 
-	for name, r := range runners ***REMOVED***
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
+func TestVUIntegrationBlockHostnamesOption(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");
-					exports.default = function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
+					exports.default = function() { http.get("https://k6.io/"); }
 				`)
 	require.NoError(t, err)
 
-	hostnames, err := types.NewNullHostnameTrie([]string***REMOVED***"*.io"***REMOVED***)
+	hostnames, err := types.NewNullHostnameTrie([]string{"*.io"})
 	require.NoError(t, err)
-	require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(libWorker.Options{
 		Throw:            null.BoolFrom(true),
 		BlockedHostnames: hostnames,
-	***REMOVED***))
+	}))
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
 
-	for name, r := range runners ***REMOVED***
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVu, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
+func TestVUIntegrationBlockHostnamesScript(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");
 
-					exports.options = ***REMOVED***
+					exports.options = {
 						throw: true,
 						blockHostnames: ["*.io"],
-					***REMOVED***;
+					};
 
-					exports.default = function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
+					exports.default = function() { http.get("https://k6.io/"); }
 				`)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
 
-	for name, r := range runners ***REMOVED***
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVu, err := r.NewVU(0, 0, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
+func TestVUIntegrationHosts(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
@@ -1220,133 +1220,133 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 					var check = k6.check;
 					var fail = k6.fail;
 					var http = require("k6/http");;
-					exports.default = function() ***REMOVED***
+					exports.default = function() {
 						var res = http.get("http://test.loadimpact.com:HTTPBIN_PORT/");
-						check(res, ***REMOVED***
-							"is correct IP": function(r) ***REMOVED*** return r.remote_ip === "127.0.0.1" ***REMOVED***
-						***REMOVED***) || fail("failed to override dns");
-					***REMOVED***
+						check(res, {
+							"is correct IP": function(r) { return r.remote_ip === "127.0.0.1" }
+						}) || fail("failed to override dns");
+					}
 				`))
 	require.NoError(t, err)
 
-	r1.SetOptions(libWorker.Options***REMOVED***
+	r1.SetOptions(libWorker.Options{
 		Throw: null.BoolFrom(true),
-		Hosts: map[string]*libWorker.HostAddress***REMOVED***
-			"test.loadimpact.com": ***REMOVED***IP: net.ParseIP("127.0.0.1")***REMOVED***,
-		***REMOVED***,
-	***REMOVED***)
+		Hosts: map[string]*libWorker.HostAddress{
+			"test.loadimpact.com": {IP: net.ParseIP("127.0.0.1")},
+		},
+	})
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
+func TestVUIntegrationTLSConfig(t *testing.T) {
 	t.Parallel()
 	certPem, keyPem := GenerateTLSCertificate(t, "sha256-badssl.localhost", time.Now(), time.Hour)
 	s := GetTestServerWithCertificate(t, certPem, keyPem)
-	go func() ***REMOVED***
+	go func() {
 		_ = s.Config.Serve(s.Listener)
-	***REMOVED***()
-	t.Cleanup(func() ***REMOVED***
+	}()
+	t.Cleanup(func() {
 		require.NoError(t, s.Config.Close())
-	***REMOVED***)
+	})
 	host, port, err := net.SplitHostPort(s.Listener.Addr().String())
 	require.NoError(t, err)
 	ip := net.ParseIP(host)
 	mybadsslHostname, err := libWorker.NewHostAddress(ip, port)
 	require.NoError(t, err)
 	unsupportedVersionErrorMsg := "remote error: tls: handshake failure"
-	for _, tag := range build.Default.ReleaseTags ***REMOVED***
-		if tag == "go1.12" ***REMOVED***
+	for _, tag := range build.Default.ReleaseTags {
+		if tag == "go1.12" {
 			unsupportedVersionErrorMsg = "tls: no supported versions satisfy MinVersion and MaxVersion"
 			break
-		***REMOVED***
-	***REMOVED***
-	testdata := map[string]struct ***REMOVED***
+		}
+	}
+	testdata := map[string]struct {
 		opts   libWorker.Options
 		errMsg string
-	***REMOVED******REMOVED***
-		"NullCipherSuites": ***REMOVED***
-			libWorker.Options***REMOVED******REMOVED***,
+	}{
+		"NullCipherSuites": {
+			libWorker.Options{},
 			"",
-		***REMOVED***,
-		"SupportedCipherSuite": ***REMOVED***
-			libWorker.Options***REMOVED***TLSCipherSuites: &libWorker.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_AES_128_GCM_SHA256***REMOVED******REMOVED***,
+		},
+		"SupportedCipherSuite": {
+			libWorker.Options{TLSCipherSuites: &libWorker.TLSCipherSuites{tls.TLS_RSA_WITH_AES_128_GCM_SHA256}},
 			"",
-		***REMOVED***,
-		"UnsupportedCipherSuite": ***REMOVED***
-			libWorker.Options***REMOVED***
-				TLSCipherSuites: &libWorker.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_RC4_128_SHA***REMOVED***,
-				TLSVersion:      &libWorker.TLSVersions***REMOVED***Max: tls.VersionTLS12***REMOVED***,
-			***REMOVED***,
+		},
+		"UnsupportedCipherSuite": {
+			libWorker.Options{
+				TLSCipherSuites: &libWorker.TLSCipherSuites{tls.TLS_RSA_WITH_RC4_128_SHA},
+				TLSVersion:      &libWorker.TLSVersions{Max: tls.VersionTLS12},
+			},
 			"remote error: tls: handshake failure",
-		***REMOVED***,
-		"NullVersion": ***REMOVED***
-			libWorker.Options***REMOVED******REMOVED***,
+		},
+		"NullVersion": {
+			libWorker.Options{},
 			"",
-		***REMOVED***,
-		"SupportedVersion": ***REMOVED***
-			libWorker.Options***REMOVED***TLSVersion: &libWorker.TLSVersions***REMOVED***Min: tls.VersionTLS12, Max: tls.VersionTLS12***REMOVED******REMOVED***,
+		},
+		"SupportedVersion": {
+			libWorker.Options{TLSVersion: &libWorker.TLSVersions{Min: tls.VersionTLS12, Max: tls.VersionTLS12}},
 			"",
-		***REMOVED***,
-		"UnsupportedVersion": ***REMOVED***
-			libWorker.Options***REMOVED***TLSVersion: &libWorker.TLSVersions***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionSSL30***REMOVED******REMOVED***,
+		},
+		"UnsupportedVersion": {
+			libWorker.Options{TLSVersion: &libWorker.TLSVersions{Min: tls.VersionSSL30, Max: tls.VersionSSL30}},
 			unsupportedVersionErrorMsg,
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	cert, err := x509.ParseCertificate(s.TLS.Certificates[0].Certificate[0])
 	require.NoError(t, err)
-	for name, data := range testdata ***REMOVED***
+	for name, data := range testdata {
 		data := data
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
-					exports.default = function() ***REMOVED*** http.get("https://sha256-badssl.localhost/"); ***REMOVED***
+					exports.default = function() { http.get("https://sha256-badssl.localhost/"); }
 				`)
 			require.NoError(t, err)
-			require.NoError(t, r1.SetOptions(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
+			require.NoError(t, r1.SetOptions(libWorker.Options{Throw: null.BoolFrom(true)}.Apply(data.opts)))
 
-			r1.Bundle.Options.Hosts = map[string]*libWorker.HostAddress***REMOVED***
+			r1.Bundle.Options.Hosts = map[string]*libWorker.HostAddress{
 				"sha256-badssl.localhost": mybadsslHostname,
-			***REMOVED***
+			}
 			r2, err := NewFromArchive(
-				&libWorker.TestPreInitState***REMOVED***
+				&libWorker.TestPreInitState{
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+				}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-			for name, r := range runners ***REMOVED***
+			runners := map[string]*Runner{"Source": r1, "Archive": r2}
+			for name, r := range runners {
 				r := r
-				t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Run(name, func(t *testing.T) {
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
 
@@ -1356,24 +1356,24 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					initVU.(*VU).TLSConfig.RootCAs.AddCert(cert)        //nolint:forcetypeassert
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 					err = vu.RunOnce()
-					if data.errMsg != "" ***REMOVED***
+					if data.errMsg != "" {
 						require.Error(t, err, "for message %q", data.errMsg)
 						assert.Contains(t, err.Error(), data.errMsg)
-					***REMOVED*** else ***REMOVED***
+					} else {
 						require.NoError(t, err)
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				})
+			}
+		})
+	}
+}
 
-func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
+func TestVUIntegrationOpenFunctionError(t *testing.T) {
 	t.Parallel()
 	r, err := getSimpleRunner(t, "/script.js", `
-			exports.default = function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
+			exports.default = function() { open("/tmp/foo") }
 		`)
 	require.NoError(t, err)
 
@@ -1381,17 +1381,17 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	err = vu.RunOnce()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "only available in the init stage")
-***REMOVED***
+}
 
-func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
+func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) {
 	t.Parallel()
 	r, err := getSimpleRunner(t, "/script.js", `
 			var sneaky = open;
-			exports.default = function() ***REMOVED*** sneaky("/tmp/foo") ***REMOVED***
+			exports.default = function() { sneaky("/tmp/foo") }
 		`)
 	require.NoError(t, err)
 
@@ -1399,23 +1399,23 @@ func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	err = vu.RunOnce()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "only available in the init stage")
-***REMOVED***
+}
 
-func TestVUDoesOpenUnderV0Condition(t *testing.T) ***REMOVED***
+func TestVUDoesOpenUnderV0Condition(t *testing.T) {
 	t.Parallel()
 
 	baseFS := afero.NewMemMapFs()
 	data := `
-			if (__VU == 0) ***REMOVED***
+			if (__VU == 0) {
 				let data = open("/home/somebody/test.json");
-			***REMOVED***
-			exports.default = function() ***REMOVED***
+			}
+			exports.default = function() {
 				console.log("hey")
-			***REMOVED***
+			}
 		`
 	require.NoError(t, afero.WriteFile(baseFS, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(baseFS, "/script.js", []byte(data), os.ModePerm))
@@ -1427,19 +1427,19 @@ func TestVUDoesOpenUnderV0Condition(t *testing.T) ***REMOVED***
 
 	_, err = r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
-***REMOVED***
+}
 
-func TestVUDoesNotOpenUnderConditions(t *testing.T) ***REMOVED***
+func TestVUDoesNotOpenUnderConditions(t *testing.T) {
 	t.Parallel()
 
 	baseFS := afero.NewMemMapFs()
 	data := `
-			if (__VU > 0) ***REMOVED***
+			if (__VU > 0) {
 				let data = open("/home/somebody/test.json");
-			***REMOVED***
-			exports.default = function() ***REMOVED***
+			}
+			exports.default = function() {
 				console.log("hey")
-			***REMOVED***
+			}
 		`
 	require.NoError(t, afero.WriteFile(baseFS, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(baseFS, "/script.js", []byte(data), os.ModePerm))
@@ -1452,19 +1452,19 @@ func TestVUDoesNotOpenUnderConditions(t *testing.T) ***REMOVED***
 	_, err = r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
-***REMOVED***
+}
 
-func TestVUDoesNonExistingPathnUnderConditions(t *testing.T) ***REMOVED***
+func TestVUDoesNonExistingPathnUnderConditions(t *testing.T) {
 	t.Parallel()
 
 	baseFS := afero.NewMemMapFs()
 	data := `
-			if (__VU == 1) ***REMOVED***
+			if (__VU == 1) {
 				let data = open("/home/nobody");
-			***REMOVED***
-			exports.default = function() ***REMOVED***
+			}
+			exports.default = function() {
 				console.log("hey")
-			***REMOVED***
+			}
 		`
 	require.NoError(t, afero.WriteFile(baseFS, "/script.js", []byte(data), os.ModePerm))
 
@@ -1476,162 +1476,162 @@ func TestVUDoesNonExistingPathnUnderConditions(t *testing.T) ***REMOVED***
 	_, err = r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open() can't be used with files that weren't previously opened during initialization (__VU==0)")
-***REMOVED***
+}
 
-func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
+func TestVUIntegrationCookiesReset(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				var url = "HTTPBIN_URL";
 				var preRes = http.get(url + "/cookies");
-				if (preRes.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + preRes.status); ***REMOVED***
-				if (preRes.json().k1 || preRes.json().k2) ***REMOVED***
+				if (preRes.status != 200) { throw new Error("wrong status (pre): " + preRes.status); }
+				if (preRes.json().k1 || preRes.json().k2) {
 					throw new Error("cookies persisted: " + preRes.body);
-				***REMOVED***
+				}
 
 				var res = http.get(url + "/cookies/set?k2=v2&k1=v1");
-				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
-				if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
+				if (res.status != 200) { throw new Error("wrong status: " + res.status) }
+				if (res.json().k1 != "v1" || res.json().k2 != "v2") {
 					throw new Error("wrong cookies: " + res.body);
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		`))
 	require.NoError(t, err)
-	r1.SetOptions(libWorker.Options***REMOVED***
+	r1.SetOptions(libWorker.Options{
 		Throw:        null.BoolFrom(true),
 		MaxRedirects: null.IntFrom(10),
 		Hosts:        tb.Dialer.Hosts,
-	***REMOVED***)
+	})
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-			for i := 0; i < 2; i++ ***REMOVED***
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
+			for i := 0; i < 2; i++ {
 				require.NoError(t, vu.RunOnce())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
+func TestVUIntegrationCookiesNoReset(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				var url = "HTTPBIN_URL";
-				if (__ITER == 0) ***REMOVED***
+				if (__ITER == 0) {
 					var res = http.get(url + "/cookies/set?k2=v2&k1=v1");
-					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
-					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
+					if (res.status != 200) { throw new Error("wrong status: " + res.status) }
+					if (res.json().k1 != "v1" || res.json().k2 != "v2") {
 						throw new Error("wrong cookies: " + res.body);
-					***REMOVED***
-				***REMOVED***
+					}
+				}
 
-				if (__ITER == 1) ***REMOVED***
+				if (__ITER == 1) {
 					var res = http.get(url + "/cookies");
-					if (res.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + res.status); ***REMOVED***
-					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
+					if (res.status != 200) { throw new Error("wrong status (pre): " + res.status); }
+					if (res.json().k1 != "v1" || res.json().k2 != "v2") {
 						throw new Error("wrong cookies: " + res.body);
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
+					}
+				}
+			}
 		`))
 	require.NoError(t, err)
-	r1.SetOptions(libWorker.Options***REMOVED***
+	r1.SetOptions(libWorker.Options{
 		Throw:          null.BoolFrom(true),
 		MaxRedirects:   null.IntFrom(10),
 		Hosts:          tb.Dialer.Hosts,
 		NoCookiesReset: null.BoolFrom(true),
-	***REMOVED***)
+	})
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
 
 			err = vu.RunOnce()
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
+func TestVUIntegrationVUID(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
-			exports.default = function() ***REMOVED***
-				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
-			***REMOVED***`,
+			exports.default = function() {
+				if (__VU != 1234) { throw new Error("wrong __VU: " + __VU); }
+			}`,
 	)
 	require.NoError(t, err)
-	r1.SetOptions(libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	r1.SetOptions(libWorker.Options{Throw: null.BoolFrom(true)})
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1234, 1234, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
 /*
 CA key:
@@ -1641,7 +1641,7 @@ AwEHoUQDQgAEeeuCFQsdraFJr8JaKbAKfjYpZ2U+p3r/OzcmAsjFO8EckmV9uFZs
 Gq3JurKi9Z3dDKQcwinHQ1malicbwWhamQ==
 -----END EC PRIVATE KEY-----
 */
-func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
+func TestVUIntegrationClientCerts(t *testing.T) {
 	t.Parallel()
 	clientCAPool := x509.NewCertPool()
 	assert.True(t, clientCAPool.AppendCertsFromPEM(
@@ -1685,61 +1685,61 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	testdata := map[string]struct ***REMOVED***
+	testdata := map[string]struct {
 		withClientCert     bool
 		withDomains        bool
 		insecureSkipVerify bool
 		errMsg             string
-	***REMOVED******REMOVED***
-		"WithoutCert":      ***REMOVED***false, false, true, "remote error: tls: bad certificate"***REMOVED***,
-		"WithCert":         ***REMOVED***true, true, true, ""***REMOVED***,
-		"VerifyServerCert": ***REMOVED***true, false, false, "certificate signed by unknown authority"***REMOVED***,
-		"WithoutDomains":   ***REMOVED***true, false, true, ""***REMOVED***,
-	***REMOVED***
+	}{
+		"WithoutCert":      {false, false, true, "remote error: tls: bad certificate"},
+		"WithCert":         {true, true, true, ""},
+		"VerifyServerCert": {true, false, false, "certificate signed by unknown authority"},
+		"WithoutDomains":   {true, false, true, ""},
+	}
 
-	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config***REMOVED***
-		Certificates: []tls.Certificate***REMOVED***serverCert***REMOVED***,
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    clientCAPool,
-	***REMOVED***)
+	})
 	require.NoError(t, err)
-	srv := &http.Server***REMOVED***
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+	srv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			_, _ = fmt.Fprintf(w, "ok")
-		***REMOVED***),
+		}),
 		ErrorLog: stdlog.New(ioutil.Discard, "", 0),
-	***REMOVED***
-	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
-	t.Cleanup(func() ***REMOVED*** _ = listener.Close() ***REMOVED***)
-	for name, data := range testdata ***REMOVED***
+	}
+	go func() { _ = srv.Serve(listener) }()
+	t.Cleanup(func() { _ = listener.Close() })
+	for name, data := range testdata {
 		data := data
 
 		registry := workerMetrics.NewRegistry()
 		builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
 			var http = require("k6/http");
 			var k6 = require("k6");
 			var check = k6.check;
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				const res = http.get("https://%s")
-				check(res, ***REMOVED***
+				check(res, {
 					'is status 200': (r) => r.status === 200,
 					'verify resp': (r) => r.body.includes('ok'),
-				***REMOVED***)
-			***REMOVED***`, listener.Addr().String()))
+				})
+			}`, listener.Addr().String()))
 			require.NoError(t, err)
 
-			opt := libWorker.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***
-			if data.insecureSkipVerify ***REMOVED***
+			opt := libWorker.Options{Throw: null.BoolFrom(true)}
+			if data.insecureSkipVerify {
 				opt.InsecureSkipTLSVerify = null.BoolFrom(true)
-			***REMOVED***
-			if data.withClientCert ***REMOVED***
-				opt.TLSAuth = []*libWorker.TLSAuth***REMOVED***
-					***REMOVED***
-						TLSAuthFields: libWorker.TLSAuthFields***REMOVED***
+			}
+			if data.withClientCert {
+				opt.TLSAuth = []*libWorker.TLSAuth{
+					{
+						TLSAuthFields: libWorker.TLSAuthFields{
 							Cert: "-----BEGIN CERTIFICATE-----\n" +
 								"MIIBVzCB/6ADAgECAgkAg/SeNG3XqB0wCgYIKoZIzj0EAwIwEDEOMAwGA1UEAwwF\n" +
 								"TXkgQ0EwIBcNMjIwMTIxMTUxMjM0WhgPMzAyMTA1MjQxNTEyMzRaMBExDzANBgNV\n" +
@@ -1755,48 +1755,48 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 								"AwEHoUQDQgAEozs4lAxgbgou0MCBnzM6DY+KYcyZCeMPYe0jhxLAhQkme8dYujBs\n" +
 								"V71+Tpd4/1vd0rUiZQj778Rl1WsAEByeBw==\n" +
 								"-----END EC PRIVATE KEY-----",
-						***REMOVED***,
-					***REMOVED***,
-				***REMOVED***
-				if data.withDomains ***REMOVED***
-					opt.TLSAuth[0].TLSAuthFields.Domains = []string***REMOVED***"127.0.0.1"***REMOVED***
-				***REMOVED***
+						},
+					},
+				}
+				if data.withDomains {
+					opt.TLSAuth[0].TLSAuthFields.Domains = []string{"127.0.0.1"}
+				}
 				_, _ = opt.TLSAuth[0].Certificate()
-			***REMOVED***
+			}
 			require.NoError(t, r1.SetOptions(opt))
 			r2, err := NewFromArchive(
-				&libWorker.TestPreInitState***REMOVED***
+				&libWorker.TestPreInitState{
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+				}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-			for name, r := range runners ***REMOVED***
+			runners := map[string]*Runner{"Source": r1, "Archive": r2}
+			for name, r := range runners {
 				r := r
-				t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Run(name, func(t *testing.T) {
 					t.Parallel()
 					r.preInitState.Logger, _ = logtest.NewNullLogger()
 					initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 					require.NoError(t, err)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 					err = vu.RunOnce()
-					if len(data.errMsg) > 0 ***REMOVED***
+					if len(data.errMsg) > 0 {
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
-					***REMOVED*** else ***REMOVED***
+					} else {
 						require.NoError(t, err)
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+					}
+				})
+			}
+		})
+	}
+}
 
-func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
+func TestHTTPRequestInInitContext(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
@@ -1806,90 +1806,90 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 					var fail = k6.fail;
 					var http = require("k6/http");;
 					var res = http.get("HTTPBIN_URL/");
-					exports.default = function() ***REMOVED***
+					exports.default = function() {
 						console.log(test);
-					***REMOVED***
+					}
 				`))
 	require.Error(t, err)
 	assert.Contains(
 		t,
 		err.Error(),
 		k6http.ErrHTTPForbiddenInInitContext.Error())
-***REMOVED***
+}
 
-func TestInitContextForbidden(t *testing.T) ***REMOVED***
+func TestInitContextForbidden(t *testing.T) {
 	t.Parallel()
-	table := [...][3]string***REMOVED***
-		***REMOVED***
+	table := [...][3]string{
+		{
 			"http.request",
 			`var http = require("k6/http");;
 			 var res = http.get("HTTPBIN_URL");
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			k6http.ErrHTTPForbiddenInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"http.batch",
 			`var http = require("k6/http");;
 			 var res = http.batch("HTTPBIN_URL/something", "HTTPBIN_URL/else");
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			k6http.ErrBatchForbiddenInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"http.cookieJar",
 			`var http = require("k6/http");;
 			 var jar = http.cookieJar();
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			k6http.ErrJarForbiddenInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"check",
 			`var check = require("k6").check;
-			 check("test", ***REMOVED***'is test': function(test) ***REMOVED*** return test == "test"***REMOVED******REMOVED***)
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 check("test", {'is test': function(test) { return test == "test"}})
+			 exports.default = function() { console.log("p"); }`,
 			k6.ErrCheckInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"abortTest",
 			`var test = require("k6/execution").test;
 			 test.abort();
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			errext.AbortTest,
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"group",
 			`var group = require("k6").group;
-			 group("group1", function () ***REMOVED*** console.log("group1");***REMOVED***)
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 group("group1", function () { console.log("group1");})
+			 exports.default = function() { console.log("p"); }`,
 			k6.ErrGroupInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"ws",
 			`var ws = require("k6/ws");
 			 var url = "ws://echo.websocket.org";
-			 var params = ***REMOVED*** "tags": ***REMOVED*** "my_tag": "hello" ***REMOVED*** ***REMOVED***;
-			 var response = ws.connect(url, params, function (socket) ***REMOVED***
-			   socket.on('open', function open() ***REMOVED***
+			 var params = { "tags": { "my_tag": "hello" } };
+			 var response = ws.connect(url, params, function (socket) {
+			   socket.on('open', function open() {
 					console.log('connected');
-			   ***REMOVED***)
-		   ***REMOVED***);
+			   })
+		   });
 
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			ws.ErrWSInInitContext.Error(),
-		***REMOVED***,
-		***REMOVED***
+		},
+		{
 			"metric",
 			`var Counter = require("k6/metrics").Counter;
 			 var counter = Counter("myCounter");
 			 counter.add(1);
-			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() { console.log("p"); }`,
 			k6workerworkerMetrics.ErrMetricsAddInInitContext.Error(),
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	for _, test := range table ***REMOVED***
+	for _, test := range table {
 		test := test
-		t.Run(test[0], func(t *testing.T) ***REMOVED***
+		t.Run(test[0], func(t *testing.T) {
 			t.Parallel()
 			_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(test[1]))
 			require.Error(t, err)
@@ -1897,25 +1897,25 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 				t,
 				err.Error(),
 				test[2])
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
+func TestArchiveRunningIntegrity(t *testing.T) {
 	t.Parallel()
 
 	fs := afero.NewMemMapFs()
 	data := `
 			var fput = open("/home/somebody/test.json");
-			exports.options = ***REMOVED*** setupTimeout: "10s", teardownTimeout: "10s" ***REMOVED***;
-			exports.setup = function () ***REMOVED***
+			exports.options = { setupTimeout: "10s", teardownTimeout: "10s" };
+			exports.setup = function () {
 				return JSON.parse(fput);
-			***REMOVED***
-			exports.default = function(data) ***REMOVED***
-				if (data != 42) ***REMOVED***
+			}
+			exports.default = function(data) {
+				if (data != 42) {
 					throw new Error("incorrect answer " + data);
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		`
 	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), os.ModePerm))
@@ -1930,17 +1930,17 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc, libWorker.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var err error
 			ch := make(chan workerMetrics.SampleContainer, 100)
@@ -1953,40 +1953,40 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			ctx, cancel = context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 			err = vu.RunOnce()
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
+func TestArchiveNotPanicking(t *testing.T) {
 	t.Parallel()
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
 	r1, err := getSimpleRunner(t, "/script.js", `
 			var fput = open("/non/existent");
-			exports.default = function(data) ***REMOVED******REMOVED***
+			exports.default = function(data) {}
 		`, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Filesystems = map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs()***REMOVED***
+	arc.Filesystems = map[string]afero.Fs{"file": afero.NewMemMapFs()}
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, arc, libWorker.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	// we do want this to error here as this is where we find out that a given file is not in the
 	// archive
 	require.Error(t, err)
 	require.Nil(t, r2)
-***REMOVED***
+}
 
-func TestStuffNotPanicking(t *testing.T) ***REMOVED***
+func TestStuffNotPanicking(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
@@ -1996,38 +1996,38 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 			var group = require("k6").group;
 			var parseHTML = require("k6/html").parseHTML;
 
-			exports.options = ***REMOVED*** iterations: 1, vus: 1 ***REMOVED***;
+			exports.options = { iterations: 1, vus: 1 };
 
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				var doc = parseHTML(http.get("HTTPBIN_URL/html").body);
 
 				var testCases = [
-					function() ***REMOVED*** return group()***REMOVED***,
-					function() ***REMOVED*** return group("test")***REMOVED***,
-					function() ***REMOVED*** return group("test", "wat")***REMOVED***,
-					function() ***REMOVED*** return doc.find('p').each()***REMOVED***,
-					function() ***REMOVED*** return doc.find('p').each("wat")***REMOVED***,
-					function() ***REMOVED*** return doc.find('p').map()***REMOVED***,
-					function() ***REMOVED*** return doc.find('p').map("wat")***REMOVED***,
-					function() ***REMOVED*** return ws.connect("WSBIN_URL/ws-echo")***REMOVED***,
+					function() { return group()},
+					function() { return group("test")},
+					function() { return group("test", "wat")},
+					function() { return doc.find('p').each()},
+					function() { return doc.find('p').each("wat")},
+					function() { return doc.find('p').map()},
+					function() { return doc.find('p').map("wat")},
+					function() { return ws.connect("WSBIN_URL/ws-echo")},
 				];
 
-				testCases.forEach(function(fn, idx) ***REMOVED***
+				testCases.forEach(function(fn, idx) {
 					var hasException;
-					try ***REMOVED***
+					try {
 						fn();
 						hasException = false;
-					***REMOVED*** catch (e) ***REMOVED***
+					} catch (e) {
 						hasException = true;
-					***REMOVED***
+					}
 
-					if (hasException === false) ***REMOVED***
+					if (hasException === false) {
 						throw new Error("Expected test case #" + idx + " to return an error");
-					***REMOVED*** else if (hasException === undefined) ***REMOVED***
+					} else if (hasException === undefined) {
 						throw new Error("Something strange happened with test case #" + idx);
-					***REMOVED***
-				***REMOVED***);
-			***REMOVED***
+					}
+				});
+			}
 		`))
 	require.NoError(t, err)
 
@@ -2036,32 +2036,32 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- vu.RunOnce() ***REMOVED***()
+	go func() { errC <- vu.RunOnce() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(15 * time.Second):
 		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		cancel()
 		require.NoError(t, err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
+func TestPanicOnSimpleHTML(t *testing.T) {
 	t.Parallel()
 
 	r, err := getSimpleRunner(t, "/script.js", `
 			var parseHTML = require("k6/html").parseHTML;
 
-			exports.options = ***REMOVED*** iterations: 1, vus: 1 ***REMOVED***;
+			exports.options = { iterations: 1, vus: 1 };
 
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				var doc = parseHTML("<html>");
 				var o = doc.find(".something").slice(0, 4).toArray()
-			***REMOVED***;
+			};
 		`)
 	require.NoError(t, err)
 
@@ -2070,135 +2070,135 @@ func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- vu.RunOnce() ***REMOVED***()
+	go func() { errC <- vu.RunOnce() }()
 
-	select ***REMOVED***
+	select {
 	case <-time.After(15 * time.Second):
 		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		cancel()
 		require.NoError(t, err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
-func TestSystemTags(t *testing.T) ***REMOVED***
+func TestSystemTags(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	// Handle paths with custom logic
-	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", "%")
 		w.WriteHeader(http.StatusTemporaryRedirect)
-	***REMOVED***)
+	})
 
 	httpURL, err := url.Parse(tb.ServerHTTP.URL)
 	require.NoError(t, err)
 
-	testedSystemTags := []struct***REMOVED*** tag, exec, expVal string ***REMOVED******REMOVED***
-		***REMOVED***"proto", "http_get", "HTTP/1.1"***REMOVED***,
-		***REMOVED***"status", "http_get", "200"***REMOVED***,
-		***REMOVED***"method", "http_get", "GET"***REMOVED***,
-		***REMOVED***"url", "http_get", tb.ServerHTTP.URL***REMOVED***,
-		***REMOVED***"url", "https_get", tb.ServerHTTPS.URL***REMOVED***,
-		***REMOVED***"ip", "http_get", httpURL.Hostname()***REMOVED***,
-		***REMOVED***"name", "http_get", tb.ServerHTTP.URL***REMOVED***,
-		***REMOVED***"group", "http_get", ""***REMOVED***,
-		***REMOVED***"vu", "http_get", "8"***REMOVED***,
-		***REMOVED***"vu", "noop", "9"***REMOVED***,
-		***REMOVED***"iter", "http_get", "0"***REMOVED***,
-		***REMOVED***"iter", "noop", "0"***REMOVED***,
-		***REMOVED***"tls_version", "https_get", "tls1.3"***REMOVED***,
-		***REMOVED***"ocsp_status", "https_get", "unknown"***REMOVED***,
-		***REMOVED***"error", "bad_url_get", `dial: connection refused`***REMOVED***,
-		***REMOVED***"error_code", "bad_url_get", "1212"***REMOVED***,
-		***REMOVED***"scenario", "http_get", "default"***REMOVED***,
+	testedSystemTags := []struct{ tag, exec, expVal string }{
+		{"proto", "http_get", "HTTP/1.1"},
+		{"status", "http_get", "200"},
+		{"method", "http_get", "GET"},
+		{"url", "http_get", tb.ServerHTTP.URL},
+		{"url", "https_get", tb.ServerHTTPS.URL},
+		{"ip", "http_get", httpURL.Hostname()},
+		{"name", "http_get", tb.ServerHTTP.URL},
+		{"group", "http_get", ""},
+		{"vu", "http_get", "8"},
+		{"vu", "noop", "9"},
+		{"iter", "http_get", "0"},
+		{"iter", "noop", "0"},
+		{"tls_version", "https_get", "tls1.3"},
+		{"ocsp_status", "https_get", "unknown"},
+		{"error", "bad_url_get", `dial: connection refused`},
+		{"error_code", "bad_url_get", "1212"},
+		{"scenario", "http_get", "default"},
 		// TODO: add more tests
-	***REMOVED***
+	}
 
-	for num, tc := range testedSystemTags ***REMOVED***
+	for num, tc := range testedSystemTags {
 		num, tc := num, tc
-		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) {
 			t.Parallel()
 			samples := make(chan workerMetrics.SampleContainer, 100)
 			r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 				var http = require("k6/http");
 
-				exports.http_get = function() ***REMOVED***
+				exports.http_get = function() {
 					http.get("HTTPBIN_IP_URL");
-				***REMOVED***;
-				exports.https_get = function() ***REMOVED***
+				};
+				exports.https_get = function() {
 					http.get("HTTPSBIN_IP_URL");
-				***REMOVED***;
-				exports.bad_url_get = function() ***REMOVED***
+				};
+				exports.bad_url_get = function() {
 					http.get("http://127.0.0.1:1");
-				***REMOVED***;
-				exports.noop = function() ***REMOVED******REMOVED***;
-			`), libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***)
+				};
+				exports.noop = function() {};
+			`), libWorker.RuntimeOptions{CompatibilityMode: null.StringFrom("base")})
 			require.NoError(t, err)
-			require.NoError(t, r.SetOptions(r.GetOptions().Apply(libWorker.Options***REMOVED***
+			require.NoError(t, r.SetOptions(r.GetOptions().Apply(libWorker.Options{
 				Throw:                 null.BoolFrom(false),
-				TLSVersion:            &libWorker.TLSVersions***REMOVED***Max: tls.VersionTLS13***REMOVED***,
-				SystemTags:            workerMetrics.ToSystemTagSet([]string***REMOVED***tc.tag***REMOVED***),
+				TLSVersion:            &libWorker.TLSVersions{Max: tls.VersionTLS13},
+				SystemTags:            workerMetrics.ToSystemTagSet([]string{tc.tag}),
 				InsecureSkipTLSVerify: null.BoolFrom(true),
-			***REMOVED***)))
+			})))
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			vu, err := r.NewVU(uint64(num), 0, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
-			activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***
+			activeVU := vu.Activate(&libWorker.VUActivationParams{
 				RunContext: ctx,
 				Exec:       tc.exec,
 				Scenario:   "default",
-			***REMOVED***)
+			})
 			require.NoError(t, activeVU.RunOnce())
 
 			bufSamples := workerMetrics.GetBufferedSamples(samples)
 			require.NotEmpty(t, bufSamples)
-			for _, sample := range bufSamples[0].GetSamples() ***REMOVED***
+			for _, sample := range bufSamples[0].GetSamples() {
 				assert.NotEmpty(t, sample.Tags)
-				for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
+				for emittedTag, emittedVal := range sample.Tags.CloneTags() {
 					assert.Equal(t, tc.tag, emittedTag)
 					assert.Equal(t, tc.expVal, emittedVal)
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				}
+			}
+		})
+	}
+}
 
-func TestVUPanic(t *testing.T) ***REMOVED***
+func TestVUPanic(t *testing.T) {
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 			var group = require("k6").group;
-			exports.default = function() ***REMOVED***
-				group("panic here", function() ***REMOVED***
-					if (__ITER == 0) ***REMOVED***
+			exports.default = function() {
+				group("panic here", function() {
+					if (__ITER == 0) {
 						panic("here we panic");
-					***REMOVED***
+					}
 					console.log("here we don't");
-				***REMOVED***)
-			***REMOVED***`,
+				})
+			}`,
 	)
 	require.NoError(t, err)
 
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	r2, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         testutils.NewLogger(t),
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
-		***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+		}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
+	runners := map[string]*Runner{"Source": r1, "Archive": r2}
+	for name, r := range runners {
 		r := r
-		t.Run(name, func(t *testing.T) ***REMOVED***
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			initVU, err := r.NewVU(1, 1234, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
@@ -2206,15 +2206,15 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 			logger := logrus.New()
 			logger.SetLevel(logrus.InfoLevel)
 			logger.Out = ioutil.Discard
-			hook := testutils.SimpleLogrusHook***REMOVED***
-				HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel***REMOVED***,
-			***REMOVED***
+			hook := testutils.SimpleLogrusHook{
+				HookedLevels: []logrus.Level{logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel},
+			}
 			logger.AddHook(&hook)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-			vu.(*ActiveVU).Runtime.Set("panic", func(str string) ***REMOVED*** panic(str) ***REMOVED***)
+			vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
+			vu.(*ActiveVU).Runtime.Set("panic", func(str string) { panic(str) })
 			vu.(*ActiveVU).state.Logger = logger
 
 			vu.(*ActiveVU).Console.logger = logger.WithField("source", "console")
@@ -2236,11 +2236,11 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 			require.Len(t, entries, 1)
 			assert.Equal(t, logrus.InfoLevel, entries[0].Level)
 			require.Contains(t, entries[0].Message, "here we don't")
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-type multiFileTestCase struct ***REMOVED***
+type multiFileTestCase struct {
 	fses       map[string]afero.Fs
 	rtOpts     libWorker.RuntimeOptions
 	cwd        string
@@ -2248,30 +2248,30 @@ type multiFileTestCase struct ***REMOVED***
 	expInitErr bool
 	expVUErr   bool
 	samples    chan workerMetrics.SampleContainer
-***REMOVED***
+}
 
-func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.HTTPMultiBin) ***REMOVED***
+func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.HTTPMultiBin) {
 	t.Helper()
 	logger := testutils.NewLogger(t)
 	registry := workerMetrics.NewRegistry()
 	builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 	runner, err := New(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: tc.rtOpts,
-		***REMOVED***,
-		&loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: tc.cwd + "/script.js", Scheme: "file"***REMOVED***,
+		},
+		&loader.SourceData{
+			URL:  &url.URL{Path: tc.cwd + "/script.js", Scheme: "file"},
 			Data: []byte(tc.script),
-		***REMOVED***,
+		},
 		tc.fses, libWorker.GetTestWorkerInfo(),
 	)
-	if tc.expInitErr ***REMOVED***
+	if tc.expInitErr {
 		require.Error(t, err)
 		return
-	***REMOVED***
+	}
 	require.NoError(t, err)
 
 	options := runner.GetOptions()
@@ -2287,23 +2287,23 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	activeVU := vu.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	activeVU := vu.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 
 	err = activeVU.RunOnce()
-	if tc.expVUErr ***REMOVED***
+	if tc.expVUErr {
 		require.Error(t, err)
-	***REMOVED*** else ***REMOVED***
+	} else {
 		require.NoError(t, err)
-	***REMOVED***
+	}
 
 	arc := runner.MakeArchive()
 	runnerFromArc, err := NewFromArchive(
-		&libWorker.TestPreInitState***REMOVED***
+		&libWorker.TestPreInitState{
 			Logger:         logger,
 			BuiltinMetrics: builtinMetrics,
 			Registry:       registry,
 			RuntimeOptions: tc.rtOpts,
-		***REMOVED***, arc, libWorker.GetTestWorkerInfo())
+		}, arc, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
 	vuFromArc, err := runnerFromArc.NewVU(2, 2, tc.samples, libWorker.GetTestWorkerInfo())
 	require.NoError(t, err)
@@ -2311,26 +2311,26 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 	require.True(t, ok)
 	jsVUFromArc.state.Dialer = tb.Dialer
 	jsVUFromArc.state.TLSConfig = tb.TLSClientConfig
-	activeVUFromArc := jsVUFromArc.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	activeVUFromArc := jsVUFromArc.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	err = activeVUFromArc.RunOnce()
-	if tc.expVUErr ***REMOVED***
+	if tc.expVUErr {
 		require.Error(t, err)
 		return
-	***REMOVED***
+	}
 	require.NoError(t, err)
-***REMOVED***
+}
 
-func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
+func TestComplicatedFileImportsForGRPC(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	tb.GRPCStub.UnaryCallFunc = func(ctx context.Context, sreq *grpc_testing.SimpleRequest) (
 		*grpc_testing.SimpleResponse, error,
-	) ***REMOVED***
-		return &grpc_testing.SimpleResponse***REMOVED***
+	) {
+		return &grpc_testing.SimpleResponse{
 			Username: "foo",
-		***REMOVED***, nil
-	***REMOVED***
+		}, nil
+	}
 
 	fs := afero.NewMemMapFs()
 	protoFile, err := ioutil.ReadFile("../vendor/google.golang.org/grpc/test/grpc_testing/test.proto")
@@ -2346,35 +2346,35 @@ func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
 		`syntax = "proto3";package whatever;import "/path/to/service.proto";`,
 	), 0o644))
 
-	grpcTestCase := func(expInitErr, expVUErr bool, cwd, loadCode string) multiFileTestCase ***REMOVED***
+	grpcTestCase := func(expInitErr, expVUErr bool, cwd, loadCode string) multiFileTestCase {
 		script := tb.Replacer.Replace(fmt.Sprintf(`
 			var grpc = require('k6/net/grpc');
 			var client = new grpc.Client();
 
 			%s // load statements
 
-			exports.default = function() ***REMOVED***
-				client.connect('GRPCBIN_ADDR', ***REMOVED***timeout: '3s'***REMOVED***);
-				try ***REMOVED***
-					var resp = client.invoke('grpc.testing.TestService/UnaryCall', ***REMOVED******REMOVED***)
-					if (!resp.message || resp.error || resp.message.username !== 'foo') ***REMOVED***
+			exports.default = function() {
+				client.connect('GRPCBIN_ADDR', {timeout: '3s'});
+				try {
+					var resp = client.invoke('grpc.testing.TestService/UnaryCall', {})
+					if (!resp.message || resp.error || resp.message.username !== 'foo') {
 						throw new Error('unexpected response message: ' + JSON.stringify(resp.message))
-					***REMOVED***
-				***REMOVED*** finally ***REMOVED***
+					}
+				} finally {
 					client.close();
-				***REMOVED***
-			***REMOVED***
+				}
+			}
 		`, loadCode))
 
-		return multiFileTestCase***REMOVED***
-			fses:    map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
-			rtOpts:  libWorker.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+		return multiFileTestCase{
+			fses:    map[string]afero.Fs{"file": fs, "https": afero.NewMemMapFs()},
+			rtOpts:  libWorker.RuntimeOptions{CompatibilityMode: null.NewString("base", true)},
 			samples: make(chan workerMetrics.SampleContainer, 100),
 			cwd:     cwd, expInitErr: expInitErr, expVUErr: expVUErr, script: script,
-		***REMOVED***
-	***REMOVED***
+		}
+	}
 
-	testCases := []multiFileTestCase***REMOVED***
+	testCases := []multiFileTestCase{
 		grpcTestCase(false, true, "/", `/* no grpc loads */`), // exp VU error with no proto files loaded
 
 		// Init errors when the protobuf file can't be loaded
@@ -2415,28 +2415,28 @@ func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
 		grpcTestCase(true, false, "/", `client.load(['/path'], '/path/to/abs.proto');`),
 		grpcTestCase(false, false, "/", `client.load([], '/path/to/abs.proto');`),
 		grpcTestCase(false, false, "/whatever", `client.load(['/'], '/path/to/abs.proto');`),
-	***REMOVED***
+	}
 
-	for i, tc := range testCases ***REMOVED***
+	for i, tc := range testCases {
 		i, tc := i, tc
-		t.Run(fmt.Sprintf("TestCase_%d", i), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("TestCase_%d", i), func(t *testing.T) {
 			t.Parallel()
 			t.Logf(
 				"CWD: %s, expInitErr: %t, expVUErr: %t, script injected with: `%s`",
 				tc.cwd, tc.expInitErr, tc.expVUErr, tc.script,
 			)
 			runMultiFileTestCase(t, tc, tb)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}
 
-func TestMinIterationDurationIsCancellable(t *testing.T) ***REMOVED***
+func TestMinIterationDurationIsCancellable(t *testing.T) {
 	t.Parallel()
 
 	r, err := getSimpleRunner(t, "/script.js", `
-			exports.options = ***REMOVED*** iterations: 1, vus: 1, minIterationDuration: '1m' ***REMOVED***;
+			exports.options = { iterations: 1, vus: 1, minIterationDuration: '1m' };
 
-			exports.default = function() ***REMOVED*** /* do nothing */ ***REMOVED***;
+			exports.default = function() { /* do nothing */ };
 		`)
 	require.NoError(t, err)
 
@@ -2445,49 +2445,49 @@ func TestMinIterationDurationIsCancellable(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- vu.RunOnce() ***REMOVED***()
+	go func() { errC <- vu.RunOnce() }()
 
 	time.Sleep(200 * time.Millisecond) // give it some time to actually start
 
 	cancel() // simulate the end of gracefulStop or a Ctrl+C event
 
-	select ***REMOVED***
+	select {
 	case <-time.After(3 * time.Second):
 		t.Fatal("Test timed out or minIterationDuration prevailed")
 	case err := <-errC:
 		require.NoError(t, err)
-	***REMOVED***
-***REMOVED***
+	}
+}
 
 //nolint:paralleltest
-func TestForceHTTP1Feature(t *testing.T) ***REMOVED***
-	cases := map[string]struct ***REMOVED***
+func TestForceHTTP1Feature(t *testing.T) {
+	cases := map[string]struct {
 		godebug               string
 		expectedForceH1Result bool
 		protocol              string
-	***REMOVED******REMOVED***
-		"Force H1 Enabled. Checking for H1": ***REMOVED***
+	}{
+		"Force H1 Enabled. Checking for H1": {
 			godebug:               "http2client=0,gctrace=1",
 			expectedForceH1Result: true,
 			protocol:              "HTTP/1.1",
-		***REMOVED***,
-		"Force H1 Disabled. Checking for H2": ***REMOVED***
+		},
+		"Force H1 Disabled. Checking for H2": {
 			godebug:               "test=0",
 			expectedForceH1Result: false,
 			protocol:              "HTTP/2.0",
-		***REMOVED***,
-	***REMOVED***
+		},
+	}
 
-	for name, tc := range cases ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			err := os.Setenv("GODEBUG", tc.godebug)
 			require.NoError(t, err)
-			defer func() ***REMOVED***
+			defer func() {
 				err = os.Unsetenv("GODEBUG")
 				require.NoError(t, err)
-			***REMOVED***()
+			}()
 			assert.Equal(t, tc.expectedForceH1Result, forceHTTP1())
 
 			tb := httpmultibin.NewHTTPMultiBin(t)
@@ -2496,82 +2496,82 @@ func TestForceHTTP1Feature(t *testing.T) ***REMOVED***
 			var check = k6.check;
 			var fail = k6.fail;
 			var http = require("k6/http");;
-			exports.default = function() ***REMOVED***
+			exports.default = function() {
 				var res = http.get("HTTP2BIN_URL");
 				if (
-					!check(res, ***REMOVED***
+					!check(res, {
 					'checking to see if status was 200': (res) => res.status === 200,
 					'checking to see protocol': (res) => res.proto === '%s'
-					***REMOVED***)
-				) ***REMOVED***
+					})
+				) {
 					fail('test failed')
-				***REMOVED***
-			***REMOVED***`, tc.protocol)
+				}
+			}`, tc.protocol)
 
 			r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(data))
 			require.NoError(t, err)
 
-			err = r1.SetOptions(libWorker.Options***REMOVED***
+			err = r1.SetOptions(libWorker.Options{
 				Hosts: tb.Dialer.Hosts,
 				// We disable TLS verify so that we don't get a TLS handshake error since
 				// the certificates on the endpoint are not certified by a certificate authority
 				InsecureSkipTLSVerify: null.BoolFrom(true),
-			***REMOVED***)
+			})
 
 			require.NoError(t, err)
 
 			registry := workerMetrics.NewRegistry()
 			builtinMetrics := workerMetrics.RegisterBuiltinMetrics(registry)
 			r2, err := NewFromArchive(
-				&libWorker.TestPreInitState***REMOVED***
+				&libWorker.TestPreInitState{
 					Logger:         testutils.NewLogger(t),
 					BuiltinMetrics: builtinMetrics,
 					Registry:       registry,
-				***REMOVED***, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
+				}, r1.MakeArchive(), libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-			for name, r := range runners ***REMOVED***
+			runners := map[string]*Runner{"Source": r1, "Archive": r2}
+			for name, r := range runners {
 				r := r
-				t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Run(name, func(t *testing.T) {
 					initVU, err := r.NewVU(1, 1, make(chan workerMetrics.SampleContainer, 100), libWorker.GetTestWorkerInfo())
 					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					vu := initVU.Activate(&libWorker.VUActivationParams{RunContext: ctx})
 					err = vu.RunOnce()
 					require.NoError(t, err)
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+				})
+			}
+		})
+	}
+}
 
-func TestExecutionInfo(t *testing.T) ***REMOVED***
+func TestExecutionInfo(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		name, script, expErr string
-	***REMOVED******REMOVED***
-		***REMOVED***name: "vu_ok", script: `
+	}{
+		{name: "vu_ok", script: `
 		var exec = require('k6/execution');
 
-		exports.default = function() ***REMOVED***
+		exports.default = function() {
 			if (exec.vu.idInInstance !== 1) throw new Error('unexpected VU ID: '+exec.vu.idInInstance);
 			if (exec.vu.idInTest !== 10) throw new Error('unexpected global VU ID: '+exec.vu.idInTest);
 			if (exec.vu.iterationInInstance !== 0) throw new Error('unexpected VU iteration: '+exec.vu.iterationInInstance);
 			if (exec.vu.iterationInScenario !== 0) throw new Error('unexpected scenario iteration: '+exec.vu.iterationInScenario);
-		***REMOVED***`***REMOVED***,
-		***REMOVED***name: "vu_err", script: `
+		}`},
+		{name: "vu_err", script: `
 		var exec = require('k6/execution');
 		exec.vu;
-		`, expErr: "getting VU information in the init context is not supported"***REMOVED***,
-		***REMOVED***name: "scenario_ok", script: `
+		`, expErr: "getting VU information in the init context is not supported"},
+		{name: "scenario_ok", script: `
 		var exec = require('k6/execution');
 		var sleep = require('k6').sleep;
 
-		exports.default = function() ***REMOVED***
+		exports.default = function() {
 			var si = exec.scenario;
 			sleep(0.1);
 			if (si.name !== 'default') throw new Error('unexpected scenario name: '+si.name);
@@ -2580,38 +2580,38 @@ func TestExecutionInfo(t *testing.T) ***REMOVED***
 			if (si.progress !== 0.1) throw new Error('unexpected progress: '+si.progress);
 			if (si.iterationInInstance !== 3) throw new Error('unexpected scenario local iteration: '+si.iterationInInstance);
 			if (si.iterationInTest !== 4) throw new Error('unexpected scenario local iteration: '+si.iterationInTest);
-		***REMOVED***`***REMOVED***,
-		***REMOVED***name: "scenario_err", script: `
+		}`},
+		{name: "scenario_err", script: `
 		var exec = require('k6/execution');
 		exec.scenario;
-		`, expErr: "getting scenario information outside of the VU context is not supported"***REMOVED***,
-		***REMOVED***name: "test_ok", script: `
+		`, expErr: "getting scenario information outside of the VU context is not supported"},
+		{name: "test_ok", script: `
 		var exec = require('k6/execution');
 
-		exports.default = function() ***REMOVED***
+		exports.default = function() {
 			var ti = exec.instance;
 			if (ti.currentTestRunDuration !== 0) throw new Error('unexpected test duration: '+ti.currentTestRunDuration);
 			if (ti.vusActive !== 1) throw new Error('unexpected vusActive: '+ti.vusActive);
 			if (ti.vusInitialized !== 0) throw new Error('unexpected vusInitialized: '+ti.vusInitialized);
 			if (ti.iterationsCompleted !== 0) throw new Error('unexpected iterationsCompleted: '+ti.iterationsCompleted);
 			if (ti.iterationsInterrupted !== 0) throw new Error('unexpected iterationsInterrupted: '+ti.iterationsInterrupted);
-		***REMOVED***`***REMOVED***,
-		***REMOVED***name: "test_err", script: `
+		}`},
+		{name: "test_err", script: `
 		var exec = require('k6/execution');
 		exec.instance;
-		`, expErr: "getting instance information in the init context is not supported"***REMOVED***,
-	***REMOVED***
+		`, expErr: "getting instance information in the init context is not supported"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r, err := getSimpleRunner(t, "/script.js", tc.script)
-			if tc.expErr != "" ***REMOVED***
+			if tc.expErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expErr)
 				return
-			***REMOVED***
+			}
 			require.NoError(t, err)
 
 			r.Bundle.Options.SystemTags = workerMetrics.NewSystemTagSet(workerMetrics.DefaultSystemTagSet)
@@ -2619,11 +2619,11 @@ func TestExecutionInfo(t *testing.T) ***REMOVED***
 			initVU, err := r.NewVU(1, 10, samples, libWorker.GetTestWorkerInfo())
 			require.NoError(t, err)
 
-			testRunState := &libWorker.TestRunState***REMOVED***
+			testRunState := &libWorker.TestRunState{
 				TestPreInitState: r.preInitState,
 				Options:          r.GetOptions(),
 				Runner:           r,
-			***REMOVED***
+			}
 
 			execScheduler, err := local.NewExecutionScheduler(testRunState)
 			require.NoError(t, err)
@@ -2632,24 +2632,24 @@ func TestExecutionInfo(t *testing.T) ***REMOVED***
 			defer cancel()
 
 			ctx = libWorker.WithExecutionState(ctx, execScheduler.GetState())
-			ctx = libWorker.WithScenarioState(ctx, &libWorker.ScenarioState***REMOVED***
+			ctx = libWorker.WithScenarioState(ctx, &libWorker.ScenarioState{
 				Name:      "default",
 				Executor:  "test-exec",
 				StartTime: time.Now(),
-				ProgressFn: func() (float64, []string) ***REMOVED***
+				ProgressFn: func() (float64, []string) {
 					return 0.1, nil
-				***REMOVED***,
-			***REMOVED***)
-			vu := initVU.Activate(&libWorker.VUActivationParams***REMOVED***
+				},
+			})
+			vu := initVU.Activate(&libWorker.VUActivationParams{
 				RunContext:               ctx,
 				Exec:                     "default",
-				GetNextIterationCounters: func() (uint64, uint64) ***REMOVED*** return 3, 4 ***REMOVED***,
-			***REMOVED***)
+				GetNextIterationCounters: func() (uint64, uint64) { return 3, 4 },
+			})
 
 			execState := execScheduler.GetState()
 			execState.ModCurrentlyActiveVUsCount(+1)
 			err = vu.RunOnce()
 			require.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		})
+	}
+}

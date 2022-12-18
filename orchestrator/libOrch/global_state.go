@@ -8,13 +8,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type WorkerState struct ***REMOVED***
+type WorkerState struct {
 	Status     string `json:"status"`
 	WorkerId   string `json:"workerId"`
 	ChildJobId string `json:"childJobId"`
-***REMOVED***
+}
 
-type BaseGlobalState interface ***REMOVED***
+type BaseGlobalState interface {
 	Ctx() context.Context
 	Logger() *logrus.Logger
 	OrchestratorClient() *redis.Client
@@ -29,4 +29,4 @@ type BaseGlobalState interface ***REMOVED***
 	CreditsManager() *lib.CreditsManager
 	Standalone() bool
 	FuncModeInfo() *lib.FuncModeInfo
-***REMOVED***
+}

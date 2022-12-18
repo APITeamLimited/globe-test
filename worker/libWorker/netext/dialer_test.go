@@ -11,18 +11,18 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func TestDialerAddr(t *testing.T) ***REMOVED***
+func TestDialerAddr(t *testing.T) {
 	t.Parallel()
-	dialer := NewDialer(net.Dialer***REMOVED******REMOVED***, newResolver())
-	dialer.Hosts = map[string]*libWorker.HostAddress***REMOVED***
-		"example.com":                ***REMOVED***IP: net.ParseIP("3.4.5.6")***REMOVED***,
-		"example.com:443":            ***REMOVED***IP: net.ParseIP("3.4.5.6"), Port: 8443***REMOVED***,
-		"example.com:8080":           ***REMOVED***IP: net.ParseIP("3.4.5.6"), Port: 9090***REMOVED***,
-		"example-deny-host.com":      ***REMOVED***IP: net.ParseIP("8.9.10.11")***REMOVED***,
-		"example-ipv6.com":           ***REMOVED***IP: net.ParseIP("2001:db8::68")***REMOVED***,
-		"example-ipv6.com:443":       ***REMOVED***IP: net.ParseIP("2001:db8::68"), Port: 8443***REMOVED***,
-		"example-ipv6-deny-host.com": ***REMOVED***IP: net.ParseIP("::1")***REMOVED***,
-	***REMOVED***
+	dialer := NewDialer(net.Dialer{}, newResolver())
+	dialer.Hosts = map[string]*libWorker.HostAddress{
+		"example.com":                {IP: net.ParseIP("3.4.5.6")},
+		"example.com:443":            {IP: net.ParseIP("3.4.5.6"), Port: 8443},
+		"example.com:8080":           {IP: net.ParseIP("3.4.5.6"), Port: 9090},
+		"example-deny-host.com":      {IP: net.ParseIP("8.9.10.11")},
+		"example-ipv6.com":           {IP: net.ParseIP("2001:db8::68")},
+		"example-ipv6.com:443":       {IP: net.ParseIP("2001:db8::68"), Port: 8443},
+		"example-ipv6-deny-host.com": {IP: net.ParseIP("::1")},
+	}
 
 	ipNet, err := libWorker.ParseCIDR("8.9.10.0/24")
 	require.NoError(t, err)
@@ -30,91 +30,91 @@ func TestDialerAddr(t *testing.T) ***REMOVED***
 	ipV6Net, err := libWorker.ParseCIDR("::1/24")
 	require.NoError(t, err)
 
-	dialer.Blacklist = []*libWorker.IPNet***REMOVED***ipNet, ipV6Net***REMOVED***
+	dialer.Blacklist = []*libWorker.IPNet{ipNet, ipV6Net}
 
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		address, expAddress, expErr string
-	***REMOVED******REMOVED***
+	}{
 		// IPv4
-		***REMOVED***"example-resolver.com:80", "1.2.3.4:80", ""***REMOVED***,
-		***REMOVED***"example.com:80", "3.4.5.6:80", ""***REMOVED***,
-		***REMOVED***"example.com:443", "3.4.5.6:8443", ""***REMOVED***,
-		***REMOVED***"example.com:8080", "3.4.5.6:9090", ""***REMOVED***,
-		***REMOVED***"1.2.3.4:80", "1.2.3.4:80", ""***REMOVED***,
-		***REMOVED***"1.2.3.4", "", "address 1.2.3.4: missing port in address"***REMOVED***,
-		***REMOVED***"example-deny-resolver.com:80", "", "IP (8.9.10.11) is in a blacklisted range (8.9.10.0/24)"***REMOVED***,
-		***REMOVED***"example-deny-host.com:80", "", "IP (8.9.10.11) is in a blacklisted range (8.9.10.0/24)"***REMOVED***,
-		***REMOVED***"no-such-host.com:80", "", "lookup no-such-host.com: no such host"***REMOVED***,
+		{"example-resolver.com:80", "1.2.3.4:80", ""},
+		{"example.com:80", "3.4.5.6:80", ""},
+		{"example.com:443", "3.4.5.6:8443", ""},
+		{"example.com:8080", "3.4.5.6:9090", ""},
+		{"1.2.3.4:80", "1.2.3.4:80", ""},
+		{"1.2.3.4", "", "address 1.2.3.4: missing port in address"},
+		{"example-deny-resolver.com:80", "", "IP (8.9.10.11) is in a blacklisted range (8.9.10.0/24)"},
+		{"example-deny-host.com:80", "", "IP (8.9.10.11) is in a blacklisted range (8.9.10.0/24)"},
+		{"no-such-host.com:80", "", "lookup no-such-host.com: no such host"},
 
 		// IPv6
-		***REMOVED***"example-ipv6.com:443", "[2001:db8::68]:8443", ""***REMOVED***,
-		***REMOVED***"[2001:db8:aaaa:1::100]:443", "[2001:db8:aaaa:1::100]:443", ""***REMOVED***,
-		***REMOVED***"[::1.2.3.4]", "", "address [::1.2.3.4]: missing port in address"***REMOVED***,
-		***REMOVED***"example-ipv6-deny-resolver.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
-		***REMOVED***"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
-		***REMOVED***"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
-	***REMOVED***
+		{"example-ipv6.com:443", "[2001:db8::68]:8443", ""},
+		{"[2001:db8:aaaa:1::100]:443", "[2001:db8:aaaa:1::100]:443", ""},
+		{"[::1.2.3.4]", "", "address [::1.2.3.4]: missing port in address"},
+		{"example-ipv6-deny-resolver.com:80", "", "IP (::1) is in a blacklisted range (::/24)"},
+		{"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"},
+		{"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tc.address, func(t *testing.T) ***REMOVED***
+		t.Run(tc.address, func(t *testing.T) {
 			t.Parallel()
 			addr, err := dialer.getDialAddr(tc.address)
 
-			if tc.expErr != "" ***REMOVED***
+			if tc.expErr != "" {
 				require.EqualError(t, err, tc.expErr)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expAddress, addr)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func TestDialerAddrBlockHostnamesStar(t *testing.T) ***REMOVED***
+func TestDialerAddrBlockHostnamesStar(t *testing.T) {
 	t.Parallel()
-	dialer := NewDialer(net.Dialer***REMOVED******REMOVED***, newResolver())
-	dialer.Hosts = map[string]*libWorker.HostAddress***REMOVED***
-		"example.com": ***REMOVED***IP: net.ParseIP("3.4.5.6")***REMOVED***,
-	***REMOVED***
+	dialer := NewDialer(net.Dialer{}, newResolver())
+	dialer.Hosts = map[string]*libWorker.HostAddress{
+		"example.com": {IP: net.ParseIP("3.4.5.6")},
+	}
 
-	blocked, err := types.NewHostnameTrie([]string***REMOVED***"*"***REMOVED***)
+	blocked, err := types.NewHostnameTrie([]string{"*"})
 	require.NoError(t, err)
 	dialer.BlockedHostnames = blocked
-	testCases := []struct ***REMOVED***
+	testCases := []struct {
 		address, expAddress, expErr string
-	***REMOVED******REMOVED***
+	}{
 		// IPv4
-		***REMOVED***"example.com:80", "", "hostname (example.com) is in a blocked pattern (*)"***REMOVED***,
-		***REMOVED***"example.com:443", "", "hostname (example.com) is in a blocked pattern (*)"***REMOVED***,
-		***REMOVED***"not.com:30", "", "hostname (not.com) is in a blocked pattern (*)"***REMOVED***,
-		***REMOVED***"1.2.3.4:80", "1.2.3.4:80", ""***REMOVED***,
-	***REMOVED***
+		{"example.com:80", "", "hostname (example.com) is in a blocked pattern (*)"},
+		{"example.com:443", "", "hostname (example.com) is in a blocked pattern (*)"},
+		{"not.com:30", "", "hostname (not.com) is in a blocked pattern (*)"},
+		{"1.2.3.4:80", "1.2.3.4:80", ""},
+	}
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tc.address, func(t *testing.T) ***REMOVED***
+		t.Run(tc.address, func(t *testing.T) {
 			t.Parallel()
 			addr, err := dialer.getDialAddr(tc.address)
 
-			if tc.expErr != "" ***REMOVED***
+			if tc.expErr != "" {
 				require.EqualError(t, err, tc.expErr)
-			***REMOVED*** else ***REMOVED***
+			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expAddress, addr)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+			}
+		})
+	}
+}
 
-func newResolver() *mockresolver.MockResolver ***REMOVED***
+func newResolver() *mockresolver.MockResolver {
 	return mockresolver.New(
-		map[string][]net.IP***REMOVED***
-			"example-resolver.com":           ***REMOVED***net.ParseIP("1.2.3.4")***REMOVED***,
-			"example-deny-resolver.com":      ***REMOVED***net.ParseIP("8.9.10.11")***REMOVED***,
-			"example-ipv6-deny-resolver.com": ***REMOVED***net.ParseIP("::1")***REMOVED***,
-		***REMOVED***, nil,
+		map[string][]net.IP{
+			"example-resolver.com":           {net.ParseIP("1.2.3.4")},
+			"example-deny-resolver.com":      {net.ParseIP("8.9.10.11")},
+			"example-ipv6-deny-resolver.com": {net.ParseIP("::1")},
+		}, nil,
 	)
-***REMOVED***
+}
