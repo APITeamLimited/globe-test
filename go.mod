@@ -71,6 +71,10 @@ require (
 	go.uber.org/zap v1.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
+<<<<<<< HEAD
+=======
+	google.golang.org/api v0.105.0 // indirect
+>>>>>>> 91df2ad531f51a3494f2b358576d5bfedca06952
 	google.golang.org/appengine v1.6.7 // indirect
 )
 

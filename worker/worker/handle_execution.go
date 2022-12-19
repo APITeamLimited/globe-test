@@ -32,7 +32,10 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
 
 	if workerInfo.CreditsManager != nil {
+<<<<<<< HEAD
 		// Regularaly deduct credits
+=======
+>>>>>>> 91df2ad531f51a3494f2b358576d5bfedca06952
 		monitorCredits(gs, workerInfo.CreditsManager)
 	}
 
