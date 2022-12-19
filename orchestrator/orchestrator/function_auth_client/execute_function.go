@@ -75,11 +75,7 @@ func (config *FunctionAuthClient) CheckFunctionAvailability(location string) err
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
 
-<<<<<<< HEAD
 	var liveFunction *libOrch.LiveFunction
-=======
-	var liveFunction *lib.LiveFunction
->>>>>>> 91df2ad531f51a3494f2b358576d5bfedca06952
 
 	// Find the function
 	for _, function := range config.liveFunctions {
