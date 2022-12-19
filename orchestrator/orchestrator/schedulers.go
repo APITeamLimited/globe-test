@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func startJobScheduling(ctx context.Context, orchestratorClient *redis.Client, orchestratorId string, executionList *ExecutionList,
-	workerClients libOrch.WorkerClients, storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool, funcAuthClient lib.FunctionAuthClient) {
+	workerClients libOrch.WorkerClients, storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool, funcAuthClient libOrch.FunctionAuthClient) {
 
 	scheduler := time.NewTicker(1 * time.Second)
 
@@ -36,9 +35,12 @@ func startJobScheduling(ctx context.Context, orchestratorClient *redis.Client, o
 }
 
 // Provides management of all orchestrators, including aggregating total capacities and deleting offline nodes
-func createMasterScheduler(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients) {
+func createMasterScheduler(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, funcMode bool) {
 	createOrchestratorScheduler(ctx, orchestratorClient)
-	createWorkerScheduler(ctx, orchestratorClient, workerClients)
+
+	if !funcMode {
+		createWorkerScheduler(ctx, orchestratorClient, workerClients)
+	}
 }
 
 // Manages orchestrator capacity statistics

@@ -74,7 +74,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	err = validators.LoadDistribution(options, workerClients, gs.Standalone(), gs.FuncModeInfo())
+	err = validators.LoadDistribution(options, workerClients, gs.Standalone(), gs.FuncAuthClient())
 	if err != nil {
 		return nil, err
 	}

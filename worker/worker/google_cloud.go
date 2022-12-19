@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -13,29 +14,31 @@ func RunGoogleCloud(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 	client := getWorkerClient(true)
-	maxJobs := 1
-	maxVUs := int64(-1) // unlimited
 
 	creditsClient := lib.GetCreditsClient(true)
 
-	executionList := &ExecutionList{
-		currentJobs: make(map[string]libOrch.ChildJob),
-		maxJobs:     maxJobs,
-		maxVUs:      maxVUs,
+	// Ensure is POST request
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("Method not allowed"))
+		return
 	}
 
-	// Get the childJobId from the request
+	// Get the childJob from the request body
+	decoder := json.NewDecoder(r.Body)
+	var childJob libOrch.ChildJob
 
-	childJobId := r.URL.Query().Get("childJobId")
-
-	if childJobId == "" {
-		panic("childJobId is required")
-	}
-
-	err := checkIfCanExecute(ctx, client, childJobId, workerId, executionList, creditsClient, true)
+	err := decoder.Decode(&childJob)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
+	}
+
+	successfullExecution := handleExecution(ctx, client, childJob, workerId, creditsClient, true)
+	if !successfullExecution {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error executing child job"))
 		return
 	}
 

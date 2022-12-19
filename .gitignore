@@ -29,3 +29,5 @@ main
 !*.go
 
 worker_function
+
+key.json

@@ -28,5 +28,5 @@ type BaseGlobalState interface {
 	SetChildJobState(workerId string, childJobId string, status string)
 	CreditsManager() *lib.CreditsManager
 	Standalone() bool
-	FuncModeInfo() *lib.FuncModeInfo
+	FuncAuthClient() FunctionAuthClient
 }

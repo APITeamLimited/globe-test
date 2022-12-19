@@ -2,13 +2,15 @@ package function_auth_client
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/functions/apiv2/functionspb"
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 )
 
-func (config *FunctionAuthClient) Functions() []lib.LiveFunction {
+func (config *FunctionAuthClient) Functions() []libOrch.LiveFunction {
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
 	return config.liveFunctions
@@ -18,7 +20,7 @@ func (config *FunctionAuthClient) startAutoRefreshLiveFunctions() {
 	// Get a new token straight away
 	err := config.updateLiveFunctions()
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	go func() {
@@ -38,7 +40,7 @@ func (config *FunctionAuthClient) updateLiveFunctions() error {
 		Parent: fmt.Sprintf("projects/apiteam-%s/locations/-", lib.GetEnvVariable("ENVIRONMENT", "")),
 	})
 
-	var functions []lib.LiveFunction
+	var functions []libOrch.LiveFunction
 
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
@@ -49,7 +51,7 @@ func (config *FunctionAuthClient) updateLiveFunctions() error {
 			break
 		}
 
-		functions = append(functions, lib.LiveFunction{
+		functions = append(functions, libOrch.LiveFunction{
 			Location: parseLocation(function.Name),
 			Uri:      function.ServiceConfig.Uri,
 			State:    function.State,
@@ -62,6 +64,9 @@ func (config *FunctionAuthClient) updateLiveFunctions() error {
 }
 
 func parseLocation(functionName string) string {
-	// worker-{location} format
-	return functionName[7:]
+	// projects/*/locations/*/functions/worker-{location}
+
+	parts := strings.Split(functionName, "/")
+
+	return parts[5][7:]
 }

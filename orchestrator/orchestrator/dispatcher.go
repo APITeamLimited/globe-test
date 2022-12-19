@@ -2,12 +2,15 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 )
 
 func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) error {
+	fmt.Println("dispatchChildJobs", len(childJobs))
+
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
 			err := dispatchChildJob(gs, jobDistribution.workerClient, job, location)
@@ -27,14 +30,17 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 		return err
 	}
 
-	workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
+	fmt.Printf("Dispatched job %s to worker %s\n", job.ChildJobId, location)
 
-	workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
-	workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
+	if gs.FuncAuthClient() == nil {
+		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
-	if gs.FuncModeInfo() != nil {
+		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
+		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
+
+	} else {
 		// If we're in function mode, need to create a google cloud function call
-		_, err := gs.FuncModeInfo().AuthClient.ExecuteFunction(location)
+		_, err := gs.FuncAuthClient().ExecuteFunction(location, job)
 		if err != nil {
 			return err
 		}

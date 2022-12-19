@@ -13,8 +13,7 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId string,
-	functionAuthClient lib.FunctionAuthClient) (*libOrch.Job, error) {
+func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId string) (*libOrch.Job, error) {
 	jobRaw, err := orchestratorClient.HGet(ctx, jobId, "job").Result()
 
 	if err != nil {
@@ -32,15 +31,6 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	if err != nil {
 		fmt.Println("error unmarshalling job", err)
 		return nil, fmt.Errorf("error unmarshalling job %s", jobId)
-	}
-
-	if functionAuthClient != nil {
-		// Check funcModeInfo is not nil
-		if job.FuncModeInfo == nil {
-			return nil, fmt.Errorf("functionAuthClient is set but funcModeInfo is nil")
-		}
-
-		job.FuncModeInfo.AuthClient = functionAuthClient
 	}
 
 	// Sensitive field, ensure it is nil

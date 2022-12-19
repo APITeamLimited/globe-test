@@ -29,14 +29,14 @@ type (
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
 		standalone     bool
-		funcModeInfo   *lib.FuncModeInfo
+		funcAuthClient libOrch.FunctionAuthClient
 	}
 )
 
 var _ libOrch.BaseGlobalState = &globalState{}
 
 func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job,
-	orchestratorId string, creditsClient *redis.Client, standalone bool) *globalState {
+	orchestratorId string, creditsClient *redis.Client, standalone bool, funcAuthClient libOrch.FunctionAuthClient) *globalState {
 	gs := &globalState{
 		ctx:            ctx,
 		client:         orchestratorClient,
@@ -44,7 +44,7 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		orchestratorId: orchestratorId,
 		childJobStates: []libOrch.WorkerState{},
 		standalone:     standalone,
-		funcModeInfo:   job.FuncModeInfo,
+		funcAuthClient: funcAuthClient,
 	}
 
 	if creditsClient != nil {
@@ -156,6 +156,6 @@ func (g *globalState) Standalone() bool {
 	return g.standalone
 }
 
-func (g *globalState) FuncModeInfo() *lib.FuncModeInfo {
-	return g.funcModeInfo
+func (g *globalState) FuncAuthClient() libOrch.FunctionAuthClient {
+	return g.funcAuthClient
 }

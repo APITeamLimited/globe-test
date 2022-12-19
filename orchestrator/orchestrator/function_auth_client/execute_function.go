@@ -1,18 +1,22 @@
 package function_auth_client
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	"cloud.google.com/go/functions/apiv2/functionspb"
-	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"google.golang.org/api/idtoken"
 )
 
-func (config *FunctionAuthClient) ExecuteFunction(location string) (*(chan lib.FunctionResult), error) {
+func (config *FunctionAuthClient) ExecuteFunction(location string, childJob libOrch.ChildJob) (*(chan libOrch.FunctionResult), error) {
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
 
-	var liveFunction *lib.LiveFunction
+	var liveFunction *libOrch.LiveFunction
 
 	// Find the function
 	for _, function := range config.liveFunctions {
@@ -26,19 +30,37 @@ func (config *FunctionAuthClient) ExecuteFunction(location string) (*(chan lib.F
 		return nil, fmt.Errorf("function at location %s not found", location)
 	}
 
+	// Encode the job in the body of the request
+
 	// Authenticate the function
 	client, err := idtoken.NewClient(config.ctx, liveFunction.Uri)
 	if err != nil {
 		return nil, err
 	}
 
-	var responseCh chan lib.FunctionResult
+	// Send job as body of request
+	var buff bytes.Buffer
+	err = json.NewEncoder(&buff).Encode(childJob)
+	if err != nil {
+		return nil, err
+	}
+
+	request := &http.Request{
+		Method:     "POST",
+		RequestURI: liveFunction.Uri,
+		Body:       io.NopCloser(&buff),
+	}
+
+	var responseCh chan libOrch.FunctionResult
 
 	go func() {
 		// Make the request
-		response, err := client.Get(liveFunction.Uri)
+		response, err := client.Do(request)
 
-		responseCh <- lib.FunctionResult{
+		fmt.Println("response", response)
+		fmt.Println("err", err)
+
+		responseCh <- libOrch.FunctionResult{
 			Response: response,
 			Error:    err,
 		}
@@ -53,7 +75,7 @@ func (config *FunctionAuthClient) CheckFunctionAvailability(location string) err
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
 
-	var liveFunction *lib.LiveFunction
+	var liveFunction *libOrch.LiveFunction
 
 	// Find the function
 	for _, function := range config.liveFunctions {

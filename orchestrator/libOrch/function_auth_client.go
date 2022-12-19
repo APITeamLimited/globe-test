@@ -1,4 +1,4 @@
-package lib
+package libOrch
 
 import (
 	"net/http"
@@ -19,6 +19,6 @@ type FunctionResult struct {
 
 type FunctionAuthClient interface {
 	Functions() []LiveFunction
-	ExecuteFunction(location string) (*(chan FunctionResult), error)
+	ExecuteFunction(location string, childJobPayload ChildJob) (*(chan FunctionResult), error)
 	CheckFunctionAvailability(location string) error
 }

@@ -7,17 +7,18 @@ import (
 
 	functions "cloud.google.com/go/functions/apiv2"
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"google.golang.org/api/option"
 )
 
 type FunctionAuthClient struct {
 	functionClient     *functions.FunctionClient
-	liveFunctions      []lib.LiveFunction
+	liveFunctions      []libOrch.LiveFunction
 	liveFunctionsMutex sync.Mutex
 	ctx                context.Context
 }
 
-var _ = lib.FunctionAuthClient(&FunctionAuthClient{})
+var _ = libOrch.FunctionAuthClient(&FunctionAuthClient{})
 
 func CreateFunctionAuthClient(ctx context.Context, funcMode bool) *FunctionAuthClient {
 	if !funcMode {
@@ -40,7 +41,7 @@ func CreateFunctionAuthClient(ctx context.Context, funcMode bool) *FunctionAuthC
 	functionAuthClient := &FunctionAuthClient{
 		functionClient:     functionClient,
 		ctx:                ctx,
-		liveFunctions:      []lib.LiveFunction{},
+		liveFunctions:      []libOrch.LiveFunction{},
 		liveFunctionsMutex: sync.Mutex{},
 	}
 

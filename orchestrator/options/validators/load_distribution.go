@@ -4,21 +4,20 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool, funcModeInfo *lib.FuncModeInfo) error {
-	if funcModeInfo != nil {
+func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool, funcAuthClient libOrch.FunctionAuthClient) error {
+	if funcAuthClient != nil {
 		err := cloudLoadDistribution(options, workerClients)
 		if err != nil {
 			return err
 		}
 
-		return ensureCloudFunctionsAvailable(options, funcModeInfo.AuthClient)
+		return ensureCloudFunctionsAvailable(options, funcAuthClient)
 	} else if standalone {
 		return cloudLoadDistribution(options, workerClients)
 	} else {
@@ -26,7 +25,7 @@ func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerCl
 	}
 }
 
-func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient lib.FunctionAuthClient) error {
+func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient libOrch.FunctionAuthClient) error {
 	// For each location in load distribution check if cloud functions are available
 	for _, location := range options.LoadDistribution.Value {
 		// If cloud functions are not available for this location

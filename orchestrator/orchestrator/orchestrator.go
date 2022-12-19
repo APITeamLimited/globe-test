@@ -24,16 +24,12 @@ func Run(standalone bool, funcMode bool) {
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 
 	orchestratorClient := getOrchestratorClient(standalone)
+	functionAuthClient := function_auth_client.CreateFunctionAuthClient(ctx, funcMode)
 	storeMongoDB := getStoreMongoDB(ctx, standalone)
 	workerClients := connectWorkerClients(ctx, standalone)
 	maxJobs := getMaxJobs(standalone)
 	maxManagedVUs := getMaxManagedVUs(standalone)
-
-	var creditsClient *redis.Client
-
-	if standalone {
-		lib.GetCreditsClient(standalone)
-	}
+	creditsClient := lib.GetCreditsClient(standalone)
 
 	executionList := &ExecutionList{
 		currentJobs:   make(map[string]libOrch.Job),
@@ -41,14 +37,12 @@ func Run(standalone bool, funcMode bool) {
 		maxManagedVUs: maxManagedVUs,
 	}
 
-	functionAuthClient := function_auth_client.CreateFunctionAuthClient(ctx, funcMode)
-
 	// Create a scheduler for regular updates and checks
 	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient)
 
 	// Periodically check for and delete offline orchestrators
 	if strings.ToLower(lib.GetEnvVariable("IS_MASTER", "false")) == "true" {
-		createMasterScheduler(ctx, orchestratorClient, workerClients)
+		createMasterScheduler(ctx, orchestratorClient, workerClients, funcMode)
 	}
 
 	fmt.Printf("Orchestrator listening for new jobs on %s...\n", orchestratorClient.Options().Addr)
@@ -70,9 +64,9 @@ func Run(standalone bool, funcMode bool) {
 // Ensures job has no already been assigned and determines if this node has capacity to execute
 func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients,
 	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
-	creditsClient *redis.Client, standalone bool, functionAuthClient lib.FunctionAuthClient) {
+	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient) {
 	// Try to HGetAll the orchestrator id
-	job, err := fetchJob(ctx, orchestratorClient, jobId, functionAuthClient)
+	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
 		if err != nil {
 			fmt.Println("Error getting job from orchestrator:executionHistory set, it will be deleted:", err)
@@ -99,7 +93,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.mutex.Unlock()
 
-	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone)
+	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient)
 	defer gs.CreditsManager().StopCreditsCapturing()
 
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
@@ -171,7 +165,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 	workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList,
 	storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool,
-	funcAuthClient lib.FunctionAuthClient) {
+	funcAuthClient libOrch.FunctionAuthClient) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
