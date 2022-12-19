@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -32,24 +33,42 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient {
 	isSecure := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_IS_SECURE", currentIndex), "false", true) == "true"
 
 	if isSecure {
-		clientCert := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_CERT", currentIndex), "")
-		clientKey := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_KEY", currentIndex), "")
+		clientCert := lib.GetHexEnvVariable(fmt.Sprintf("WORKER_%d_CERT_HEX", currentIndex), "")
+		clientKey := lib.GetHexEnvVariable(fmt.Sprintf("WORKER_%d_KEY_HEX", currentIndex), "")
 
-		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		cert, err := tls.X509KeyPair(clientCert, clientKey)
 		if err != nil {
 			panic(fmt.Errorf("error loading orchestrator cert: %s", err))
+		}
+
+		// Load CA cert
+		caCertPool := x509.NewCertPool()
+		caCert := lib.GetHexEnvVariable(fmt.Sprintf("WORKER_%d_CA_CERT_HEX", currentIndex), "")
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			panic("failed to parse root certificate")
 		}
 
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_INSECURE_SKIP_VERIFY", currentIndex), "false") == "true",
 			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
+			// Don't verify the hostname
+			ServerName: host,
 		}
+	}
+
+	client := redis.NewClient(options)
+
+	// Ensure that the client is connected
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		panic(err)
 	}
 
 	return &libOrch.NamedClient{
 		Name:   displayName,
-		Client: redis.NewClient(options),
+		Client: client,
 	}
 }
 

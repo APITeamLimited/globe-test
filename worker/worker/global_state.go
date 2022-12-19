@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -69,6 +70,7 @@ type globalState struct {
 	status     string
 
 	funcModeInfo *lib.FuncModeInfo
+	messageQueue libWorker.MessageQueue
 }
 
 var _ libWorker.BaseGlobalState = &globalState{}
@@ -96,6 +98,10 @@ func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.Child
 		jobId:        job.Id,
 		childJobId:   job.ChildJobId,
 		funcModeInfo: funcModeInfo,
+		messageQueue: libWorker.MessageQueue{
+			Mutex:      sync.Mutex{},
+			QueueCount: 0,
+		},
 	}
 
 	gs.stdOut = &consoleWriter{gs}
@@ -162,4 +168,8 @@ func (gs *globalState) SetWorkerStatus(status string) {
 
 func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
 	return gs.funcModeInfo
+}
+
+func (gs *globalState) MessageQueue() libWorker.MessageQueue {
+	return gs.messageQueue
 }

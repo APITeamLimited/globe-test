@@ -44,7 +44,7 @@ func DispatchMessageNoSet(gs BaseGlobalState, message string, messageType string
 	}
 
 	// Dispatch to channel
-	gs.OrchestratorClient().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), string(messageJson))
+	gs.OrchestratorClient().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), messageJson)
 }
 
 func DispatchWorkerMessage(gs BaseGlobalState, workerId string, childJobId string, message string, messageType string) {
@@ -67,7 +67,7 @@ func DispatchWorkerMessage(gs BaseGlobalState, workerId string, childJobId strin
 	gs.OrchestratorClient().SAdd(gs.Ctx(), fmt.Sprintf("%s:updates", gs.JobId()), messageJson)
 
 	// Dispatch to channel
-	gs.OrchestratorClient().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), string(messageJson))
+	gs.OrchestratorClient().Publish(gs.Ctx(), fmt.Sprintf("orchestrator:executionUpdates:%s", gs.JobId()), messageJson)
 }
 
 func UpdateStatus(gs BaseGlobalState, status string) {

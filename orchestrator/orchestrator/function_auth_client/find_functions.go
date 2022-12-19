@@ -45,17 +45,23 @@ func (config *FunctionAuthClient) updateLiveFunctions() error {
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
 
-	for {
-		function, err := functionsIterator.Next()
-		if err != nil {
-			break
-		}
+	if functionsIterator != nil {
+		for {
+			function, err := functionsIterator.Next()
+			if err != nil {
+				break
+			}
 
-		functions = append(functions, libOrch.LiveFunction{
-			Location: parseLocation(function.Name),
-			Uri:      function.ServiceConfig.Uri,
-			State:    function.State,
-		})
+			if function == nil || function.ServiceConfig == nil || function.ServiceConfig.Uri == "" {
+				continue
+			}
+
+			functions = append(functions, libOrch.LiveFunction{
+				Location: parseLocation(function.Name),
+				Uri:      function.ServiceConfig.Uri,
+				State:    function.State,
+			})
+		}
 	}
 
 	config.liveFunctions = functions

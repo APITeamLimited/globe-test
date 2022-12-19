@@ -22,6 +22,7 @@ type locatedMesaage struct {
 const (
 	JOB_USER_UPDATES_CHANNEL = "jobUserUpdates"
 	NO_CREDITS_ABORT_CHANNEL = "noCreditsAbort"
+	FUNC_ERROR_ABORT_CHANNEL = "funcErrorAbort"
 )
 
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
@@ -50,26 +51,45 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		return "SUCCESS", nil
 	}
 
-	if err := dispatchChildJobs(gs, childJobs); err != nil {
+	functionChannels, err := dispatchChildJobs(gs, childJobs)
+	if err != nil {
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
 	unifiedChannel := make(chan locatedMesaage)
 
+	for _, channel := range *functionChannels {
+		go func(channel <-chan libOrch.FunctionResult) {
+			for msg := range channel {
+				if msg.Error != nil {
+					unifiedChannel <- locatedMesaage{
+						location: FUNC_ERROR_ABORT_CHANNEL,
+						msg:      nil,
+					}
+				} else if msg.Response.StatusCode != 200 {
+					unifiedChannel <- locatedMesaage{
+						location: FUNC_ERROR_ABORT_CHANNEL,
+						msg:      nil,
+					}
+				}
+			}
+		}(channel)
+	}
+
 	for location, channel := range workerChannels {
 		// Variable declaration here for locationLoop seems to be required to avoid
 		// capturing the loop variable error
-		locationLoop := location
-		go func(channel <-chan *redis.Message) {
+
+		go func(channel <-chan *redis.Message, location string) {
 			for msg := range channel {
 				newMessage := locatedMesaage{
-					location: locationLoop,
+					location: location,
 					msg:      msg,
 				}
 
 				unifiedChannel <- newMessage
 			}
-		}(channel)
+		}(channel, location)
 	}
 
 	// Every second check credits
@@ -113,11 +133,10 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	summaryBank := orchMetrics.NewSummaryBank(gs, options)
 
 	for locatedMessage := range unifiedChannel {
-		if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
-			fmt.Println("Aborting job due to no credits")
-
-			err := abortChildJobs(gs, childJobs)
-			return abortAndFailAll(gs, childJobs, err)
+		if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
+			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to worker error"))
+		} else if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
+			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to no credits"))
 		}
 
 		// Handle user updates separately
@@ -133,11 +152,6 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				fmt.Println("Aborting job due to user request")
 
 				// Cancel all child jobs
-				err := abortChildJobs(gs, childJobs)
-				if err != nil {
-					libOrch.HandleError(gs, err)
-				}
-
 				return abortAndFailAll(gs, childJobs, errors.New("job cancelled by user"))
 			}
 

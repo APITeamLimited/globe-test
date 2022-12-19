@@ -2,7 +2,6 @@ package function_auth_client
 
 import (
 	"context"
-	"encoding/hex"
 	"sync"
 
 	functions "cloud.google.com/go/functions/apiv2"
@@ -16,6 +15,8 @@ type FunctionAuthClient struct {
 	liveFunctions      []libOrch.LiveFunction
 	liveFunctionsMutex sync.Mutex
 	ctx                context.Context
+	serviceAccount     []byte
+	funcUrlOverride    string
 }
 
 var _ = libOrch.FunctionAuthClient(&FunctionAuthClient{})
@@ -25,15 +26,10 @@ func CreateFunctionAuthClient(ctx context.Context, funcMode bool) *FunctionAuthC
 		return nil
 	}
 
-	serviceAccountHex := lib.GetEnvVariable("SERVICE_ACCOUNT_KEY_HEX", "")
-
 	// Convert hex to bytes
-	serviceAccount, err := hex.DecodeString(serviceAccountHex)
-	if err != nil {
-		panic(err)
-	}
+	serviceAccount := lib.GetHexEnvVariable("SERVICE_ACCOUNT_KEY_HEX", "")
 
-	functionClient, err := functions.NewFunctionClient(ctx, option.WithCredentialsJSON([]byte(serviceAccount)))
+	functionClient, err := functions.NewFunctionClient(ctx, option.WithCredentialsJSON(serviceAccount))
 	if err != nil {
 		panic(err)
 	}
@@ -43,6 +39,8 @@ func CreateFunctionAuthClient(ctx context.Context, funcMode bool) *FunctionAuthC
 		ctx:                ctx,
 		liveFunctions:      []libOrch.LiveFunction{},
 		liveFunctionsMutex: sync.Mutex{},
+		serviceAccount:     serviceAccount,
+		funcUrlOverride:    lib.GetEnvVariable("FUNCTION_URL_OVERRIDE", "NO"),
 	}
 
 	functionAuthClient.startAutoRefreshLiveFunctions()

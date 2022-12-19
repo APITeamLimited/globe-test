@@ -75,7 +75,14 @@ func getOrchestratorClient(standalone bool) *redis.Client {
 		}
 	}
 
-	return redis.NewClient(options)
+	client := redis.NewClient(options)
+
+	// Ensure that the client is connected
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		panic(err)
+	}
+
+	return client
 }
 
 func getMaxJobs(standalone bool) int {

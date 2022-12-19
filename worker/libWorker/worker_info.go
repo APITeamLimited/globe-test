@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -61,7 +62,63 @@ type Message struct {
 	MessageType string    `json:"messageType"`
 }
 
+type MessageQueue struct {
+	Mutex sync.Mutex
+
+	// The count of currently actively being sent messages
+	QueueCount    int
+	NewQueueCount chan int
+}
+
 func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
+	go func() {
+		serializedMessage, err := serializeMessage(gs, message, messageType)
+		if err != nil {
+			fmt.Println("DispatchMessage: Error marshalling message", err)
+			return
+		}
+
+		messageQueue := gs.MessageQueue()
+
+		isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
+
+		if !isTerminal {
+			messageQueue.Mutex.Lock()
+			messageQueue.QueueCount++
+			messageQueue.Mutex.Unlock()
+
+			err := gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), serializedMessage).Err()
+
+			messageQueue.Mutex.Lock()
+			messageQueue.QueueCount--
+			messageQueue.Mutex.Unlock()
+
+			if err != nil {
+				fmt.Println("DispatchMessage: Error publishing message", err)
+			}
+
+			messageQueue.NewQueueCount <- messageQueue.QueueCount
+
+			return
+		}
+
+		// If the message is terminal, we want to make sure that all messages are sent before we return
+		if messageQueue.QueueCount > 0 {
+			for newCount := range messageQueue.NewQueueCount {
+				if newCount == 0 {
+					break
+				}
+			}
+		}
+
+		err = gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), serializedMessage).Err()
+		if err != nil {
+			fmt.Println("DispatchMessage: Error publishing message", err)
+		}
+	}()
+}
+
+func serializeMessage(gs BaseGlobalState, message string, messageType string) ([]byte, error) {
 	var messageStruct = Message{
 		JobId:       gs.JobId(),
 		ChildJobId:  gs.ChildJobId(),
@@ -73,15 +130,10 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 
 	messageJson, err := json.Marshal(messageStruct)
 	if err != nil {
-		fmt.Println("Error marshalling message")
-		return
+		return nil, err
 	}
 
-	// Worker doesn't need to set the message, it's just for the orchestrator and will be
-	// instantly received by the orchestrator
-
-	// Dispatch to channel
-	gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), messageJson)
+	return messageJson, nil
 }
 
 func UpdateStatus(gs BaseGlobalState, status string) {

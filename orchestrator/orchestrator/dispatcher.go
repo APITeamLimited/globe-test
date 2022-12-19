@@ -8,43 +8,48 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) error {
-	fmt.Println("dispatchChildJobs", len(childJobs))
+func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) (*([](chan libOrch.FunctionResult)), error) {
+	responseChannels := []chan libOrch.FunctionResult{}
 
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			err := dispatchChildJob(gs, jobDistribution.workerClient, job, location)
+			channels, err := dispatchChildJob(gs, jobDistribution.workerClient, job, location)
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			responseChannels = append(responseChannels, *channels...)
 		}
 	}
 
-	return nil
+	return &responseChannels, nil
 }
 
-func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) error {
+func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) (*([](chan libOrch.FunctionResult)), error) {
 	// Convert options to json
 	marshalledChildJob, err := json.Marshal(job)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Printf("Dispatched job %s to worker %s\n", job.ChildJobId, location)
+	responseChannels := []chan libOrch.FunctionResult{}
 
 	if gs.FuncAuthClient() == nil {
 		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
 		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
 		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
-
 	} else {
 		// If we're in function mode, need to create a google cloud function call
-		_, err := gs.FuncAuthClient().ExecuteFunction(location, job)
+		responseCh, err := gs.FuncAuthClient().ExecuteFunction(location, job)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		responseChannels = append(responseChannels, *responseCh)
 	}
 
-	return nil
+	fmt.Printf("Dispatched child job %s to worker %s\n", job.ChildJobId, location)
+
+	return &responseChannels, nil
 }

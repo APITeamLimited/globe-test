@@ -6,5 +6,5 @@ import (
 )
 
 func init() {
-	functions.HTTP("WorkerCloud", worker.RunGoogleCloud)
+	functions.HTTP("WorkerCloud", worker.RunWorkerFunction)
 }

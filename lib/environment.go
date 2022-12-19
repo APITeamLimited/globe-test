@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 )
@@ -30,4 +31,20 @@ func GetEnvVariableRaw(key, defaultValue string, hideError bool) string {
 	}
 
 	panic(fmt.Sprintf("%s is not set and no default value was provided\n", key))
+}
+
+func GetHexEnvVariable(key, defaultValue string) []byte {
+	// Ensure key ends in _HEX
+	if len(key) < 4 || key[len(key)-4:] != "_HEX" {
+		panic(fmt.Sprintf("GetHexEnvVariable: key %s must end in _HEX", key))
+	}
+
+	valueHex := GetEnvVariable(key, defaultValue)
+
+	value, err := hex.DecodeString(valueHex)
+	if err != nil {
+		panic(err)
+	}
+
+	return value
 }

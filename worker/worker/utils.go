@@ -80,18 +80,18 @@ func getWorkerClient(standalone bool) *redis.Client {
 	isSecure := lib.GetEnvVariable("CLIENT_IS_SECURE", "false") == "true"
 
 	if isSecure {
-		clientCert := lib.GetEnvVariable("CLIENT_CERT", "")
-		clientKey := lib.GetEnvVariable("CLIENT_KEY", "")
+		clientCert := lib.GetHexEnvVariable("CLIENT_CERT_HEX", "")
+		clientKey := lib.GetHexEnvVariable("CLIENT_KEY_HEX", "")
 
-		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		cert, err := tls.X509KeyPair(clientCert, clientKey)
 		if err != nil {
 			panic(fmt.Errorf("error loading client cert: %s", err))
 		}
 
 		// Load CA cert
 		caCertPool := x509.NewCertPool()
-		caCert := lib.GetEnvVariable("CLIENT_CA_CERT", "")
-		ok := caCertPool.AppendCertsFromPEM([]byte(caCert))
+		caCert := lib.GetHexEnvVariable("CLIENT_CA_CERT_HEX", "")
+		ok := caCertPool.AppendCertsFromPEM(caCert)
 		if !ok {
 			panic("failed to parse root certificate")
 		}
@@ -104,7 +104,14 @@ func getWorkerClient(standalone bool) *redis.Client {
 		}
 	}
 
-	return redis.NewClient(options)
+	client := redis.NewClient(options)
+
+	// Ensure that the client is connected
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		panic(err)
+	}
+
+	return client
 }
 
 func getMaxJobs(standalone bool) int {
