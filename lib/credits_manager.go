@@ -19,7 +19,7 @@ func GetCreditsClient(standalone bool) *redis.Client {
 		return nil
 	}
 
-	enableCreditsSystem := GetEnvVariable("ENABLE_CREDITS_SYSTEM", "false") == "true"
+	enableCreditsSystem := GetEnvVariableBool("ENABLE_CREDITS_SYSTEM", false)
 
 	if !enableCreditsSystem {
 		return nil
@@ -28,7 +28,7 @@ func GetCreditsClient(standalone bool) *redis.Client {
 	clientHost := GetEnvVariable("CREDITS_REDIS_HOST", "localhost")
 	clientPort := GetEnvVariable("CREDITS_REDIS_PORT", "6379")
 
-	isSecure := GetEnvVariable("CREDITS_REDIS_IS_SECURE", "false") == "true"
+	isSecure := GetEnvVariableBool("CREDITS_REDIS_IS_SECURE", false)
 
 	options := &redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", clientHost, clientPort),
@@ -47,7 +47,7 @@ func GetCreditsClient(standalone bool) *redis.Client {
 
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: GetEnvVariable("CREDITS_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
+			InsecureSkipVerify: GetEnvVariableBool("CREDITS_REDIS_INSECURE_SKIP_VERIFY", false),
 			Certificates:       []tls.Certificate{cert},
 		}
 	}

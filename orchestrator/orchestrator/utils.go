@@ -2,14 +2,11 @@ package orchestrator
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
 	"github.com/APITeamLimited/globe-test/lib"
-	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 )
@@ -38,61 +35,6 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 	job.Options = nil
 
 	return &job, nil
-}
-
-func getOrchestratorClient(standalone bool) *redis.Client {
-	if !standalone {
-		return redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", agent.OrchestratorRedisHost, agent.OrchestratorRedisPort),
-			Username: "default",
-			Password: "",
-		},
-		)
-	}
-
-	orchestratorHost := lib.GetEnvVariable("ORCHESTRATOR_REDIS_HOST", "localhost")
-
-	options := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", orchestratorHost, lib.GetEnvVariable("ORCHESTRATOR_REDIS_PORT", "10000")),
-		Username: "default",
-		Password: lib.GetEnvVariable("ORCHESTRATOR_REDIS_PASSWORD", ""),
-	}
-
-	isSecure := lib.GetEnvVariableRaw("ORCHESTRATOR_REDIS_IS_SECURE", "false", true) == "true"
-
-	if isSecure {
-		clientCert := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_CERT_HEX", "")
-		clientKey := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_KEY_HEX", "")
-
-		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-		if err != nil {
-			panic(fmt.Errorf("error loading orchestrator cert: %s", err))
-		}
-
-		// Load CA cert
-		caCertPool := x509.NewCertPool()
-		caCert := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_CA_CERT_HEX", "")
-		ok := caCertPool.AppendCertsFromPEM(caCert)
-		if !ok {
-			panic("failed to parse root certificate")
-		}
-
-		options.TLSConfig = &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: lib.GetEnvVariable("ORCHESTRATOR_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
-			Certificates:       []tls.Certificate{cert},
-			RootCAs:            caCertPool,
-		}
-	}
-
-	client := redis.NewClient(options)
-
-	// Ensure that the client is connected
-	if err := client.Ping(context.Background()).Err(); err != nil {
-		panic(err)
-	}
-
-	return client
 }
 
 func getMaxJobs(standalone bool) int {

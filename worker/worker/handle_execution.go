@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -31,11 +32,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
 
-	if workerInfo.CreditsManager != nil {
-		// Regularaly deduct credits
-		monitorCredits(gs, workerInfo.CreditsManager)
-	}
-
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("failed to load test: %s", err))
@@ -49,13 +45,20 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		return false
 	}
 
-	startSubscription := workerInfo.Client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
-
 	libWorker.UpdateStatus(gs, "READY")
 
-	// Wait for start message on the channel
-	<-startSubscription.Channel()
-	startSubscription.Close()
+	// Wait for the start signal from the orchestrator
+	startSuccess := <-testStartChannel(workerInfo)
+	if !startSuccess {
+		libWorker.HandleStringError(gs, "failed to start test, failed to receive start signal from orchestrator after 1 minute")
+		return false
+	}
+
+	// Only start monitoring credits if the test has been marked as started
+	if workerInfo.CreditsManager != nil {
+		// Regularly deduct credits
+		monitorCredits(gs, workerInfo.CreditsManager)
+	}
 
 	// Don't know if these can be removed easily without unexpected side effects
 
@@ -282,4 +285,52 @@ func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.Func
 	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
 
 	creditsManager.ForceDeductCredits(fractionCost, false)
+}
+
+const (
+	WAITING = iota
+	STARTED
+	FAILED
+)
+
+// Starts test on command from orchestrator or cancels test if not received start
+// command within timeout of 1 minute
+func testStartChannel(workerInfo *libWorker.WorkerInfo) chan bool {
+	startSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, fmt.Sprintf("%s:go", workerInfo.ChildJobId))
+
+	startChan := make(chan bool)
+
+	status := WAITING
+	statusMutex := &sync.Mutex{}
+
+	// Listen for start command from orchestrator
+	go func() {
+		<-startSubscription.Channel()
+
+		// Send start command to test runner
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+
+		if status == WAITING {
+			startChan <- true
+			status = STARTED
+			startSubscription.Close()
+		}
+	}()
+
+	// Race against timeout of 1 minute
+	go func() {
+		time.Sleep(1 * time.Minute)
+
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+
+		if status == WAITING {
+			startChan <- false
+			status = FAILED
+			startSubscription.Close()
+		}
+	}()
+
+	return startChan
 }

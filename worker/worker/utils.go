@@ -77,7 +77,7 @@ func getWorkerClient(standalone bool) *redis.Client {
 		Password: lib.GetEnvVariable("CLIENT_PASSWORD", ""),
 	}
 
-	isSecure := lib.GetEnvVariable("CLIENT_IS_SECURE", "false") == "true"
+	isSecure := lib.GetEnvVariableBool("CLIENT_IS_SECURE", false)
 
 	if isSecure {
 		clientCert := lib.GetHexEnvVariable("CLIENT_CERT_HEX", "")
@@ -98,7 +98,7 @@ func getWorkerClient(standalone bool) *redis.Client {
 
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: lib.GetEnvVariable("CLIENT_INSECURE_SKIP_VERIFY", "false") == "true",
+			InsecureSkipVerify: lib.GetEnvVariableBool("CLIENT_INSECURE_SKIP_VERIFY", false),
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
 		}

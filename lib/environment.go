@@ -6,6 +6,23 @@ import (
 	"os"
 )
 
+func GetEnvVariableBool(key string, defaultValue bool) bool {
+	value := GetEnvVariableRaw(key, "None", true)
+	if value == "None" {
+		return defaultValue
+	}
+
+	if value == "true" {
+		return true
+	}
+
+	if value == "false" {
+		return false
+	}
+
+	panic(fmt.Sprintf("%s is not a valid boolean value", value))
+}
+
 func GetEnvVariable(key, defaultValue string) string {
 	return GetEnvVariableRaw(key, defaultValue, false)
 }

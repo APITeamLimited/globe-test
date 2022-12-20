@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -41,7 +40,7 @@ func Run(standalone bool, funcMode bool) {
 	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient)
 
 	// Periodically check for and delete offline orchestrators
-	if strings.ToLower(lib.GetEnvVariable("IS_MASTER", "false")) == "true" {
+	if lib.GetEnvVariableBool("IS_MASTER", false) {
 		createMasterScheduler(ctx, orchestratorClient, workerClients, funcMode)
 	}
 
