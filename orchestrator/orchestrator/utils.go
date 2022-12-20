@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -60,18 +61,27 @@ func getOrchestratorClient(standalone bool) *redis.Client {
 	isSecure := lib.GetEnvVariableRaw("ORCHESTRATOR_REDIS_IS_SECURE", "false", true) == "true"
 
 	if isSecure {
-		clientCert := lib.GetEnvVariable("ORCHESTRATOR_REDIS_CERT", "")
-		clientKey := lib.GetEnvVariable("ORCHESTRATOR_REDIS_KEY", "")
+		clientCert := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_CERT_HEX", "")
+		clientKey := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_KEY_HEX", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil {
 			panic(fmt.Errorf("error loading orchestrator cert: %s", err))
 		}
 
+		// Load CA cert
+		caCertPool := x509.NewCertPool()
+		caCert := lib.GetHexEnvVariable("ORCHESTRATOR_REDIS_CA_CERT_HEX", "")
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			panic("failed to parse root certificate")
+		}
+
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: lib.GetEnvVariable("ORCHESTRATOR_REDIS_INSECURE_SKIP_VERIFY", "false") == "true",
 			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
 		}
 	}
 

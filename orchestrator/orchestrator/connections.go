@@ -54,8 +54,6 @@ func tryGetClient(currentIndex int) *libOrch.NamedClient {
 			InsecureSkipVerify: lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_INSECURE_SKIP_VERIFY", currentIndex), "false") == "true",
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
-			// Don't verify the hostname
-			ServerName: host,
 		}
 	}
 
