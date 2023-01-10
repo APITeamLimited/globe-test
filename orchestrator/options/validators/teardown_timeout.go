@@ -8,7 +8,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-const teardownTimeoutSeconds = 10
+const teardownTimeoutSeconds = 30
 
 func TeardownTimeout(options *libWorker.Options) error {
 	// Ensure that user duration is within the allowed range

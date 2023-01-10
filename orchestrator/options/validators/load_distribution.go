@@ -10,15 +10,28 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients, standalone bool, funcAuthClient libOrch.FunctionAuthClient) error {
-	if funcAuthClient != nil {
+func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients,
+	gs libOrch.BaseGlobalState, job libOrch.Job) error {
+	if gs.FuncAuthClient() != nil {
 		err := cloudLoadDistribution(options, workerClients)
 		if err != nil {
 			return err
 		}
 
-		return ensureCloudFunctionsAvailable(options, funcAuthClient)
-	} else if standalone {
+		err = ensureCloudFunctionsAvailable(options, gs.FuncAuthClient())
+		if err != nil {
+			return err
+		}
+
+		if job.PermittedLoadZones != nil && len(job.PermittedLoadZones) > 0 {
+			err = ensurePermittedLoadZones(options, job.PermittedLoadZones)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	} else if gs.Standalone() {
 		return cloudLoadDistribution(options, workerClients)
 	} else {
 		return localLoadDistribution(options)
@@ -193,6 +206,25 @@ func localLoadDistribution(options *libWorker.Options) error {
 
 	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName {
 		return fmt.Errorf("load distribution location must be %s when running locally", agent.AgentWorkerName)
+	}
+
+	return nil
+}
+
+func ensurePermittedLoadZones(options *libWorker.Options, loadZones []string) error {
+	// Only allow load zones named in loadZones
+	for _, loadZone := range options.LoadDistribution.Value {
+		validLoadZone := false
+		for _, allowedLoadZone := range loadZones {
+			if loadZone.Location == allowedLoadZone {
+				validLoadZone = true
+				break
+			}
+		}
+
+		if !validLoadZone {
+			return fmt.Errorf("invalid location %s", loadZone.Location)
+		}
 	}
 
 	return nil

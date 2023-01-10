@@ -2,10 +2,18 @@ package options
 
 import (
 	"net"
+
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 )
 
 // Returns internal ip nets that are banned
-func generateBannedIPNets() *[]*net.IPNet {
+func generateBannedIPNets(gs libOrch.BaseGlobalState) *[]*net.IPNet {
+	// If we are not running in standalone mode, we don't need to ban any ip ranges
+	// as this is a local test
+	if !gs.Standalone() {
+		return &[]*net.IPNet{}
+	}
+
 	localhostIPNets := make([]*net.IPNet, 0, 4)
 
 	localhostIPNets = append(localhostIPNets, &net.IPNet{

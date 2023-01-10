@@ -29,18 +29,21 @@ type (
 	}
 
 	Job struct {
-		Id                   string                 `json:"id"`
-		Source               string                 `json:"source"`
-		SourceName           string                 `json:"sourceName"`
-		EnvironmentContext   *EnvironmentContext    `json:"environmentContext"`
-		CollectionContext    *CollectionContext     `json:"collectionContext"`
-		UnderlyingRequest    map[string]interface{} `json:"underlyingRequest"`
-		FinalRequest         map[string]interface{} `json:"finalRequest"`
-		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
-		Scope                Scope                  `json:"scope"`
-		Options              *libWorker.Options     `json:"options"`
-		VerifiedDomains      []string               `json:"verifiedDomains"`
-		FuncModeInfo         *lib.FuncModeInfo      `json:"funcModeInfo"`
+		Id                     string                 `json:"id"`
+		Source                 string                 `json:"source"`
+		SourceName             string                 `json:"sourceName"`
+		EnvironmentContext     *EnvironmentContext    `json:"environmentContext"`
+		CollectionContext      *CollectionContext     `json:"collectionContext"`
+		UnderlyingRequest      map[string]interface{} `json:"underlyingRequest"`
+		FinalRequest           map[string]interface{} `json:"finalRequest"`
+		AssignedOrchestrator   string                 `json:"assignedOrchestrator"`
+		Scope                  Scope                  `json:"scope"`
+		Options                *libWorker.Options     `json:"options"`
+		VerifiedDomains        []string               `json:"verifiedDomains"`
+		FuncModeInfo           *lib.FuncModeInfo      `json:"funcModeInfo"`
+		PermittedLoadZones     []string               `json:"permittedLoadZones"`
+		MaxTestDurationMinutes int64                  `json:"maxTestDurationMinutes"`
+		MaxSimulatedUsers      int64                  `json:"maxSimulatedUsers"`
 	}
 
 	Scope struct {

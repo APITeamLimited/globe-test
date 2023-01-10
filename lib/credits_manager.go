@@ -59,7 +59,8 @@ type CreditsManager struct {
 	ctx           context.Context
 	creditsClient *redis.Client
 
-	workspaceName string
+	freeCreditsName string
+	paidCreditsName string
 
 	// Interval timer
 	ticker *time.Ticker
@@ -74,16 +75,22 @@ type CreditsManager struct {
 func CreateCreditsManager(ctx context.Context, variant string, variantTargetId string,
 	creditsClient *redis.Client) *CreditsManager {
 	creditsManager := &CreditsManager{
-		ctx:           ctx,
-		creditsClient: creditsClient,
-		workspaceName: fmt.Sprintf("%s:%s", variant, variantTargetId),
-		ticker:        time.NewTicker(1 * time.Second),
-		creditsMutex:  sync.Mutex{},
+		ctx:             ctx,
+		creditsClient:   creditsClient,
+		freeCreditsName: fmt.Sprintf("%s:%s:freeCredits", variant, variantTargetId),
+		paidCreditsName: fmt.Sprintf("%s:%s:paidCredits", variant, variantTargetId),
+		ticker:          time.NewTicker(1 * time.Second),
+		creditsMutex:    sync.Mutex{},
 	}
+
+	// Prevent multiple captures from running at the same time
+	isCapturingMutex := sync.Mutex{}
 
 	go func() {
 		for range creditsManager.ticker.C {
+			isCapturingMutex.Lock()
 			creditsManager.captureCredits()
+			isCapturingMutex.Unlock()
 		}
 	}()
 
@@ -163,18 +170,46 @@ func (creditsManager *CreditsManager) captureCredits() {
 	creditsManager.creditsMutex.Lock()
 	defer creditsManager.creditsMutex.Unlock()
 
-	// DECR usedCredits from credits pool
-	newCredits, err := creditsManager.creditsClient.DecrBy(creditsManager.ctx, creditsManager.workspaceName, creditsManager.usedCredits).Result()
+	newFreeCredits, err := creditsManager.creditsClient.DecrBy(creditsManager.ctx, creditsManager.freeCreditsName, creditsManager.usedCredits).Result()
 	if err != nil {
 		fmt.Println("Error capturing credits: ", err)
 		return
 	}
 
-	// If newCredits is negative, set it to 0
-	if newCredits < 0 {
-		newCredits = 0
-		creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.workspaceName, strconv.FormatInt(newCredits, 10), 0)
+	// If newFreeCredits is negative, deduct from paidCredits
+	newPaidCredits := int64(0)
+
+	if newFreeCredits < 0 {
+		newPaidCredits, err = creditsManager.creditsClient.DecrBy(creditsManager.ctx, creditsManager.paidCreditsName, -newFreeCredits).Result()
+		if err != nil {
+			fmt.Println("Error capturing credits: ", err)
+			return
+		}
+	} else {
+		newPaidCreditsStr, err := creditsManager.creditsClient.Get(creditsManager.ctx, creditsManager.paidCreditsName).Result()
+		if err != nil {
+			fmt.Println("Error capturing credits: ", err)
+			return
+		}
+
+		newPaidCredits, err = strconv.ParseInt(newPaidCreditsStr, 10, 64)
+		if err != nil {
+			fmt.Println("Error capturing credits: ", err)
+			return
+		}
 	}
+
+	// If either newFreeCredits or newPaidCredits is negative, set it to 0
+	if newFreeCredits < 0 {
+		newFreeCredits = 0
+		creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.freeCreditsName, "0", 0)
+	} else if newPaidCredits < 0 {
+		newPaidCredits = 0
+		creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.paidCreditsName, "0", 0)
+	}
+
+	// DECR usedCredits from credits pool
+	newCredits := newFreeCredits + newPaidCredits
 
 	// Add the credits to the credits store
 	creditsManager.oldCredits = newCredits

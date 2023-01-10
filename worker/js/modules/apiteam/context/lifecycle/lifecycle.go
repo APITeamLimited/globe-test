@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -23,7 +24,7 @@ type (
 	}
 
 	// RequestInstance represents an instance of the lifecycle module.
-	LifecylcleInstance struct {
+	LifecycleInstance struct {
 		vu            modules.VU
 		module        *LifecycleModule
 		defaultExport *goja.Object
@@ -37,7 +38,7 @@ type (
 
 var (
 	_ modules.Module   = &LifecycleModule{}
-	_ modules.Instance = &LifecylcleInstance{}
+	_ modules.Instance = &LifecycleInstance{}
 )
 
 // New returns a pointer to a new LifecycleModule instance.
@@ -65,7 +66,7 @@ func New(workerInfo *libWorker.WorkerInfo) *LifecycleModule {
 func (module *LifecycleModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	rt := vu.Runtime()
 
-	mi := &LifecylcleInstance{
+	mi := &LifecycleInstance{
 		vu:            vu,
 		module:        module,
 		defaultExport: rt.NewObject(),
@@ -92,13 +93,13 @@ func (module *LifecycleModule) NewModuleInstance(vu modules.VU) modules.Instance
 }
 
 // Exports returns the JS values this module exports.
-func (mi *LifecylcleInstance) Exports() modules.Exports {
+func (mi *LifecycleInstance) Exports() modules.Exports {
 	return modules.Exports{
 		Default: mi.defaultExport,
 	}
 }
 
-func (mi *LifecylcleInstance) markResponse(responseObject goja.Value) {
+func (mi *LifecycleInstance) markResponse(responseObject goja.Value) {
 	// Get golang value from goja object
 	workerInfo := *mi.vu.InitEnv().WorkerInfo
 	rt := mi.vu.Runtime()
@@ -107,6 +108,11 @@ func (mi *LifecylcleInstance) markResponse(responseObject goja.Value) {
 	err := rt.ExportTo(responseObject, &exportedResponse)
 	if err != nil {
 		common.Throw(rt, err)
+	}
+
+	if exportedResponse["error"].(string) != "" {
+		common.Throw(rt, errors.New(exportedResponse["error"].(string)))
+		return
 	}
 
 	markedResponse := libWorker.MarkMessage{

@@ -2,7 +2,6 @@ package options
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -29,7 +28,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	}
 
 	// Prevent the user from accessing internal ip ranges
-	localhostIPNets := generateBannedIPNets()
+	localhostIPNets := generateBannedIPNets(gs)
 
 	// validate the options
 
@@ -46,7 +45,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 	}
 
 	if options.Duration.Valid {
-		err = validators.Duration(options)
+		err = validators.Duration(options, job)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +73,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	err = validators.LoadDistribution(options, workerClients, gs.Standalone(), gs.FuncAuthClient())
+	err = validators.LoadDistribution(options, workerClients, gs, job)
 	if err != nil {
 		return nil, err
 	}
@@ -90,18 +89,16 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	// Add max possible VU count
+	// Find max possible VU count
 	maxVUsCount := int64(0)
 	for _, scenario := range checkedOptions.Scenarios {
 		maxVUsCount += scenario.GetMaxExecutorVUs()
 	}
 
-	// Restrict VU count to 50 for now
-	if maxVUsCount > 50 {
-		return nil, errors.New("max VU count is currently limited to 50")
+	err = validators.MaxVUs(maxVUsCount, job)
+	if err != nil {
+		return nil, err
 	}
-
-	checkedOptions.MaxPossibleVUs = null.IntFrom(maxVUsCount)
 
 	return &checkedOptions, nil
 }

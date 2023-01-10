@@ -5,12 +5,48 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"runtime/debug"
+	"strings"
 
-	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 )
+
+func findLocationError(errorString string) string {
+	// Find " at " in the error string
+	if !strings.Contains(errorString, " at ") {
+		return ""
+	}
+
+	// Split on the first occurrence of " at "
+	splitString := strings.SplitN(errorString, " at ", 2)
+	// If we have two elements, the second is the location
+	if len(splitString) != 2 {
+		return ""
+	}
+
+	// Get second element
+	location := splitString[1]
+
+	// Look for at *.js:*
+	if !strings.Contains(location, ".js:") {
+		return ""
+	}
+
+	// Split on the first occurrence of ".js:"
+	splitString = strings.SplitN(location, ".js:", 2)
+
+	if len(splitString) != 2 {
+		return ""
+	}
+
+	// Get first element
+	filename := fmt.Sprintf("%s.js", splitString[0])
+
+	// Get second element
+	lineNumber := splitString[1]
+
+	return fmt.Sprintf("%s:%s", filename, lineNumber)
+}
 
 // Throw a JS error; avoids re-wrapping GoErrors.
 func Throw(rt *goja.Runtime, err error) {
@@ -68,18 +104,7 @@ func ToString(data interface{}) (string, error) {
 func RunWithPanicCatching(logger logrus.FieldLogger, rt *goja.Runtime, fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			gojaStack := rt.CaptureCallStack(20, nil)
-
-			err = &errext.InterruptError{Reason: fmt.Sprintf("a panic occurred during JS execution: %s", r)}
-			// TODO figure out how to use PanicLevel without panicing .. this might require changing
-			// the logger we use see
-			// https://github.com/sirupsen/logrus/issues/1028
-			// https://github.com/sirupsen/logrus/issues/993
-			b := new(bytes.Buffer)
-			for _, s := range gojaStack {
-				s.Write(b)
-			}
-			logger.Error("panic: ", r, "\n", string(debug.Stack()), "\nGoja stack:\n", b.String())
+			logger.Error(r)
 		}
 	}()
 
