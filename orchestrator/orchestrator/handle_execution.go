@@ -66,11 +66,15 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 						location: FUNC_ERROR_ABORT_CHANNEL,
 						msg:      nil,
 					}
+
+					fmt.Println(msg.Error)
 				} else if msg.Response.StatusCode != 200 {
 					unifiedChannel <- locatedMesaage{
 						location: FUNC_ERROR_ABORT_CHANNEL,
 						msg:      nil,
 					}
+
+					fmt.Println(msg.Response)
 				}
 			}
 		}(channel)

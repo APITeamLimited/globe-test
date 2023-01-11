@@ -13,7 +13,15 @@ import (
 func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients,
 	gs libOrch.BaseGlobalState, job libOrch.Job) error {
 	if gs.FuncAuthClient() != nil {
-		err := cloudLoadDistribution(options, workerClients)
+
+		permittedWorkerClients := workerClients
+
+		if job.PermittedLoadZones != nil && len(job.PermittedLoadZones) > 0 {
+			// Filter out worker clients that are not in permitted load zones#
+			permittedWorkerClients = filterPermittedLoadZones(workerClients, job.PermittedLoadZones)
+		}
+
+		err := cloudLoadDistribution(options, permittedWorkerClients)
 		if err != nil {
 			return err
 		}
@@ -33,18 +41,55 @@ func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerCl
 		return nil
 	} else if gs.Standalone() {
 		return cloudLoadDistribution(options, workerClients)
-	} else {
-		return localLoadDistribution(options)
 	}
+	return localLoadDistribution(options)
 }
 
+// Filters out worker clients that are not in permitted load zones
+func filterPermittedLoadZones(workerClients libOrch.WorkerClients, permittedLoadZones []string) libOrch.WorkerClients {
+	permittedWorkerClients := libOrch.WorkerClients{
+		Clients:       make(map[string]*libOrch.NamedClient),
+		DefaultClient: workerClients.DefaultClient,
+	}
+
+	// Filter out worker clients that are not in permitted load zones
+	for _, workerClient := range workerClients.Clients {
+		for _, permittedLoadZone := range permittedLoadZones {
+			if workerClient.Name == permittedLoadZone {
+				permittedWorkerClients.Clients[workerClient.Name] = workerClient
+			}
+		}
+	}
+
+	return permittedWorkerClients
+}
+
+// For each location in load distribution checks if cloud functions are available
 func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient libOrch.FunctionAuthClient) error {
-	// For each location in load distribution check if cloud functions are available
 	for _, location := range options.LoadDistribution.Value {
 		// If cloud functions are not available for this location
 		error := authClient.CheckFunctionAvailability(location.Location)
 		if error != nil {
 			return error
+		}
+	}
+
+	return nil
+}
+
+func ensurePermittedLoadZones(options *libWorker.Options, loadZones []string) error {
+	// Only allow load zones named in loadZones
+	for _, loadZone := range options.LoadDistribution.Value {
+		validLoadZone := false
+		for _, allowedLoadZone := range loadZones {
+			if loadZone.Location == allowedLoadZone {
+				validLoadZone = true
+				break
+			}
+		}
+
+		if !validLoadZone {
+			return fmt.Errorf("invalid location %s is not permitted", loadZone.Location)
 		}
 	}
 
@@ -87,7 +132,7 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 	}
 
 	// In case user just wants default load distribution
-	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == "Default" {
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.DefaultName {
 		options.LoadDistribution = types.NullLoadDistribution{
 			Valid: true,
 			Value: []types.LoadZone{{
@@ -97,6 +142,7 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 		}
 	}
 
+	// Check execution mode scenarios
 	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
 		if !options.LoadDistribution.Valid {
 			options.LoadDistribution = types.NullLoadDistribution{
@@ -110,27 +156,15 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 			return nil
 		}
 
-		return checkSingleLoadDistribution(options, workerClients)
+		return checkSingleCloudLD(options, workerClients)
 	} else if options.ExecutionMode.ValueOrZero() == types.HTTPMultipleExecutionMode {
-		if !options.LoadDistribution.Valid {
-			options.LoadDistribution = types.NullLoadDistribution{
-				Valid: true,
-				Value: []types.LoadZone{{
-					Location: workerClients.DefaultClient.Name,
-					Fraction: 100,
-				}},
-			}
-
-			return nil
-		}
-
-		return checkMultiLoadDistribution(options, workerClients)
+		return checkMultiCloudLD(options, workerClients)
 	}
 
 	return fmt.Errorf("invalid execution mode %s", options.ExecutionMode.ValueOrZero())
 }
 
-func checkSingleLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+func checkSingleCloudLD(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
 	if len(options.LoadDistribution.Value) != 1 {
 		return fmt.Errorf("load distribution must be a single zone when execution mode is %s", types.HTTPSingleExecutionMode)
 	}
@@ -149,7 +183,11 @@ func checkSingleLoadDistribution(options *libWorker.Options, workerClients libOr
 	return fmt.Errorf("invalid location %s", options.LoadDistribution.Value[0].Location)
 }
 
-func checkMultiLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+func checkMultiCloudLD(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+	if !options.LoadDistribution.Valid {
+		return fmt.Errorf("load distribution must be set when execution mode is %s", types.HTTPMultipleExecutionMode)
+	}
+
 	// Check all names valid and fractions add up to 100
 	var totalFraction int
 
@@ -184,6 +222,7 @@ func checkMultiLoadDistribution(options *libWorker.Options, workerClients libOrc
 func localLoadDistribution(options *libWorker.Options) error {
 	// Check single load zone
 
+	// If no config, just apply default
 	if !options.LoadDistribution.Valid {
 		options.LoadDistribution = types.NullLoadDistribution{
 			Valid: true,
@@ -196,6 +235,17 @@ func localLoadDistribution(options *libWorker.Options) error {
 		return nil
 	}
 
+	// In case user just wants default load distribution
+	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.DefaultName {
+		options.LoadDistribution = types.NullLoadDistribution{
+			Valid: true,
+			Value: []types.LoadZone{{
+				Location: agent.AgentWorkerName,
+				Fraction: 100,
+			}},
+		}
+	}
+
 	if len(options.LoadDistribution.Value) != 1 {
 		return fmt.Errorf("load distribution must be a single zone when running locally")
 	}
@@ -206,25 +256,6 @@ func localLoadDistribution(options *libWorker.Options) error {
 
 	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName {
 		return fmt.Errorf("load distribution location must be %s when running locally", agent.AgentWorkerName)
-	}
-
-	return nil
-}
-
-func ensurePermittedLoadZones(options *libWorker.Options, loadZones []string) error {
-	// Only allow load zones named in loadZones
-	for _, loadZone := range options.LoadDistribution.Value {
-		validLoadZone := false
-		for _, allowedLoadZone := range loadZones {
-			if loadZone.Location == allowedLoadZone {
-				validLoadZone = true
-				break
-			}
-		}
-
-		if !validLoadZone {
-			return fmt.Errorf("invalid location %s", loadZone.Location)
-		}
 	}
 
 	return nil
