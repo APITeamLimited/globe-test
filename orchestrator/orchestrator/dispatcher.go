@@ -34,7 +34,7 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 
 	responseChannels := []chan libOrch.FunctionResult{}
 
-	if gs.FuncAuthClient() == nil {
+	if !gs.FuncMode() {
 		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
 		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
