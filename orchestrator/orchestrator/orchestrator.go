@@ -37,7 +37,7 @@ func Run(standalone bool, funcMode bool) {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient)
+	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode)
 
 	// Periodically check for and delete offline orchestrators
 	if lib.GetEnvVariableBool("IS_MASTER", false) {
@@ -56,14 +56,15 @@ func Run(standalone bool, funcMode bool) {
 			return
 		}
 		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(),
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient)
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode)
 	}
 }
 
 // Ensures job has no already been assigned and determines if this node has capacity to execute
 func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients,
 	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
-	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient) {
+	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient,
+	funcMode bool) {
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
@@ -92,7 +93,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.mutex.Unlock()
 
-	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient)
+	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient, funcMode)
 	defer gs.CreditsManager().StopCreditsCapturing()
 
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
@@ -164,7 +165,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 	workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList,
 	storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool,
-	funcAuthClient libOrch.FunctionAuthClient) {
+	funcAuthClient libOrch.FunctionAuthClient, funcMode bool) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
@@ -173,6 +174,6 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 
 	for _, jobId := range historyIds {
 		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId,
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient)
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient, funcMode)
 	}
 }

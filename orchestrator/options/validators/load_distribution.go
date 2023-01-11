@@ -12,8 +12,7 @@ import (
 
 func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients,
 	gs libOrch.BaseGlobalState, job libOrch.Job) error {
-	if gs.FuncAuthClient() != nil {
-
+	if gs.FuncMode() {
 		permittedWorkerClients := workerClients
 
 		if job.PermittedLoadZones != nil && len(job.PermittedLoadZones) > 0 {
