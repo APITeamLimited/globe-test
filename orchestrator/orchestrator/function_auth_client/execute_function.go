@@ -115,6 +115,7 @@ func buildRequest(childJob libOrch.ChildJob, uri string) (*http.Request, error) 
 }
 
 func getClient(config *FunctionAuthClient, uri string, urlOverride bool) (*http.Client, error) {
+	// In localhost development, don't need to authenticate
 	if urlOverride {
 		return http.DefaultClient, nil
 	}
