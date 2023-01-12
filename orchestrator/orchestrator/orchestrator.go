@@ -25,7 +25,10 @@ func Run(standalone bool, funcMode bool) {
 	orchestratorClient := getOrchestratorClient(standalone)
 	functionAuthClient := function_auth_client.CreateFunctionAuthClient(ctx, funcMode)
 	storeMongoDB := getStoreMongoDB(ctx, standalone)
-	workerClients := connectWorkerClients(ctx, standalone)
+
+	independentWorkerRedisHosts := lib.GetEnvVariableBool("INDEPENDENT_WORKER_REDIS_HOSTS", false)
+	workerClients := connectWorkerClients(ctx, standalone, independentWorkerRedisHosts)
+
 	maxJobs := getMaxJobs(standalone)
 	maxManagedVUs := getMaxManagedVUs(standalone)
 	creditsClient := lib.GetCreditsClient(standalone)
@@ -37,7 +40,7 @@ func Run(standalone bool, funcMode bool) {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode)
+	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
 
 	// Periodically check for and delete offline orchestrators
 	if lib.GetEnvVariableBool("IS_MASTER", false) {
@@ -56,7 +59,7 @@ func Run(standalone bool, funcMode bool) {
 			return
 		}
 		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(),
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode)
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
 	}
 }
 
@@ -64,7 +67,7 @@ func Run(standalone bool, funcMode bool) {
 func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients,
 	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
 	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient,
-	funcMode bool) {
+	funcMode, independentWorkerRedisHosts bool) {
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
@@ -93,7 +96,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.mutex.Unlock()
 
-	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient, funcMode)
+	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
 	defer gs.CreditsManager().StopCreditsCapturing()
 
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
@@ -165,7 +168,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 	workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList,
 	storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool,
-	funcAuthClient libOrch.FunctionAuthClient, funcMode bool) {
+	funcAuthClient libOrch.FunctionAuthClient, funcMode, independentWorkerRedisHosts bool) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
@@ -174,6 +177,6 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 
 	for _, jobId := range historyIds {
 		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId,
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient, funcMode)
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient, funcMode, independentWorkerRedisHosts)
 	}
 }

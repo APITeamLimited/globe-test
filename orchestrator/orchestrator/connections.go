@@ -19,13 +19,11 @@ type clientOptions struct {
 	displayName  string
 }
 
-func connectWorkerClients(ctx context.Context, standalone bool) libOrch.WorkerClients {
+func connectWorkerClients(ctx context.Context, standalone, independentWorkerRedisHosts bool) libOrch.WorkerClients {
 	// Agent mode
 	if !standalone {
 		return getAgentClient()
 	}
-
-	independentWorkerRedisHosts := lib.GetEnvVariableBool("INDEPENDENT_WORKER_REDIS_HOSTS", false)
 
 	if independentWorkerRedisHosts {
 		return getIndependentClients()

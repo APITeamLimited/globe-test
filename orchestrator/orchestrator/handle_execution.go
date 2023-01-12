@@ -23,7 +23,13 @@ const (
 	JOB_USER_UPDATES_CHANNEL = "jobUserUpdates"
 	NO_CREDITS_ABORT_CHANNEL = "noCreditsAbort"
 	FUNC_ERROR_ABORT_CHANNEL = "funcErrorAbort"
+
+	unifiedRedis = "unified"
 )
+
+type childJobIdStruct struct {
+	ChildJobId string `json:"childJobId"`
+}
 
 func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
 	libOrch.UpdateStatus(gs, "LOADING")
@@ -33,10 +39,20 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	defer jobUserUpdatesSubscription.Close()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
-	for location, jobDistribution := range childJobs {
-		if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 {
-			workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
-			defer workerSubscriptions[location].Close()
+
+	if gs.IndependentWorkerRedisHosts() {
+		for location, jobDistribution := range childJobs {
+			if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 && workerSubscriptions[location] == nil {
+				workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+				defer workerSubscriptions[location].Close()
+			}
+		}
+	} else {
+		for _, jobDistribution := range childJobs {
+			// Only get first client as unified for whole job
+			workerSubscriptions[unifiedRedis] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+			defer workerSubscriptions[unifiedRedis].Close()
+			break
 		}
 	}
 
@@ -51,13 +67,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		return "SUCCESS", nil
 	}
 
+	unifiedChannel := make(chan locatedMesaage)
+
 	functionChannels, err := dispatchChildJobs(gs, childJobs)
 	if err != nil {
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
-	unifiedChannel := make(chan locatedMesaage)
-
+	// Handle aborts on functionChannels
 	for _, channel := range *functionChannels {
 		go func(channel <-chan libOrch.FunctionResult) {
 			for msg := range channel {
@@ -85,9 +102,38 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		// capturing the loop variable error
 
 		go func(channel <-chan *redis.Message, location string) {
+			childJobIdToLocation := make(map[string]string)
+
+			if location == unifiedRedis {
+				for location, jobDistribution := range childJobs {
+					for _, job := range jobDistribution.Jobs {
+						childJobIdToLocation[job.ChildJobId] = location
+					}
+				}
+			}
+
+			actualLocation := location
+
 			for msg := range channel {
+				if location == unifiedRedis {
+					var childJobId childJobIdStruct
+					err := json.Unmarshal([]byte(msg.Payload), &childJobId)
+
+					if err != nil {
+						fmt.Println("Error unmarshalling childJobId", err)
+						continue
+					}
+
+					actualLocation = childJobIdToLocation[childJobId.ChildJobId]
+
+					if actualLocation == "" {
+						fmt.Println("Could not find location for childJobId", childJobId.ChildJobId)
+						continue
+					}
+				}
+
 				newMessage := locatedMesaage{
-					location: location,
+					location: actualLocation,
 					msg:      msg,
 				}
 
@@ -145,14 +191,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 		// Handle user updates separately
 		if locatedMessage.location == JOB_USER_UPDATES_CHANNEL {
-			var JobUserUpdate = lib.JobUserUpdate{}
+			jobUserUpdate := lib.JobUserUpdate{}
 
-			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &JobUserUpdate)
+			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
 			if err != nil {
 				return abortAndFailAll(gs, childJobs, err)
 			}
 
-			if JobUserUpdate.UpdateType == "CANCEL" {
+			if jobUserUpdate.UpdateType == "CANCEL" {
 				fmt.Println("Aborting job due to user request")
 
 				// Cancel all child jobs
@@ -163,7 +209,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 			continue
 		}
 
-		var workerMessage = libOrch.WorkerMessage{}
+		workerMessage := libOrch.WorkerMessage{}
 		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil {
 			return abortAndFailAll(gs, childJobs, err)
@@ -237,7 +283,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		} else if workerMessage.MessageType == "METRICS" {
 			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
-				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add summary metrics to", workerMessage.ChildJobId))
+				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", workerMessage.ChildJobId))
 			}
 
 			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)

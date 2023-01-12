@@ -34,12 +34,7 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 
 	responseChannels := []chan libOrch.FunctionResult{}
 
-	if !gs.FuncMode() {
-		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
-
-		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
-		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
-	} else {
+	if gs.FuncMode() {
 		// If we're in function mode, need to create a google cloud function call
 		responseCh, err := gs.FuncAuthClient().ExecuteFunction(location, job)
 		if err != nil {
@@ -47,6 +42,11 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 		}
 
 		responseChannels = append(responseChannels, *responseCh)
+	} else {
+		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
+
+		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
+		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
 	}
 
 	fmt.Printf("Dispatched child job %s to worker %s\n", job.ChildJobId, location)

@@ -309,8 +309,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan bool {
 	go func() {
 		<-startSubscription.Channel()
 
-		fmt.Println("Received start command from orchestrator")
-
 		// Send start command to test runner
 		statusMutex.Lock()
 		defer statusMutex.Unlock()

@@ -18,19 +18,20 @@ type (
 	}
 
 	globalState struct {
-		ctx            context.Context
-		environment    string
-		logger         *logrus.Logger
-		client         *redis.Client
-		jobId          string
-		orchestratorId string
-		metricsStore   libOrch.BaseMetricsStore
-		status         string
-		childJobStates []libOrch.WorkerState
-		creditsManager *lib.CreditsManager
-		standalone     bool
-		funcMode       bool
-		funcAuthClient libOrch.FunctionAuthClient
+		ctx                         context.Context
+		environment                 string
+		logger                      *logrus.Logger
+		client                      *redis.Client
+		jobId                       string
+		orchestratorId              string
+		metricsStore                libOrch.BaseMetricsStore
+		status                      string
+		childJobStates              []libOrch.WorkerState
+		creditsManager              *lib.CreditsManager
+		standalone                  bool
+		funcMode                    bool
+		funcAuthClient              libOrch.FunctionAuthClient
+		independentWorkerRedisHosts bool
 	}
 )
 
@@ -38,16 +39,17 @@ var _ libOrch.BaseGlobalState = &globalState{}
 
 func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job,
 	orchestratorId string, creditsClient *redis.Client, standalone bool,
-	funcAuthClient libOrch.FunctionAuthClient, funcMode bool) *globalState {
+	funcAuthClient libOrch.FunctionAuthClient, funcMode, independentWorkerRedisHosts bool) *globalState {
 	gs := &globalState{
-		ctx:            ctx,
-		client:         orchestratorClient,
-		jobId:          job.Id,
-		orchestratorId: orchestratorId,
-		childJobStates: []libOrch.WorkerState{},
-		standalone:     standalone,
-		funcAuthClient: funcAuthClient,
-		funcMode:       funcMode,
+		ctx:                         ctx,
+		client:                      orchestratorClient,
+		jobId:                       job.Id,
+		orchestratorId:              orchestratorId,
+		childJobStates:              []libOrch.WorkerState{},
+		standalone:                  standalone,
+		funcAuthClient:              funcAuthClient,
+		funcMode:                    funcMode,
+		independentWorkerRedisHosts: independentWorkerRedisHosts,
 	}
 
 	if creditsClient != nil {
@@ -165,4 +167,8 @@ func (g *globalState) FuncAuthClient() libOrch.FunctionAuthClient {
 
 func (g *globalState) FuncMode() bool {
 	return g.funcMode
+}
+
+func (g *globalState) IndependentWorkerRedisHosts() bool {
+	return g.independentWorkerRedisHosts
 }

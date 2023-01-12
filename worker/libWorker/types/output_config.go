@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 )
 
-func DefaultOutputConfig(standalone bool) NullOutputConfig {
+func DefaultOutputConfig(localhost bool) NullOutputConfig {
 	defaultZoneName := "global"
 
-	if standalone {
+	if localhost {
 		defaultZoneName = "localhost"
 	}
 

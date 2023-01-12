@@ -30,4 +30,6 @@ type BaseGlobalState interface {
 	Standalone() bool
 	FuncMode() bool
 	FuncAuthClient() FunctionAuthClient
+
+	IndependentWorkerRedisHosts() bool
 }
