@@ -69,8 +69,9 @@ type globalState struct {
 	childJobId string
 	status     string
 
-	funcModeInfo *lib.FuncModeInfo
-	messageQueue libWorker.MessageQueue
+	funcModeEnabled bool
+	funcModeInfo    *lib.FuncModeInfo
+	messageQueue    *libWorker.MessageQueue
 }
 
 var _ libWorker.BaseGlobalState = &globalState{}
@@ -84,23 +85,25 @@ var _ libWorker.BaseGlobalState = &globalState{}
 
 func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo) *globalState {
 	gs := &globalState{
-		ctx:          ctx,
-		fs:           afero.NewMemMapFs(),
-		getwd:        os.Getwd,
-		args:         []string{},
-		envVars:      make(map[string]string),
-		stdIn:        os.Stdin,
-		osExit:       os.Exit,
-		signalNotify: signal.Notify,
-		signalStop:   signal.Stop,
-		workerId:     workerId,
-		client:       client,
-		jobId:        job.Id,
-		childJobId:   job.ChildJobId,
-		funcModeInfo: funcModeInfo,
-		messageQueue: libWorker.MessageQueue{
-			Mutex:      sync.Mutex{},
-			QueueCount: 0,
+		ctx:             ctx,
+		fs:              afero.NewMemMapFs(),
+		getwd:           os.Getwd,
+		args:            []string{},
+		envVars:         make(map[string]string),
+		stdIn:           os.Stdin,
+		osExit:          os.Exit,
+		signalNotify:    signal.Notify,
+		signalStop:      signal.Stop,
+		workerId:        workerId,
+		client:          client,
+		jobId:           job.Id,
+		childJobId:      job.ChildJobId,
+		funcModeEnabled: funcModeInfo != nil,
+		funcModeInfo:    funcModeInfo,
+		messageQueue: &libWorker.MessageQueue{
+			Mutex:         sync.Mutex{},
+			QueueCount:    0,
+			NewQueueCount: make(chan int),
 		},
 	}
 
@@ -166,10 +169,14 @@ func (gs *globalState) SetWorkerStatus(status string) {
 	gs.status = status
 }
 
+func (gs *globalState) FuncModeEnabled() bool {
+	return gs.funcModeEnabled
+}
+
 func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
 	return gs.funcModeInfo
 }
 
-func (gs *globalState) MessageQueue() libWorker.MessageQueue {
+func (gs *globalState) MessageQueue() *libWorker.MessageQueue {
 	return gs.messageQueue
 }

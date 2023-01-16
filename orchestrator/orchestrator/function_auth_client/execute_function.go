@@ -129,5 +129,6 @@ func determineUri(liveFunction *libOrch.LiveFunction, funcUrlOverride string) st
 		return liveFunction.Uri
 	}
 
+	fmt.Println("Using function url override", funcUrlOverride)
 	return funcUrlOverride
 }

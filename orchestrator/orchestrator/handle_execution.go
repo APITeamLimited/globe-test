@@ -226,7 +226,6 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				// Check if the job has already been initialised
 				for _, initialisedJob := range jobsInitialised {
 					if initialisedJob == workerMessage.ChildJobId {
-						jobsMutex.Unlock()
 						alreadyInitialised = true
 						break
 					}
@@ -234,20 +233,33 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 				if !alreadyInitialised {
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
-					jobsMutex.Unlock()
 
 					if len(jobsInitialised) == childJobCount {
 						// Broadcast the start message to all child jobs
+
+						var startTime time.Time
+
+						if childJobCount == 1 {
+							startTime = time.Now()
+						} else {
+							// Set one second in the future to allow all workers to start
+							startTime = time.Now().Add(time.Second)
+						}
+
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
-								jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), "GO TIME")
+								jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
 
 						libOrch.UpdateStatus(gs, "RUNNING")
 					}
 				}
+
+				jobsMutex.Unlock()
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
+				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
+
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {
 					successCount++

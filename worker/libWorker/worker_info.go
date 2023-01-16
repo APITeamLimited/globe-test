@@ -81,7 +81,6 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 		messageQueue := gs.MessageQueue()
 
 		isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
-
 		if !isTerminal {
 			messageQueue.Mutex.Lock()
 			messageQueue.QueueCount++
@@ -102,8 +101,12 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 			return
 		}
 
+		messageQueue.Mutex.Lock()
+		queueCount := messageQueue.QueueCount
+		messageQueue.Mutex.Unlock()
+
 		// If the message is terminal, we want to make sure that all messages are sent before we return
-		if messageQueue.QueueCount > 0 {
+		if queueCount > 0 {
 			for newCount := range messageQueue.NewQueueCount {
 				if newCount == 0 {
 					break

@@ -29,7 +29,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
 	libWorker.UpdateStatus(gs, "LOADING")
-
 	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
@@ -46,14 +45,18 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	}
 
 	startChannel := testStartChannel(workerInfo)
-
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
-	startSuccess := <-startChannel
-	if !startSuccess {
+	startTime := <-startChannel
+	if startTime == nil {
 		libWorker.HandleStringError(gs, "failed to start test, failed to receive start signal from orchestrator after 1 minute")
 		return false
+	}
+
+	// Wait till start time
+	if startTime.After(time.Now()) {
+		time.Sleep(time.Until(*startTime))
 	}
 
 	// Only start monitoring credits if the test has been marked as started
@@ -79,15 +82,19 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 
-	if gs.funcModeInfo != nil && workerInfo.CreditsManager != nil {
-		defer billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
-	}
+	defer func(billCredits bool) {
+		if billCredits {
+			// Do this before we stop capturing credits, so that we can get the final credits
+			billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
+		}
+
+		workerInfo.CreditsManager.StopCreditsCapturing()
+	}(gs.FuncModeEnabled() && workerInfo.CreditsManager != nil)
 
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
 
 	// Create handler for test aborts
-	defer workerInfo.CreditsManager.StopCreditsCapturing()
 	defer childUpdatesSubscription.Close()
 
 	go func() {
@@ -284,6 +291,11 @@ func loadWorkerInfo(ctx context.Context,
 func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) {
 	timeSinceLastBilling := time.Since(creditsManager.LastBillingTime())
 	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
+
+	if billingCycleCount <= 0 {
+		billingCycleCount = 1
+	}
+
 	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
 
 	creditsManager.ForceDeductCredits(fractionCost, false)
@@ -297,24 +309,32 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo) chan bool {
+func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 	startSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, fmt.Sprintf("%s:go", workerInfo.ChildJobId))
 
-	startChan := make(chan bool)
+	startChan := make(chan *time.Time)
 
 	status := WAITING
 	statusMutex := &sync.Mutex{}
 
 	// Listen for start command from orchestrator
 	go func() {
-		<-startSubscription.Channel()
+		message := <-startSubscription.Channel()
+
+		// Parse start time from message
+
+		startTime, err := time.Parse(time.RFC3339, message.Payload)
+		if err != nil {
+			startChan <- nil
+			fmt.Println("Error parsing start time from message", err)
+		}
 
 		// Send start command to test runner
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
 
 		if status == WAITING {
-			startChan <- true
+			startChan <- &startTime
 			status = STARTED
 			startSubscription.Close()
 		}
@@ -328,7 +348,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan bool {
 		defer statusMutex.Unlock()
 
 		if status == WAITING {
-			startChan <- false
+			startChan <- nil
 			status = FAILED
 			startSubscription.Close()
 		}

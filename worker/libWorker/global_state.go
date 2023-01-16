@@ -21,6 +21,7 @@ type BaseGlobalState interface {
 	WorkerId() string
 	GetWorkerStatus() string
 	SetWorkerStatus(status string)
+	FuncModeEnabled() bool
 	FuncModeInfo() *lib.FuncModeInfo
-	MessageQueue() MessageQueue
+	MessageQueue() *MessageQueue
 }

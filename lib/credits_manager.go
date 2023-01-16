@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"math"
 	"strconv"
@@ -37,18 +38,27 @@ func GetCreditsClient(standalone bool) *redis.Client {
 	}
 
 	if isSecure {
-		clientCert := GetEnvVariable("CREDITS_REDIS_CERT", "")
-		clientKey := GetEnvVariable("CREDITS_REDIS_KEY", "")
+		clientCert := GetHexEnvVariable("CREDITS_REDIS_CERT_HEX", "")
+		clientKey := GetHexEnvVariable("CREDITS_REDIS_KEY_HEX", "")
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil {
 			panic(fmt.Errorf("error loading credits cert: %s", err))
 		}
 
+		// Load CA cert
+		caCertPool := x509.NewCertPool()
+		caCert := GetHexEnvVariable("CREDITS_REDIS_CA_CERT_HEX", "")
+		ok := caCertPool.AppendCertsFromPEM([]byte(caCert))
+		if !ok {
+			panic(fmt.Errorf("failed to parse root certificate"))
+		}
+
 		options.TLSConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: GetEnvVariableBool("CREDITS_REDIS_INSECURE_SKIP_VERIFY", false),
 			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
 		}
 	}
 
@@ -187,9 +197,12 @@ func (creditsManager *CreditsManager) captureCredits() {
 		}
 	} else {
 		newPaidCreditsStr, err := creditsManager.creditsClient.Get(creditsManager.ctx, creditsManager.paidCreditsName).Result()
-		if err != nil {
+		// Nil error can occur here if user hasn't purchased any paid credits
+		if err != nil && err != redis.Nil {
 			fmt.Println("Error capturing credits: ", err)
 			return
+		} else if err == redis.Nil {
+			newPaidCreditsStr = "0"
 		}
 
 		newPaidCredits, err = strconv.ParseInt(newPaidCreditsStr, 10, 64)

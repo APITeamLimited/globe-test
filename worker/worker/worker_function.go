@@ -43,11 +43,14 @@ func RunWorkerFunction(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Worker %s executing child job %s\n", workerId, childJob.ChildJobId)
 
 	successfullExecution := handleExecution(ctx, client, childJob, workerId, creditsClient, true)
-	if !successfullExecution {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error executing child job"))
-		return
-	}
+
+	fmt.Printf("Worker %s finished executing child job %s with success: %t\n", workerId, childJob.ChildJobId, successfullExecution)
+
+	// if !successfullExecution {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	w.Write([]byte("Error executing child job"))
+	// 	return
+	// }
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
@@ -57,31 +60,6 @@ func RunDevWorkerServer() {
 	devWorkerServerPort := lib.GetEnvVariableRaw("DEV_WORKER_FUNCTION_PORT", "8090", true)
 	fmt.Printf("Starting dev worker function on port %s\n", devWorkerServerPort)
 	os.Setenv("FUNCTION_TARGET", "WorkerCloud")
-
-	// Load CLIENT_CERT from tls/client.crt
-	// Load CLIENT_KEY from tls/client.key
-	// Load CA_CERT from tls/ca.crt
-
-	clientCertFile, err := os.ReadFile("tls/client.crt")
-	if err != nil {
-		panic(err)
-	}
-
-	os.Setenv("CLIENT_CERT", string(clientCertFile))
-
-	clientKeyFile, err := os.ReadFile("tls/client.key")
-	if err != nil {
-		panic(err)
-	}
-
-	os.Setenv("CLIENT_KEY", string(clientKeyFile))
-
-	caCertFile, err := os.ReadFile("tls/ca.crt")
-	if err != nil {
-		panic(err)
-	}
-
-	os.Setenv("CLIENT_CA_CERT", string(caCertFile))
 
 	functions.HTTP("WorkerCloud", RunWorkerFunction)
 
