@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -56,7 +57,10 @@ func RunWorkerFunction(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 
 	// Force the function to exit
-	os.Exit(0)
+	go func() {
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
 }
 
 func RunDevWorkerServer() {
