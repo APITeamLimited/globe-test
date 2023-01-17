@@ -52,8 +52,8 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		independentWorkerRedisHosts: independentWorkerRedisHosts,
 	}
 
-	if creditsClient != nil {
-		gs.creditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
+	if creditsClient != nil && job.FuncModeInfo != nil {
+		gs.creditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient, *job.FuncModeInfo)
 	}
 
 	gs.logger = &logrus.Logger{

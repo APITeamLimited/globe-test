@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -61,11 +60,9 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	// Test starts here
 
-	// Only start monitoring credits if the test has been marked as started
-	if workerInfo.CreditsManager != nil {
-		// Regularly deduct credits
-		monitorCredits(gs, workerInfo.CreditsManager)
-	}
+	// Regularly deduct credits
+	workerInfo.CreditsManager.StartMonitoringCredits()
+	defer workerInfo.CreditsManager.BillFinalCredits()
 
 	// Don't know if these can be removed easily without unexpected side effects
 
@@ -83,15 +80,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	defer runCancel()
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
-
-	defer func(billCredits bool) {
-		if billCredits {
-			// Do this before we stop capturing credits, so that we can get the final credits
-			billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
-		}
-
-		workerInfo.CreditsManager.StopCreditsCapturing()
-	}(gs.FuncModeEnabled() && workerInfo.CreditsManager != nil)
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
@@ -265,7 +253,7 @@ func loadWorkerInfo(ctx context.Context,
 	}
 
 	if gs.FuncModeInfo() != nil && creditsClient != nil {
-		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
+		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient, *gs.FuncModeInfo())
 	}
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
@@ -298,19 +286,6 @@ func loadWorkerInfo(ctx context.Context,
 	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
-}
-
-func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) {
-	timeSinceLastBilling := time.Since(creditsManager.LastBillingTime())
-	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
-
-	if billingCycleCount <= 0 {
-		billingCycleCount = 1
-	}
-
-	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
-
-	creditsManager.ForceDeductCredits(fractionCost, false)
 }
 
 const (

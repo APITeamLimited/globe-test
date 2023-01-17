@@ -47,12 +47,6 @@ func RunWorkerFunction(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Worker %s finished executing child job %s with success: %t\n", workerId, childJob.ChildJobId, successfullExecution)
 
-	// if !successfullExecution {
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	w.Write([]byte("Error executing child job"))
-	// 	return
-	// }
-
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }

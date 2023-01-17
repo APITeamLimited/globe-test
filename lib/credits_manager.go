@@ -69,11 +69,16 @@ type CreditsManager struct {
 	ctx           context.Context
 	creditsClient *redis.Client
 
+	funcModeInfo FuncModeInfo
+
 	freeCreditsName string
 	paidCreditsName string
 
 	// Interval timer
-	ticker *time.Ticker
+	captureTicker *time.Ticker
+
+	// Prevent multiple captures from running at the same time
+	isCapturingMutex sync.Mutex
 
 	oldCredits   int64
 	usedCredits  int64
@@ -81,24 +86,25 @@ type CreditsManager struct {
 
 	lastBillingTime time.Time
 
-	// Prevent multiple captures from running at the same time
-	isCapturingMutex sync.Mutex
+	billingTicker *time.Ticker
 }
 
 func CreateCreditsManager(ctx context.Context, variant string, variantTargetId string,
-	creditsClient *redis.Client) *CreditsManager {
+	creditsClient *redis.Client, funcModeInfo FuncModeInfo) *CreditsManager {
 	creditsManager := &CreditsManager{
 		ctx:              ctx,
 		creditsClient:    creditsClient,
 		freeCreditsName:  fmt.Sprintf("%s:%s:freeCredits", variant, variantTargetId),
 		paidCreditsName:  fmt.Sprintf("%s:%s:paidCredits", variant, variantTargetId),
-		ticker:           time.NewTicker(1 * time.Second),
+		captureTicker:    time.NewTicker(1 * time.Second),
 		creditsMutex:     sync.Mutex{},
 		isCapturingMutex: sync.Mutex{},
+		funcModeInfo:     funcModeInfo,
+		lastBillingTime:  time.Now(),
 	}
 
 	go func() {
-		for range creditsManager.ticker.C {
+		for range creditsManager.captureTicker.C {
 			creditsManager.captureCredits()
 		}
 	}()
@@ -125,28 +131,10 @@ func (creditsManager *CreditsManager) StopCreditsCapturing() {
 		return
 	}
 
-	creditsManager.ticker.Stop()
+	creditsManager.captureTicker.Stop()
 
 	// Capture credits one last time
 	creditsManager.captureCredits()
-}
-
-func (creditsManager *CreditsManager) UseCredits(credits int64) bool {
-	if creditsManager == nil {
-		return true
-	}
-
-	creditsManager.creditsMutex.Lock()
-	defer creditsManager.creditsMutex.Unlock()
-
-	// Check delta is not greater than credits
-	if credits+creditsManager.usedCredits > creditsManager.oldCredits {
-		return false
-	}
-
-	creditsManager.usedCredits += credits
-
-	return true
 }
 
 func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastBillingTime bool) {
@@ -158,12 +146,6 @@ func (creditsManager *CreditsManager) ForceDeductCredits(credits int64, setLastB
 	defer creditsManager.creditsMutex.Unlock()
 
 	creditsManager.usedCredits += credits
-
-	// Check delta is not greater than credits
-	if credits >= creditsManager.oldCredits {
-		// Just set credits to 0
-		creditsManager.usedCredits = creditsManager.oldCredits
-	}
 
 	if setLastBillingTime {
 		creditsManager.lastBillingTime = time.Now()
@@ -199,8 +181,7 @@ func (creditsManager *CreditsManager) captureCredits() {
 		}
 
 		// Add newFreeCredits toback to redis, like setting to 0 but this way we don't have to lock
-		creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.freeCreditsName, -newFreeCredits)
-		newFreeCredits = 0
+		newFreeCredits = creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.freeCreditsName, -newFreeCredits).Val()
 	} else {
 		newPaidCreditsStr, err := creditsManager.creditsClient.Get(creditsManager.ctx, creditsManager.paidCreditsName).Result()
 		// Nil error can occur here if user hasn't purchased any paid credits
@@ -219,8 +200,7 @@ func (creditsManager *CreditsManager) captureCredits() {
 
 		if newPaidCredits < 0 {
 			// Add newPaidCredits toback to redis, like setting to 0 but this way we don't have to lock
-			creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.paidCreditsName, -newPaidCredits)
-			newPaidCredits = 0
+			newPaidCredits = creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.paidCreditsName, -newPaidCredits).Val()
 		}
 	}
 
@@ -232,10 +212,38 @@ func (creditsManager *CreditsManager) captureCredits() {
 	creditsManager.usedCredits = 0
 }
 
-func (creditsManager *CreditsManager) LastBillingTime() time.Time {
+func (creditsManager *CreditsManager) BillFinalCredits() {
 	if creditsManager == nil {
-		return time.Now()
+		return
 	}
 
-	return creditsManager.lastBillingTime
+	timeSinceLastBilling := time.Since(creditsManager.lastBillingTime)
+	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
+
+	if billingCycleCount <= 0 {
+		billingCycleCount = 1
+	}
+
+	fractionCost := billingCycleCount * creditsManager.funcModeInfo.Instance100MSUnitRate
+
+	creditsManager.ForceDeductCredits(fractionCost, false)
+
+	creditsManager.billingTicker.Stop()
+
+	creditsManager.StopCreditsCapturing()
+}
+
+func (creditsManager *CreditsManager) StartMonitoringCredits() {
+	if creditsManager == nil {
+		return
+	}
+
+	// Every second check if we have enough credits to continue
+	creditsManager.billingTicker = time.NewTicker(100 * time.Millisecond)
+
+	go func() {
+		for range creditsManager.billingTicker.C {
+			creditsManager.ForceDeductCredits(creditsManager.funcModeInfo.Instance100MSUnitRate, true)
+		}
+	}()
 }
