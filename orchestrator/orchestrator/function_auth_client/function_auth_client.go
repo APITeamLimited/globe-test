@@ -2,6 +2,7 @@ package function_auth_client
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	functions "cloud.google.com/go/functions/apiv2"
@@ -16,7 +17,7 @@ type FunctionAuthClient struct {
 	liveFunctionsMutex sync.Mutex
 	ctx                context.Context
 	serviceAccount     []byte
-	funcUrlOverride    string
+	funcUrlOverride    []string
 }
 
 var _ = libOrch.FunctionAuthClient(&FunctionAuthClient{})
@@ -40,10 +41,40 @@ func CreateFunctionAuthClient(ctx context.Context, funcMode bool) *FunctionAuthC
 		liveFunctions:      []libOrch.LiveFunction{},
 		liveFunctionsMutex: sync.Mutex{},
 		serviceAccount:     serviceAccount,
-		funcUrlOverride:    lib.GetEnvVariable("FUNCTION_URL_OVERRIDE", "NO"),
+		funcUrlOverride:    getFunctionUrlOverrides(),
 	}
 
 	functionAuthClient.startAutoRefreshLiveFunctions()
 
 	return functionAuthClient
+}
+
+func getFunctionUrlOverrides() []string {
+	// Loop through counter FUNCTION_URL_OVERRIDE_1, FUNCTION_URL_OVERRIDE_2, etc
+
+	// If the env variable is not set, return nil
+
+	// If the env variable is set, return the value
+
+	values := []string{}
+	index := 0
+
+	for {
+		value := lib.GetEnvVariableRaw(fmt.Sprintf("FUNCTION_URL_OVERRIDE_%d", index), "NONE_LEFT", true)
+
+		if value == "NONE_LEFT" {
+			if index == 0 {
+				values = append(values, "NO")
+			}
+
+			break
+		}
+
+		values = append(values, value)
+		index++
+	}
+
+	fmt.Printf("Function URL overrides: %v\n", values)
+
+	return values
 }
