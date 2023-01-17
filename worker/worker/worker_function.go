@@ -70,12 +70,7 @@ func handlePanicExecution(ctx context.Context, client *redis.Client, childJob li
 		}
 	}()
 
-	result := handleExecution(ctx, client, childJob, workerId, creditsClient, isDev)
-
-	client.Close()
-	creditsClient.Close()
-
-	return result
+	return handleExecution(ctx, client, childJob, workerId, creditsClient, isDev)
 }
 
 func RunDevWorkerServer() {
