@@ -198,8 +198,8 @@ func (creditsManager *CreditsManager) captureCredits() {
 			return
 		}
 
-		// Set newFreeCredits to 0
-		creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.freeCreditsName, 0, 0)
+		// Add newFreeCredits toback to redis, like setting to 0 but this way we don't have to lock
+		creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.freeCreditsName, -newFreeCredits)
 		newFreeCredits = 0
 	} else {
 		newPaidCreditsStr, err := creditsManager.creditsClient.Get(creditsManager.ctx, creditsManager.paidCreditsName).Result()
@@ -218,7 +218,8 @@ func (creditsManager *CreditsManager) captureCredits() {
 		}
 
 		if newPaidCredits < 0 {
-			creditsManager.creditsClient.Set(creditsManager.ctx, creditsManager.paidCreditsName, "0", 0)
+			// Add newPaidCredits toback to redis, like setting to 0 but this way we don't have to lock
+			creditsManager.creditsClient.IncrBy(creditsManager.ctx, creditsManager.paidCreditsName, -newPaidCredits)
 			newPaidCredits = 0
 		}
 	}
