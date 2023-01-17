@@ -59,6 +59,8 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		time.Sleep(time.Until(*startTime))
 	}
 
+	// Test starts here
+
 	// Only start monitoring credits if the test has been marked as started
 	if workerInfo.CreditsManager != nil {
 		// Regularly deduct credits
@@ -90,6 +92,15 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 		workerInfo.CreditsManager.StopCreditsCapturing()
 	}(gs.FuncModeEnabled() && workerInfo.CreditsManager != nil)
+
+	// race main thread with the context cancellation from job.maxTestDurationMinutes
+	go func() {
+		// Sleep for the max test duration
+		time.Sleep(time.Duration(job.MaxTestDurationMinutes) * time.Minute)
+
+		libWorker.HandleStringError(gs, fmt.Sprintf("Test timed out after %d minutes", job.MaxTestDurationMinutes))
+		runCancel()
+	}()
 
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()

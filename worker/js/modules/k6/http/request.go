@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -70,6 +71,10 @@ func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Re
 		//return nil, errors.New("cannot make requests to non-local ips from agent")
 	}
 
+	if c.moduleInstance.rootModule.skipVerifiedDomainCheck {
+		return performRequest(c, method, url, args...)
+	}
+
 	c.moduleInstance.rootModule.domainLimitsLock.Lock()
 
 	if c.moduleInstance.rootModule.domainLimits[domain] == nil {
@@ -79,7 +84,7 @@ func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Re
 	limiter := c.moduleInstance.rootModule.domainLimits[domain]
 
 	// Wait for the limiter to allow the request
-	if err := limiter.Wait(c.moduleInstance.vu.Context()); err != nil {
+	if err := limiter.Wait(context.Background()); err != nil {
 		return nil, err
 	}
 

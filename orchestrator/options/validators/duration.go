@@ -31,5 +31,7 @@ func Duration(options *libWorker.Options, job libOrch.Job) error {
 		return fmt.Errorf("duration %d is too large, the maximum is %d", durationMinutes, maxDurationMinutes)
 	}
 
+	// TODO: enforce max duration
+
 	return nil
 }
