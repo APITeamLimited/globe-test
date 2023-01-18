@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxWorkerJobSize = 400
+const maxWorkerJobSize = 500
 
 type jobDistribution struct {
 	Jobs         []libOrch.ChildJob `json:"jobs"`
