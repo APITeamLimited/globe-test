@@ -233,7 +233,7 @@ func (creditsManager *CreditsManager) BillFinalCredits() {
 	creditsManager.StopCreditsCapturing()
 }
 
-func (creditsManager *CreditsManager) StartMonitoringCredits() {
+func (creditsManager *CreditsManager) StartMonitoringCredits(outOfCreditsCallback func()) {
 	if creditsManager == nil {
 		return
 	}
@@ -243,6 +243,11 @@ func (creditsManager *CreditsManager) StartMonitoringCredits() {
 
 	go func() {
 		for range creditsManager.billingTicker.C {
+			if creditsManager.GetCredits() < creditsManager.funcModeInfo.Instance100MSUnitRate {
+				outOfCreditsCallback()
+				return
+			}
+
 			creditsManager.ForceDeductCredits(creditsManager.funcModeInfo.Instance100MSUnitRate, true)
 		}
 	}()

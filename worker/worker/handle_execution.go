@@ -60,10 +60,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	// Test starts here
 
-	// Regularly deduct credits
-	workerInfo.CreditsManager.StartMonitoringCredits()
-	defer workerInfo.CreditsManager.BillFinalCredits()
-
 	// Don't know if these can be removed easily without unexpected side effects
 
 	// We prepare a bunch of contexts:
@@ -78,6 +74,13 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	defer globalCancel()
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
+
+	// Regularly deduct credits
+	workerInfo.CreditsManager.StartMonitoringCredits(func() {
+		libWorker.HandleStringError(gs, "Test stopped due to lack of credits")
+		runCancel()
+	})
+	defer workerInfo.CreditsManager.BillFinalCredits()
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 

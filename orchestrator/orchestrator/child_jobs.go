@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 
 	orchOptions "github.com/APITeamLimited/globe-test/orchestrator/options"
 	"github.com/APITeamLimited/redis/v9"
@@ -13,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxJobSize = 500
+const maxWorkerJobSize = 400
 
 type jobDistribution struct {
 	Jobs         []libOrch.ChildJob `json:"jobs"`
@@ -45,7 +44,7 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			return nil, fmt.Errorf("failed to find worker client %s, this is an internal error", loadZone.Location)
 		}
 
-		subFractions := determineSubFractions(loadZone.Fraction)
+		subFractions := determineSubFractions(loadZone.Fraction, job.Options.MaxPossibleVUs.Int64)
 
 		zoneChildJobs := make([]libOrch.ChildJob, len(subFractions))
 
@@ -79,32 +78,31 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 	return childJobs, nil
 }
 
-func determineSubFractions(fraction int) []float64 {
-	actualFraction := float64(fraction) / 100
-
-	if int(actualFraction*float64(maxJobSize)) <= maxJobSize {
-		return []float64{actualFraction}
-	}
+func determineSubFractions(zoneFraction int, totalMaxVUs int64) []float64 {
+	actualFraction := float64(zoneFraction) / 100
+	zoneMaxVUsFloat := float64(totalMaxVUs) * actualFraction
 
 	// Split into multiple jobs, each with a max of 500 vus and one job with the remainder
 
-	// Floor plus one to ensure we don't lose any vus
+	childJobs := make([]float64, 0)
 
-	numJobs := int(math.Floor(actualFraction*float64(maxJobSize))/maxJobSize) + 1
+	for {
+		if zoneMaxVUsFloat <= maxWorkerJobSize {
+			childJobs = append(childJobs, zoneMaxVUsFloat)
+			break
+		}
 
-	// Calculate sub fractions
-	subFractions := make([]float64, numJobs-1)
-
-	for i := 0; i < numJobs-1; i++ {
-		subFractions[i] = actualFraction * float64(maxJobSize) / float64(maxJobSize)
+		childJobs = append(childJobs, maxWorkerJobSize)
+		zoneMaxVUsFloat -= maxWorkerJobSize
 	}
 
-	// Add remainder
-	remainingVUs := actualFraction*float64(maxJobSize) - float64(maxJobSize)*float64(numJobs-1)
+	childSubFractions := make([]float64, len(childJobs))
 
-	if remainingVUs > 0 {
-		subFractions = append(subFractions, actualFraction*remainingVUs/float64(maxJobSize))
+	for i, childJob := range childJobs {
+		childSubFractions[i] = childJob / float64(totalMaxVUs)
 	}
 
-	return subFractions
+	fmt.Println(childSubFractions)
+
+	return childSubFractions
 }
