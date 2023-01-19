@@ -31,7 +31,7 @@ type childJobIdStruct struct {
 	ChildJobId string `json:"childJobId"`
 }
 
-func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
+func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]libOrch.ChildJobDistribution, jobId string) (string, error) {
 	libOrch.UpdateStatus(gs, "LOADING")
 
 	// Create a handler for aborts
@@ -43,14 +43,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	if gs.IndependentWorkerRedisHosts() {
 		for location, jobDistribution := range childJobs {
 			if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 && workerSubscriptions[location] == nil {
-				workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+				workerSubscriptions[location] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
 				defer workerSubscriptions[location].Close()
 			}
 		}
 	} else {
 		for _, jobDistribution := range childJobs {
 			// Only get first client as unified for whole job
-			workerSubscriptions[unifiedRedis] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+			workerSubscriptions[unifiedRedis] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
 			defer workerSubscriptions[unifiedRedis].Close()
 			break
 		}
@@ -248,7 +248,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
-								jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+								jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
 
@@ -325,7 +325,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	return abortAndFailAll(gs, childJobs, errors.New("an unexpected error occurred"))
 }
 
-func findChildJob(childJobs map[string]jobDistribution, location string, childJobId string) *libOrch.ChildJob {
+func findChildJob(childJobs map[string]libOrch.ChildJobDistribution, location string, childJobId string) *libOrch.ChildJob {
 	for _, childJob := range (childJobs)[location].Jobs {
 		if childJob.ChildJobId == childJobId {
 			return &childJob

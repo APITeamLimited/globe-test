@@ -19,6 +19,12 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 
 	healthy := optionsErr == nil
 
+	childJobs, err := determineChildJobs(healthy, job, job.Options, workerClients)
+	if err != nil {
+		libOrch.HandleError(gs, err)
+		healthy = false
+	}
+
 	if healthy {
 		marshalledOptions, err := json.Marshal(job.Options)
 		if err != nil {
@@ -28,13 +34,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 
 		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
 
-		(*gs.MetricsStore()).InitMetricsStore(job.Options)
-	}
-
-	childJobs, err := determineChildJobs(healthy, job, job.Options, workerClients)
-	if err != nil {
-		libOrch.HandleError(gs, err)
-		healthy = false
+		(*gs.MetricsStore()).InitMetricsStore(childJobs)
 	}
 
 	// Run the job
@@ -51,8 +51,6 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	libOrch.UpdateStatus(gs, result)
 
 	// Storing and cleaning up
-
-	(*gs.MetricsStore()).Stop()
 
 	// Create GlobeTest logs store receipt, note this must be sent after cleanup
 	globeTestLogsReceipt := primitive.NewObjectID()

@@ -8,12 +8,12 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) (*([](chan libOrch.FunctionResult)), error) {
+func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) (*([](chan libOrch.FunctionResult)), error) {
 	responseChannels := []chan libOrch.FunctionResult{}
 
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			channels, err := dispatchChildJob(gs, jobDistribution.workerClient, job, location)
+			channels, err := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
 			if err != nil {
 				return nil, err
 			}

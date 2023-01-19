@@ -105,7 +105,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	}
 
 	// Wait for the job to be started on redis
-	// TODO: implement as a blocking redis call
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()

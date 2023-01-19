@@ -3,6 +3,7 @@ package globetest
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -20,12 +21,23 @@ type Output struct {
 	gs          libWorker.BaseGlobalState
 	seenMetrics map[string]struct{}
 	thresholds  map[string]workerMetrics.Thresholds
+
+	flushCount      int
+	flushCountMutex sync.Mutex
+}
+
+type WrappedFormattedSamples struct {
+	SampleEnvelopes []SampleEnvelope `json:"samples"`
+	FlushCount      int              `json:"flush_count"`
 }
 
 func New(gs libWorker.BaseGlobalState) (output.Output, error) {
 	return &Output{
 		gs:          gs,
 		seenMetrics: make(map[string]struct{}),
+
+		flushCount:      0,
+		flushCountMutex: sync.Mutex{},
 	}, nil
 }
 
@@ -39,6 +51,8 @@ func (o *Output) Start() error {
 		return err
 	}
 	o.periodicFlusher = pf
+
+	// Flush once immediately
 
 	return nil
 }
@@ -60,6 +74,12 @@ func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) {
 }
 
 func (o *Output) flushMetrics() {
+	defer func() {
+		o.flushCountMutex.Lock()
+		o.flushCount++
+		o.flushCountMutex.Unlock()
+	}()
+
 	samples := o.GetBufferedSamples()
 	var count int
 
@@ -77,13 +97,16 @@ func (o *Output) flushMetrics() {
 		}
 	}
 
-	if len(formattedSamples) > 0 {
-		marshalled, err := json.Marshal(formattedSamples)
-		if err != nil {
-			libWorker.HandleError(o.gs, err)
-			return
-		}
+	marshalledWrappedSamples, err := json.Marshal(WrappedFormattedSamples{
+		SampleEnvelopes: formattedSamples,
+		FlushCount:      o.flushCount,
+	})
 
-		libWorker.DispatchMessage(o.gs, string(marshalled), "METRICS")
+	if err != nil {
+		libWorker.HandleError(o.gs, err)
+		return
 	}
+
+	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
+
 }

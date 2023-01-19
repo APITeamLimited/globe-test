@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	orchOptions "github.com/APITeamLimited/globe-test/orchestrator/options"
-	"github.com/APITeamLimited/redis/v9"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -14,19 +13,14 @@ import (
 
 const maxWorkerJobSize = 500
 
-type jobDistribution struct {
-	Jobs         []libOrch.ChildJob `json:"jobs"`
-	workerClient *redis.Client
-}
-
 func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options,
-	workerClients libOrch.WorkerClients) (map[string]jobDistribution, error) {
+	workerClients libOrch.WorkerClients) (map[string]libOrch.ChildJobDistribution, error) {
 	// Don't run if not healthy
 	if !healthy {
 		return nil, nil
 	}
 
-	childJobs := make(map[string]jobDistribution)
+	childJobs := make(map[string]libOrch.ChildJobDistribution)
 
 	// Loop through options load distribution
 	for _, loadZone := range options.LoadDistribution.Value {
@@ -69,9 +63,9 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			}
 		}
 
-		childJobs[loadZone.Location] = jobDistribution{
+		childJobs[loadZone.Location] = libOrch.ChildJobDistribution{
 			Jobs:         zoneChildJobs,
-			workerClient: workerClient.Client,
+			WorkerClient: workerClient.Client,
 		}
 	}
 
@@ -101,8 +95,6 @@ func determineSubFractions(zoneFraction int, totalMaxVUs int64) []float64 {
 	for i, childJob := range childJobs {
 		childSubFractions[i] = childJob / float64(totalMaxVUs)
 	}
-
-	fmt.Println(childSubFractions)
 
 	return childSubFractions
 }

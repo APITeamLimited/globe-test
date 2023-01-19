@@ -60,6 +60,11 @@ type (
 		SubFraction       float64                `json:"subFraction"`
 	}
 
+	ChildJobDistribution struct {
+		Jobs         []ChildJob `json:"jobs"`
+		WorkerClient *redis.Client
+	}
+
 	OrchestratorMessage struct {
 		JobId          string    `json:"jobId"`
 		Time           time.Time `json:"time"`

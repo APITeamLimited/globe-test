@@ -1,11 +1,7 @@
 package libOrch
 
-import "github.com/APITeamLimited/globe-test/worker/libWorker"
-
 // Cached metrics are stored before being collated and sent
 type BaseMetricsStore interface {
-	InitMetricsStore(options *libWorker.Options)
+	InitMetricsStore(childJobs map[string]ChildJobDistribution)
 	AddMessage(message WorkerMessage, workerLocation string, subFraction float64) error
-	Stop()
-	FlushMetrics()
 }

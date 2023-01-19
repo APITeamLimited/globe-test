@@ -13,6 +13,8 @@ func OutputConfig(options *libWorker.Options, funcMode, standalone bool) error {
 		options.OutputConfig = types.DefaultOutputConfig(localhost)
 	}
 
+	options.OutputConfig.Value.Graphs = applyDefaultDesiredWidth(options.OutputConfig.Value.Graphs)
+
 	err := validateMetricGraphs(options.OutputConfig.Value.Graphs)
 	if err != nil {
 		return err
@@ -21,10 +23,24 @@ func OutputConfig(options *libWorker.Options, funcMode, standalone bool) error {
 	return nil
 }
 
+func applyDefaultDesiredWidth(metricGraphs []types.MetricGraph) []types.MetricGraph {
+	for i := range metricGraphs {
+		if metricGraphs[i].DesiredWidth == 0 {
+			metricGraphs[i].DesiredWidth = 1
+		}
+	}
+
+	return metricGraphs
+}
+
 func validateMetricGraphs(metricGraphs []types.MetricGraph) error {
 	for _, metricGraph := range metricGraphs {
 		if metricGraph.Name == "" {
 			return fmt.Errorf("metric graph name cannot be empty")
+		}
+
+		if metricGraph.DesiredWidth == 0 {
+			metricGraph.DesiredWidth = 1
 		}
 
 		if metricGraph.DesiredWidth < 1 || metricGraph.DesiredWidth > 3 {
