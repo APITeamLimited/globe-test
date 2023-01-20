@@ -301,6 +301,19 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 	go func() {
 		message := <-startSubscription.Channel()
 
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+		if status == FAILED {
+			return
+		}
+
+		if message == nil || message.Payload == "" {
+			startChan <- nil
+			status = FAILED
+			startSubscription.Close()
+			return
+		}
+
 		// Parse start time from message
 
 		startTime, err := time.Parse(time.RFC3339, message.Payload)
@@ -310,9 +323,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		}
 
 		// Send start command to test runner
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED
