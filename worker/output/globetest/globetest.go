@@ -78,6 +78,7 @@ func (o *Output) flushMetrics() {
 		o.flushCountMutex.Lock()
 		o.flushCount++
 		o.flushCountMutex.Unlock()
+
 	}()
 
 	samples := o.GetBufferedSamples()
@@ -89,8 +90,6 @@ func (o *Output) flushMetrics() {
 		samples := sc.GetSamples()
 		count += len(samples)
 		for _, sample := range samples {
-			sample := sample
-
 			wrapped := wrapSample(sample)
 
 			formattedSamples = append(formattedSamples, wrapped)
@@ -108,5 +107,4 @@ func (o *Output) flushMetrics() {
 	}
 
 	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
-
 }

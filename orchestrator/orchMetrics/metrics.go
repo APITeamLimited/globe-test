@@ -3,8 +3,10 @@ package orchMetrics
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
@@ -80,24 +82,31 @@ func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.C
 }
 
 func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
+
+	startTime := time.Now()
 
 	if store.childJobs == nil {
 		return errors.New("metrics store not initialised")
 	}
 
-	wrappedFormattedSamples := globetest.WrappedFormattedSamples{}
+	var wrappedFormattedSamples globetest.WrappedFormattedSamples
 	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)
 	if err != nil {
 		return err
 	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	store.extendStoreIfRequired(wrappedFormattedSamples)
 
 	store.addSamplesToStore(wrappedFormattedSamples, workerLocation, message.ChildJobId, subFraction)
 
 	store.determineIfCanSendMetrics(wrappedFormattedSamples.FlushCount)
+
+	store.cleanupIrretrievableMetrics()
+
+	fmt.Printf("AddMessage took %v sample count %d\n", time.Since(startTime), len(wrappedFormattedSamples.SampleEnvelopes))
 
 	return nil
 }
@@ -370,4 +379,29 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 
 func (store *cachedMetricsStore) Cleanup() {
 	store = nil
+}
+
+// If flushCounts lags considerably behind the leading flushCount, then we can assume that the flushCount is no longer retrievable
+// and can be cleaned up, this is to prevent the memory from growing too large in the case that there is a lagging worker
+func (store *cachedMetricsStore) cleanupIrretrievableMetrics() {
+	// Find the leading flushCount
+	leadingFlushCount := 0
+	for _, interval := range store.collectedIntervals {
+		if interval.flushCount > leadingFlushCount {
+			leadingFlushCount = interval.flushCount
+		}
+	}
+
+	indexesToRemove := make([]int, 0)
+
+	// Remove all metrics that are more than 5 behind the leading flushCount
+	for index, interval := range store.collectedIntervals {
+		if interval.flushCount < leadingFlushCount-20 {
+			indexesToRemove = append(indexesToRemove, index)
+		}
+	}
+
+	for _, index := range indexesToRemove {
+		store.collectedIntervals = append(store.collectedIntervals[:index], store.collectedIntervals[index+1:]...)
+	}
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const collectRate = 50 * time.Millisecond
+const collectRate = 1000 * time.Millisecond
 
 var _ output.Output = &outputIngester{}
 

@@ -314,7 +314,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", workerMessage.ChildJobId))
 			}
 
-			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
+			go (*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
 			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
