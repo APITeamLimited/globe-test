@@ -1,20 +1,11 @@
 package globetest
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // Takes sample envelopes and aggregates them into a single envelope
 func aggregateSampleEnvelopes(samples []SampleEnvelope) []SampleEnvelope {
-	start := time.Now()
-
-	defer func() {
-		fmt.Printf("Aggregation took %s\n", time.Since(start))
-	}()
-
 	newSamples := make([]SampleEnvelope, 0)
 
 	for index, sample := range samples {

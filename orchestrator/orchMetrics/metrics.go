@@ -3,7 +3,6 @@ package orchMetrics
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -122,8 +121,6 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 	store.determineIfCanSendMetrics(wrappedFormattedSamples.FlushCount)
 
 	store.cleanupIrretrievableMetrics()
-
-	fmt.Printf("AddMessage took %v sample count %d\n", time.Since(startTime), len(wrappedFormattedSamples.SampleEnvelopes))
 
 	return nil
 }
