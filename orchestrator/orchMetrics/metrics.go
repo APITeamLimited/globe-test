@@ -82,12 +82,29 @@ func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.C
 }
 
 func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
-
 	startTime := time.Now()
 
 	if store.childJobs == nil {
 		return errors.New("metrics store not initialised")
 	}
+
+	// TODO: Implement gzip decompression
+
+	// // Gzip decompress
+
+	// buf := bytes.NewBuffer([]byte(message.Message))
+
+	// // Create a new flate reader
+	// fr := flate.NewReader(buf)
+
+	// // Read the decompressed bytes from the flate reader
+	// decompressed, err := ioutil.ReadAll(fr)
+	// if err != nil {
+	// 	fmt.Printf("Error decompressing: %v", err)
+	// 	return err
+	// }
+
+	// fmt.Printf("Time to decompress %v\n", time.Since(startTime))
 
 	var wrappedFormattedSamples globetest.WrappedFormattedSamples
 	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)

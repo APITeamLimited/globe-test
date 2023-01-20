@@ -97,7 +97,7 @@ func (o *Output) flushMetrics() {
 	}
 
 	marshalledWrappedSamples, err := json.Marshal(WrappedFormattedSamples{
-		SampleEnvelopes: formattedSamples,
+		SampleEnvelopes: aggregateSampleEnvelopes(formattedSamples),
 		FlushCount:      o.flushCount,
 	})
 
@@ -105,6 +105,22 @@ func (o *Output) flushMetrics() {
 		libWorker.HandleError(o.gs, err)
 		return
 	}
+
+	// TODO: implement gzip compression
+
+	// // Gzip the marshalled string
+
+	// var b bytes.Buffer
+
+	// fw, err := flate.NewWriter(&b, flate.DefaultCompression)
+	// if err != nil {
+	// 	libWorker.HandleError(o.gs, err)
+	// 	return
+	// }
+
+	// fw.Write([]byte(marshalledWrappedSamples))
+
+	// fw.Close()
 
 	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
 }
