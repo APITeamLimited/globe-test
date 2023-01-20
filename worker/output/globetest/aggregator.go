@@ -16,30 +16,24 @@ func aggregateSampleEnvelopes(samples []SampleEnvelope) []SampleEnvelope {
 
 		matched := false
 		for i, newSample := range newSamples {
-			if sample.Metric.Name == newSample.Metric.Name {
-				if sample.Data.Tags != nil && newSample.Data.Tags != nil {
-					name, _ := sample.Data.Tags.Get("name")
-					newName, _ := newSample.Data.Tags.Get("name")
-
-					if name != newName {
-						continue
-					}
-				}
-
-				if newSample.Metric.Type == workerMetrics.Counter || newSample.Metric.Type == workerMetrics.Rate {
-					newSamples[i].Data.Value += sample.Data.Value
-				} else if newSample.Metric.Type == workerMetrics.Gauge {
-					if newSample.Data.Value > sample.Data.Value {
-						newSamples[i].Data.Value = sample.Data.Value
-					}
-				} else if newSample.Metric.Type == workerMetrics.Trend {
-					newSamples[i].Data.Value += sample.Data.Value
-				}
-
-				newSamples[i].samplesAdded++
-				matched = true
-				break
+			if sample.Metric.Name != newSample.Metric.Name {
+				continue
 			}
+
+			if sample.Data.Tags != nil && newSample.Data.Tags != nil {
+				name, _ := sample.Data.Tags.Get("name")
+				newName, _ := newSample.Data.Tags.Get("name")
+
+				if name != newName {
+					continue
+				}
+			}
+
+			newSamples[i].Data.Value += sample.Data.Value
+			newSamples[i].samplesAdded++
+
+			matched = true
+			break
 		}
 
 		if !matched {
