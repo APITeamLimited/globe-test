@@ -126,15 +126,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
 
-	// race main thread with the context cancellation from job.maxTestDurationMinutes
-	go func() {
-		// Sleep for the max test duration
-		time.Sleep(time.Duration(job.MaxTestDurationMinutes) * time.Minute)
-
-		libWorker.HandleStringError(gs, fmt.Sprintf("Test timed out after %d minutes", job.MaxTestDurationMinutes))
-		runCancel()
-	}()
-
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
 

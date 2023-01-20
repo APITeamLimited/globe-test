@@ -43,7 +43,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 	result := "FAILURE"
 
 	if healthy {
-		result, err = handleExecution(gs, job.Options, job.Scope, childJobs, job.Id)
+		result, err = handleExecution(gs, job, childJobs)
 		if err != nil {
 			libOrch.HandleError(gs, err)
 		}
