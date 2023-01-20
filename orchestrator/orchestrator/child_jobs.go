@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxWorkerJobSize = 500
+const maxWorkerJobSize = 250
 
 func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options,
 	workerClients libOrch.WorkerClients) (map[string]libOrch.ChildJobDistribution, error) {

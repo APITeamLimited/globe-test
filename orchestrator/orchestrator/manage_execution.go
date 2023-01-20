@@ -35,6 +35,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
 
 		(*gs.MetricsStore()).InitMetricsStore(childJobs)
+		defer (*gs.MetricsStore()).Cleanup()
 	}
 
 	// Run the job

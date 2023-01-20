@@ -239,7 +239,7 @@ func (store *cachedMetricsStore) aggreagateAndSendMetrics(intervalIndex int) {
 	combinedMetrics := calculateCombinedMetrics(interval)
 
 	// Send metrics
-	sendMetrics(store.gs, combinedMetrics)
+	go sendMetrics(store.gs, combinedMetrics)
 
 	// Remove the interval
 	store.collectedIntervals = append(store.collectedIntervals[:intervalIndex], store.collectedIntervals[intervalIndex+1:]...)
@@ -366,4 +366,8 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 	}
 
 	return aggregatedMetric
+}
+
+func (store *cachedMetricsStore) Cleanup() {
+	store = nil
 }

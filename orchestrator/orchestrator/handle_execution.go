@@ -181,6 +181,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	resolutionMutex := sync.Mutex{}
 
 	summaryBank := orchMetrics.NewSummaryBank(gs, options)
+	defer summaryBank.Cleanup()
 
 	for locatedMessage := range unifiedChannel {
 		if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
