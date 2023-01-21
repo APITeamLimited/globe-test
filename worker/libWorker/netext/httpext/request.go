@@ -332,7 +332,8 @@ func MakeRequest(ctx context.Context, state *libWorker.State, preq *ParsedHTTPRe
 		select {
 		case <-ctx.Done():
 		default:
-			state.Logger.WithField("error", resErr).Warn("Request Failed")
+			// Creates too much noise in the logs
+			//state.Logger.WithField("error", resErr).Warn("Request Failed")
 		}
 	}
 

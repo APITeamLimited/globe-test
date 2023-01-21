@@ -163,7 +163,6 @@ func performRequest(c *Client, method string, url goja.Value, args ...goja.Value
 		}
 
 		// Creates too much noise in the logs
-
 		//state.Logger.WithField("error", err).Warn("Request Failed")
 		r := httpext.NewResponse()
 		r.Error = err.Error()
