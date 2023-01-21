@@ -29,6 +29,8 @@ const (
 	maxConsoleLogs = 100
 )
 
+var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "JOB_INFO", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
+
 type childJobIdStruct struct {
 	ChildJobId string `json:"childJobId"`
 }
@@ -339,8 +341,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					return abortAndFailAll(gs, childJobs, err)
 				}
 			}
-		} else if workerMessage.MessageType == "MARK" || workerMessage.MessageType == "OPTIONS" || workerMessage.MessageType == "JOB_INFO" || workerMessage.MessageType == "UNVERIFIED_DOMAIN_THROTTLED" {
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 		} else if workerMessage.MessageType == "CONSOLE" {
 			consoleLogCountMutex.Lock()
 
@@ -349,7 +349,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					sentMaxLogsReached = true
 					consoleLogCountMutex.Unlock()
 
-					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, "Console log limit reached, no more console logs will be displayed", "MAX_CONSOLE_LOGS_REACHED")
+					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, "MAX_CONSOLE_LOGS_REACHED", "MESSAGE")
 				} else {
 					consoleLogCountMutex.Unlock()
 				}
@@ -361,6 +361,16 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			consoleLogCountMutex.Unlock()
 
 			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+		} else {
+			// Check if the message is a custom message
+			for _, messageType := range otherMessageTypes {
+				if messageType == workerMessage.MessageType {
+
+					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+					break
+				}
+			}
+
 		}
 	}
 
