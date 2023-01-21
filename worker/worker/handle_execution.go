@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -59,11 +58,7 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		time.Sleep(time.Until(*startTime))
 	}
 
-	// Only start monitoring credits if the test has been marked as started
-	if workerInfo.CreditsManager != nil {
-		// Regularly deduct credits
-		monitorCredits(gs, workerInfo.CreditsManager)
-	}
+	// Test starts here
 
 	// Don't know if these can be removed easily without unexpected side effects
 
@@ -80,38 +75,14 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
 
+	// Regularly deduct credits
+	workerInfo.CreditsManager.StartMonitoringCredits(func() {
+		libWorker.HandleStringError(gs, "Test stopped due to lack of credits")
+		runCancel()
+	})
+	defer workerInfo.CreditsManager.BillFinalCredits()
+
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
-
-	defer func(billCredits bool) {
-		if billCredits {
-			// Do this before we stop capturing credits, so that we can get the final credits
-			billFinalCredits(workerInfo.CreditsManager, gs.FuncModeInfo())
-		}
-
-		workerInfo.CreditsManager.StopCreditsCapturing()
-	}(gs.FuncModeEnabled() && workerInfo.CreditsManager != nil)
-
-	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
-	childJobUpdatesChannel := childUpdatesSubscription.Channel()
-
-	// Create handler for test aborts
-	defer childUpdatesSubscription.Close()
-
-	go func() {
-		for msg := range childJobUpdatesChannel {
-			var abortMessage = JobUserUpdate{}
-			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
-				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
-				continue
-			}
-
-			if abortMessage.UpdateType == "CANCEL" {
-				fmt.Println("Aborting child job due to a request from the orchestrator")
-				runCancel()
-				return
-			}
-		}
-	}()
 
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
@@ -134,7 +105,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	}
 
 	// Wait for the job to be started on redis
-	// TODO: implement as a blocking redis call
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
@@ -155,6 +125,29 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
+
+	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
+	childJobUpdatesChannel := childUpdatesSubscription.Channel()
+
+	// Create handler for test aborts
+	defer childUpdatesSubscription.Close()
+
+	go func() {
+		for msg := range childJobUpdatesChannel {
+			var abortMessage = JobUserUpdate{}
+			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
+				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
+				continue
+			}
+
+			if abortMessage.UpdateType == "CANCEL" {
+				fmt.Println("Aborting child job due to a request from the orchestrator")
+
+				runCancel()
+			}
+		}
+	}()
+
 	var interrupt error
 	err = engineRun()
 	if err != nil {
@@ -253,7 +246,7 @@ func loadWorkerInfo(ctx context.Context,
 	}
 
 	if gs.FuncModeInfo() != nil && creditsClient != nil {
-		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient)
+		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient, *gs.FuncModeInfo())
 	}
 
 	if job.CollectionContext != nil && job.CollectionContext.Name != "" {
@@ -288,19 +281,6 @@ func loadWorkerInfo(ctx context.Context,
 	return workerInfo
 }
 
-func billFinalCredits(creditsManager *lib.CreditsManager, funcModeInfo *lib.FuncModeInfo) {
-	timeSinceLastBilling := time.Since(creditsManager.LastBillingTime())
-	billingCycleCount := int64(math.Ceil(float64(timeSinceLastBilling.Milliseconds()) / 100))
-
-	if billingCycleCount <= 0 {
-		billingCycleCount = 1
-	}
-
-	fractionCost := billingCycleCount * funcModeInfo.Instance100MSUnitRate
-
-	creditsManager.ForceDeductCredits(fractionCost, false)
-}
-
 const (
 	WAITING = iota
 	STARTED
@@ -321,6 +301,19 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 	go func() {
 		message := <-startSubscription.Channel()
 
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+		if status == FAILED {
+			return
+		}
+
+		if message == nil || message.Payload == "" {
+			startChan <- nil
+			status = FAILED
+			startSubscription.Close()
+			return
+		}
+
 		// Parse start time from message
 
 		startTime, err := time.Parse(time.RFC3339, message.Payload)
@@ -330,9 +323,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		}
 
 		// Send start command to test runner
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED

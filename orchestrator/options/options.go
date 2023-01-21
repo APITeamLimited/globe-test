@@ -61,8 +61,6 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	validators.InsecureSkipTLSVerify(options)
-
 	err = validators.TeardownTimeout(options)
 	if err != nil {
 		return nil, err
@@ -89,13 +87,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	// Find max possible VU count
-	maxVUsCount := int64(0)
-	for _, scenario := range checkedOptions.Scenarios {
-		maxVUsCount += scenario.GetMaxExecutorVUs()
-	}
-
-	err = validators.MaxVUs(maxVUsCount, job)
+	err = validators.MaxVUs(&checkedOptions, job)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +117,10 @@ func applyDefault(options *libWorker.Options) libWorker.Options {
 	}
 	if !options.TeardownTimeout.Valid {
 		options.TeardownTimeout.Duration = types.Duration(60 * time.Second)
+	}
+
+	if !options.InsecureSkipTLSVerify.Valid {
+		options.InsecureSkipTLSVerify = null.BoolFrom(false)
 	}
 
 	return *options

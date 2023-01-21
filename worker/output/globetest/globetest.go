@@ -58,6 +58,8 @@ func (o *Output) Start() error {
 	}
 	o.periodicFlusher = pf
 
+	// Flush once immediately
+
 	return nil
 }
 
@@ -101,8 +103,6 @@ func (o *Output) flushMetrics() {
 		samples := sc.GetSamples()
 		count += len(samples)
 		for _, sample := range samples {
-			sample := sample
-
 			wrapped := wrapSample(sample)
 
 			formattedSamples = append(formattedSamples, wrapped)

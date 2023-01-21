@@ -10,7 +10,6 @@ import (
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
@@ -20,9 +19,10 @@ type locatedMesaage struct {
 }
 
 const (
-	JOB_USER_UPDATES_CHANNEL = "jobUserUpdates"
-	NO_CREDITS_ABORT_CHANNEL = "noCreditsAbort"
-	FUNC_ERROR_ABORT_CHANNEL = "funcErrorAbort"
+	JOB_USER_UPDATES_CHANNEL  = "jobUserUpdates"
+	NO_CREDITS_ABORT_CHANNEL  = "noCreditsAbort"
+	FUNC_ERROR_ABORT_CHANNEL  = "funcErrorAbort"
+	OUT_OF_TIME_ABORT_CHANNEL = "outOfTimeAbort"
 
 	unifiedRedis = "unified"
 )
@@ -31,11 +31,11 @@ type childJobIdStruct struct {
 	ChildJobId string `json:"childJobId"`
 }
 
-func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, scope libOrch.Scope, childJobs map[string]jobDistribution, jobId string) (string, error) {
+func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution) (string, error) {
 	libOrch.UpdateStatus(gs, "LOADING")
 
 	// Create a handler for aborts
-	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", scope.Variant, scope.VariantTargetId, jobId))
+	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", job.Scope.Variant, job.Scope.VariantTargetId, job.Id))
 	defer jobUserUpdatesSubscription.Close()
 
 	workerSubscriptions := make(map[string]*redis.PubSub)
@@ -43,14 +43,14 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	if gs.IndependentWorkerRedisHosts() {
 		for location, jobDistribution := range childJobs {
 			if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 && workerSubscriptions[location] == nil {
-				workerSubscriptions[location] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+				workerSubscriptions[location] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
 				defer workerSubscriptions[location].Close()
 			}
 		}
 	} else {
 		for _, jobDistribution := range childJobs {
 			// Only get first client as unified for whole job
-			workerSubscriptions[unifiedRedis] = jobDistribution.workerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", jobId))
+			workerSubscriptions[unifiedRedis] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
 			defer workerSubscriptions[unifiedRedis].Close()
 			break
 		}
@@ -74,6 +74,21 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
+	// race main thread with the context cancellation from job.maxTestDurationMinutes
+	go func() {
+		// Sleep for the max test duration
+		time.Sleep(time.Duration(job.MaxTestDurationMinutes) * time.Minute)
+
+		if gs.GetStatus() != "LOADING" && gs.GetStatus() != "RUNNING" {
+			return
+		}
+
+		unifiedChannel <- locatedMesaage{
+			location: OUT_OF_TIME_ABORT_CHANNEL,
+			msg:      nil,
+		}
+	}()
+
 	// Handle aborts on functionChannels
 	for _, channel := range *functionChannels {
 		go func(channel <-chan libOrch.FunctionResult) {
@@ -90,8 +105,6 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 						location: FUNC_ERROR_ABORT_CHANNEL,
 						msg:      nil,
 					}
-
-					fmt.Println(msg.Response)
 				}
 			}
 		}(channel)
@@ -180,10 +193,13 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	failureCount := 0
 	resolutionMutex := sync.Mutex{}
 
-	summaryBank := orchMetrics.NewSummaryBank(gs, options)
+	summaryBank := orchMetrics.NewSummaryBank(gs, job.Options)
+	defer summaryBank.Cleanup()
 
 	for locatedMessage := range unifiedChannel {
-		if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
+		if locatedMessage.location == OUT_OF_TIME_ABORT_CHANNEL {
+			return abortAndFailAll(gs, childJobs, errors.New("max test duration exceeded"))
+		} else if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to worker error"))
 		} else if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to no credits"))
@@ -248,7 +264,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
-								jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+								jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
 
@@ -298,7 +314,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", workerMessage.ChildJobId))
 			}
 
-			(*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
+			go (*gs.MetricsStore()).AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
 		} else if workerMessage.MessageType == "SUMMARY_METRICS" {
 			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
 			if childJob == nil {
@@ -325,7 +341,7 @@ func handleExecution(gs libOrch.BaseGlobalState, options *libWorker.Options, sco
 	return abortAndFailAll(gs, childJobs, errors.New("an unexpected error occurred"))
 }
 
-func findChildJob(childJobs map[string]jobDistribution, location string, childJobId string) *libOrch.ChildJob {
+func findChildJob(childJobs map[string]libOrch.ChildJobDistribution, location string, childJobId string) *libOrch.ChildJob {
 	for _, childJob := range (childJobs)[location].Jobs {
 		if childJob.ChildJobId == childJobId {
 			return &childJob

@@ -8,7 +8,7 @@ import (
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 )
 
-func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution) error {
+func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) error {
 	cancelMessage := lib.JobUserUpdate{
 		UpdateType: "CANCEL",
 	}
@@ -21,7 +21,7 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribu
 
 	for _, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			sendError := jobDistribution.workerClient.Publish(gs.Ctx(), fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId), stringMarshalledCancelMessage).Err()
+			sendError := jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId), stringMarshalledCancelMessage).Err()
 
 			if sendError != nil {
 				libOrch.HandleError(gs, sendError)
@@ -32,7 +32,7 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribu
 	return err
 }
 
-func abortAndFailAll(gs libOrch.BaseGlobalState, childJobs map[string]jobDistribution, err error) (string, error) {
+func abortAndFailAll(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution, err error) (string, error) {
 	abortChildJobs(gs, childJobs)
 
 	libOrch.UpdateStatus(gs, "FAILURE")

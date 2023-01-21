@@ -23,6 +23,11 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 		return origLen, err
 	}
 
+	// Ignore debug messages
+	if parsed["level"] == "debug" {
+		return origLen, err
+	}
+
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
 		if parsed["error"] != nil {

@@ -5,6 +5,7 @@ import (
 	"net/http/cookiejar"
 	"sync"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
@@ -25,11 +26,12 @@ const (
 // TODO: add sync.Once for all of the deprecation warnings we might want to do
 // for the old k6/http APIs here, so they are shown only once in a test run.
 type RootModule struct {
-	workerInfo       *libWorker.WorkerInfo
-	domainLimits     map[string]*rate.Limiter
-	domainLimitsLock sync.Mutex
-	isLocalIp        map[string]int
-	isLocalIpLock    sync.Mutex
+	workerInfo              *libWorker.WorkerInfo
+	domainLimits            map[string]*rate.Limiter
+	domainLimitsLock        sync.Mutex
+	isLocalIp               map[string]int
+	isLocalIpLock           sync.Mutex
+	skipVerifiedDomainCheck bool
 }
 
 // ModuleInstance represents an instance of the HTTP module for every VU.
@@ -53,6 +55,7 @@ func New(workerInfo *libWorker.WorkerInfo) *RootModule {
 		domainLimitsLock: sync.Mutex{},
 		//isLocalIp:        make(map[string]int),
 		//isLocalIpLock:    sync.Mutex{},
+		skipVerifiedDomainCheck: lib.GetEnvVariableBool("SKIP_VERIFIED_DOMAIN_CHECK", false),
 	}
 }
 

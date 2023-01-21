@@ -49,6 +49,10 @@ func NewSummaryBank(gs libOrch.BaseGlobalState, options *libWorker.Options) *sum
 	return sb
 }
 
+func (sb *summaryBank) Cleanup() {
+	sb = nil
+}
+
 func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
 	var summaryMetrics map[string]summaryMetric
 
@@ -241,7 +245,15 @@ func determineSummaryTrend(matchingKeyMetrics []map[string]wrappedSummaryMetric,
 func (sb *summaryBank) Size() int {
 	count := 0
 
+	if sb == nil || sb.collectedSummaryMetrics == nil {
+		return count
+	}
+
 	for k, v := range sb.collectedSummaryMetrics {
+		if v == nil {
+			continue
+		}
+
 		if k != libOrch.GlobalName {
 			count += len(v)
 		}

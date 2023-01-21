@@ -5,11 +5,8 @@ import (
 	"errors"
 	"math"
 	"sync"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/output"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
@@ -28,14 +25,30 @@ type wrappedMetric struct {
 	childJobId  string
 }
 
+type locationSubJobs struct {
+	childJobId     string
+	wrappedMetrics []wrappedMetric
+	collected      bool
+}
+
+type collectedMetricLocations struct {
+	locations map[string][]locationSubJobs
+}
+
+type collectedInterval struct {
+	flushCount       int
+	collectedMetrics collectedMetricLocations
+}
+
 // Cached metrics are stored before being collated and sent
 type cachedMetricsStore struct {
 	// Each envelope in the map is a certain metric
-	collectedMetrics map[string][]wrappedMetric
-	mu               sync.RWMutex
-	flusher          *output.PeriodicFlusher
-	gs               libOrch.BaseGlobalState
-	options          *libWorker.Options
+	collectedIntervals []collectedInterval
+	mu                 sync.RWMutex
+	gs                 libOrch.BaseGlobalState
+
+	childJobs     map[string]libOrch.ChildJobDistribution
+	childJobCount int
 }
 
 var (
@@ -44,216 +57,277 @@ var (
 
 func NewCachedMetricsStore(gs libOrch.BaseGlobalState) *cachedMetricsStore {
 	return &cachedMetricsStore{
-		gs:               gs,
-		collectedMetrics: make(map[string][]wrappedMetric),
-		mu:               sync.RWMutex{},
+		gs:                 gs,
+		collectedIntervals: make([]collectedInterval, 0),
+		mu:                 sync.RWMutex{},
 	}
 }
 
-func (store *cachedMetricsStore) InitMetricsStore(options *libWorker.Options) {
+func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.ChildJobDistribution) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	store.options = options
+	store.childJobs = childJobs
 
-	// Add load distribution locations
-	for _, location := range options.LoadDistribution.Value {
-		store.collectedMetrics[location.Location] = make([]wrappedMetric, 0)
+	// Determine total number of child jobs
+	for _, childJob := range childJobs {
+		store.childJobCount += len(childJob.Jobs)
 	}
 
-	// Add global location
-	store.collectedMetrics[libOrch.GlobalName] = make([]wrappedMetric, 0)
-
 	// This will never return an error
-	pf, _ := output.NewPeriodicFlusher(1000*time.Millisecond, store.FlushMetrics)
+	// pf, _ := output.NewPeriodicFlusher(1000*time.Millisecond, store.FlushMetrics)
 
-	store.flusher = pf
+	// store.flusher = pf
 }
 
 func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
-	if store.options == nil {
+	if store.childJobs == nil {
 		return errors.New("metrics store not initialised")
 	}
 
-	// Ensure childJobId is not already in the store, prevents duplicate metrics
-	for _, existingWrappedMetric := range store.collectedMetrics[workerLocation] {
-		if existingWrappedMetric.childJobId == message.ChildJobId {
-			return nil
-		}
-	}
+	// TODO: Implement gzip decompression
 
-	var sampleEnvelopes []globetest.SampleEnvelope
+	// // Gzip decompress
 
-	err := json.Unmarshal([]byte(message.Message), &sampleEnvelopes)
+	// buf := bytes.NewBuffer([]byte(message.Message))
+
+	// // Create a new flate reader
+	// fr := flate.NewReader(buf)
+
+	// // Read the decompressed bytes from the flate reader
+	// decompressed, err := ioutil.ReadAll(fr)
+	// if err != nil {
+	// 	fmt.Printf("Error decompressing: %v", err)
+	// 	return err
+	// }
+
+	// fmt.Printf("Time to decompress %v\n", time.Since(startTime))
+
+	var wrappedFormattedSamples globetest.WrappedFormattedSamples
+	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)
 	if err != nil {
 		return err
 	}
 
-	wrappedMetrics := make([]wrappedMetric, 0)
-	for _, sampleEnvelope := range sampleEnvelopes {
-		wrappedMetrics = append(wrappedMetrics, wrappedMetric{
-			metric: metric{
-				Contains: sampleEnvelope.Metric.Contains.String(),
-				Type:     sampleEnvelope.Metric.Type,
-				Value:    sampleEnvelope.Data.Value,
-			},
-			name:        sampleEnvelope.Metric.Name,
-			location:    workerLocation,
-			subFraction: subFraction,
-			childJobId:  message.ChildJobId,
-		})
-	}
-
-	// Add the metrics to the store
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	for _, wrappedMetric := range wrappedMetrics {
-		// Add the metrics to the correct location array
-		store.collectedMetrics[workerLocation] = append(store.collectedMetrics[workerLocation], wrappedMetric)
+	store.extendStoreIfRequired(wrappedFormattedSamples)
 
-		// Add the metrics to the global array
-		store.collectedMetrics[libOrch.GlobalName] = append(store.collectedMetrics[libOrch.GlobalName], wrappedMetric)
-	}
+	store.addSamplesToStore(wrappedFormattedSamples, workerLocation, message.ChildJobId, subFraction)
+
+	store.determineIfCanSendMetrics(wrappedFormattedSamples.FlushCount)
+
+	store.cleanupIrretrievableMetrics()
 
 	return nil
 }
 
-// Empty the store and returns its contents
-func (store *cachedMetricsStore) emptyStore() (map[string][]wrappedMetric, error) {
-	if store.options == nil {
-		return nil, errors.New("metrics store not initialised")
+// Each flush count is a new set of metrics, and the array is extended to accommodate
+func (store *cachedMetricsStore) extendStoreIfRequired(wrappedFormattedSamples globetest.WrappedFormattedSamples) {
+	// Check last item in array
+	if !(len(store.collectedIntervals) == 0 || store.collectedIntervals[len(store.collectedIntervals)-1].flushCount != wrappedFormattedSamples.FlushCount) {
+		return
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	store.collectedIntervals = append(store.collectedIntervals, collectedInterval{
+		flushCount: wrappedFormattedSamples.FlushCount,
+		collectedMetrics: collectedMetricLocations{
+			locations: make(map[string][]locationSubJobs),
+		},
+	})
 
-	// Copy the map
-	result := make(map[string][]wrappedMetric, len(store.collectedMetrics))
-	for metricName, sampleEnvelopes := range store.collectedMetrics {
-		result[metricName] = make([]wrappedMetric, len(sampleEnvelopes))
-		copy(result[metricName], sampleEnvelopes)
-	}
-
-	// Empty the map
-	store.collectedMetrics = make(map[string][]wrappedMetric)
+	newEndIndex := len(store.collectedIntervals) - 1
 
 	// Add load distribution locations
-	for _, location := range store.options.LoadDistribution.Value {
-		store.collectedMetrics[location.Location] = make([]wrappedMetric, 0)
-	}
+	for location, childJobDistribution := range store.childJobs {
+		// Get number of child jobs for this location
+		numChildJobs := len(childJobDistribution.Jobs)
 
-	// Add global location
-	store.collectedMetrics[libOrch.GlobalName] = make([]wrappedMetric, 0)
+		store.collectedIntervals[newEndIndex].collectedMetrics.locations[location] = make([]locationSubJobs, 0, numChildJobs)
 
-	return result, nil
-}
-
-func (store *cachedMetricsStore) FlushMetrics() {
-	collectedMetrics, err := store.getMetrics()
-	if err != nil {
-		// Sometimes there are not enough metrics, this will throw an expected error
-		// that can be ignored
-		return
-	}
-
-	if len(collectedMetrics) == 0 {
-		return
-	}
-
-	// Marshall the envelopes
-	marshalledCollectedMetrics, err := json.Marshal(collectedMetrics)
-	if err != nil {
-		libOrch.HandleError(store.gs, err)
-		return
-	}
-
-	libOrch.DispatchMessage(store.gs, string(marshalledCollectedMetrics), "METRICS")
-}
-
-func (store *cachedMetricsStore) getMetrics() (map[string]map[string]metric, error) {
-	collectedMetrics, err := store.emptyStore()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(collectedMetrics) == 0 {
-		return nil, errors.New("need at least one group of metrics")
-	}
-
-	firstKey := ""
-
-	// Ensure at least one metric in each location
-	for key, zoneMetrics := range collectedMetrics {
-		if len(zoneMetrics) == 0 {
-			return nil, errors.New("need at least one metric in each location")
-		}
-
-		if firstKey == "" {
-			firstKey = key
+		// Add sub jobs
+		for _, childJob := range childJobDistribution.Jobs {
+			store.collectedIntervals[newEndIndex].collectedMetrics.locations[location] = append(store.collectedIntervals[newEndIndex].collectedMetrics.locations[location], locationSubJobs{
+				childJobId:     childJob.ChildJobId,
+				wrappedMetrics: make([]wrappedMetric, 0),
+				collected:      false,
+			})
 		}
 	}
+}
 
-	metricKeys := make([]string, 0)
-	metricTypes := make([]workerMetrics.MetricType, 0)
-	metricContains := make([]string, 0)
+func (store *cachedMetricsStore) addSamplesToStore(wrappedFormattedSamples globetest.WrappedFormattedSamples, workerLocation string, childJobId string, subfraction float64) {
+	// Find the correct interval
+	for i := len(store.collectedIntervals) - 1; i >= 0; i-- {
+		if store.collectedIntervals[i].flushCount == wrappedFormattedSamples.FlushCount {
+			// Find the correct location
+			for j := range store.collectedIntervals[i].collectedMetrics.locations[workerLocation] {
+				if store.collectedIntervals[i].collectedMetrics.locations[workerLocation][j].childJobId == childJobId {
+					// Add the samples
+					locationSubJob := &store.collectedIntervals[i].collectedMetrics.locations[workerLocation][j]
 
-	// Find first metric in first location
-	for _, metric := range collectedMetrics[firstKey] {
-		alreadExists := false
-		for i := 0; i < len(metricKeys); i++ {
-			if metricKeys[i] == metric.name {
-				alreadExists = true
-				break
+					for _, sampleEnvelope := range wrappedFormattedSamples.SampleEnvelopes {
+						locationSubJob.wrappedMetrics = append(locationSubJob.wrappedMetrics, wrappedMetric{
+							metric: metric{
+								Contains: sampleEnvelope.Metric.Contains.String(),
+								Type:     sampleEnvelope.Metric.Type,
+								Value:    sampleEnvelope.Data.Value,
+							},
+							name:        sampleEnvelope.Metric.Name,
+							location:    workerLocation,
+							subFraction: subfraction,
+							childJobId:  childJobId,
+						})
+					}
+
+					locationSubJob.collected = true
+
+					return
+				}
 			}
 		}
+	}
+}
 
-		if !alreadExists {
-			metricKeys = append(metricKeys, metric.name)
-			metricTypes = append(metricTypes, metric.metric.Type)
-			metricContains = append(metricContains, metric.metric.Contains)
+// Checks to see if all locationSubJobs have been collected, if so, they can be agregated,
+// sent, and the flush count can be removed
+func (store *cachedMetricsStore) determineIfCanSendMetrics(flushCount int) {
+	// Find the correct interval
+	for i := len(store.collectedIntervals) - 1; i >= 0; i-- {
+		if store.collectedIntervals[i].flushCount == flushCount {
+			// Check if all locationSubJobs have been collected
+			for _, locationSubJobs := range store.collectedIntervals[i].collectedMetrics.locations {
+				for _, locationSubJob := range locationSubJobs {
+					if !locationSubJob.collected {
+						return
+					}
+				}
+			}
+
+			// All locationSubJobs have been collected, so we can send the metrics
+			// TODO: Send metrics
+			store.aggreagateAndSendMetrics(i)
+			return
+		}
+	}
+}
+
+type possibleMetric struct {
+	metricKey      string
+	metricType     workerMetrics.MetricType
+	metricContains string
+}
+
+func determinePossibleMetrics(interval collectedInterval) []possibleMetric {
+	possibleMetrics := make([]possibleMetric, 0)
+
+	for _, locationSubJobs := range interval.collectedMetrics.locations {
+		for _, locationSubJob := range locationSubJobs {
+			for _, wrappedMetric := range locationSubJob.wrappedMetrics {
+				// Check if this metric has already been added
+				metricAlreadyAdded := false
+
+				for _, possibleMetric := range possibleMetrics {
+					if possibleMetric.metricKey == wrappedMetric.name && possibleMetric.metricType == wrappedMetric.metric.Type && possibleMetric.metricContains == wrappedMetric.metric.Contains {
+						metricAlreadyAdded = true
+						break
+					}
+				}
+
+				if !metricAlreadyAdded {
+					possibleMetrics = append(possibleMetrics, possibleMetric{
+						metricKey:      wrappedMetric.name,
+						metricType:     wrappedMetric.metric.Type,
+						metricContains: wrappedMetric.metric.Contains,
+					})
+				}
+			}
 		}
 	}
 
-	// Combined metrics is the collated metrics
+	return possibleMetrics
+}
+
+func (store *cachedMetricsStore) aggreagateAndSendMetrics(intervalIndex int) {
+	if store.gs.Standalone() {
+		store.addGlobalLocation(intervalIndex)
+	}
+
+	interval := store.collectedIntervals[intervalIndex]
+
+	// Combined metrics is map[location]map[metricKey]metric
+	combinedMetrics := calculateCombinedMetrics(interval)
+
+	// Send metrics
+	go sendMetrics(store.gs, combinedMetrics)
+
+	// Remove the interval
+	store.collectedIntervals = append(store.collectedIntervals[:intervalIndex], store.collectedIntervals[intervalIndex+1:]...)
+}
+
+func sendMetrics(gs libOrch.BaseGlobalState, combinedMetrics map[string]map[string]metric) {
+	// Marshall the envelopes
+	marshalledCollectedMetrics, err := json.Marshal(combinedMetrics)
+	if err != nil {
+		libOrch.HandleError(gs, err)
+		return
+	}
+
+	libOrch.DispatchMessage(gs, string(marshalledCollectedMetrics), "METRICS")
+}
+
+func calculateCombinedMetrics(interval collectedInterval) map[string]map[string]metric {
+	// Determine metric types in this interval
+	possibleMetrics := determinePossibleMetrics(interval)
+
 	combinedMetrics := make(map[string]map[string]metric)
+	for location := range interval.collectedMetrics.locations {
+		combinedMetrics[location] = make(map[string]metric)
+	}
 
-	for location, collectedMetrics := range collectedMetrics {
-		combinedMetrics[location] = make(map[string]metric, 0)
-
-		for i, metricKey := range metricKeys {
+	for location, locationSubJobs := range interval.collectedMetrics.locations {
+		for _, possibleMetric := range possibleMetrics {
 			// Find all metrics in this zone that match the key
 			matchingKeyMetrics := make([]wrappedMetric, 0)
-			for _, metric := range collectedMetrics {
-				if metric.name == metricKey {
-					matchingKeyMetrics = append(matchingKeyMetrics, metric)
+			for _, locationSubJob := range locationSubJobs {
+				for _, wrappedMetric := range locationSubJob.wrappedMetrics {
+					if wrappedMetric.name == possibleMetric.metricKey && wrappedMetric.metric.Type == possibleMetric.metricType && wrappedMetric.metric.Contains == possibleMetric.metricContains {
+						matchingKeyMetrics = append(matchingKeyMetrics, wrappedMetric)
+					}
 				}
 			}
 
 			// Combine the metrics
-			if metricTypes[i] == workerMetrics.Counter {
-				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Counter)
-			} else if metricTypes[i] == workerMetrics.Gauge {
+			if possibleMetric.metricType == workerMetrics.Counter {
+				combinedMetrics[location][possibleMetric.metricKey] = determineCounter(matchingKeyMetrics, possibleMetric.metricKey, possibleMetric.metricContains, workerMetrics.Counter)
+			} else if possibleMetric.metricType == workerMetrics.Gauge {
 				// Gauges are summed
-				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Gauge)
-			} else if metricTypes[i] == workerMetrics.Rate {
+				combinedMetrics[location][possibleMetric.metricKey] = determineCounter(matchingKeyMetrics, possibleMetric.metricKey, possibleMetric.metricContains, workerMetrics.Gauge)
+			} else if possibleMetric.metricType == workerMetrics.Rate {
 				// Rates are summed
-				combinedMetrics[location][metricKey] = determineCounter(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Rate)
-			} else if metricTypes[i] == workerMetrics.Trend {
+				combinedMetrics[location][possibleMetric.metricKey] = determineCounter(matchingKeyMetrics, possibleMetric.metricKey, possibleMetric.metricContains, workerMetrics.Rate)
+			} else if possibleMetric.metricType == workerMetrics.Trend {
 				// Trends are summed
-				combinedMetrics[location][metricKey] = determineTrend(matchingKeyMetrics, metricKey, metricContains[i], workerMetrics.Trend, "mean")
+				combinedMetrics[location][possibleMetric.metricKey] = determineTrend(matchingKeyMetrics, possibleMetric.metricKey, possibleMetric.metricContains, workerMetrics.Trend, "mean")
 			}
 		}
-
 	}
 
-	// If any keys are empty, remove them
-	for key, value := range combinedMetrics {
-		if len(value) == 0 {
-			delete(combinedMetrics, key)
+	return combinedMetrics
+}
+
+func (store *cachedMetricsStore) addGlobalLocation(intervalIndex int) {
+	// Make a global location
+	store.collectedIntervals[intervalIndex].collectedMetrics.locations["global"] = make([]locationSubJobs, 0, store.childJobCount)
+
+	// Add all sub jobs to global location
+	for location, locationSubJobs := range store.collectedIntervals[intervalIndex].collectedMetrics.locations {
+		if location == "global" {
+			continue
 		}
-	}
 
-	return combinedMetrics, nil
+		store.collectedIntervals[intervalIndex].collectedMetrics.locations["global"] = append(store.collectedIntervals[intervalIndex].collectedMetrics.locations["global"], locationSubJobs...)
+	}
 }
 
 // Calculates an aggregated counter metric for a zone
@@ -314,8 +388,31 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 	return aggregatedMetric
 }
 
-func (store *cachedMetricsStore) Stop() {
-	if store.flusher != nil {
-		store.flusher.Stop()
+func (store *cachedMetricsStore) Cleanup() {
+	store = nil
+}
+
+// If flushCounts lags considerably behind the leading flushCount, then we can assume that the flushCount is no longer retrievable
+// and can be cleaned up, this is to prevent the memory from growing too large in the case that there is a lagging worker
+func (store *cachedMetricsStore) cleanupIrretrievableMetrics() {
+	// Find the leading flushCount
+	leadingFlushCount := 0
+	for _, interval := range store.collectedIntervals {
+		if interval.flushCount > leadingFlushCount {
+			leadingFlushCount = interval.flushCount
+		}
+	}
+
+	indexesToRemove := make([]int, 0)
+
+	// Remove all metrics that are more than 5 behind the leading flushCount
+	for index, interval := range store.collectedIntervals {
+		if interval.flushCount < leadingFlushCount-20 {
+			indexesToRemove = append(indexesToRemove, index)
+		}
+	}
+
+	for _, index := range indexesToRemove {
+		store.collectedIntervals = append(store.collectedIntervals[:index], store.collectedIntervals[index+1:]...)
 	}
 }
