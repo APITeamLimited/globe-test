@@ -141,5 +141,10 @@ func (o *Output) flushMetrics() {
 		FlushCount:      o.flushCount,
 	})
 
+	if err != nil {
+		libWorker.HandleError(o.gs, err)
+		return
+	}
+
 	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
 }
