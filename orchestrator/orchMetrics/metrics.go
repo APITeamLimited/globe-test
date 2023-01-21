@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math"
 	"sync"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
@@ -81,8 +80,6 @@ func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.C
 }
 
 func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
-	startTime := time.Now()
-
 	if store.childJobs == nil {
 		return errors.New("metrics store not initialised")
 	}

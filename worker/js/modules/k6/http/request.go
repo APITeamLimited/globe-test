@@ -161,7 +161,10 @@ func performRequest(c *Client, method string, url goja.Value, args ...goja.Value
 		if state.Options.Throw.Bool {
 			return nil, err
 		}
-		state.Logger.WithField("error", err).Warn("Request Failed")
+
+		// Creates too much noise in the logs
+
+		//state.Logger.WithField("error", err).Warn("Request Failed")
 		r := httpext.NewResponse()
 		r.Error = err.Error()
 		var k6e httpext.K6Error
