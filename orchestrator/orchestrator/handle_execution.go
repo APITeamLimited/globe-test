@@ -25,6 +25,8 @@ const (
 	OUT_OF_TIME_ABORT_CHANNEL = "outOfTimeAbort"
 
 	unifiedRedis = "unified"
+
+	maxConsoleLogs = 100
 )
 
 type childJobIdStruct struct {
@@ -197,6 +199,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	failureCount := 0
 	resolutionMutex := sync.Mutex{}
 
+	consoleLogCount := 0
+	sentMaxLogsReached := false
+	consoleLogCountMutex := sync.Mutex{}
+
 	summaryBank := orchMetrics.NewSummaryBank(gs, job.Options)
 	defer summaryBank.Cleanup()
 
@@ -333,10 +339,27 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					return abortAndFailAll(gs, childJobs, err)
 				}
 			}
-		} else if workerMessage.MessageType == "DEBUG" {
-			// TODO: make this configurable
-			continue
-		} else {
+		} else if workerMessage.MessageType == "MARK" || workerMessage.MessageType == "OPTIONS" || workerMessage.MessageType == "JOB_INFO" || workerMessage.MessageType == "UNVERIFIED_DOMAIN_THROTTLED" {
+			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+		} else if workerMessage.MessageType == "CONSOLE" {
+			consoleLogCountMutex.Lock()
+
+			if consoleLogCount >= maxConsoleLogs {
+				if !sentMaxLogsReached {
+					sentMaxLogsReached = true
+					consoleLogCountMutex.Unlock()
+
+					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, "Console log limit reached, no more console logs will be displayed", "MAX_CONSOLE_LOGS_REACHED")
+				} else {
+					consoleLogCountMutex.Unlock()
+				}
+
+				continue
+			}
+
+			consoleLogCount++
+			consoleLogCountMutex.Unlock()
+
 			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 		}
 	}
