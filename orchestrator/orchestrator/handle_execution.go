@@ -76,6 +76,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	// race main thread with the context cancellation from job.maxTestDurationMinutes
 	go func() {
+		if job.MaxTestDurationMinutes == 0 {
+			return
+		}
+
 		// Sleep for the max test duration
 		time.Sleep(time.Duration(job.MaxTestDurationMinutes) * time.Minute)
 
