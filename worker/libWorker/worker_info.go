@@ -148,11 +148,13 @@ func UpdateStatus(gs BaseGlobalState, status string) {
 }
 
 func HandleStringError(gs BaseGlobalState, errString string) {
+	fmt.Println("HandleStringError: ", errString)
 	DispatchMessage(gs, errString, "ERROR")
 	UpdateStatus(gs, "FAILURE")
 }
 
 func HandleError(gs BaseGlobalState, err error) {
+	fmt.Println("HandleError: ", err.Error())
 	DispatchMessage(gs, err.Error(), "ERROR")
 	UpdateStatus(gs, "FAILURE")
 }
