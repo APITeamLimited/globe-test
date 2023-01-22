@@ -11,10 +11,13 @@ import (
 func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) (*([](chan libOrch.FunctionResult)), error) {
 	responseChannels := []chan libOrch.FunctionResult{}
 
+	fmt.Printf("Dispatching %d child jobs\n", len(childJobs))
+
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
 			channels, err := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
 			if err != nil {
+				fmt.Printf("Error dispatching child job %s to worker %s: %s\n", job.ChildJobId, location, err)
 				return nil, err
 			}
 

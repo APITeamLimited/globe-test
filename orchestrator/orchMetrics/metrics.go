@@ -3,6 +3,7 @@ package orchMetrics
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 
@@ -105,6 +106,7 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 	var wrappedFormattedSamples globetest.WrappedFormattedSamples
 	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)
 	if err != nil {
+		fmt.Printf("Error unmarshalling while adding message: %v", err)
 		return err
 	}
 

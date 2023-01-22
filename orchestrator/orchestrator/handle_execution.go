@@ -75,6 +75,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	functionChannels, err := dispatchChildJobs(gs, childJobs)
 	if err != nil {
+		fmt.Println("Error dispatching child jobs: ", err)
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
@@ -223,7 +224,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
 			if err != nil {
-				return abortAndFailAll(gs, childJobs, err)
+				fmt.Println("Error unmarshalling jobUserUpdate", err)
+				continue
 			}
 
 			if jobUserUpdate.UpdateType == "CANCEL" {
@@ -240,7 +242,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		workerMessage := libOrch.WorkerMessage{}
 		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil {
-			return abortAndFailAll(gs, childJobs, err)
+			fmt.Println("Error unmarshalling workerMessage", err)
+			continue
 		}
 
 		if workerMessage.MessageType == "STATUS" {

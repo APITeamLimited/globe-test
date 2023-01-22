@@ -68,7 +68,8 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 
 		err := json.Unmarshal([]byte(value), &message)
 		if err != nil {
-			return err
+			fmt.Println("error unmarshalling message: when cleaning up job", job.Id, err.Error())
+			continue
 		}
 
 		if message.MessageType == "METRICS" {

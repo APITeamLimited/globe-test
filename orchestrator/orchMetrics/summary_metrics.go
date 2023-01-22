@@ -58,6 +58,7 @@ func (sb *summaryBank) AddMessage(message libOrch.WorkerMessage, workerLocation 
 
 	err := json.Unmarshal([]byte(message.Message), &summaryMetrics)
 	if err != nil {
+		fmt.Println("Error unmarshalling summaryMetrics", err)
 		return err
 	}
 
