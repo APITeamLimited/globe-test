@@ -94,8 +94,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		go workerInfo.CreditsManager.BillFinalCredits()
 	}()
 
-	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
-
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
@@ -115,8 +113,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return false
 	}
-
-	// Wait for the job to be started on redis
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
@@ -138,21 +134,21 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
 
+	// Create handler for test aborts
+	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
-
-	// Create handler for test aborts
 	defer childUpdatesSubscription.Close()
 
 	go func() {
 		for msg := range childJobUpdatesChannel {
-			var abortMessage = JobUserUpdate{}
-			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
+			var updateMessage = JobUserUpdate{}
+			if err := json.Unmarshal([]byte(msg.Payload), &updateMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
 			}
 
-			if abortMessage.UpdateType == "CANCEL" {
+			if updateMessage.UpdateType == "CANCEL" {
 				fmt.Println("Aborting child job due to a request from the orchestrator")
 
 				runCancel()

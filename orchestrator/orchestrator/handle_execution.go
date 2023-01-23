@@ -283,6 +283,11 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 						fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
 
+						if gs.GetStatus() == "FAILURE" {
+							// If the job has been cancelled, don't start it
+							continue
+						}
+
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
 								fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
