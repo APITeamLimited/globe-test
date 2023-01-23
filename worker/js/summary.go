@@ -69,8 +69,6 @@ func summarizeMetricsToObject(data *libWorker.Summary, options libWorker.Options
 		"summaryTimeUnit":   options.SummaryTimeUnit.String,
 	}
 	m["state"] = map[string]interface{}{
-		"isStdOutTTY":       data.UIState.IsStdOutTTY,
-		"isStdErrTTY":       data.UIState.IsStdErrTTY,
 		"testRunDurationMs": float64(data.TestRunDuration) / float64(time.Millisecond),
 	}
 

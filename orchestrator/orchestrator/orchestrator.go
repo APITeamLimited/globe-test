@@ -49,6 +49,8 @@ func Run(standalone bool, funcMode bool) {
 
 	fmt.Printf("Orchestrator listening for new jobs on %s...\n", orchestratorClient.Options().Addr)
 
+	go checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
+
 	// Subscribe to the execution channel and listen for new jobs
 	channel := orchestratorClient.Subscribe(ctx, "orchestrator:execution").Channel()
 

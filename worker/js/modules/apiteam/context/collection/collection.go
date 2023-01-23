@@ -54,12 +54,12 @@ func New(workerInfo *libWorker.WorkerInfo) *CollectionModule {
 				mu:   &sync.RWMutex{},
 			},
 		}
-	} else {
-		return &CollectionModule{
-			isEnabled:        false,
-			setEnabled:       false,
-			sharedCollection: sharedCollection{},
-		}
+	}
+
+	return &CollectionModule{
+		isEnabled:        false,
+		setEnabled:       false,
+		sharedCollection: sharedCollection{},
 	}
 }
 
