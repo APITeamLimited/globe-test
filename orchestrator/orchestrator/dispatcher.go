@@ -16,13 +16,19 @@ type childJobDispatchResult struct {
 func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) (*([](chan libOrch.FunctionResult)), error) {
 	unifiedDispatchResultCh := make(chan childJobDispatchResult)
 
+	childJobsCount := 0
+
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
+			childJobsCount++
 			dispatchResultCh := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
 
 			go func(dispatchCh chan childJobDispatchResult) {
 				for v := range dispatchCh {
+					fmt.Printf("Dispatch result: %v", v)
+
 					unifiedDispatchResultCh <- v
+					break
 				}
 			}(dispatchResultCh)
 		}
@@ -33,6 +39,8 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.
 	successFullDispatches := 0
 
 	for dispatchResult := range unifiedDispatchResultCh {
+		fmt.Printf("Dispatch result: %v", dispatchResult)
+
 		if dispatchResult.err != nil {
 			return nil, dispatchResult.err
 		}
@@ -42,6 +50,10 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.
 		}
 
 		successFullDispatches++
+
+		if successFullDispatches == len(childJobs) {
+			break
+		}
 	}
 
 	return &responseChannels, nil
@@ -71,6 +83,8 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, jo
 
 				return
 			}
+
+			fmt.Printf("Dispatched child job %s to function %s\n", job.ChildJobId, location)
 
 			dispatchResultCh <- childJobDispatchResult{
 				responseChannel: responseCh,

@@ -286,6 +286,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
 								fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
+								go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
 								go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
@@ -296,10 +297,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				jobsMutex.Unlock()
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
-				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
-
-				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
-
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {
 					successCount++

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"sync"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -19,7 +20,6 @@ type (
 
 	globalState struct {
 		ctx                         context.Context
-		environment                 string
 		logger                      *logrus.Logger
 		client                      *redis.Client
 		jobId                       string
@@ -32,6 +32,7 @@ type (
 		funcMode                    bool
 		funcAuthClient              libOrch.FunctionAuthClient
 		independentWorkerRedisHosts bool
+		messageQueue                *libOrch.MessageQueue
 	}
 )
 
@@ -50,6 +51,11 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		funcAuthClient:              funcAuthClient,
 		funcMode:                    funcMode,
 		independentWorkerRedisHosts: independentWorkerRedisHosts,
+		messageQueue: &libOrch.MessageQueue{
+			Mutex:         sync.Mutex{},
+			QueueCount:    0,
+			NewQueueCount: make(chan int),
+		},
 	}
 
 	if creditsClient != nil && job.FuncModeInfo != nil {
@@ -171,4 +177,8 @@ func (g *globalState) FuncMode() bool {
 
 func (g *globalState) IndependentWorkerRedisHosts() bool {
 	return g.independentWorkerRedisHosts
+}
+
+func (g *globalState) MessageQueue() *libOrch.MessageQueue {
+	return g.messageQueue
 }

@@ -313,7 +313,8 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
-		if status == FAILED {
+
+		if status != WAITING {
 			return
 		}
 
@@ -335,6 +336,49 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED
+		}
+	}()
+
+	// Sometimes the event is missed, so poll the set value
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+
+			statusMutex.Lock()
+			statusValue := status
+			statusMutex.Unlock()
+			if statusValue != WAITING {
+				return
+			}
+
+			setKey := fmt.Sprintf("%s:go:set", workerInfo.ChildJobId)
+
+			startTime, err := workerInfo.Client.Get(workerInfo.Ctx, setKey).Result()
+			if err != nil {
+				if err != redis.Nil {
+					fmt.Println("Error getting start time from set", err)
+					return
+				}
+
+				continue
+			}
+
+			startTimeParsed, err := time.Parse(time.RFC3339, startTime)
+			if err != nil {
+				fmt.Println("Error parsing start time from set", err)
+				return
+			}
+
+			statusMutex.Lock()
+			statusValue = status
+			statusMutex.Unlock()
+
+			if statusValue == WAITING {
+				startChan <- &startTimeParsed
+				status = STARTED
+			}
+
+			return
 		}
 	}()
 
