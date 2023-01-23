@@ -56,7 +56,7 @@ func Run(standalone bool, funcMode bool) {
 		jobId, err := uuid.Parse(msg.Payload)
 		if err != nil {
 			fmt.Println("Error, got did not parse job id")
-			return
+			continue
 		}
 		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(),
 			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
@@ -84,6 +84,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	// Don't even bother calculating options if we don't have capacity
 	if !executionList.checkExecutionCapacity(nil) {
+		executionList.mutex.Unlock()
 		return
 	}
 
@@ -141,6 +142,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 		if credits == 0 {
 			libOrch.HandleError(gs, fmt.Errorf("no credits available"))
+			executionList.mutex.Unlock()
 			return
 		}
 	}

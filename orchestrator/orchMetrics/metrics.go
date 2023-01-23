@@ -384,7 +384,9 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 			aggregatedMetric.Value += zoneMetric.Value * zoneMetric.subFraction
 		}
 
-		aggregatedMetric.Value /= subFractionTotal
+		if subFractionTotal > 0 {
+			aggregatedMetric.Value /= subFractionTotal
+		}
 	}
 
 	return aggregatedMetric

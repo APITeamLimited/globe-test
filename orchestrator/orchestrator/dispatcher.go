@@ -25,8 +25,6 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.
 
 			go func(dispatchCh chan childJobDispatchResult) {
 				for v := range dispatchCh {
-					fmt.Printf("Dispatch result: %v", v)
-
 					unifiedDispatchResultCh <- v
 					break
 				}
@@ -39,8 +37,6 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.
 	successFullDispatches := 0
 
 	for dispatchResult := range unifiedDispatchResultCh {
-		fmt.Printf("Dispatch result: %v", dispatchResult)
-
 		if dispatchResult.err != nil {
 			return nil, dispatchResult.err
 		}
