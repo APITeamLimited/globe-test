@@ -25,6 +25,10 @@ It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
 	workerId string, creditsClient *redis.Client, standalone bool) bool {
+	startSubscription := client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
+	startSubscriptionChannel := startSubscription.Channel()
+	defer startSubscription.Close()
+
 	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
 	libWorker.UpdateStatus(gs, "LOADING")
@@ -43,7 +47,7 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		return false
 	}
 
-	startChannel := testStartChannel(workerInfo)
+	startChannel := testStartChannel(workerInfo, startSubscriptionChannel)
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
@@ -289,9 +293,7 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
-	startSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, fmt.Sprintf("%s:go", workerInfo.ChildJobId))
-
+func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message) chan *time.Time {
 	startChan := make(chan *time.Time)
 
 	status := WAITING
@@ -299,7 +301,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 
 	// Listen for start command from orchestrator
 	go func() {
-		message := <-startSubscription.Channel()
+		message := <-startSubChannel
 
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
@@ -310,7 +312,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		if message == nil || message.Payload == "" {
 			startChan <- nil
 			status = FAILED
-			startSubscription.Close()
 			return
 		}
 
@@ -326,7 +327,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED
-			startSubscription.Close()
 		}
 	}()
 
@@ -340,7 +340,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		if status == WAITING {
 			startChan <- nil
 			status = FAILED
-			startSubscription.Close()
 		}
 	}()
 

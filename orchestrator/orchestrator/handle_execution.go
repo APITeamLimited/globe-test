@@ -247,6 +247,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		}
 
 		if workerMessage.MessageType == "STATUS" {
+			fmt.Println("Received status message from", workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
+
 			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
 
 			if workerMessage.Message == "READY" {
@@ -261,6 +263,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 						break
 					}
 				}
+
+				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
 				if !alreadyInitialised {
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
@@ -277,9 +281,12 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 							startTime = time.Now().Add(time.Second)
 						}
 
+						fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
+
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
-								jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+								fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
+								go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
 
@@ -289,6 +296,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				jobsMutex.Unlock()
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
+				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
+
 				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
 
 				resolutionMutex.Lock()
