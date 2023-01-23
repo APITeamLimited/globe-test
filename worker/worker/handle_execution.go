@@ -25,9 +25,14 @@ It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
 	workerId string, creditsClient *redis.Client, standalone bool) bool {
+	// Need to get this hear so subscription is created before go signal is sent
+	// prevents race condition where go signal is sent before subscription is created
 	startSubscription := client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
 	startSubscriptionChannel := startSubscription.Channel()
-	defer startSubscription.Close()
+	defer func() {
+		// Run as goroutine to reduce response time
+		go startSubscription.Close()
+	}()
 
 	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
@@ -84,7 +89,10 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		libWorker.HandleStringError(gs, "Test stopped due to lack of credits")
 		runCancel()
 	})
-	defer workerInfo.CreditsManager.BillFinalCredits()
+	defer func() {
+		// Run as goroutine to reduce response time
+		go workerInfo.CreditsManager.BillFinalCredits()
+	}()
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 
