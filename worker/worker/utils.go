@@ -104,14 +104,7 @@ func getWorkerClient(standalone bool) *redis.Client {
 		}
 	}
 
-	client := redis.NewClient(options)
-
-	// Ensure that the client is connected
-	if err := client.Ping(context.Background()).Err(); err != nil {
-		panic(err)
-	}
-
-	return client
+	return redis.NewClient(options)
 }
 
 func getMaxJobs(standalone bool) int {

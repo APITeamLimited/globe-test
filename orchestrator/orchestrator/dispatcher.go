@@ -8,48 +8,95 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
+type childJobDispatchResult struct {
+	responseChannel *chan libOrch.FunctionResult
+	err             error
+}
+
 func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) (*([](chan libOrch.FunctionResult)), error) {
-	responseChannels := []chan libOrch.FunctionResult{}
+	unifiedDispatchResultCh := make(chan childJobDispatchResult)
+
+	childJobsCount := 0
 
 	for location, jobDistribution := range childJobs {
 		for _, job := range jobDistribution.Jobs {
-			channels, err := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
-			if err != nil {
-				return nil, err
-			}
+			childJobsCount++
+			dispatchResultCh := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
 
-			responseChannels = append(responseChannels, *channels...)
+			go func(dispatchCh chan childJobDispatchResult) {
+				for v := range dispatchCh {
+					unifiedDispatchResultCh <- v
+					break
+				}
+			}(dispatchResultCh)
+		}
+	}
+
+	responseChannels := []chan libOrch.FunctionResult{}
+
+	successFullDispatches := 0
+
+	for dispatchResult := range unifiedDispatchResultCh {
+		if dispatchResult.err != nil {
+			return nil, dispatchResult.err
+		}
+
+		if dispatchResult.responseChannel != nil {
+			responseChannels = append(responseChannels, *dispatchResult.responseChannel)
+		}
+
+		successFullDispatches++
+
+		if successFullDispatches == len(childJobs) {
+			break
 		}
 	}
 
 	return &responseChannels, nil
 }
 
-func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) (*([](chan libOrch.FunctionResult)), error) {
+func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) chan childJobDispatchResult {
+	dispatchResultCh := make(chan childJobDispatchResult)
+
 	// Convert options to json
-	marshalledChildJob, err := json.Marshal(job)
-	if err != nil {
-		return nil, err
-	}
-
-	responseChannels := []chan libOrch.FunctionResult{}
-
-	if gs.FuncMode() {
-		// If we're in function mode, need to create a google cloud function call
-		responseCh, err := gs.FuncAuthClient().ExecuteFunction(location, job)
+	go func() {
+		marshalledChildJob, err := json.Marshal(job)
 		if err != nil {
-			return nil, err
+			dispatchResultCh <- childJobDispatchResult{
+				err: err,
+			}
+
+			return
 		}
 
-		responseChannels = append(responseChannels, *responseCh)
-	} else {
+		if gs.FuncMode() {
+			// If we're in function mode, need to create a google cloud function call
+			responseCh, err := gs.FuncAuthClient().ExecuteFunction(location, job)
+			if err != nil {
+				dispatchResultCh <- childJobDispatchResult{
+					err: err,
+				}
+
+				return
+			}
+
+			fmt.Printf("Dispatched child job %s to function %s\n", job.ChildJobId, location)
+
+			dispatchResultCh <- childJobDispatchResult{
+				responseChannel: responseCh,
+			}
+
+			return
+		}
 		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
 		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
 		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
-	}
 
-	fmt.Printf("Dispatched child job %s to worker %s\n", job.ChildJobId, location)
+		fmt.Printf("Dispatched child job %s to worker %s\n", job.ChildJobId, location)
 
-	return &responseChannels, nil
+		dispatchResultCh <- childJobDispatchResult{}
+	}()
+
+	return dispatchResultCh
 }

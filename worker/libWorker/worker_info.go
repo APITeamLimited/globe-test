@@ -87,15 +87,15 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 			messageQueue.Mutex.Unlock()
 
 			err := gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), serializedMessage).Err()
-
-			messageQueue.Mutex.Lock()
-			messageQueue.QueueCount--
-			messageQueue.Mutex.Unlock()
-
 			if err != nil {
 				fmt.Println("DispatchMessage: Error publishing message", err)
 			}
 
+			messageQueue.Mutex.Lock()
+			messageQueue.QueueCount--
+
+			// Must unlock the mutex before sending the new count to the channel
+			messageQueue.Mutex.Unlock()
 			messageQueue.NewQueueCount <- messageQueue.QueueCount
 
 			return
@@ -148,11 +148,13 @@ func UpdateStatus(gs BaseGlobalState, status string) {
 }
 
 func HandleStringError(gs BaseGlobalState, errString string) {
+	fmt.Println("HandleStringError: ", errString)
 	DispatchMessage(gs, errString, "ERROR")
 	UpdateStatus(gs, "FAILURE")
 }
 
 func HandleError(gs BaseGlobalState, err error) {
+	fmt.Println("HandleError: ", err.Error())
 	DispatchMessage(gs, err.Error(), "ERROR")
 	UpdateStatus(gs, "FAILURE")
 }

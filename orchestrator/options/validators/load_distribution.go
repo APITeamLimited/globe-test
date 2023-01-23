@@ -253,6 +253,10 @@ func localLoadDistribution(options *libWorker.Options) error {
 		return fmt.Errorf("load distribution fraction must be 100 when running locally")
 	}
 
+	if options.LoadDistribution.Value[0].Location == libOrch.GlobalName {
+		options.LoadDistribution.Value[0].Location = agent.AgentWorkerName
+	}
+
 	if options.LoadDistribution.Value[0].Location != agent.AgentWorkerName {
 		return fmt.Errorf("load distribution location must be %s when running locally", agent.AgentWorkerName)
 	}

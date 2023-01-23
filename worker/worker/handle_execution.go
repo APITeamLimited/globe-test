@@ -25,6 +25,15 @@ It is responsible for running a job and reporting on its status
 */
 func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
 	workerId string, creditsClient *redis.Client, standalone bool) bool {
+	// Need to get this hear so subscription is created before go signal is sent
+	// prevents race condition where go signal is sent before subscription is created
+	startSubscription := client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
+	startSubscriptionChannel := startSubscription.Channel()
+	defer func() {
+		// Run as goroutine to reduce response time
+		go startSubscription.Close()
+	}()
+
 	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
 
 	libWorker.UpdateStatus(gs, "LOADING")
@@ -43,7 +52,7 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		return false
 	}
 
-	startChannel := testStartChannel(workerInfo)
+	startChannel := testStartChannel(workerInfo, startSubscriptionChannel)
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
@@ -80,7 +89,10 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		libWorker.HandleStringError(gs, "Test stopped due to lack of credits")
 		runCancel()
 	})
-	defer workerInfo.CreditsManager.BillFinalCredits()
+	defer func() {
+		// Run as goroutine to reduce response time
+		go workerInfo.CreditsManager.BillFinalCredits()
+	}()
 
 	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 
@@ -289,9 +301,7 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
-	startSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, fmt.Sprintf("%s:go", workerInfo.ChildJobId))
-
+func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message) chan *time.Time {
 	startChan := make(chan *time.Time)
 
 	status := WAITING
@@ -299,18 +309,18 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 
 	// Listen for start command from orchestrator
 	go func() {
-		message := <-startSubscription.Channel()
+		message := <-startSubChannel
 
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
-		if status == FAILED {
+
+		if status != WAITING {
 			return
 		}
 
 		if message == nil || message.Payload == "" {
 			startChan <- nil
 			status = FAILED
-			startSubscription.Close()
 			return
 		}
 
@@ -326,7 +336,49 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED
-			startSubscription.Close()
+		}
+	}()
+
+	// Sometimes the event is missed, so poll the set value
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+
+			statusMutex.Lock()
+			statusValue := status
+			statusMutex.Unlock()
+			if statusValue != WAITING {
+				return
+			}
+
+			setKey := fmt.Sprintf("%s:go:set", workerInfo.ChildJobId)
+
+			startTime, err := workerInfo.Client.Get(workerInfo.Ctx, setKey).Result()
+			if err != nil {
+				if err != redis.Nil {
+					fmt.Println("Error getting start time from set", err)
+					return
+				}
+
+				continue
+			}
+
+			startTimeParsed, err := time.Parse(time.RFC3339, startTime)
+			if err != nil {
+				fmt.Println("Error parsing start time from set", err)
+				return
+			}
+
+			statusMutex.Lock()
+			statusValue = status
+			statusMutex.Unlock()
+
+			if statusValue == WAITING {
+				startChan <- &startTimeParsed
+				status = STARTED
+			}
+
+			return
 		}
 	}()
 
@@ -340,7 +392,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo) chan *time.Time {
 		if status == WAITING {
 			startChan <- nil
 			status = FAILED
-			startSubscription.Close()
 		}
 	}()
 

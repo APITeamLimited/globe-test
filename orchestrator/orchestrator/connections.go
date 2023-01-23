@@ -89,7 +89,7 @@ func getUnifiedClient() libOrch.WorkerClients {
 
 		if clientOptions == nil {
 			if currentIndex == 0 {
-				panic("At least one worker client must be defined")
+				panic("Failed to find unified worker client")
 			}
 
 			break

@@ -9,6 +9,7 @@ import (
 	urlpkg "net/url"
 
 	"cloud.google.com/go/functions/apiv2/functionspb"
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
@@ -28,13 +29,15 @@ func (config *FunctionAuthClient) ExecuteFunction(location string, childJob libO
 		}
 	}
 
-	if liveFunction == nil && config.funcUrlOverride == "NO" {
+	specificFuncOverride := getSpecificFuncOverride(config.funcUrlOverride, location)
+
+	if liveFunction == nil && specificFuncOverride == "NO" {
 		return nil, fmt.Errorf("function at location %s not found", location)
 	}
 
-	uri := determineUri(liveFunction, config.funcUrlOverride)
+	uri := determineUri(liveFunction, specificFuncOverride)
 
-	client, err := getClient(config, uri, config.funcUrlOverride != "NO")
+	client, err := getClient(config, uri, specificFuncOverride != "NO")
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +62,29 @@ func (config *FunctionAuthClient) ExecuteFunction(location string, childJob libO
 	return &responseCh, nil
 }
 
+func getSpecificFuncOverride(overrides []string, location string) string {
+	if len(overrides) == 1 && overrides[0] == "NO" {
+		return "NO"
+	}
+
+	// Loop through WORKER_0_DISPLAY_NAME, WORKER_1_DISPLAY_NAME env variables till get location
+	index := 0
+
+	for {
+		locationIndex := lib.GetEnvVariable(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", index), "")
+
+		if locationIndex == "" {
+			break
+		}
+
+		if locationIndex == location {
+			return overrides[index]
+		}
+	}
+
+	panic(fmt.Sprintf("location %s not found in env variables", location))
+}
+
 func (config *FunctionAuthClient) CheckFunctionAvailability(location string) error {
 	config.liveFunctionsMutex.Lock()
 	defer config.liveFunctionsMutex.Unlock()
@@ -74,7 +100,7 @@ func (config *FunctionAuthClient) CheckFunctionAvailability(location string) err
 	}
 
 	// If running locally, allow all functions
-	if config.funcUrlOverride != "NO" {
+	if getSpecificFuncOverride(config.funcUrlOverride, location) != "NO" {
 		return nil
 	}
 

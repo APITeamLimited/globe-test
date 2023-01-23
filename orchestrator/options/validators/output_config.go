@@ -3,14 +3,39 @@ package validators
 import (
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/lib/agent"
+	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 func OutputConfig(options *libWorker.Options, funcMode, standalone bool) error {
+	localhost := !funcMode && !standalone
+
 	if !options.OutputConfig.Valid && options.ExecutionMode.Value == types.HTTPMultipleExecutionMode {
-		localhost := !funcMode && !standalone
 		options.OutputConfig = types.DefaultOutputConfig(localhost)
+	}
+
+	// Override global output config with localhost output config
+	if localhost {
+		for i := range options.OutputConfig.Value.Graphs {
+			seriesToDelete := []int{}
+
+			for j := range options.OutputConfig.Value.Graphs[i].Series {
+				if options.OutputConfig.Value.Graphs[i].Series[j].LoadZone == libOrch.GlobalName {
+					options.OutputConfig.Value.Graphs[i].Series[j].LoadZone = agent.AgentWorkerName
+				} else if options.OutputConfig.Value.Graphs[i].Series[j].LoadZone != agent.AgentWorkerName {
+
+					// Delete non-localhost series
+					seriesToDelete = append(seriesToDelete, j)
+				}
+			}
+
+			// Delete non-localhost series
+			for j := len(seriesToDelete) - 1; j >= 0; j-- {
+				options.OutputConfig.Value.Graphs[i].Series = append(options.OutputConfig.Value.Graphs[i].Series[:seriesToDelete[j]], options.OutputConfig.Value.Graphs[i].Series[seriesToDelete[j]+1:]...)
+			}
+		}
 	}
 
 	options.OutputConfig.Value.Graphs = applyDefaultDesiredWidth(options.OutputConfig.Value.Graphs)

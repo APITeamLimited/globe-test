@@ -3,9 +3,9 @@ package orchMetrics
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
-	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/output/globetest"
@@ -81,8 +81,6 @@ func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.C
 }
 
 func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, workerLocation string, subFraction float64) error {
-	startTime := time.Now()
-
 	if store.childJobs == nil {
 		return errors.New("metrics store not initialised")
 	}
@@ -108,6 +106,7 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 	var wrappedFormattedSamples globetest.WrappedFormattedSamples
 	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)
 	if err != nil {
+		fmt.Printf("Error unmarshalling while adding message: %v", err)
 		return err
 	}
 
@@ -385,7 +384,9 @@ func determineTrend(matchingKeyMetrics []wrappedMetric, metricName string, metri
 			aggregatedMetric.Value += zoneMetric.Value * zoneMetric.subFraction
 		}
 
-		aggregatedMetric.Value /= subFractionTotal
+		if subFractionTotal > 0 {
+			aggregatedMetric.Value /= subFractionTotal
+		}
 	}
 
 	return aggregatedMetric

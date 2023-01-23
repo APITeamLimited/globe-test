@@ -1,2 +1,4 @@
 # Ignore function.go
 function.go
+
+vendor/

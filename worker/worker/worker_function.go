@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func RunWorkerFunction(w http.ResponseWriter, r *http.Request) {
+func RunWorkerFunction(w http.ResponseWriter, r *http.Request, isDebug bool) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
@@ -72,7 +72,11 @@ func RunDevWorkerServer() {
 	fmt.Printf("Starting dev worker function on port %s\n", devWorkerServerPort)
 	os.Setenv("FUNCTION_TARGET", "WorkerCloud")
 
-	functions.HTTP("WorkerCloud", RunWorkerFunction)
+	runFunction := func(w http.ResponseWriter, r *http.Request) {
+		RunWorkerFunction(w, r, true)
+	}
+
+	functions.HTTP("WorkerCloud", runFunction)
 
 	if err := funcframework.Start(devWorkerServerPort); err != nil {
 		log.Fatalf("funcframework.Start: %v\n", err)

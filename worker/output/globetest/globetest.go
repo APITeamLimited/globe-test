@@ -22,8 +22,14 @@ type Output struct {
 	seenMetrics map[string]struct{}
 	thresholds  map[string]workerMetrics.Thresholds
 
-	flushCount      int
-	flushCountMutex sync.Mutex
+	flushCount          int
+	flushIncrementMutex sync.Mutex
+
+	// In case 2 sets of metrics are sent in the same flush, we need to know if
+	// we've already received the vu count so it can be added to the next flush
+	// instead
+	// 	vuMetrics1 *SampleEnvelope
+	// 	vuMetrics2 *SampleEnvelope
 }
 
 type WrappedFormattedSamples struct {
@@ -36,8 +42,8 @@ func New(gs libWorker.BaseGlobalState) (output.Output, error) {
 		gs:          gs,
 		seenMetrics: make(map[string]struct{}),
 
-		flushCount:      0,
-		flushCountMutex: sync.Mutex{},
+		flushCount:          0,
+		flushIncrementMutex: sync.Mutex{},
 	}, nil
 }
 
@@ -75,10 +81,17 @@ func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) {
 
 func (o *Output) flushMetrics() {
 	defer func() {
-		o.flushCountMutex.Lock()
+		o.flushIncrementMutex.Lock()
 		o.flushCount++
-		o.flushCountMutex.Unlock()
 
+		// if o.vuMetrics2 != nil {
+		// 	o.vuMetrics1 = o.vuMetrics2
+		// 	o.vuMetrics2 = nil
+		// } else {
+		// 	o.vuMetrics1 = nil
+		// }
+
+		o.flushIncrementMutex.Unlock()
 	}()
 
 	samples := o.GetBufferedSamples()
@@ -96,6 +109,33 @@ func (o *Output) flushMetrics() {
 		}
 	}
 
+	// Get vu count from formattedSamples
+	/*var foundVus *SampleEnvelope
+	for _, sample := range formattedSamples {
+		if sample.Metric.Name == "vus" {
+			foundVus = &sample
+		}
+	}
+
+	// If formattedSamples contains vus and vuMetrics is nil, set vuMetrics to
+
+	if o.vuMetrics1 == nil && foundVus != nil {
+		o.vuMetrics1 = foundVus
+	} else if o.vuMetrics1 != nil && foundVus != nil {
+		o.vuMetrics2 = foundVus
+
+		// Remove the vus from formattedSamples
+		for i, sample := range formattedSamples {
+			if sample.Metric.Name == "vus" {
+				formattedSamples = append(formattedSamples[:i], formattedSamples[i+1:]...)
+				break
+			}
+		}
+	} else if foundVus == nil && o.vuMetrics1 != nil {
+		// Add the vuMetrics to formattedSamples
+		formattedSamples = append(formattedSamples, *o.vuMetrics1)
+	}*/
+
 	marshalledWrappedSamples, err := json.Marshal(WrappedFormattedSamples{
 		SampleEnvelopes: aggregateSampleEnvelopes(formattedSamples),
 		FlushCount:      o.flushCount,
@@ -105,22 +145,6 @@ func (o *Output) flushMetrics() {
 		libWorker.HandleError(o.gs, err)
 		return
 	}
-
-	// TODO: implement gzip compression
-
-	// // Gzip the marshalled string
-
-	// var b bytes.Buffer
-
-	// fw, err := flate.NewWriter(&b, flate.DefaultCompression)
-	// if err != nil {
-	// 	libWorker.HandleError(o.gs, err)
-	// 	return
-	// }
-
-	// fw.Write([]byte(marshalledWrappedSamples))
-
-	// fw.Close()
 
 	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
 }

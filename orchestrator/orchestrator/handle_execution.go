@@ -25,7 +25,11 @@ const (
 	OUT_OF_TIME_ABORT_CHANNEL = "outOfTimeAbort"
 
 	unifiedRedis = "unified"
+
+	maxConsoleLogs = 100
 )
+
+var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "JOB_INFO", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
 
 type childJobIdStruct struct {
 	ChildJobId string `json:"childJobId"`
@@ -71,11 +75,16 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	functionChannels, err := dispatchChildJobs(gs, childJobs)
 	if err != nil {
+		fmt.Println("Error dispatching child jobs: ", err)
 		return abortAndFailAll(gs, childJobs, err)
 	}
 
 	// race main thread with the context cancellation from job.maxTestDurationMinutes
 	go func() {
+		if job.MaxTestDurationMinutes == 0 {
+			return
+		}
+
 		// Sleep for the max test duration
 		time.Sleep(time.Duration(job.MaxTestDurationMinutes) * time.Minute)
 
@@ -193,6 +202,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	failureCount := 0
 	resolutionMutex := sync.Mutex{}
 
+	consoleLogCount := 0
+	sentMaxLogsReached := false
+	consoleLogCountMutex := sync.Mutex{}
+
 	summaryBank := orchMetrics.NewSummaryBank(gs, job.Options)
 	defer summaryBank.Cleanup()
 
@@ -211,7 +224,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
 			if err != nil {
-				return abortAndFailAll(gs, childJobs, err)
+				fmt.Println("Error unmarshalling jobUserUpdate", err)
+				continue
 			}
 
 			if jobUserUpdate.UpdateType == "CANCEL" {
@@ -228,10 +242,13 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		workerMessage := libOrch.WorkerMessage{}
 		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
 		if err != nil {
-			return abortAndFailAll(gs, childJobs, err)
+			fmt.Println("Error unmarshalling workerMessage", err)
+			continue
 		}
 
 		if workerMessage.MessageType == "STATUS" {
+			fmt.Println("Received status message from", workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
+
 			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
 
 			if workerMessage.Message == "READY" {
@@ -246,6 +263,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 						break
 					}
 				}
+
+				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
 				if !alreadyInitialised {
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
@@ -262,9 +281,13 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 							startTime = time.Now().Add(time.Second)
 						}
 
+						fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
+
 						for _, jobDistribution := range childJobs {
 							for _, job := range jobDistribution.Jobs {
-								jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+								fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
+								go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
+								go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
 							}
 						}
 
@@ -274,8 +297,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				jobsMutex.Unlock()
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
-				fmt.Println("Job", workerMessage.ChildJobId, "finished with status", workerMessage.Message)
-
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {
 					successCount++
@@ -329,11 +350,36 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					return abortAndFailAll(gs, childJobs, err)
 				}
 			}
-		} else if workerMessage.MessageType == "DEBUG" {
-			// TODO: make this configurable
-			continue
-		} else {
+		} else if workerMessage.MessageType == "CONSOLE" {
+			consoleLogCountMutex.Lock()
+
+			if consoleLogCount >= maxConsoleLogs {
+				if !sentMaxLogsReached {
+					sentMaxLogsReached = true
+					consoleLogCountMutex.Unlock()
+
+					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, "MAX_CONSOLE_LOGS_REACHED", "MESSAGE")
+				} else {
+					consoleLogCountMutex.Unlock()
+				}
+
+				continue
+			}
+
+			consoleLogCount++
+			consoleLogCountMutex.Unlock()
+
 			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+		} else {
+			// Check if the message is a custom message
+			for _, messageType := range otherMessageTypes {
+				if messageType == workerMessage.MessageType {
+
+					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+					break
+				}
+			}
+
 		}
 	}
 
