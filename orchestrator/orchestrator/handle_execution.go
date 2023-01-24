@@ -209,6 +209,73 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	summaryBank := orchMetrics.NewSummaryBank(gs, job.Options)
 	defer summaryBank.Cleanup()
 
+	checkIfCanStart := func() {
+		jobsMutex.Lock()
+		defer jobsMutex.Unlock()
+
+		if len(jobsInitialised) == childJobCount {
+			// Broadcast the start message to all child jobs
+
+			var startTime time.Time
+
+			if childJobCount == 1 {
+				startTime = time.Now()
+			} else {
+				// Set one second in the future to allow all workers to start
+				startTime = time.Now().Add(time.Second)
+			}
+
+			fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
+
+			if gs.GetStatus() == "FAILURE" {
+				// If the job has been cancelled, don't start it
+				return
+			}
+
+			for _, jobDistribution := range childJobs {
+				for _, job := range jobDistribution.Jobs {
+					fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
+					go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
+					go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+				}
+			}
+
+			libOrch.UpdateStatus(gs, "RUNNING")
+		}
+	}
+
+	// Somtimes start message appears to be missed, so periodically poll for it
+	go func() {
+		for {
+			if gs.GetStatus() != "LOADING" {
+				fmt.Println("Job started", gs.GetStatus())
+				return
+			}
+
+			// Check statuses of all child jobs
+			for _, jobDistribution := range childJobs {
+				for _, childJob := range jobDistribution.Jobs {
+					status, err := jobDistribution.WorkerClient.HGet(gs.Ctx(), childJob.ChildJobId, "status").Result()
+					if err != nil {
+						// Check for nil
+						if err != redis.Nil {
+						}
+
+						continue
+					}
+
+					if status == "READY" {
+						jobsMutex.Lock()
+						jobsInitialised = append(jobsInitialised, childJob.ChildJobId)
+						jobsMutex.Unlock()
+
+						checkIfCanStart()
+					}
+				}
+			}
+		}
+	}()
+
 	for locatedMessage := range unifiedChannel {
 		if locatedMessage.location == OUT_OF_TIME_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("max test duration exceeded"))
@@ -252,11 +319,11 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
 
 			if workerMessage.Message == "READY" {
-				jobsMutex.Lock()
+				// Check if the job has already been initialised
 
 				alreadyInitialised := false
 
-				// Check if the job has already been initialised
+				jobsMutex.Lock()
 				for _, initialisedJob := range jobsInitialised {
 					if initialisedJob == workerMessage.ChildJobId {
 						alreadyInitialised = true
@@ -266,41 +333,15 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
+				jobsMutex.Unlock()
+
 				if !alreadyInitialised {
+					jobsMutex.Lock()
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
-
-					if len(jobsInitialised) == childJobCount {
-						// Broadcast the start message to all child jobs
-
-						var startTime time.Time
-
-						if childJobCount == 1 {
-							startTime = time.Now()
-						} else {
-							// Set one second in the future to allow all workers to start
-							startTime = time.Now().Add(time.Second)
-						}
-
-						fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
-
-						if gs.GetStatus() == "FAILURE" {
-							// If the job has been cancelled, don't start it
-							continue
-						}
-
-						for _, jobDistribution := range childJobs {
-							for _, job := range jobDistribution.Jobs {
-								fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
-								go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
-								go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
-							}
-						}
-
-						libOrch.UpdateStatus(gs, "RUNNING")
-					}
+					jobsMutex.Unlock()
+					checkIfCanStart()
 				}
 
-				jobsMutex.Unlock()
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {

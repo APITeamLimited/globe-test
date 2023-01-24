@@ -70,6 +70,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
 	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient,
 	funcMode, independentWorkerRedisHosts bool) {
+
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
 	if err != nil || job == nil {
@@ -92,7 +93,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	if value, _ := orchestratorClient.HGet(ctx, job.Id, "assignedOrchestrator").Result(); value != "" {
 		// If the job has been assigned to another orchestrator, return
-
 		executionList.mutex.Unlock()
 		return
 	}
@@ -100,7 +100,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	executionList.mutex.Unlock()
 
 	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
-	defer gs.CreditsManager().StopCreditsCapturing()
 
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
 	job.Options = options
@@ -131,7 +130,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 	}
 
 	if err != nil {
-		fmt.Println("Error setting orchestrator")
 		executionList.mutex.Unlock()
 		return
 	}
@@ -147,6 +145,8 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 			executionList.mutex.Unlock()
 			return
 		}
+
+		defer gs.CreditsManager().StopCreditsCapturing()
 	}
 
 	job.AssignedOrchestrator = orchestratorId
