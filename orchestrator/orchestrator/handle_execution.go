@@ -247,8 +247,9 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	// Somtimes start message appears to be missed, so periodically poll for it
 	go func() {
 		for {
+			time.Sleep(200 * time.Second)
+
 			if gs.GetStatus() != "LOADING" {
-				fmt.Println("Job started", gs.GetStatus())
 				return
 			}
 
@@ -259,6 +260,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					if err != nil {
 						// Check for nil
 						if err != redis.Nil {
+							fmt.Println("Error getting status", err)
 						}
 
 						continue
