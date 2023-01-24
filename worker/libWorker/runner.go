@@ -81,17 +81,9 @@ type Runner interface {
 	RetrieveMetricsJSON(context.Context, *Summary) ([]byte, error)
 }
 
-// UIState describes the state of the UI, which might influence what
-// handleSummary() returns.
-type UIState struct {
-	IsStdOutTTY bool
-	IsStdErrTTY bool
-}
-
 // Summary contains all of the data the summary handler gets.
 type Summary struct {
 	Metrics         map[string]*workerMetrics.Metric `json:"metrics"`
 	RootGroup       *Group                           `json:"rootGroup"`
 	TestRunDuration time.Duration                    `json:"testRunDuration"`
-	UIState         UIState                          `json:"uiState"`
 }

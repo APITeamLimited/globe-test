@@ -80,6 +80,8 @@ func getSpecificFuncOverride(overrides []string, location string) string {
 		if locationIndex == location {
 			return overrides[index]
 		}
+
+		index++
 	}
 
 	panic(fmt.Sprintf("location %s not found in env variables", location))

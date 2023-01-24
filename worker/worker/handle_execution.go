@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -94,8 +93,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		go workerInfo.CreditsManager.BillFinalCredits()
 	}()
 
-	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
-
 	execScheduler, err := local.NewExecutionScheduler(testRunState)
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error initializing the execution scheduler: %s", err.Error()))
@@ -115,8 +112,6 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return false
 	}
-
-	// Wait for the job to be started on redis
 
 	// We do this here so we can get any output URLs below.
 	err = engine.OutputManager.StartOutputs()
@@ -138,21 +133,21 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
 
+	// Create handler for test aborts
+	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
 	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
 	childJobUpdatesChannel := childUpdatesSubscription.Channel()
-
-	// Create handler for test aborts
 	defer childUpdatesSubscription.Close()
 
 	go func() {
 		for msg := range childJobUpdatesChannel {
-			var abortMessage = JobUserUpdate{}
-			if err := json.Unmarshal([]byte(msg.Payload), &abortMessage); err != nil {
+			var updateMessage = JobUserUpdate{}
+			if err := json.Unmarshal([]byte(msg.Payload), &updateMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
 			}
 
-			if abortMessage.UpdateType == "CANCEL" {
+			if updateMessage.UpdateType == "CANCEL" {
 				fmt.Println("Aborting child job due to a request from the orchestrator")
 
 				runCancel()
@@ -291,109 +286,4 @@ func loadWorkerInfo(ctx context.Context,
 	workerInfo.UnderlyingRequest = job.UnderlyingRequest
 
 	return workerInfo
-}
-
-const (
-	WAITING = iota
-	STARTED
-	FAILED
-)
-
-// Starts test on command from orchestrator or cancels test if not received start
-// command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message) chan *time.Time {
-	startChan := make(chan *time.Time)
-
-	status := WAITING
-	statusMutex := &sync.Mutex{}
-
-	// Listen for start command from orchestrator
-	go func() {
-		message := <-startSubChannel
-
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
-		if status != WAITING {
-			return
-		}
-
-		if message == nil || message.Payload == "" {
-			startChan <- nil
-			status = FAILED
-			return
-		}
-
-		// Parse start time from message
-
-		startTime, err := time.Parse(time.RFC3339, message.Payload)
-		if err != nil {
-			startChan <- nil
-			fmt.Println("Error parsing start time from message", err)
-		}
-
-		// Send start command to test runner
-		if status == WAITING {
-			startChan <- &startTime
-			status = STARTED
-		}
-	}()
-
-	// Sometimes the event is missed, so poll the set value
-	go func() {
-		for {
-			time.Sleep(100 * time.Millisecond)
-
-			statusMutex.Lock()
-			statusValue := status
-			statusMutex.Unlock()
-			if statusValue != WAITING {
-				return
-			}
-
-			setKey := fmt.Sprintf("%s:go:set", workerInfo.ChildJobId)
-
-			startTime, err := workerInfo.Client.Get(workerInfo.Ctx, setKey).Result()
-			if err != nil {
-				if err != redis.Nil {
-					fmt.Println("Error getting start time from set", err)
-					return
-				}
-
-				continue
-			}
-
-			startTimeParsed, err := time.Parse(time.RFC3339, startTime)
-			if err != nil {
-				fmt.Println("Error parsing start time from set", err)
-				return
-			}
-
-			statusMutex.Lock()
-			statusValue = status
-			statusMutex.Unlock()
-
-			if statusValue == WAITING {
-				startChan <- &startTimeParsed
-				status = STARTED
-			}
-
-			return
-		}
-	}()
-
-	// Race against timeout of 1 minute
-	go func() {
-		time.Sleep(1 * time.Minute)
-
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
-		if status == WAITING {
-			startChan <- nil
-			status = FAILED
-		}
-	}()
-
-	return startChan
 }

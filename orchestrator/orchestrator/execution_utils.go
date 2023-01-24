@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -33,9 +34,17 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.Chi
 }
 
 func abortAndFailAll(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution, err error) (string, error) {
+	libOrch.UpdateStatus(gs, "FAILURE")
+
 	abortChildJobs(gs, childJobs)
 
-	libOrch.UpdateStatus(gs, "FAILURE")
+	// Send messages again in case they were not received in 10s and 30s
+	go func() {
+		time.Sleep(10 * time.Second)
+		abortChildJobs(gs, childJobs)
+		time.Sleep(20 * time.Second)
+		abortChildJobs(gs, childJobs)
+	}()
 
 	return "FAILURE", err
 }

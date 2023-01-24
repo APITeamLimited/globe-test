@@ -59,16 +59,11 @@ type Runner struct {
 
 // New returns a new Runner for the provided source
 func New(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo) (*Runner, error) {
-	bundle, err := NewBundle(piState, src, filesystems, workerInfo)
+	b, err := NewBundle(piState, src, filesystems, workerInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewFromBundle(piState, bundle)
-}
-
-// NewFromBundle returns a new Runner from the provided Bundle
-func NewFromBundle(piState *libWorker.TestPreInitState, b *Bundle) (*Runner, error) {
 	defaultGroup, err := libWorker.NewGroup("", nil)
 	if err != nil {
 		return nil, err

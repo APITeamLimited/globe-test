@@ -9,7 +9,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 )
@@ -55,16 +54,6 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 		Env:                  make(map[string]string),
 	}
 
-	registry := workerMetrics.NewRegistry()
-
-	preInitState := &libWorker.TestPreInitState{
-		// These gs will need to be changed as on the cloud
-		Logger:         gs.Logger(),
-		RuntimeOptions: runtimeOptions,
-		Registry:       registry,
-		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
-	}
-
 	sourceData := &loader.SourceData{
 		Data: []byte(source),
 		URL:  &url.URL{Path: sourceName},
@@ -84,7 +73,15 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 		Collection:     nil,
 	}
 
-	bundle, err := js.NewBundle(preInitState, sourceData, filesytems, orchestratorInfo)
+	preInitState := &libWorker.TestPreInitState{
+		// These gs will need to be changed as on the cloud
+		Logger:         gs.Logger(),
+		RuntimeOptions: runtimeOptions,
+		Registry:       nil,
+		BuiltinMetrics: nil,
+	}
+
+	bundle, err := js.NewBundleUnsafe(preInitState, sourceData, filesytems, orchestratorInfo, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse options: %w", err)
 	}

@@ -141,7 +141,7 @@ func serializeMessage(gs BaseGlobalState, message string, messageType string) ([
 
 func UpdateStatus(gs BaseGlobalState, status string) {
 	if gs.GetWorkerStatus() != status {
-		gs.Client().HSet(gs.Ctx(), gs.JobId(), "status", status)
+		gs.Client().HSet(gs.Ctx(), gs.ChildJobId(), "status", status)
 		DispatchMessage(gs, status, "STATUS")
 		gs.SetWorkerStatus(status)
 	}

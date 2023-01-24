@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,10 @@ type BundleInstance struct {
 func NewBundle(
 	piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo,
 ) (*Bundle, error) {
+	return NewBundleUnsafe(piState, src, filesystems, workerInfo, false)
+}
+
+func NewBundleUnsafe(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, unsafe bool) (*Bundle, error) {
 	compatMode, err := libWorker.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
 	if err != nil {
 		return nil, err
@@ -84,7 +89,7 @@ func NewBundle(
 		exports:           make(map[string]goja.Callable),
 		registry:          piState.Registry,
 	}
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo); err != nil {
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo, unsafe); err != nil {
 		return nil, err
 	}
 
@@ -122,6 +127,8 @@ func (b *Bundle) GetExports(logger logrus.FieldLogger, rt *goja.Runtime, options
 			}
 			dec := json.NewDecoder(bytes.NewReader(data))
 			dec.DisallowUnknownFields()
+
+			// Options are being extracted here
 			if err := dec.Decode(&b.Options); err != nil {
 				if uerr := json.Unmarshal(data, &b.Options); uerr != nil {
 					return uerr
@@ -148,7 +155,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 	// runtime, but no state, to allow module-provided types to function within the init context.
 	vuImpl := &moduleVUImpl{runtime: goja.New()}
 	init := newBoundInitContext(b.BaseInitContext, vuImpl)
-	if err := b.instantiate(logger, vuImpl.runtime, init, vuID, workerInfo); err != nil {
+	if err := b.instantiate(logger, vuImpl.runtime, init, vuID, workerInfo, false); err != nil {
 		return nil, err
 	}
 
@@ -174,9 +181,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 
 	// Disable js options as found in the orchestrator
 
-	var jsOptionsObj *goja.Object
-
-	jsOptionsObj = rt.NewObject()
+	var jsOptionsObj *goja.Object = rt.NewObject()
 	err := exports.Set("options", jsOptionsObj)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't set exported options with merged values: %w", err)
@@ -207,7 +212,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
-
+// In unsafe mode, the init stage is limited to 30ms, and the bundle is not allowed to use the console. This is used to make execution safer on orchestrator nodes.
 func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) programWithSource {
 	pgm := programWithSource{
 		pgm:     b.Program,
@@ -220,7 +225,7 @@ func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) pr
 	return pgm
 }
 
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *libWorker.WorkerInfo) (err error) {
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *libWorker.WorkerInfo, unsafe bool) (err error) {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	rt.SetRandSource(common.NewRandSource())
 
@@ -230,10 +235,13 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	}
 	//rt.Set("__ENV", env)
 	rt.Set("__VU", vuID)
-	_ = rt.Set("console", newConsole(logger))
 
-	if init.compatibilityMode == libWorker.CompatibilityModeExtended {
-		rt.Set("global", rt.GlobalObject())
+	if !unsafe {
+		_ = rt.Set("console", newConsole(logger))
+
+		if init.compatibilityMode == libWorker.CompatibilityModeExtended {
+			rt.Set("global", rt.GlobalObject())
+		}
 	}
 
 	initenv := &common.InitEnvironment{
@@ -250,9 +258,18 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	init.moduleVUImpl.eventLoop = eventloop.New(init.moduleVUImpl)
 	pgm := b.initializeProgramObject(rt, init)
 
+	if unsafe {
+		time.AfterFunc(30*time.Millisecond, func() {
+			rt.Interrupt("init stage timeout")
+		})
+	}
+
+	// This is a temporary VU
 	err = common.RunWithPanicCatching(logger, rt, func() error {
 		return init.moduleVUImpl.eventLoop.Start(func() error {
+			// Actually run the compiled code
 			f, errRun := rt.RunProgram(b.Program)
+
 			if errRun != nil {
 				return errRun
 			}

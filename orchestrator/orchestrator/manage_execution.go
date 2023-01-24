@@ -78,15 +78,14 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerCl
 		Message: metricsStoreReceipt.Hex(),
 	}
 
-	marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
-	if err != nil {
-		fmt.Println("Error marshalling metrics store receipt", err)
-		libOrch.HandleError(gs, err)
-		return false
-	}
-
 	if gs.Standalone() {
-		libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
+		marshalledMetricsStoreReceipt, err := json.Marshal(metricsStoreReceiptMessage)
+		if err != nil {
+			fmt.Println("Error marshalling metrics store receipt", err)
+			libOrch.HandleError(gs, err)
+		} else {
+			libOrch.DispatchMessage(gs, string(marshalledMetricsStoreReceipt), "MARK")
+		}
 	}
 
 	// Clean up the job and store result in Mongo
