@@ -72,8 +72,8 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 	return childJobs, nil
 }
 
-func determineSubFractions(zoneFraction int, totalMaxVUs int64) []float64 {
-	actualFraction := float64(zoneFraction) / 100
+func determineSubFractions(zoneFraction float64, totalMaxVUs int64) []float64 {
+	actualFraction := zoneFraction / 100
 	zoneMaxVUsFloat := float64(totalMaxVUs) * actualFraction
 
 	// Split into multiple jobs, each with a max of 500 vus and one job with the remainder

@@ -2,7 +2,6 @@ package validators
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -106,9 +105,7 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 		clientCount := len(workerClients.Clients)
 
 		// Set load distribution to equal distribution across all worker clients
-		// Or as close as possible
-		floorSize := int(math.Floor(float64(100 / float64(clientCount))))
-		remainderSize := 100 - (floorSize * (clientCount - 1))
+		fractionSize := 100 / float64(clientCount)
 
 		options.LoadDistribution.Value = make([]types.LoadZone, clientCount)
 
@@ -118,12 +115,12 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 			if currentIndex == clientCount-1 {
 				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
 					Location: workerClient.Name,
-					Fraction: remainderSize,
+					Fraction: fractionSize,
 				}
 			} else {
 				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
 					Location: workerClient.Name,
-					Fraction: floorSize,
+					Fraction: fractionSize,
 				}
 				currentIndex++
 			}
@@ -188,7 +185,7 @@ func checkMultiCloudLD(options *libWorker.Options, workerClients libOrch.WorkerC
 	}
 
 	// Check all names valid and fractions add up to 100
-	var totalFraction int
+	var totalFraction float64
 
 	for _, loadZone := range options.LoadDistribution.Value {
 		// Check valid location
@@ -205,14 +202,15 @@ func checkMultiCloudLD(options *libWorker.Options, workerClients libOrch.WorkerC
 		}
 
 		if loadZone.Fraction < 1 || loadZone.Fraction > 100 {
-			return fmt.Errorf("invalid fraction %d", loadZone.Fraction)
+			return fmt.Errorf("invalid fraction %f", loadZone.Fraction)
 		}
 
 		totalFraction += loadZone.Fraction
 	}
 
-	if totalFraction != 100 {
-		return fmt.Errorf("total fraction must be 100, got %d", totalFraction)
+	// Allow for some rounding error
+	if totalFraction < 99.99 || totalFraction > 100.01 {
+		return fmt.Errorf("total fraction must be 100, got %f", totalFraction)
 	}
 
 	return nil
