@@ -168,7 +168,7 @@ func determineSummaryCounter(matchingKeyMetrics []map[string]wrappedSummaryMetri
 	}
 
 	// If no value keys, return an empty metric
-	if len(matchingKeyMetrics[0][metricName].Values) == 0 {
+	if len(matchingKeyMetrics) == 0 || len(matchingKeyMetrics[0][metricName].Values) == 0 {
 		return aggregatedMetric
 	}
 
@@ -197,7 +197,7 @@ func determineSummaryTrend(matchingKeyMetrics []map[string]wrappedSummaryMetric,
 	}
 
 	// If no value keys, return an empty metric
-	if len(matchingKeyMetrics[0][metricName].Values) == 0 {
+	if len(matchingKeyMetrics) == 0 || len(matchingKeyMetrics[0][metricName].Values) == 0 {
 		return aggregatedMetric
 	}
 

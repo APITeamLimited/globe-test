@@ -140,7 +140,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				if location == unifiedRedis {
 					var childJobId childJobIdStruct
 					err := json.Unmarshal([]byte(msg.Payload), &childJobId)
-
 					if err != nil {
 						fmt.Println("Error unmarshalling childJobId", err)
 						continue

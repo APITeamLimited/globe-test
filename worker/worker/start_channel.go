@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -109,6 +110,38 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 		if status == WAITING {
 			startChan <- nil
 			status = FAILED
+		}
+	}()
+
+	// Listen for abort command from orchestrator
+	go func() {
+		cancelKey := fmt.Sprintf("childjobUserUpdates:%s", workerInfo.ChildJobId)
+		cancelSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, cancelKey)
+		cancelChannel := cancelSubscription.Channel()
+		defer cancelSubscription.Close()
+
+		for msg := range cancelChannel {
+			var updateMessage = JobUserUpdate{}
+			if err := json.Unmarshal([]byte(msg.Payload), &updateMessage); err != nil {
+				libWorker.HandleStringError(*workerInfo.Gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
+				continue
+			}
+
+			if updateMessage.UpdateType == "CANCEL" {
+				fmt.Println("Aborting child job due to a request from the orchestrator")
+
+				statusMutex.Lock()
+
+				if status == WAITING {
+					startChan <- nil
+
+					statusMutex.Unlock()
+					status = FAILED
+				} else {
+					statusMutex.Unlock()
+					return
+				}
+			}
 		}
 	}()
 
