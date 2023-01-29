@@ -16,7 +16,7 @@ import (
 Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
 func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution, storeMongoDB *mongo.Database,
-	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID, metricsStoreReceipt primitive.ObjectID) error {
+	scope libOrch.Scope, globeTestLogsReceipt *primitive.ObjectID, metricsStoreReceipt *primitive.ObjectID) error {
 	// Clean up worker
 	// Set job in orchestrator redis
 
