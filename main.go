@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "dev_worker_function", "worker, orchestrator, orchestrator_func_mode, or dev_worker_function")
+	mode := flag.String("mode", "worker_server", "worker_server or orchestrator")
 	pProfPort := flag.Int("pprof-port", 0, "Enable pprof on the given port")
 
 	flag.Parse()
@@ -34,7 +34,7 @@ func main() {
 	case "worker_server":
 		worker.RunWorkerServer()
 	default:
-		fmt.Println("Invalid GlobeTest mode, please specify one of: worker, orchestrator, orchestrator_func_mode, or dev_worker_function, default is dev_worker_function")
+		fmt.Println("Invalid GlobeTest mode, please specify one of: worker_server (default) or orchestrator")
 		os.Exit(1)
 	}
 }
