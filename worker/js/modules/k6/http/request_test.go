@@ -2585,7 +2585,7 @@ func GenerateTLSCertificate(t *testing.T, host string, notBefore time.Time, vali
 	return certPem, keyPem
 }
 
-func GetTestServerWithCertificate(t *testing.T, certPem, key []byte, suitesIds ...uint16) (*httptest.Server, *http.Client) {
+func GetTestServerWithCertificate(t *testing.T, certPem, key []byte, suitesIds ...uint16) (*httptest.Server, *http.Connection) {
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
@@ -2629,7 +2629,7 @@ func GetTestServerWithCertificate(t *testing.T, certPem, key []byte, suitesIds .
 	certificate, err := x509.ParseCertificate(cert.Certificate[0])
 	require.NoError(t, err)
 	certpool.AddCert(certificate)
-	client := &http.Client{Transport: &http.Transport{}}
+	client := &http.Connection{Transport: &http.Transport{}}
 	client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{ //nolint:gosec
 			RootCAs:      certpool,

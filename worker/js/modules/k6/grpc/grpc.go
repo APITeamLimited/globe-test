@@ -36,15 +36,15 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 		exports: make(map[string]interface{}),
 	}
 
-	mi.exports["Client"] = mi.NewClient
+	mi.exports["Connection"] = mi.NewClient
 	mi.defineConstants()
 	return mi
 }
 
-// NewClient is the JS constructor for the grpc Client.
+// NewClient is the JS constructor for the grpc Connection.
 func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
-	return rt.ToValue(&Client{vu: mi.vu}).ToObject(rt)
+	return rt.ToValue(&Connection{vu: mi.vu}).ToObject(rt)
 }
 
 // defineConstants defines the constant variables of the module.

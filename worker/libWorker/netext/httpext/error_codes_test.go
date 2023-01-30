@@ -189,7 +189,7 @@ func TestHTTP2StreamError(t *testing.T) {
 		time.Sleep(time.Millisecond * 2)
 		panic("expected internal error")
 	})
-	client := http.Client{
+	client := http.Connection{
 		Timeout:   time.Second * 3,
 		Transport: tb.HTTPTransport,
 	}
@@ -210,7 +210,7 @@ func TestX509HostnameError(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	client := http.Client{
+	client := http.Connection{
 		Timeout:   time.Second * 3,
 		Transport: tb.HTTPTransport,
 	}
@@ -233,7 +233,7 @@ func TestX509UnknownAuthorityError(t *testing.T) {
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
-	client := http.Client{
+	client := http.Connection{
 		Timeout: time.Second * 3,
 		Transport: &http.Transport{
 			DialContext: tb.HTTPTransport.DialContext,
@@ -264,7 +264,7 @@ func TestDefaultTLSError(t *testing.T) {
 		time.Sleep(time.Second)
 	}()
 
-	client := http.Client{
+	client := http.Connection{
 		Timeout: time.Second * 3,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -293,7 +293,7 @@ func TestHTTP2ConnectionError(t *testing.T) {
 		f := http2.NewFramer(conn, conn)
 		require.NoError(t, f.WriteData(3213, false, []byte("something")))
 	})
-	client := http.Client{
+	client := http.Connection{
 		Timeout:   time.Second * 5,
 		Transport: tb.HTTPTransport,
 	}
@@ -314,7 +314,7 @@ func TestHTTP2GoAwayError(t *testing.T) {
 		require.NoError(t, f.WriteGoAway(4, http2.ErrCodeInadequateSecurity, []byte("whatever")))
 		require.NoError(t, conn.CloseWrite())
 	})
-	client := http.Client{
+	client := http.Connection{
 		Timeout:   time.Second * 5,
 		Transport: tb.HTTPTransport,
 	}

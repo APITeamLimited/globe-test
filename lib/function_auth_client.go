@@ -6,7 +6,7 @@ import (
 	"cloud.google.com/go/functions/apiv2/functionspb"
 )
 
-type LiveFunction struct {
+type LiveService struct {
 	Location string
 	Uri      string
 	State    functionspb.Function_State
@@ -17,8 +17,8 @@ type FunctionResult struct {
 	Error    error
 }
 
-type FunctionAuthClient interface {
-	Functions() []LiveFunction
-	ExecuteFunction(location string) (*(chan FunctionResult), error)
-	CheckFunctionAvailability(location string) error
+type RunAuthClient interface {
+	Functions() []LiveService
+	ExecuteService(location string) (*(chan FunctionResult), error)
+	CheckServiceAvailability(location string) error
 }

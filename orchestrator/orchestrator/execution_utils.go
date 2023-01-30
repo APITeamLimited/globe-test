@@ -7,6 +7,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/gorilla/websocket"
 )
 
 func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) error {
@@ -21,9 +22,25 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.Chi
 	stringMarshalledCancelMessage := string(marshalledCancelMessage)
 
 	for _, jobDistribution := range childJobs {
-		for _, job := range jobDistribution.Jobs {
-			sendError := jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId), stringMarshalledCancelMessage).Err()
+		for _, childJob := range jobDistribution.ChildJobs {
+			if childJob.WorkerConnection == nil {
+				continue
+			}
 
+			eventMessage := lib.EventMessage{
+				Variant: lib.CHILD_USER_UPDATE,
+				Data:    stringMarshalledCancelMessage,
+			}
+
+			marshalledEvent, err := json.Marshal(eventMessage)
+			if err != nil {
+				fmt.Println("Error marshalling event message", err)
+				continue
+			}
+
+			childJob.ConnWriteMutex.Lock()
+			sendError := childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEvent)
+			childJob.ConnWriteMutex.Unlock()
 			if sendError != nil {
 				libOrch.HandleError(gs, sendError)
 			}

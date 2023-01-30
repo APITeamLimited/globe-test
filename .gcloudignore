@@ -1,2 +1,2 @@
-# Ignore main.go
-main.go
+Dockerfile
+Dockerfile.base

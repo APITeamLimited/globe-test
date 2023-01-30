@@ -120,7 +120,7 @@ func TestMakeRequestError(t *testing.T) {
 		logger := logrus.New()
 		logger.Level = logrus.DebugLevel
 		state := &libWorker.State{
-			Transport: srv.Client().Transport,
+			Transport: srv.Connection().Transport,
 			Logger:    logger,
 			Tags:      libWorker.NewTagMap(nil),
 		}
@@ -170,7 +170,7 @@ func TestResponseStatus(t *testing.T) {
 				samples := make(chan<- workerMetrics.SampleContainer, 1)
 				registry := workerMetrics.NewRegistry()
 				state := &libWorker.State{
-					Transport:      server.Client().Transport,
+					Transport:      server.Connection().Transport,
 					Logger:         logger,
 					Samples:        samples,
 					BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
@@ -250,7 +250,7 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) {
 		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		},
-		Transport:      srv.Client().Transport,
+		Transport:      srv.Connection().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
@@ -326,7 +326,7 @@ func TestTrailFailed(t *testing.T) {
 				Options: libWorker.Options{
 					SystemTags: &workerMetrics.DefaultSystemTagSet,
 				},
-				Transport:      srv.Client().Transport,
+				Transport:      srv.Connection().Transport,
 				Samples:        samples,
 				Logger:         logger,
 				BPool:          bpool.NewBufferPool(2),
@@ -445,7 +445,7 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) {
 		Options: libWorker.Options{
 			SystemTags: &workerMetrics.DefaultSystemTagSet,
 		},
-		Transport:      srv.Client().Transport,
+		Transport:      srv.Connection().Transport,
 		Samples:        samples,
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),

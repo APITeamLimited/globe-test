@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/redis/v9"
 )
 
 const (
@@ -18,7 +17,7 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message, gs libWorker.BaseGlobalState) chan *time.Time {
+func testStartChannel(gs libWorker.BaseGlobalState, eventChannels eventChannels) chan *time.Time {
 	startChan := make(chan *time.Time)
 
 	status := WAITING
@@ -26,7 +25,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 
 	// Listen for start command from orchestrator
 	go func() {
-		message := <-startSubChannel
+		message := <-eventChannels.goMessageChannel
 
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
@@ -35,7 +34,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 			return
 		}
 
-		if message == nil || message.Payload == "" {
+		if message == "" {
 			startChan <- nil
 			status = FAILED
 			return
@@ -43,7 +42,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 
 		// Parse start time from message
 
-		startTime, err := time.Parse(time.RFC3339, message.Payload)
+		startTime, err := time.Parse(time.RFC3339, message)
 		if err != nil {
 			startChan <- nil
 			fmt.Println("Error parsing start time from message", err)
@@ -53,50 +52,6 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 		if status == WAITING {
 			startChan <- &startTime
 			status = STARTED
-		}
-	}()
-
-	// Sometimes the event is missed, so poll the set value
-	go func() {
-		for {
-			time.Sleep(100 * time.Millisecond)
-
-			statusMutex.Lock()
-			statusValue := status
-			statusMutex.Unlock()
-			if statusValue != WAITING {
-				return
-			}
-
-			setKey := fmt.Sprintf("%s:go:set", workerInfo.ChildJobId)
-
-			startTime, err := workerInfo.Client.Get(workerInfo.Ctx, setKey).Result()
-			if err != nil {
-				if err != redis.Nil {
-					fmt.Println("Error getting start time from set", err)
-					return
-				}
-
-				// Set not set yet, continue polling
-				continue
-			}
-
-			startTimeParsed, err := time.Parse(time.RFC3339, startTime)
-			if err != nil {
-				fmt.Println("Error parsing start time from set", err)
-				return
-			}
-
-			statusMutex.Lock()
-			statusValue = status
-			statusMutex.Unlock()
-
-			if statusValue == WAITING {
-				startChan <- &startTimeParsed
-				status = STARTED
-			}
-
-			return
 		}
 	}()
 
@@ -116,15 +71,10 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 
 	// Listen for abort command from orchestrator
 	go func() {
-		cancelKey := fmt.Sprintf("childjobUserUpdates:%s", workerInfo.ChildJobId)
-		cancelSubscription := workerInfo.Client.Subscribe(workerInfo.Ctx, cancelKey)
-		cancelChannel := cancelSubscription.Channel()
-		defer cancelSubscription.Close()
-
-		for msg := range cancelChannel {
+		for msg := range eventChannels.childUpdatesChannel {
 			var updateMessage = JobUserUpdate{}
-			if err := json.Unmarshal([]byte(msg.Payload), &updateMessage); err != nil {
-				libWorker.HandleStringError(*workerInfo.Gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
+			if err := json.Unmarshal([]byte(msg), &updateMessage); err != nil {
+				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
 			}
 

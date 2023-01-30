@@ -48,6 +48,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/output"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 func TestRunnerNew(t *testing.T) {
@@ -939,7 +940,7 @@ func GetTestServerWithCertificate(t *testing.T, certPem, key []byte) *httptest.S
 	certificate, err := x509.ParseCertificate(cert.Certificate[0])
 	require.NoError(t, err)
 	certpool.AddCert(certificate)
-	client := &http.Client{Transport: &http.Transport{}}
+	client := &http.Connection{Transport: &http.Transport{}}
 	client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{ //nolint:gosec
 			RootCAs: certpool,
@@ -2349,7 +2350,7 @@ func TestComplicatedFileImportsForGRPC(t *testing.T) {
 	grpcTestCase := func(expInitErr, expVUErr bool, cwd, loadCode string) multiFileTestCase {
 		script := tb.Replacer.Replace(fmt.Sprintf(`
 			var grpc = require('k6/net/grpc');
-			var client = new grpc.Client();
+			var client = new grpc.Connection();
 
 			%s // load statements
 

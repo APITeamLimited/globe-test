@@ -13,13 +13,13 @@ import (
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
 // Avoids use of credits as this will cause undesired side effects
-func manageExecution(gs *globalState, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients, job libOrch.Job,
+func manageExecution(gs *globalState, orchestratorClient *redis.Client, job libOrch.Job,
 	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
 
 	healthy := optionsErr == nil
 
-	childJobs, err := determineChildJobs(healthy, job, job.Options, workerClients)
+	childJobs, err := determineChildJobs(healthy, job, job.Options)
 	if err != nil {
 		libOrch.HandleError(gs, err)
 		healthy = false

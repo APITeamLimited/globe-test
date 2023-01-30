@@ -6,79 +6,84 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+	"sync"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/redis/v9"
-	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
-	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
-func RunWorkerFunction(w http.ResponseWriter, r *http.Request, isDebug bool) {
+func RunWorkerServer() {
+	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8090", true)
+	fmt.Printf("Starting worker server on port %s\n", port)
+
+	http.HandleFunc("/", runWorkerFunction)
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runWorkerFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
-	client := getWorkerClient(true)
-	creditsClient := lib.GetCreditsClient(true)
+	upgrader := websocket.Upgrader{}
 
-	// Ensure is POST request
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Method not allowed"))
-		return
-	}
-
-	// Get the childJob from the request body
-	decoder := json.NewDecoder(r.Body)
-	var childJob libOrch.ChildJob
-
-	err := decoder.Decode(&childJob)
+	// Upgrade the connection to a websocket
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		fmt.Printf("Error upgrading connection to websocket: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
+	var childJob *libOrch.ChildJob
+
+	connWriteMutex := &sync.Mutex{}
+	connReadMutex := &sync.Mutex{}
+
+	for {
+		eventMessage := lib.EventMessage{}
+
+		// Read the message from the connection
+		connReadMutex.Lock()
+		// Okay here as at the start
+		err := conn.ReadJSON(&eventMessage)
+		connReadMutex.Unlock()
+		if err != nil {
+			// If websocket is closed, return
+			fmt.Printf("Error reading message from connection: %s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		if eventMessage.Variant == lib.CHILD_JOB_INFO {
+			err := json.Unmarshal([]byte(eventMessage.Data), &childJob)
+			if err != nil {
+				fmt.Printf("Error unmarshalling child job: %s", err.Error())
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			break
+		}
+	}
+
+	creditsClient := lib.GetCreditsClient(true)
+
 	fmt.Printf("Worker %s executing child job %s\n", workerId, childJob.ChildJobId)
 
-	successfullExecution := handlePanicExecution(ctx, client, childJob, workerId, creditsClient, true)
+	successfullExecution := handleExecution(ctx, conn, childJob, workerId, creditsClient, true, connReadMutex, connWriteMutex)
+
+	// Close the connection gracefully
+
+	connWriteMutex.Lock()
+	conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	connWriteMutex.Unlock()
 
 	fmt.Printf("Worker %s finished executing child job %s with success: %t\n", workerId, childJob.ChildJobId, successfullExecution)
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
-}
-
-func handlePanicExecution(ctx context.Context, client *redis.Client, childJob libOrch.ChildJob, workerId string, creditsClient *redis.Client, isDev bool) bool {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("Worker %s recovered from panic while executing child job %s\n", workerId, childJob.ChildJobId)
-
-			// Close clients
-			if creditsClient != nil {
-				client.Close()
-				creditsClient.Close()
-			}
-		}
-	}()
-
-	return handleExecution(ctx, client, childJob, workerId, creditsClient, isDev)
-}
-
-func RunDevWorkerServer() {
-	devWorkerServerPort := lib.GetEnvVariableRaw("DEV_WORKER_FUNCTION_PORT", "8090", true)
-	fmt.Printf("Starting dev worker function on port %s\n", devWorkerServerPort)
-	os.Setenv("FUNCTION_TARGET", "WorkerCloud")
-
-	runFunction := func(w http.ResponseWriter, r *http.Request) {
-		RunWorkerFunction(w, r, true)
-	}
-
-	functions.HTTP("WorkerCloud", runFunction)
-
-	if err := funcframework.Start(devWorkerServerPort); err != nil {
-		log.Fatalf("funcframework.Start: %v\n", err)
-	}
 }

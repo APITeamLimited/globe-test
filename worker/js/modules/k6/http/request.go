@@ -32,14 +32,14 @@ var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in 
 
 const unverifiedDomainLimit = 10
 
-func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...goja.Value) (*Response, error) {
+func (c *Connection) getMethodClosure(method string) func(url goja.Value, args ...goja.Value) (*Response, error) {
 	return func(url goja.Value, args ...goja.Value) (*Response, error) {
 		return c.Request(method, url, args...)
 	}
 }
 
 // Rate limits the number of requests per second to a certain domain
-func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
+func (c *Connection) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
 	domain, err := getDomainFromURL(url)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func getDomainFromURL(url interface{}) (string, error) {
 	return domain, nil
 }
 
-func (c *Client) createDomainLimiter(domain string) {
+func (c *Connection) createDomainLimiter(domain string) {
 	// Check if domain is in verified domains
 	verified := false
 
@@ -140,7 +140,7 @@ func (c *Client) createDomainLimiter(domain string) {
 
 // Request makes an http request of the provided `method` and returns a corresponding response by
 // taking goja.Values as arguments
-func performRequest(c *Client, method string, url goja.Value, args ...goja.Value) (*Response, error) {
+func performRequest(c *Connection, method string, url goja.Value, args ...goja.Value) (*Response, error) {
 	state := c.moduleInstance.vu.State()
 	if state == nil {
 		return nil, ErrHTTPForbiddenInInitContext
@@ -183,19 +183,19 @@ func performRequest(c *Client, method string, url goja.Value, args ...goja.Value
 // processResponse stores the body as an ArrayBuffer if indicated by
 // respType. This is done here instead of in httpext.readResponseBody to avoid
 // a reverse dependency on js/common or goja.
-func (c *Client) processResponse(resp *httpext.Response, respType httpext.ResponseType) {
+func (c *Connection) processResponse(resp *httpext.Response, respType httpext.ResponseType) {
 	if respType == httpext.ResponseTypeBinary && resp.Body != nil {
 		resp.Body = c.moduleInstance.vu.Runtime().NewArrayBuffer(resp.Body.([]byte))
 	}
 }
 
-func (c *Client) responseFromHTTPext(resp *httpext.Response) *Response {
+func (c *Connection) responseFromHTTPext(resp *httpext.Response) *Response {
 	return &Response{Response: resp, client: c}
 }
 
 // TODO: break this function up
 //nolint:gocyclo, cyclop, funlen, gocognit
-func (c *Client) parseRequest(
+func (c *Connection) parseRequest(
 	method string, reqURL, body interface{}, params goja.Value,
 ) (*httpext.ParsedHTTPRequest, error) {
 	rt := c.moduleInstance.vu.Runtime()
@@ -463,7 +463,7 @@ func (c *Client) parseRequest(
 	return result, nil
 }
 
-func (c *Client) prepareBatchArray(requests []interface{}) (
+func (c *Connection) prepareBatchArray(requests []interface{}) (
 	[]httpext.BatchParsedHTTPRequest, []*Response, error,
 ) {
 	reqCount := len(requests)
@@ -492,7 +492,7 @@ func (c *Client) prepareBatchArray(requests []interface{}) (
 	return batchReqs, results, nil
 }
 
-func (c *Client) prepareBatchObject(requests map[string]interface{}) (
+func (c *Connection) prepareBatchObject(requests map[string]interface{}) (
 	[]httpext.BatchParsedHTTPRequest, map[string]*Response, error,
 ) {
 	reqCount := len(requests)
@@ -525,7 +525,7 @@ func (c *Client) prepareBatchObject(requests map[string]interface{}) (
 
 // Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
 // objects. Batch returns an array of responses and/or error
-func (c *Client) Batch(reqsV ...goja.Value) (interface{}, error) {
+func (c *Connection) Batch(reqsV ...goja.Value) (interface{}, error) {
 	state := c.moduleInstance.vu.State()
 	if state == nil {
 		return nil, ErrBatchForbiddenInInitContext
@@ -574,7 +574,7 @@ func (c *Client) Batch(reqsV ...goja.Value) (interface{}, error) {
 	return results, err
 }
 
-func (c *Client) parseBatchRequest(key interface{}, val interface{}) (*httpext.ParsedHTTPRequest, error) {
+func (c *Connection) parseBatchRequest(key interface{}, val interface{}) (*httpext.ParsedHTTPRequest, error) {
 	var (
 		method       = http.MethodGet
 		ok           bool

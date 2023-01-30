@@ -1,11 +1,12 @@
 package libOrch
 
 import (
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 type (
@@ -58,11 +59,13 @@ type (
 		UnderlyingRequest map[string]interface{} `json:"underlyingRequest"`
 		FinalRequest      map[string]interface{} `json:"finalRequest"`
 		SubFraction       float64                `json:"subFraction"`
+		WorkerConnection  *websocket.Conn
+		ConnWriteMutex    *sync.Mutex
+		ConnReadMutex     *sync.Mutex
 	}
 
 	ChildJobDistribution struct {
-		Jobs         []ChildJob `json:"jobs"`
-		WorkerClient *redis.Client
+		ChildJobs []*ChildJob `json:"jobs"`
 	}
 
 	OrchestratorMessage struct {
@@ -97,14 +100,14 @@ type (
 		Message interface{} `json:"message"`
 	}
 
-	WorkerClients struct {
-		Clients       map[string]*NamedClient
-		DefaultClient *NamedClient
+	WorkerConnections struct {
+		Connections       map[string]*NamedConnection
+		DefaultConnection *NamedConnection
 	}
 
-	NamedClient struct {
-		Name   string
-		Client *redis.Client
+	NamedConnection struct {
+		Name       string
+		Connection *websocket.Conn
 	}
 
 	LocalhostFile struct {

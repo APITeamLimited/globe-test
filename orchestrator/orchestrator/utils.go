@@ -62,3 +62,18 @@ func getMaxManagedVUs(standalone bool) int64 {
 
 	return maxManagedVUs
 }
+
+func getLoadZones() []string {
+	workerNames := []string{}
+
+	for i := 0; i < 100; i++ {
+		workerName := lib.GetEnvVariableRaw(fmt.Sprintf("WORKER_%d_DISPLAY_NAME", i), "NONE", true)
+		if workerName == "NONE" {
+			break
+		}
+
+		workerNames = append(workerNames, workerName)
+	}
+
+	return workerNames
+}

@@ -23,6 +23,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const traceDelay = 100 * time.Millisecond
@@ -90,7 +91,7 @@ func TestTracer(t *testing.T) { //nolint:tparallel
 	srv := httptest.NewTLSServer(httpbin.New().Handler())
 	defer srv.Close()
 
-	transport, ok := srv.Client().Transport.(*http.Transport)
+	transport, ok := srv.Connection().Transport.(*http.Transport)
 	assert.True(t, ok)
 	transport.DialContext = netext.NewDialer(
 		net.Dialer{},
@@ -192,7 +193,7 @@ func TestTracerNegativeHttpSendingValues(t *testing.T) {
 	srv := httptest.NewTLSServer(httpbin.New().Handler())
 	defer srv.Close()
 
-	transport, ok := srv.Client().Transport.(*http.Transport)
+	transport, ok := srv.Connection().Transport.(*http.Transport)
 	assert.True(t, ok)
 
 	dialer := &net.Dialer{}
@@ -267,7 +268,7 @@ func TestCancelledRequest(t *testing.T) {
 			cancel()
 		}()
 
-		resp, err := srv.Client().Transport.RoundTrip(req) //nolint:bodyclose
+		resp, err := srv.Connection().Transport.RoundTrip(req) //nolint:bodyclose
 		_ = tracer.Done()
 		if resp == nil && err == nil {
 			t.Errorf("Expected either a RoundTrip response or error but got %#v and %#v", resp, err)

@@ -27,20 +27,6 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 
 	libOrch.DispatchMessage(gs, string(marshalledJobInfo), "JOB_INFO")
 
-	go func() {
-		for _, jobDistribution := range childJobs {
-			client := jobDistribution.WorkerClient
-
-			for _, childJob := range jobDistribution.Jobs {
-				client.Del(gs.Ctx(), childJob.ChildJobId)
-
-				// Remove childJob["id"] from worker:executionHistory set
-				client.SRem(gs.Ctx(), "worker:executionHistory", childJob.ChildJobId)
-
-			}
-		}
-	}()
-
 	// Store results in MongoDB
 	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)
 

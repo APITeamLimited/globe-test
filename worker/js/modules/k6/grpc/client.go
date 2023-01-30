@@ -28,8 +28,8 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-// Client represents a gRPC client that can be used to make RPC requests
-type Client struct {
+// Connection represents a gRPC client that can be used to make RPC requests
+type Connection struct {
 	mds  map[string]protoreflect.MethodDescriptor
 	conn *grpcext.Conn
 	vu   modules.VU
@@ -37,7 +37,7 @@ type Client struct {
 }
 
 // Load will parse the given proto files and make the file descriptors available to request.
-func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) {
+func (c *Connection) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) {
 	if c.vu.State() != nil {
 		return nil, errors.New("load must be called in the init context")
 	}
@@ -76,7 +76,7 @@ func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, 
 }
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
-func (c *Client) Connect(addr string, params map[string]interface{}) (bool, error) {
+func (c *Connection) Connect(addr string, params map[string]interface{}) (bool, error) {
 	state := c.vu.State()
 	if state == nil {
 		return false, common.NewInitContextError("connecting to a gRPC server in the init context is not supported")
@@ -130,7 +130,7 @@ func (c *Client) Connect(addr string, params map[string]interface{}) (bool, erro
 }
 
 // Invoke creates and calls a unary RPC by fully qualified method name
-func (c *Client) Invoke(
+func (c *Connection) Invoke(
 	method string,
 	req goja.Value,
 	params map[string]interface{},
@@ -202,7 +202,7 @@ func (c *Client) Invoke(
 }
 
 // Close will close the client gRPC connection
-func (c *Client) Close() error {
+func (c *Connection) Close() error {
 	if c.conn == nil {
 		return nil
 	}
@@ -220,7 +220,7 @@ type MethodInfo struct {
 	grpc.MethodInfo `json:"-" js:"-"`
 }
 
-func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) {
+func (c *Connection) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) {
 	files, err := protodesc.NewFiles(fdset)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ type params struct {
 	Timeout  time.Duration
 }
 
-func (c *Client) parseParams(raw map[string]interface{}) (params, error) {
+func (c *Connection) parseParams(raw map[string]interface{}) (params, error) {
 	p := params{
 		Timeout: 1 * time.Minute,
 	}
@@ -341,7 +341,7 @@ type connectParams struct {
 	Timeout               time.Duration
 }
 
-func (c *Client) parseConnectParams(raw map[string]interface{}) (connectParams, error) {
+func (c *Connection) parseConnectParams(raw map[string]interface{}) (connectParams, error) {
 	params := connectParams{
 		IsPlaintext:           false,
 		UseReflectionProtocol: false,

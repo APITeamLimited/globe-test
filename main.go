@@ -29,14 +29,10 @@ func main() {
 	}
 
 	switch *mode {
-	case "worker":
-		worker.Run(true)
 	case "orchestrator":
-		orchestrator.Run(true, false)
-	case "orchestrator_func_mode":
-		orchestrator.Run(true, true)
-	case "dev_worker_function":
-		worker.RunDevWorkerServer()
+		orchestrator.Run(true)
+	case "worker_server":
+		worker.RunWorkerServer()
 	default:
 		fmt.Println("Invalid GlobeTest mode, please specify one of: worker, orchestrator, orchestrator_func_mode, or dev_worker_function, default is dev_worker_function")
 		os.Exit(1)

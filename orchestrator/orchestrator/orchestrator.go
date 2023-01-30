@@ -7,13 +7,13 @@ import (
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options"
-	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator/function_auth_client"
+	"github.com/APITeamLimited/globe-test/orchestrator/orchestrator/run_auth_client"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func Run(standalone bool, funcMode bool) {
+func Run(standalone bool) {
 	ctx := context.Background()
 	orchestratorId := uuid.NewString()
 
@@ -23,11 +23,10 @@ func Run(standalone bool, funcMode bool) {
 	fmt.Printf("Starting orchestrator %s\n", orchestratorId)
 
 	orchestratorClient := getOrchestratorClient(standalone)
-	functionAuthClient := function_auth_client.CreateFunctionAuthClient(ctx, funcMode)
 	storeMongoDB := getStoreMongoDB(ctx, standalone)
 
-	independentWorkerRedisHosts := lib.GetEnvVariableBool("INDEPENDENT_WORKER_REDIS_HOSTS", false)
-	workerClients := connectWorkerClients(ctx, standalone, independentWorkerRedisHosts)
+	loadZones := getLoadZones()
+	runAuthClient := run_auth_client.CreateServicesClient(ctx, standalone, loadZones)
 
 	maxJobs := getMaxJobs(standalone)
 	maxManagedVUs := getMaxManagedVUs(standalone)
@@ -40,16 +39,16 @@ func Run(standalone bool, funcMode bool) {
 	}
 
 	// Create a scheduler for regular updates and checks
-	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, workerClients, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
+	startJobScheduling(ctx, orchestratorClient, orchestratorId, executionList, storeMongoDB, creditsClient, standalone, runAuthClient, loadZones)
 
 	// Periodically check for and delete offline orchestrators
 	if lib.GetEnvVariableBool("IS_MASTER", false) {
-		createMasterScheduler(ctx, orchestratorClient, workerClients, funcMode)
+		createMasterScheduler(ctx, orchestratorClient)
 	}
 
 	fmt.Printf("Orchestrator listening for new jobs on %s...\n", orchestratorClient.Options().Addr)
 
-	go checkForQueuedJobs(ctx, orchestratorClient, workerClients, orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
+	go checkForQueuedJobs(ctx, orchestratorClient, orchestratorId, executionList, storeMongoDB, creditsClient, standalone, runAuthClient, loadZones)
 
 	// Subscribe to the execution channel and listen for new jobs
 	channel := orchestratorClient.Subscribe(ctx, "orchestrator:execution").Channel()
@@ -60,16 +59,15 @@ func Run(standalone bool, funcMode bool) {
 			fmt.Println("Error, got did not parse job id")
 			continue
 		}
-		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId.String(),
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
+		go checkIfCanExecute(ctx, orchestratorClient, jobId.String(),
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, runAuthClient, loadZones)
 	}
 }
 
 // Ensures job has no already been assigned and determines if this node has capacity to execute
-func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, workerClients libOrch.WorkerClients,
+func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 	jobId string, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database,
-	creditsClient *redis.Client, standalone bool, functionAuthClient libOrch.FunctionAuthClient,
-	funcMode, independentWorkerRedisHosts bool) {
+	creditsClient *redis.Client, standalone bool, runAuthClient libOrch.RunAuthClient, loadZones []string) {
 
 	// Try to HGetAll the orchestrator id
 	job, err := fetchJob(ctx, orchestratorClient, jobId)
@@ -99,9 +97,9 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	executionList.mutex.Unlock()
 
-	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, functionAuthClient, funcMode, independentWorkerRedisHosts)
+	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, runAuthClient, loadZones)
 
-	options, optionsErr := options.DetermineRuntimeOptions(*job, gs, workerClients)
+	options, optionsErr := options.DetermineRuntimeOptions(*job, gs)
 	job.Options = options
 
 	if optionsErr != nil {
@@ -157,7 +155,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 	fmt.Println("Assigned job:", job.Id)
 
-	successfullExecution := manageExecution(gs, orchestratorClient, workerClients,
+	successfullExecution := manageExecution(gs, orchestratorClient,
 		*job, orchestratorId, executionList, storeMongoDB, optionsErr)
 
 	if successfullExecution {
@@ -169,10 +167,7 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client, wo
 
 // Check for queued jobs that were deferered as they couldn't be executed when they
 // were queued as no workers were available.
-func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
-	workerClients libOrch.WorkerClients, orchestratorId string, executionList *ExecutionList,
-	storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool,
-	funcAuthClient libOrch.FunctionAuthClient, funcMode, independentWorkerRedisHosts bool) {
+func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client, orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, creditsClient *redis.Client, standalone bool, funcAuthClient libOrch.RunAuthClient, loadZones []string) {
 	// Check for job keys in the "orchestrator:executionHistory" set
 	historyIds, err := orchestratorClient.SMembers(ctx, "orchestrator:executionHistory").Result()
 	if err != nil {
@@ -180,7 +175,7 @@ func checkForQueuedJobs(ctx context.Context, orchestratorClient *redis.Client,
 	}
 
 	for _, jobId := range historyIds {
-		go checkIfCanExecute(ctx, orchestratorClient, workerClients, jobId,
-			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient, funcMode, independentWorkerRedisHosts)
+		go checkIfCanExecute(ctx, orchestratorClient, jobId,
+			orchestratorId, executionList, storeMongoDB, creditsClient, standalone, funcAuthClient, loadZones)
 	}
 }

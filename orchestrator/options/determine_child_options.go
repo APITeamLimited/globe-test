@@ -1,14 +1,13 @@
 package options
 
 import (
-	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"gopkg.in/guregu/null.v3"
 )
 
 // Scales load options for child jobs proportionately based on their subFraction
-func DetermineChildDerivedOptions(loadZone types.LoadZone, workerClient *libOrch.NamedClient, options libWorker.Options, subFraction float64) libWorker.Options {
+func DetermineChildDerivedOptions(loadZone types.LoadZone, options libWorker.Options, subFraction float64) libWorker.Options {
 	// Options been pass by value, so we can modify them
 
 	options.MaxPossibleVUs.Int64 = int64(float64(options.MaxPossibleVUs.Int64) * subFraction)

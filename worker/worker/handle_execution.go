@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
@@ -16,27 +17,20 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 /*
 This is the main function that is called when the worker is started.
 It is responsible for running a job and reporting on its status
 */
-func handleExecution(ctx context.Context, client *redis.Client, job libOrch.ChildJob,
-	workerId string, creditsClient *redis.Client, standalone bool) bool {
-	// Need to get this hear so subscription is created before go signal is sent
-	// prevents race condition where go signal is sent before subscription is created
-	startSubscription := client.Subscribe(ctx, fmt.Sprintf("%s:go", job.ChildJobId))
-	startSubscriptionChannel := startSubscription.Channel()
-	defer func() {
-		// Run as goroutine to reduce response time
-		go startSubscription.Close()
-	}()
-
-	gs := newGlobalState(ctx, client, job, workerId, job.FuncModeInfo)
+func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.ChildJob,
+	workerId string, creditsClient *redis.Client, standalone bool, connReadMutex, connWriteMutex *sync.Mutex) bool {
+	gs := newGlobalState(ctx, conn, job, workerId, job.FuncModeInfo, connReadMutex, connWriteMutex)
+	eventChannels := getEventChannels(gs)
 
 	libWorker.UpdateStatus(gs, "LOADING")
-	workerInfo := loadWorkerInfo(ctx, client, job, workerId, gs, creditsClient, standalone)
+	workerInfo := loadWorkerInfo(ctx, conn, job, workerId, gs, creditsClient, standalone)
 
 	test, err := loadAndConfigureTest(gs, job, workerInfo)
 	if err != nil {
@@ -51,7 +45,7 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		return false
 	}
 
-	startChannel := testStartChannel(workerInfo, startSubscriptionChannel, gs)
+	startChannel := testStartChannel(gs, eventChannels)
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
@@ -132,16 +126,10 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
 
-	// Create handler for test aborts
-	childUpdatesKey := fmt.Sprintf("childjobUserUpdates:%s", job.ChildJobId)
-	childUpdatesSubscription := client.Subscribe(ctx, childUpdatesKey)
-	childJobUpdatesChannel := childUpdatesSubscription.Channel()
-	defer childUpdatesSubscription.Close()
-
 	go func() {
-		for msg := range childJobUpdatesChannel {
+		for msg := range eventChannels.childUpdatesChannel {
 			var updateMessage = JobUserUpdate{}
-			if err := json.Unmarshal([]byte(msg.Payload), &updateMessage); err != nil {
+			if err := json.Unmarshal([]byte(msg), &updateMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
 				continue
 			}
@@ -235,10 +223,10 @@ func (lct *workerLoadedAndConfiguredTest) buildTestRunState(
 }
 
 func loadWorkerInfo(ctx context.Context,
-	client *redis.Client, job libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState,
+	conn *websocket.Conn, job *libOrch.ChildJob, workerId string, gs libWorker.BaseGlobalState,
 	creditsClient *redis.Client, standalone bool) *libWorker.WorkerInfo {
 	workerInfo := &libWorker.WorkerInfo{
-		Client:          client,
+		Conn:            conn,
 		JobId:           job.Id,
 		ChildJobId:      job.ChildJobId,
 		OrchestratorId:  job.AssignedOrchestrator,

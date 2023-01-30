@@ -13,7 +13,7 @@ import (
 )
 
 // Import script to determine options on the orchestrator
-func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, workerClients libOrch.WorkerClients) (*libWorker.Options, error) {
+func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	options, err := getCompiledOptions(job, gs)
 	if err != nil {
 		return nil, err
@@ -71,12 +71,12 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState, worker
 		return nil, err
 	}
 
-	err = validators.LoadDistribution(options, workerClients, gs, job)
+	err = validators.LoadDistribution(options, gs, job)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validators.OutputConfig(options, gs.FuncMode(), gs.Standalone())
+	err = validators.OutputConfig(options, gs.Standalone())
 	if err != nil {
 		return nil, err
 	}

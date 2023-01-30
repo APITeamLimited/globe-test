@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"encoding/json"
-	"fmt"
 
 	orchOptions "github.com/APITeamLimited/globe-test/orchestrator/options"
 
@@ -13,8 +12,7 @@ import (
 
 const maxWorkerJobSize = 250
 
-func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options,
-	workerClients libOrch.WorkerClients) (map[string]libOrch.ChildJobDistribution, error) {
+func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Options) (map[string]libOrch.ChildJobDistribution, error) {
 	// Don't run if not healthy
 	if !healthy {
 		return nil, nil
@@ -24,23 +22,9 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 
 	// Loop through options load distribution
 	for _, loadZone := range options.LoadDistribution.Value {
-		// Find worker client
-		var workerClient *libOrch.NamedClient
-
-		for _, client := range workerClients.Clients {
-			if client.Name == loadZone.Location {
-				workerClient = client
-				break
-			}
-		}
-
-		if workerClient == nil {
-			return nil, fmt.Errorf("failed to find worker client %s, this is an internal error", loadZone.Location)
-		}
-
 		subFractions := determineSubFractions(loadZone.Fraction, job.Options.MaxPossibleVUs.Int64)
 
-		zoneChildJobs := make([]libOrch.ChildJob, len(subFractions))
+		zoneChildJobs := make([]*libOrch.ChildJob, len(subFractions))
 
 		jobNoOptions := job
 		// Remove options from job
@@ -53,19 +37,19 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			parsed := libWorker.Options{}
 			json.Unmarshal(childOptions, &parsed)
 
-			zoneChildJobs[i] = libOrch.ChildJob{
+			zoneChildJobs[i] = &libOrch.ChildJob{
 				Job:               jobNoOptions,
 				ChildJobId:        uuid.NewString(),
-				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, workerClient, parsed, subFraction),
+				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, parsed, subFraction),
 				UnderlyingRequest: job.UnderlyingRequest,
 				FinalRequest:      job.FinalRequest,
 				SubFraction:       subFraction,
+				WorkerConnection:  nil,
 			}
 		}
 
 		childJobs[loadZone.Location] = libOrch.ChildJobDistribution{
-			Jobs:         zoneChildJobs,
-			WorkerClient: workerClient.Client,
+			ChildJobs: zoneChildJobs,
 		}
 	}
 
