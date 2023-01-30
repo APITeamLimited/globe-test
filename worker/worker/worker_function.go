@@ -15,17 +15,17 @@ import (
 )
 
 func RunWorkerServer() {
-	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8090", true)
+	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8080", true)
 	fmt.Printf("Starting worker server on port %s\n", port)
 
-	http.HandleFunc("/", runWorkerFunction)
+	http.HandleFunc("/", runWorker)
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func runWorkerFunction(w http.ResponseWriter, r *http.Request) {
+func runWorker(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
