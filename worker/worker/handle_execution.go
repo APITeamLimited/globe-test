@@ -51,13 +51,12 @@ func handleExecution(ctx context.Context, client *redis.Client, job libOrch.Chil
 		return false
 	}
 
-	startChannel := testStartChannel(workerInfo, startSubscriptionChannel)
+	startChannel := testStartChannel(workerInfo, startSubscriptionChannel, gs)
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
 	startTime := <-startChannel
 	if startTime == nil {
-		libWorker.HandleStringError(gs, "failed to start test, failed to receive start signal from orchestrator after 1 minute")
 		return false
 	}
 

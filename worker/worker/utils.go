@@ -72,9 +72,12 @@ func getWorkerClient(standalone bool) *redis.Client {
 	clientPort := lib.GetEnvVariable("CLIENT_PORT", "6978")
 
 	options := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", clientHost, clientPort),
-		Username: "default",
-		Password: lib.GetEnvVariable("CLIENT_PASSWORD", ""),
+		Addr:         fmt.Sprintf("%s:%s", clientHost, clientPort),
+		Username:     "default",
+		Password:     lib.GetEnvVariable("CLIENT_PASSWORD", ""),
+		DialTimeout:  20 * time.Second,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
 	}
 
 	isSecure := lib.GetEnvVariableBool("CLIENT_IS_SECURE", false)

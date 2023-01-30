@@ -18,7 +18,7 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message) chan *time.Time {
+func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *redis.Message, gs libWorker.BaseGlobalState) chan *time.Time {
 	startChan := make(chan *time.Time)
 
 	status := WAITING
@@ -109,6 +109,7 @@ func testStartChannel(workerInfo *libWorker.WorkerInfo, startSubChannel <-chan *
 
 		if status == WAITING {
 			startChan <- nil
+			libWorker.HandleStringError(gs, "failed to start test, failed to receive start signal from orchestrator after 1 minute")
 			status = FAILED
 		}
 	}()

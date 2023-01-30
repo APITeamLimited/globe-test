@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"sync"
 	"time"
 
@@ -103,6 +104,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		go func(channel <-chan libOrch.FunctionResult) {
 			for msg := range channel {
 				if msg.Error != nil {
+					fmt.Println("Error executing function: ", msg.Error)
+
 					unifiedChannel <- locatedMesaage{
 						location: FUNC_ERROR_ABORT_CHANNEL,
 						msg:      nil,
@@ -110,6 +113,14 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 					fmt.Println(msg.Error)
 				} else if msg.Response.StatusCode != 200 {
+					// Read the body
+					body, err := ioutil.ReadAll(msg.Response.Body)
+					if err != nil {
+						fmt.Println("Error reading body: ", err)
+					}
+
+					fmt.Println("Error executing function: ", string(body), msg.Response.StatusCode)
+
 					unifiedChannel <- locatedMesaage{
 						location: FUNC_ERROR_ABORT_CHANNEL,
 						msg:      nil,
@@ -212,41 +223,43 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		jobsMutex.Lock()
 		defer jobsMutex.Unlock()
 
-		if len(jobsInitialised) == childJobCount {
-			// Broadcast the start message to all child jobs
-
-			var startTime time.Time
-
-			if childJobCount == 1 {
-				startTime = time.Now()
-			} else {
-				// Set one second in the future to allow all workers to start
-				startTime = time.Now().Add(time.Second)
-			}
-
-			fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
-
-			if gs.GetStatus() == "FAILURE" {
-				// If the job has been cancelled, don't start it
-				return
-			}
-
-			for _, jobDistribution := range childJobs {
-				for _, job := range jobDistribution.Jobs {
-					fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
-					go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
-					go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
-				}
-			}
-
-			libOrch.UpdateStatus(gs, "RUNNING")
+		if len(jobsInitialised) != childJobCount {
+			return
 		}
+
+		// Broadcast the start message to all child jobs
+
+		var startTime time.Time
+
+		if childJobCount == 1 {
+			startTime = time.Now()
+		} else {
+			// Set one second in the future to allow all workers to start
+			startTime = time.Now().Add(time.Second)
+		}
+
+		fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
+
+		if gs.GetStatus() == "FAILURE" {
+			// If the job has been cancelled, don't start it
+			return
+		}
+
+		for _, jobDistribution := range childJobs {
+			for _, job := range jobDistribution.Jobs {
+				fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
+				go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
+				go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
+			}
+		}
+
+		libOrch.UpdateStatus(gs, "RUNNING")
 	}
 
 	// Somtimes start message appears to be missed, so periodically poll for it
 	go func() {
 		for {
-			time.Sleep(200 * time.Second)
+			time.Sleep(200 * time.Millisecond)
 
 			if gs.GetStatus() != "LOADING" {
 				return
@@ -267,6 +280,22 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 					if status == "READY" {
 						jobsMutex.Lock()
+
+						alreadyInitialised := false
+
+						// Check if we've already initialised this job
+						for _, initialisedJobId := range jobsInitialised {
+							if initialisedJobId == childJob.ChildJobId {
+								alreadyInitialised = true
+								break
+							}
+						}
+
+						if alreadyInitialised {
+							jobsMutex.Unlock()
+							continue
+						}
+
 						jobsInitialised = append(jobsInitialised, childJob.ChildJobId)
 						jobsMutex.Unlock()
 
