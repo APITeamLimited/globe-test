@@ -78,6 +78,9 @@ func getWorkerClient(standalone bool) *redis.Client {
 		DialTimeout:  20 * time.Second,
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 20 * time.Second,
+
+		MaxRetries:   20,
+		MinIdleConns: 5,
 	}
 
 	isSecure := lib.GetEnvVariableBool("CLIENT_IS_SECURE", false)
