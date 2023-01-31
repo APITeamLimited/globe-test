@@ -18,17 +18,17 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 
 	var liveService *libOrch.LiveService
 
-	// Find the function
-	for _, function := range config.liveServices {
-		if function.Location == location {
-			liveService = &function
+	// Find the service
+	for _, service := range config.liveServices {
+		if service.Location == location {
+			liveService = &service
 			break
 		}
 	}
 
 	defer config.liveServicesMutex.Unlock()
 
-	specificServiceOverride := getSpecificFuncOverride(config.serviceUrlOverride, location)
+	specificServiceOverride := getSpecificServiceOverride(config.serviceUrlOverride, location)
 
 	if liveService == nil && specificServiceOverride == "NO" {
 		return nil, fmt.Errorf("service at location %s not found", location)
@@ -38,17 +38,23 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 
 	tokenSource, err := idtoken.NewTokenSource(config.ctx, determineAudience(liveService, specificServiceOverride), option.WithCredentialsJSON(config.serviceAccount))
 	if err != nil {
-		return nil, err
+		fmt.Println("err", err)
+		if specificServiceOverride == "NO" {
+			return nil, err
+		}
+		tokenSource = nil
 	}
 
-	// Get the token
-	token, err := tokenSource.Token()
-	if err != nil {
-		return nil, err
-	}
+	headers := http.Header{}
 
-	headers := http.Header{
-		"Authorization": []string{fmt.Sprintf("Bearer %s", token.AccessToken)},
+	if tokenSource != nil {
+		// Get the token
+		token, err := tokenSource.Token()
+		if err != nil {
+			return nil, err
+		}
+
+		headers.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 	}
 
 	dialer := websocket.Dialer{
@@ -60,7 +66,7 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 	// Connect to the websocket
 	conn, response, err := dialer.Dial(uri, headers)
 	if err != nil {
-		fmt.Println("err", err, "response", response)
+		fmt.Println("err", err)
 		return nil, err
 	}
 
@@ -71,7 +77,7 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 	return conn, nil
 }
 
-func getSpecificFuncOverride(overrides []string, location string) string {
+func getSpecificServiceOverride(overrides []string, location string) string {
 	if len(overrides) == 1 && overrides[0] == "NO" {
 		return "NO"
 	}
@@ -98,7 +104,7 @@ func getSpecificFuncOverride(overrides []string, location string) string {
 
 func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 	if config.serviceClient == nil {
-		if getSpecificFuncOverride(config.serviceUrlOverride, location) != "NO" {
+		if getSpecificServiceOverride(config.serviceUrlOverride, location) != "NO" {
 			return nil
 		}
 
@@ -110,7 +116,7 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 
 	var liveService *libOrch.LiveService
 
-	// Find the function
+	// Find the service
 	for _, service := range config.liveServices {
 		if service.Location == location {
 			liveService = &service
@@ -119,7 +125,7 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 	}
 
 	// If running locally, allow all functions
-	if getSpecificFuncOverride(config.serviceUrlOverride, location) != "NO" {
+	if getSpecificServiceOverride(config.serviceUrlOverride, location) != "NO" {
 		return nil
 	}
 
@@ -138,7 +144,7 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 
 func determineAudience(liveService *libOrch.LiveService, serviceUrlOverride string) string {
 	if serviceUrlOverride == "NO" {
-		fmt.Println("Using function url", liveService.Uri)
+		fmt.Println("Using service url", liveService.Uri)
 		return liveService.Uri
 	}
 
@@ -150,7 +156,7 @@ func determineUri(liveService *libOrch.LiveService, serviceUrlOverride string) s
 		return replaceSchemeWithWs(liveService.Uri)
 	}
 
-	fmt.Println("Using function url override", serviceUrlOverride)
+	fmt.Println("Using service url override", serviceUrlOverride)
 	return replaceSchemeWithWs(serviceUrlOverride)
 }
 
