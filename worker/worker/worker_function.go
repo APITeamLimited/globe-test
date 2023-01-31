@@ -17,7 +17,7 @@ import (
 func RunWorkerServer() {
 	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8080", true)
 
-	fmt.Printf("Starting worker server on port %s\n", port)
+	fmt.Printf("Starting GlobeTest worker server on port %s\n", port)
 
 	http.HandleFunc("/", runWorker)
 
