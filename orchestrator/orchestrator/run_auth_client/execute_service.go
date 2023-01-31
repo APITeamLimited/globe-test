@@ -15,7 +15,6 @@ import (
 
 func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, error) {
 	config.liveServicesMutex.Lock()
-	defer config.liveServicesMutex.Unlock()
 
 	var liveFunction *libOrch.LiveService
 
@@ -26,6 +25,8 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 			break
 		}
 	}
+
+	defer config.liveServicesMutex.Unlock()
 
 	specificFuncOverride := getSpecificFuncOverride(config.serviceUrlOverride, location)
 

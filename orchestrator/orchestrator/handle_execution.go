@@ -84,37 +84,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		}
 	}()
 
-	// Handle aborts on functionChannels
-	// for _, dispatchChildJobs := range dispatchedChildJobs {
-	// 	go func(channel <-chan libOrch.FunctionResult) {
-	// 		for msg := range channel {
-	// 			if msg.Error != nil {
-	// 				fmt.Println("Error executing function: ", msg.Error)
-
-	// 				unifiedChannel <- locatedMesaage{
-	// 					location: FUNC_ERROR_ABORT_CHANNEL,
-	// 					msg:      nil,
-	// 				}
-
-	// 				fmt.Println(msg.Error)
-	// 			} else if msg.Response.StatusCode != 200 {
-	// 				// Read the body
-	// 				body, err := ioutil.ReadAll(msg.Response.Body)
-	// 				if err != nil {
-	// 					fmt.Println("Error reading body: ", err)
-	// 				}
-
-	// 				fmt.Println("Error executing function: ", string(body), msg.Response.StatusCode)
-
-	// 				unifiedChannel <- locatedMesaage{
-	// 					location: FUNC_ERROR_ABORT_CHANNEL,
-	// 					msg:      nil,
-	// 				}
-	// 			}
-	// 		}
-	// 	}(channel)
-	//}
-
 	resolvedJobs := []string{}
 	resolvedJobsMutex := sync.Mutex{}
 
@@ -124,14 +93,16 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				for {
 					childJob.ConnReadMutex.Lock()
 					messageKind, p, err := childJob.WorkerConnection.ReadMessage()
-					childJob.ConnReadMutex.Unlock()
 
 					if messageKind == websocket.CloseMessage {
+						childJob.ConnReadMutex.Unlock()
 						return
 					}
 
 					if err != nil {
+						fmt.Println("Error reading message: ", err)
 						if strings.Contains(err.Error(), "use of closed network connection") {
+							childJob.ConnReadMutex.Unlock()
 							return
 						}
 
@@ -157,8 +128,11 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 							}
 						}
 
+						childJob.ConnReadMutex.Unlock()
 						continue
 					}
+
+					childJob.ConnReadMutex.Unlock()
 
 					newMessage := locatedMesaage{
 						location: location,
@@ -218,9 +192,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	checkIfCanStart := func() {
 		jobsMutex.Lock()
-		defer jobsMutex.Unlock()
+		jobsInitialisedCount := len(jobsInitialised)
+		jobsMutex.Unlock()
 
-		if len(jobsInitialised) != childJobCount {
+		if jobsInitialisedCount != childJobCount {
 			return
 		}
 
@@ -254,7 +229,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				marshalledEventMessage, err := json.Marshal(eventMessage)
 				if err != nil {
 					fmt.Printf("error marshalling start time to %s: %s\n", childJob.ChildJobId, err)
-					continue
 				}
 
 				childJob.ConnWriteMutex.Lock()
