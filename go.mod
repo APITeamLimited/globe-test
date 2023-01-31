@@ -3,7 +3,6 @@ module github.com/APITeamLimited/globe-test
 go 1.18
 
 require (
-	cloud.google.com/go/functions v1.9.0
 	cloud.google.com/go/run v0.8.0
 	github.com/APITeamLimited/redis/v9 v9.0.6
 	github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e
@@ -39,7 +38,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.107.0 // indirect
+	cloud.google.com/go v0.105.0 // indirect
 	cloud.google.com/go/compute v1.14.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v0.8.0 // indirect
@@ -65,6 +64,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20230124163310-31e0e69b6fc2 // indirect
 )
 
 require (
@@ -77,5 +77,4 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/text v0.5.0 // indirect
-	google.golang.org/genproto v0.0.0-20230124163310-31e0e69b6fc2 // indirect
 )
