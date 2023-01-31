@@ -24,7 +24,7 @@ type RunAuthClient struct {
 var _ = libOrch.RunAuthClient(&RunAuthClient{})
 
 func CreateServicesClient(ctx context.Context, standalone bool, loadZones []string) *RunAuthClient {
-	serviceClient := &run.ServicesClient{}
+	var serviceClient *run.ServicesClient
 
 	// Convert hex to bytes
 	serviceAccount := lib.GetHexEnvVariable("SERVICE_ACCOUNT_KEY_HEX", "NONE")
@@ -37,6 +37,7 @@ func CreateServicesClient(ctx context.Context, standalone bool, loadZones []stri
 		serviceClient = loadedServiceClient
 	} else if !standalone {
 		fmt.Println("Service account key not found, assuming using overrides")
+		serviceClient = nil
 	} else {
 		panic("Service account key not found")
 	}

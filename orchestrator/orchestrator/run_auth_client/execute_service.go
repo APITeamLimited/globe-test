@@ -16,27 +16,27 @@ import (
 func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, error) {
 	config.liveServicesMutex.Lock()
 
-	var liveFunction *libOrch.LiveService
+	var liveService *libOrch.LiveService
 
 	// Find the function
 	for _, function := range config.liveServices {
 		if function.Location == location {
-			liveFunction = &function
+			liveService = &function
 			break
 		}
 	}
 
 	defer config.liveServicesMutex.Unlock()
 
-	specificFuncOverride := getSpecificFuncOverride(config.serviceUrlOverride, location)
+	specificServiceOverride := getSpecificFuncOverride(config.serviceUrlOverride, location)
 
-	if liveFunction == nil && specificFuncOverride == "NO" {
-		return nil, fmt.Errorf("function at location %s not found", location)
+	if liveService == nil && specificServiceOverride == "NO" {
+		return nil, fmt.Errorf("service at location %s not found", location)
 	}
 
-	uri := determineUri(liveFunction, specificFuncOverride)
+	uri := determineUri(liveService, specificServiceOverride)
 
-	tokenSource, err := idtoken.NewTokenSource(config.ctx, determineAudience(liveFunction, specificFuncOverride), option.WithCredentialsJSON(config.serviceAccount))
+	tokenSource, err := idtoken.NewTokenSource(config.ctx, determineAudience(liveService, specificServiceOverride), option.WithCredentialsJSON(config.serviceAccount))
 	if err != nil {
 		return nil, err
 	}
@@ -136,18 +136,18 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 	return nil
 }
 
-func determineAudience(liveFunction *libOrch.LiveService, serviceUrlOverride string) string {
+func determineAudience(liveService *libOrch.LiveService, serviceUrlOverride string) string {
 	if serviceUrlOverride == "NO" {
-		fmt.Println("Using function url", liveFunction.Uri)
-		return liveFunction.Uri
+		fmt.Println("Using function url", liveService.Uri)
+		return liveService.Uri
 	}
 
 	return serviceUrlOverride
 }
 
-func determineUri(liveFunction *libOrch.LiveService, serviceUrlOverride string) string {
+func determineUri(liveService *libOrch.LiveService, serviceUrlOverride string) string {
 	if serviceUrlOverride == "NO" {
-		return replaceSchemeWithWs(liveFunction.Uri)
+		return replaceSchemeWithWs(liveService.Uri)
 	}
 
 	fmt.Println("Using function url override", serviceUrlOverride)
