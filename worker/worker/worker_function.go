@@ -31,8 +31,16 @@ func runWorker(w http.ResponseWriter, r *http.Request) {
 
 	upgrader := websocket.Upgrader{}
 
+	headers := http.Header{
+		"Content-Length": []string{"0"},
+
+		// Indicate switching protocols
+		"Connection": []string{"Upgrade"},
+		"Upgrade":    []string{"websocket"},
+	}
+
 	// Upgrade the connection to a websocket
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(w, r, headers)
 	if err != nil {
 		fmt.Printf("Error upgrading connection to websocket: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)

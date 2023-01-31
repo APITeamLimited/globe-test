@@ -22,26 +22,18 @@ func (config *RunAuthClient) startAutoRefreshLiveServices() {
 	}
 
 	// Get a new token straight away
-	err := config.updateLiveServices()
-	if err != nil {
-		panic(err)
-	}
+	config.updateLiveServices()
 
 	go func() {
 		for {
 			time.Sleep(time.Second * 10)
-			err := config.updateLiveServices()
-			if err != nil {
-				fmt.Println(err)
-			}
+			config.updateLiveServices()
 		}
 	}()
 }
 
 // Queries the google cloud functions API to get the list of function URLs
-func (config *RunAuthClient) updateLiveServices() error {
-	var services []libOrch.LiveService
-
+func (config *RunAuthClient) updateLiveServices() {
 	findServices := func(location string) {
 		servicesIterator := config.serviceClient.ListServices(config.ctx, &runpb.ListServicesRequest{
 			Parent: fmt.Sprintf("projects/apiteam-%s/locations/%s", lib.GetEnvVariable("ENVIRONMENT", ""), location),
@@ -67,12 +59,27 @@ func (config *RunAuthClient) updateLiveServices() error {
 			}
 
 			config.liveServicesMutex.Lock()
+			// Check if the service is already in the list and update it if it is remove it and add it again
 
-			services = append(services, libOrch.LiveService{
-				Location: location,
-				Uri:      service.Uri,
-				State:    service.TerminalCondition.State,
-			})
+			isNewService := true
+
+			for i, liveService := range config.liveServices {
+				if liveService.Location == location {
+					liveService.Uri = service.Uri
+					liveService.State = service.TerminalCondition.State
+					config.liveServices[i] = liveService
+					isNewService = false
+					break
+				}
+			}
+
+			if isNewService {
+				config.liveServices = append(config.liveServices, libOrch.LiveService{
+					Location: location,
+					Uri:      service.Uri,
+					State:    service.TerminalCondition.State,
+				})
+			}
 
 			config.liveServicesMutex.Unlock()
 		}
@@ -81,10 +88,6 @@ func (config *RunAuthClient) updateLiveServices() error {
 	for _, location := range config.loadZones {
 		go findServices(location)
 	}
-
-	config.liveServices = services
-
-	return nil
 }
 
 func parseLocation(description string) (string, error) {

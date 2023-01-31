@@ -1,6 +1,7 @@
 package run_auth_client
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -34,7 +35,7 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 
 	uri := determineUri(liveFunction, specificFuncOverride)
 
-	tokenSource, err := idtoken.NewTokenSource(config.ctx, uri, option.WithCredentialsJSON(config.serviceAccount))
+	tokenSource, err := idtoken.NewTokenSource(config.ctx, determineAudience(liveFunction, specificFuncOverride), option.WithCredentialsJSON(config.serviceAccount))
 	if err != nil {
 		return nil, err
 	}
@@ -45,17 +46,27 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 		return nil, err
 	}
 
-	authHeader := http.Header{
+	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Bearer %s", token.AccessToken)},
 	}
 
-	conn, response, err := websocket.DefaultDialer.Dial(uri, authHeader)
+	fmt.Println("uri", uri)
+
+	dialer := websocket.Dialer{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+
+	// Connect to the websocket
+	conn, response, err := dialer.Dial(uri, headers)
 	if err != nil {
+		fmt.Println("err", err, "response", response)
 		return nil, err
 	}
 
 	if response.StatusCode != 101 {
-		return nil, fmt.Errorf("websocket connection failed with status code %d", response.StatusCode)
+		return nil, fmt.Errorf("websocket connection failed with status code %d %s", response.StatusCode, response.Status)
 	}
 
 	return conn, nil
@@ -124,6 +135,15 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 	}
 
 	return nil
+}
+
+func determineAudience(liveFunction *libOrch.LiveService, serviceUrlOverride string) string {
+	if serviceUrlOverride == "NO" {
+		fmt.Println("Using function url", liveFunction.Uri)
+		return liveFunction.Uri
+	}
+
+	return serviceUrlOverride
 }
 
 func determineUri(liveFunction *libOrch.LiveService, serviceUrlOverride string) string {
