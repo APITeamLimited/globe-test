@@ -17,27 +17,16 @@ import (
 func RunWorkerServer() {
 	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8080", true)
 
-	fmt.Printf("Starting GlobeTest worker server on port %s\n", port)
-
 	http.HandleFunc("/", runWorker)
 
+	fmt.Printf("Starting GlobeTest worker server on port %s\n", port)
+
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		fmt.Printf("Error starting worker server: %s", err.Error())
 		log.Fatal(err)
 	}
 }
 
 func runWorker(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("Recovered from panic: %s", r)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal server error"))
-		}
-	}()
-
-	fmt.Println("Worker request received")
-
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
@@ -59,8 +48,6 @@ func runWorker(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-
-	fmt.Printf("Connection upgraded to websocket for worker %s\n", workerId)
 
 	var childJob *libOrch.ChildJob
 
