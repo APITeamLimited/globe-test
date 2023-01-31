@@ -131,32 +131,6 @@ func (g *globalState) SetStatus(status string) {
 	g.status = status
 }
 
-func (g *globalState) GetChildJobStates() []libOrch.WorkerState {
-	return g.childJobStates
-}
-
-func (g *globalState) SetChildJobState(workerId string, childJobId string, status string) {
-	foundCurrent := false
-
-	for i, childJobState := range g.childJobStates {
-		if childJobState.ChildJobId == childJobId {
-			if g.childJobStates[i].Status != status {
-				g.childJobStates[i].Status = status
-			}
-
-			foundCurrent = true
-			break
-		}
-	}
-
-	if !foundCurrent {
-		g.childJobStates = append(g.childJobStates, libOrch.WorkerState{
-			WorkerId: workerId,
-			Status:   status,
-		})
-	}
-}
-
 func (g *globalState) CreditsManager() *lib.CreditsManager {
 	return g.creditsManager
 }

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -18,12 +19,12 @@ type childJobDispatchResult struct {
 func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch.ChildJobDistribution) error {
 	unifiedDispatchResultCh := make(chan childJobDispatchResult)
 
-	childJobsCount := 0
+	childJobCount := 0
 
 	for location, jobDistribution := range *childJobs {
 		for _, childJob := range jobDistribution.ChildJobs {
-			childJobsCount++
 			dispatchResultCh := dispatchChildJob(gs, childJob, location)
+			childJobCount++
 
 			go func(dispatchCh chan childJobDispatchResult) {
 				for v := range dispatchCh {
@@ -48,7 +49,7 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch
 
 		successFullDispatches++
 
-		if successFullDispatches == len(*childJobs) {
+		if successFullDispatches == childJobCount {
 			break
 		}
 	}
@@ -85,8 +86,23 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch
 
 	// Loop through childJobs and set WorkerConnection
 	for location, jobDistribution := range *childJobs {
-		for index := range jobDistribution.ChildJobs {
-			(*childJobs)[location].ChildJobs[index].WorkerConnection = dispatchedChildJobs[index].WorkerConnection
+		for index, childJob := range jobDistribution.ChildJobs {
+			addedConnection := false
+
+			// Find the dispatched child job
+			for _, dispatchedChildJob := range dispatchedChildJobs {
+				if dispatchedChildJob.ChildJobId == childJob.ChildJobId {
+					addedConnection = true
+					(*childJobs)[location].ChildJobs[index].WorkerConnection = dispatchedChildJob.WorkerConnection
+					(*childJobs)[location].ChildJobs[index].ConnWriteMutex = dispatchedChildJob.ConnWriteMutex
+					(*childJobs)[location].ChildJobs[index].ConnReadMutex = dispatchedChildJob.ConnReadMutex
+					break
+				}
+			}
+
+			if !addedConnection {
+				return errors.New("could not find dispatched child job")
+			}
 		}
 	}
 
@@ -109,13 +125,13 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, childJob *libOrch.ChildJob, lo
 			return
 		}
 
-		newChildJob := childJob
+		newChildJob := *childJob
 		newChildJob.WorkerConnection = conn
 		newChildJob.ConnWriteMutex = &sync.Mutex{}
 		newChildJob.ConnReadMutex = &sync.Mutex{}
 
 		dispatchResultCh <- childJobDispatchResult{
-			childJob: newChildJob,
+			childJob: &newChildJob,
 			err:      nil,
 		}
 

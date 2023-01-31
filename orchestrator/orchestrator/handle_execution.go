@@ -37,33 +37,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", job.Scope.Variant, job.Scope.VariantTargetId, job.Id))
 	defer jobUserUpdatesSubscription.Close()
 
-	// workerSubscriptions := make(map[string]*redis.PubSub)
-
-	// if gs.IndependentWorkerRedisHosts() {
-	// 	for location, jobDistribution := range childJobs {
-	// 		if jobDistribution.ChildJobs != nil && len(jobDistribution.ChildJobs) > 0 && workerSubscriptions[location] == nil {
-	// 			workerSubscriptions[location] = jobDistribution.WorkerConnection.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
-	// 			defer workerSubscriptions[location].Close()
-	// 		}
-	// 	}
-	// } else {
-	// 	for _, jobDistribution := range childJobs {
-	// 		// Only get first client as unified for whole job
-	// 		workerSubscriptions[unifiedRedis] = jobDistribution.WorkerConnection.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
-	// 		defer workerSubscriptions[unifiedRedis].Close()
-	// 		break
-	// 	}
-	// }
-
-	// workerChannels := make(map[string]<-chan *redis.Message)
-	// for location, subscription := range workerSubscriptions {
-	// 	workerChannels[location] = subscription.Channel()
-	// }
-
 	err := dispatchChildJobs(gs, &childJobs)
 	if err != nil {
 		fmt.Println("Error dispatching child jobs: ", err)
-		return abortAndFailAll(gs, childJobs, fmt.Errorf("internal error occurred dispatching child jobs: %s", err.Error()))
+		return abortAndFailAll(gs, childJobs, fmt.Errorf("internal error occurred while dispatching child jobs: %s", err.Error()))
 	}
 
 	defer func() {
@@ -138,6 +115,9 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	// 	}(channel)
 	//}
 
+	resolvedJobs := []string{}
+	resolvedJobsMutex := sync.Mutex{}
+
 	for location, childJobDistribution := range childJobs {
 		for _, childJob := range childJobDistribution.ChildJobs {
 			go func(childJob *libOrch.ChildJob, location string) {
@@ -151,16 +131,30 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					}
 
 					if err != nil {
-						fmt.Println("Error reading message: ", err)
-
-						// If websocket is closed, return
-						if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+						if strings.Contains(err.Error(), "use of closed network connection") {
 							return
 						}
 
-						// See if error message contains "use of closed network connection"
-						if strings.Contains(err.Error(), "use of closed network connection") {
-							return
+						// If websocket is closed, return
+						if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+							// If not re
+							inResolvedJobs := false
+
+							resolvedJobsMutex.Lock()
+							for _, resolvedJob := range resolvedJobs {
+								if resolvedJob == childJob.Id {
+									inResolvedJobs = true
+									break
+								}
+							}
+							resolvedJobsMutex.Unlock()
+
+							if !inResolvedJobs {
+								unifiedChannel <- locatedMesaage{
+									location: FUNC_ERROR_ABORT_CHANNEL,
+									msg:      "Internal error, worker unexpectedly closed connection",
+								}
+							}
 						}
 
 						continue
@@ -198,7 +192,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		for msg := range jobUserUpdatesSubscription.Channel() {
 			unifiedChannel <- locatedMesaage{
 				location: JOB_USER_UPDATES_CHANNEL,
-				msg:      msg.String(),
+				msg:      msg.Payload,
 			}
 		}
 	}()
@@ -279,7 +273,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		if locatedMessage.location == OUT_OF_TIME_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("max test duration exceeded"))
 		} else if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
-			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to worker error"))
+			return abortAndFailAll(gs, childJobs, errors.New(locatedMessage.msg))
 		} else if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to no credits"))
 		}
@@ -290,7 +284,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 			err := json.Unmarshal([]byte(locatedMessage.msg), &jobUserUpdate)
 			if err != nil {
-				fmt.Println("Error unmarshalling jobUserUpdate", err)
+				fmt.Println("Error unmarshalling jobUserUpdate", err, locatedMessage.msg)
 				continue
 			}
 
@@ -315,8 +309,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		if workerMessage.MessageType == "STATUS" {
 			fmt.Println("Received status message from", workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
 
-			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
-
 			if workerMessage.Message == "READY" {
 				// Check if the job has already been initialised
 
@@ -332,16 +324,19 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
-				jobsMutex.Unlock()
-
 				if !alreadyInitialised {
-					jobsMutex.Lock()
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
 					jobsMutex.Unlock()
 					checkIfCanStart()
+				} else {
+					jobsMutex.Unlock()
 				}
 
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
+				resolvedJobsMutex.Lock()
+				resolvedJobs = append(resolvedJobs, workerMessage.ChildJobId)
+				resolvedJobsMutex.Unlock()
+
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {
 					successCount++
@@ -361,8 +356,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					}
 				}
 			}
-
-			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
 			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 
@@ -419,12 +412,15 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			// Check if the message is a custom message
 			for _, messageType := range otherMessageTypes {
 				if messageType == workerMessage.MessageType {
+					if (messageType == "COLLECTION_VARIABLES" || messageType == "ENVIRONMENT_VARIABLES") && job.Options.ExecutionMode.Value != "httpSingle" {
+						break
+					}
 
 					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+
 					break
 				}
 			}
-
 		}
 	}
 

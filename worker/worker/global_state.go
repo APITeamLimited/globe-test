@@ -74,6 +74,8 @@ type globalState struct {
 	funcModeEnabled bool
 	funcModeInfo    *lib.FuncModeInfo
 	messageQueue    *libWorker.MessageQueue
+
+	cancelFunc context.CancelFunc
 }
 
 var _ libWorker.BaseGlobalState = &globalState{}
@@ -108,6 +110,7 @@ func newGlobalState(ctx context.Context, conn *websocket.Conn, job *libOrch.Chil
 			QueueCount:    0,
 			NewQueueCount: make(chan int),
 		},
+		cancelFunc: func() {},
 	}
 
 	gs.stdOut = &consoleWriter{gs}
@@ -190,4 +193,12 @@ func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
 
 func (gs *globalState) MessageQueue() *libWorker.MessageQueue {
 	return gs.messageQueue
+}
+
+func (gs *globalState) GetRunAbortFunc() context.CancelFunc {
+	return gs.cancelFunc
+}
+
+func (gs *globalState) SetRunAbortFunc(cancelFunc context.CancelFunc) {
+	gs.cancelFunc = cancelFunc
 }

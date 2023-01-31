@@ -32,15 +32,19 @@ func getEventChannels(gs libWorker.BaseGlobalState) eventChannels {
 			}
 
 			if err != nil {
-				fmt.Println("Error reading from websocket:", err)
+				gs.GetRunAbortFunc()()
 				return
+			}
+
+			if messageKind != websocket.TextMessage {
+				continue
 			}
 
 			eventMessage := lib.EventMessage{}
 
 			err = json.Unmarshal(message, &eventMessage)
 			if err != nil {
-				fmt.Println("Error unmarshalling event message", err)
+				fmt.Println("Error unmarshalling event message", err, string(message))
 				return
 			}
 

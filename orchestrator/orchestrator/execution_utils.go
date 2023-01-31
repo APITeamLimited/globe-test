@@ -42,7 +42,7 @@ func abortChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.Chi
 			sendError := childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEvent)
 			childJob.ConnWriteMutex.Unlock()
 			if sendError != nil {
-				libOrch.HandleError(gs, sendError)
+				continue
 			}
 		}
 	}

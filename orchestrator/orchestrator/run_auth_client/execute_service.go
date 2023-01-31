@@ -50,8 +50,6 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 		"Authorization": []string{fmt.Sprintf("Bearer %s", token.AccessToken)},
 	}
 
-	fmt.Println("uri", uri)
-
 	dialer := websocket.Dialer{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,

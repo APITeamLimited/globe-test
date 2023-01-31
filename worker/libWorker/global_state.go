@@ -26,4 +26,7 @@ type BaseGlobalState interface {
 	FuncModeEnabled() bool
 	FuncModeInfo() *lib.FuncModeInfo
 	MessageQueue() *MessageQueue
+
+	SetRunAbortFunc(cancelFunc context.CancelFunc)
+	GetRunAbortFunc() context.CancelFunc
 }

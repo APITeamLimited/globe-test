@@ -33,8 +33,6 @@ type BaseGlobalState interface {
 	GetStatus() string
 	SetStatus(string)
 
-	GetChildJobStates() []WorkerState
-	SetChildJobState(workerId string, childJobId string, status string)
 	CreditsManager() *lib.CreditsManager
 	Standalone() bool
 	FuncAuthClient() RunAuthClient

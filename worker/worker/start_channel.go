@@ -17,14 +17,31 @@ const (
 
 // Starts test on command from orchestrator or cancels test if not received start
 // command within timeout of 1 minute
-func testStartChannel(gs libWorker.BaseGlobalState, eventChannels eventChannels) chan *time.Time {
+func testStartChannel(gs libWorker.BaseGlobalState, eventChannels eventChannels, preAbortChannel chan bool) chan *time.Time {
 	startChan := make(chan *time.Time)
 
 	status := WAITING
 	statusMutex := &sync.Mutex{}
 
+	go func() {
+		// Listen for pre-abort channel
+		<-preAbortChannel
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+
+		if status == WAITING {
+			startChan <- nil
+			status = FAILED
+		}
+	}()
+
 	// Listen for start command from orchestrator
 	go func() {
+		// Close pre-abort channel automatically
+		defer func() {
+			preAbortChannel <- true
+		}()
+
 		message := <-eventChannels.goMessageChannel
 
 		statusMutex.Lock()

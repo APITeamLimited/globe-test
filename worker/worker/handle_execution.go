@@ -29,6 +29,12 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	gs := newGlobalState(ctx, conn, job, workerId, job.FuncModeInfo, connReadMutex, connWriteMutex)
 	eventChannels := getEventChannels(gs)
 
+	// Prestart-abort callback is for when not yet running but the test is aborted
+	preAbortChannel := make(chan bool)
+	gs.SetRunAbortFunc(func() {
+		preAbortChannel <- true
+	})
+
 	libWorker.UpdateStatus(gs, "LOADING")
 	workerInfo := loadWorkerInfo(ctx, conn, job, workerId, gs, creditsClient, standalone)
 
@@ -45,7 +51,7 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 		return false
 	}
 
-	startChannel := testStartChannel(gs, eventChannels)
+	startChannel := testStartChannel(gs, eventChannels, preAbortChannel)
 	libWorker.UpdateStatus(gs, "READY")
 
 	// Wait for the start signal from the orchestrator
@@ -75,6 +81,8 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	defer globalCancel()
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
+
+	gs.SetRunAbortFunc(runCancel)
 
 	// Regularly deduct credits
 	workerInfo.CreditsManager.StartMonitoringCredits(func() {
