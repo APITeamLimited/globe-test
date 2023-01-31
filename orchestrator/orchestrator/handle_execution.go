@@ -84,9 +84,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		}
 	}()
 
-	resolvedJobs := []string{}
-	resolvedJobsMutex := sync.Mutex{}
-
 	for location, childJobDistribution := range childJobs {
 		for _, childJob := range childJobDistribution.ChildJobs {
 			go func(childJob *libOrch.ChildJob, location string) {
@@ -108,24 +105,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 						// If websocket is closed, return
 						if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
-							// If not re
-							inResolvedJobs := false
-
-							resolvedJobsMutex.Lock()
-							for _, resolvedJob := range resolvedJobs {
-								if resolvedJob == childJob.Id {
-									inResolvedJobs = true
-									break
-								}
-							}
-							resolvedJobsMutex.Unlock()
-
-							if !inResolvedJobs {
-								unifiedChannel <- locatedMesaage{
-									location: FUNC_ERROR_ABORT_CHANNEL,
-									msg:      "Internal error, worker unexpectedly closed connection",
-								}
-							}
+							childJob.ConnReadMutex.Unlock()
+							return
 						}
 
 						childJob.ConnReadMutex.Unlock()
@@ -307,10 +288,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				}
 
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
-				resolvedJobsMutex.Lock()
-				resolvedJobs = append(resolvedJobs, workerMessage.ChildJobId)
-				resolvedJobsMutex.Unlock()
-
 				resolutionMutex.Lock()
 				if workerMessage.Message == "SUCCESS" {
 					successCount++
