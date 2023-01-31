@@ -16,17 +16,27 @@ import (
 
 func RunWorkerServer() {
 	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8080", true)
-	fmt.Printf("Starting worker server on port %s\n", port)
+	address := fmt.Sprintf("0.0.0.0:%s", port)
+
+	fmt.Printf("Starting worker server on address %s\n", address)
 
 	http.HandleFunc("/", runWorker)
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(address, nil); err != nil {
 		fmt.Printf("Error starting worker server: %s", err.Error())
 		log.Fatal(err)
 	}
 }
 
 func runWorker(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic: %s", r)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal server error"))
+		}
+	}()
+
 	fmt.Println("Worker request received")
 
 	ctx := context.Background()
