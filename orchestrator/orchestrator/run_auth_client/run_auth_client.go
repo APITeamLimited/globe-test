@@ -25,7 +25,7 @@ var _ = libOrch.RunAuthClient(&RunAuthClient{})
 
 func CreateServicesClient(ctx context.Context, standalone bool, loadZones []string) *RunAuthClient {
 	// Convert hex to bytes
-	serviceAccount := lib.GetHexEnvVariable("SERVICE_ACCOUNT_KEY_HEX", "")
+	serviceAccount := lib.GetHexEnvVariable("SERVICE_ACCOUNT_KEY_HEX", "NONE")
 
 	serviceClient, err := run.NewServicesClient(ctx, option.WithCredentialsJSON(serviceAccount))
 	if err != nil {
