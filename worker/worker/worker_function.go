@@ -21,11 +21,14 @@ func RunWorkerServer() {
 	http.HandleFunc("/", runWorker)
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		fmt.Printf("Error starting worker server: %s", err.Error())
 		log.Fatal(err)
 	}
 }
 
 func runWorker(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Worker request received")
+
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
@@ -47,6 +50,8 @@ func runWorker(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
+
+	fmt.Printf("Connection upgraded to websocket for worker %s\n", workerId)
 
 	var childJob *libOrch.ChildJob
 
