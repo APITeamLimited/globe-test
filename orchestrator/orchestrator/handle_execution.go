@@ -53,8 +53,10 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		}
 	}()
 
+	childJobCount := childJobCount(childJobs)
+
 	// Check if workerSubscriptions is empty
-	if childJobCount(childJobs) == 0 {
+	if childJobCount == 0 {
 		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
 		return "SUCCESS", nil
 	}
@@ -149,11 +151,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			}
 		}
 	}()
-
-	childJobCount := 0
-	for _, jobDistribution := range childJobs {
-		childJobCount += len(jobDistribution.ChildJobs)
-	}
 
 	jobsInitialised := []string{}
 	jobsMutex := &sync.Mutex{}

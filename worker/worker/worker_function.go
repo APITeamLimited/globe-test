@@ -16,8 +16,11 @@ import (
 
 func RunWorkerServer() {
 	port := lib.GetEnvVariableRaw("WORKER_SERVER_PORT", "8080", true)
+	standalone := lib.GetEnvVariableBool("WORKER_STANDALONE", true)
 
-	http.HandleFunc("/", runWorker)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		runWorker(w, r, standalone)
+	})
 
 	fmt.Printf("Starting GlobeTest worker server on port %s\n", port)
 
@@ -26,7 +29,7 @@ func RunWorkerServer() {
 	}
 }
 
-func runWorker(w http.ResponseWriter, r *http.Request) {
+func runWorker(w http.ResponseWriter, r *http.Request, standalone bool) {
 	ctx := context.Background()
 	workerId := uuid.NewString()
 
@@ -86,7 +89,7 @@ func runWorker(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Worker %s executing child job %s\n", workerId, childJob.ChildJobId)
 
-	successfullExecution := handleExecution(ctx, conn, childJob, workerId, creditsClient, true, connReadMutex, connWriteMutex)
+	successfullExecution := handleExecution(ctx, conn, childJob, workerId, creditsClient, standalone, connReadMutex, connWriteMutex)
 
 	// Close the connection gracefully
 
