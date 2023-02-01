@@ -2,7 +2,6 @@ package validators
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/APITeamLimited/globe-test/lib/agent"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -10,17 +9,19 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients,
-	gs libOrch.BaseGlobalState, job libOrch.Job) error {
-	if gs.FuncMode() {
-		permittedWorkerClients := workerClients
+func LoadDistribution(options *libWorker.Options, gs libOrch.BaseGlobalState, job libOrch.Job) error {
+	allowedLoadZones := gs.LoadZones()
+
+	if gs.Standalone() {
+		// In case not speified in job, use all load zones
+		perittedLoadZones := allowedLoadZones
 
 		if job.PermittedLoadZones != nil && len(job.PermittedLoadZones) > 0 {
 			// Filter out worker clients that are not in permitted load zones#
-			permittedWorkerClients = filterPermittedLoadZones(workerClients, job.PermittedLoadZones)
+			perittedLoadZones = filterPermittedLoadZones(allowedLoadZones, job.PermittedLoadZones)
 		}
 
-		err := cloudLoadDistribution(options, permittedWorkerClients)
+		err := cloudLoadDistribution(options, perittedLoadZones)
 		if err != nil {
 			return err
 		}
@@ -38,38 +39,33 @@ func LoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerCl
 		}
 
 		return nil
-	} else if gs.Standalone() {
-		return cloudLoadDistribution(options, workerClients)
 	}
+
 	return localLoadDistribution(options)
 }
 
 // Filters out worker clients that are not in permitted load zones
-func filterPermittedLoadZones(workerClients libOrch.WorkerClients, permittedLoadZones []string) libOrch.WorkerClients {
-	permittedWorkerClients := libOrch.WorkerClients{
-		Clients:       make(map[string]*libOrch.NamedClient),
-		DefaultClient: workerClients.DefaultClient,
-	}
+func filterPermittedLoadZones(desiredLoadZones []string, permittedLoadZones []string) []string {
+	permittedZones := make([]string, 0)
 
-	// Filter out worker clients that are not in permitted load zones
-	for _, workerClient := range workerClients.Clients {
+	for _, desiredLoadZone := range desiredLoadZones {
 		for _, permittedLoadZone := range permittedLoadZones {
-			if workerClient.Name == permittedLoadZone {
-				permittedWorkerClients.Clients[workerClient.Name] = workerClient
+			if desiredLoadZone == permittedLoadZone {
+				permittedZones = append(permittedZones, desiredLoadZone)
 			}
 		}
 	}
 
-	return permittedWorkerClients
+	return permittedZones
 }
 
 // For each location in load distribution checks if cloud functions are available
-func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient libOrch.FunctionAuthClient) error {
+func ensureCloudFunctionsAvailable(options *libWorker.Options, authClient libOrch.RunAuthClient) error {
 	for _, location := range options.LoadDistribution.Value {
 		// If cloud functions are not available for this location
-		error := authClient.CheckFunctionAvailability(location.Location)
-		if error != nil {
-			return error
+		err := authClient.CheckServiceAvailability(location.Location)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -95,7 +91,7 @@ func ensurePermittedLoadZones(options *libWorker.Options, loadZones []string) er
 	return nil
 }
 
-func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+func cloudLoadDistribution(options *libWorker.Options, permittedLoadZones []string) error {
 	// In case user wants equal distribution
 	if len(options.LoadDistribution.Value) == 1 && options.LoadDistribution.Value[0].Location == libOrch.GlobalName {
 		// Check fraction is valid and set to 100
@@ -103,29 +99,16 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 			return fmt.Errorf("fraction must be 100 when using global distribution")
 		}
 
-		clientCount := len(workerClients.Clients)
-
 		// Set load distribution to equal distribution across all worker clients
-		// Or as close as possible
-		floorSize := int(math.Floor(float64(100 / float64(clientCount))))
-		remainderSize := 100 - (floorSize * (clientCount - 1))
+		locationCount := len(permittedLoadZones)
+		fractionSize := 100 / float64(locationCount)
 
-		options.LoadDistribution.Value = make([]types.LoadZone, clientCount)
+		options.LoadDistribution.Value = make([]types.LoadZone, locationCount)
 
-		currentIndex := 0
-
-		for _, workerClient := range workerClients.Clients {
-			if currentIndex == clientCount-1 {
-				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
-					Location: workerClient.Name,
-					Fraction: remainderSize,
-				}
-			} else {
-				options.LoadDistribution.Value[currentIndex] = types.LoadZone{
-					Location: workerClient.Name,
-					Fraction: floorSize,
-				}
-				currentIndex++
+		for index, loadZone := range permittedLoadZones {
+			options.LoadDistribution.Value[index] = types.LoadZone{
+				Location: loadZone,
+				Fraction: fractionSize,
 			}
 		}
 	}
@@ -135,7 +118,7 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 		options.LoadDistribution = types.NullLoadDistribution{
 			Valid: true,
 			Value: []types.LoadZone{{
-				Location: workerClients.DefaultClient.Name,
+				Location: permittedLoadZones[0],
 				Fraction: 100,
 			}},
 		}
@@ -147,7 +130,7 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 			options.LoadDistribution = types.NullLoadDistribution{
 				Valid: true,
 				Value: []types.LoadZone{{
-					Location: workerClients.DefaultClient.Name,
+					Location: permittedLoadZones[0],
 					Fraction: 100,
 				}},
 			}
@@ -155,15 +138,15 @@ func cloudLoadDistribution(options *libWorker.Options, workerClients libOrch.Wor
 			return nil
 		}
 
-		return checkSingleCloudLD(options, workerClients)
+		return checkSingleCloudLD(options, permittedLoadZones)
 	} else if options.ExecutionMode.ValueOrZero() == types.HTTPMultipleExecutionMode {
-		return checkMultiCloudLD(options, workerClients)
+		return checkMultiCloudLD(options, permittedLoadZones)
 	}
 
 	return fmt.Errorf("invalid execution mode %s", options.ExecutionMode.ValueOrZero())
 }
 
-func checkSingleCloudLD(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+func checkSingleCloudLD(options *libWorker.Options, permittedLoadZones []string) error {
 	if len(options.LoadDistribution.Value) != 1 {
 		return fmt.Errorf("load distribution must be a single zone when execution mode is %s", types.HTTPSingleExecutionMode)
 	}
@@ -173,8 +156,8 @@ func checkSingleCloudLD(options *libWorker.Options, workerClients libOrch.Worker
 	}
 
 	// Check valid location
-	for _, workerClient := range workerClients.Clients {
-		if options.LoadDistribution.Value[0].Location == workerClient.Name {
+	for _, loadZone := range permittedLoadZones {
+		if options.LoadDistribution.Value[0].Location == loadZone {
 			return nil
 		}
 	}
@@ -182,19 +165,19 @@ func checkSingleCloudLD(options *libWorker.Options, workerClients libOrch.Worker
 	return fmt.Errorf("invalid location %s", options.LoadDistribution.Value[0].Location)
 }
 
-func checkMultiCloudLD(options *libWorker.Options, workerClients libOrch.WorkerClients) error {
+func checkMultiCloudLD(options *libWorker.Options, permittedLoadZones []string) error {
 	if !options.LoadDistribution.Valid {
 		return fmt.Errorf("load distribution must be set when execution mode is %s", types.HTTPMultipleExecutionMode)
 	}
 
 	// Check all names valid and fractions add up to 100
-	var totalFraction int
+	var totalFraction float64
 
 	for _, loadZone := range options.LoadDistribution.Value {
 		// Check valid location
 		validLoadZone := false
-		for _, workerClient := range workerClients.Clients {
-			if loadZone.Location == workerClient.Name {
+		for _, permittedLoadZone := range permittedLoadZones {
+			if loadZone.Location == permittedLoadZone {
 				validLoadZone = true
 				break
 			}
@@ -205,14 +188,15 @@ func checkMultiCloudLD(options *libWorker.Options, workerClients libOrch.WorkerC
 		}
 
 		if loadZone.Fraction < 1 || loadZone.Fraction > 100 {
-			return fmt.Errorf("invalid fraction %d", loadZone.Fraction)
+			return fmt.Errorf("invalid fraction %f", loadZone.Fraction)
 		}
 
 		totalFraction += loadZone.Fraction
 	}
 
-	if totalFraction != 100 {
-		return fmt.Errorf("total fraction must be 100, got %d", totalFraction)
+	// Allow for some rounding error
+	if totalFraction < 99.99 || totalFraction > 100.01 {
+		return fmt.Errorf("total fraction must be 100, got %f", totalFraction)
 	}
 
 	return nil

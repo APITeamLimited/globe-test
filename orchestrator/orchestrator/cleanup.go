@@ -16,7 +16,7 @@ import (
 Cleans up the worker and orchestrator clients, storing all results in storeMongo
 */
 func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution, storeMongoDB *mongo.Database,
-	scope libOrch.Scope, globeTestLogsReceipt primitive.ObjectID, metricsStoreReceipt primitive.ObjectID) error {
+	scope libOrch.Scope, globeTestLogsReceipt *primitive.ObjectID, metricsStoreReceipt *primitive.ObjectID) error {
 	// Clean up worker
 	// Set job in orchestrator redis
 
@@ -26,20 +26,6 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 	}
 
 	libOrch.DispatchMessage(gs, string(marshalledJobInfo), "JOB_INFO")
-
-	go func() {
-		for _, jobDistribution := range childJobs {
-			client := jobDistribution.WorkerClient
-
-			for _, childJob := range jobDistribution.Jobs {
-				client.Del(gs.Ctx(), childJob.ChildJobId)
-
-				// Remove childJob["id"] from worker:executionHistory set
-				client.SRem(gs.Ctx(), "worker:executionHistory", childJob.ChildJobId)
-
-			}
-		}
-	}()
 
 	// Store results in MongoDB
 	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)

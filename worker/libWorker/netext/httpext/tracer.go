@@ -259,7 +259,7 @@ func (t *Tracer) Done() *Trail {
 	}
 
 	// It's possible for some of the methods of httptrace.ClientTrace to
-	// actually be called after the http.Client or http.RoundTripper have
+	// actually be called after the http.Connection or http.RoundTripper have
 	// already returned our result and we've called Done(). This happens
 	// mostly for cancelled requests, but we have to use atomics here as
 	// well (or use global Tracer locking) so we can avoid data races.

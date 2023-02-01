@@ -58,6 +58,10 @@ func GetHexEnvVariable(key, defaultValue string) []byte {
 
 	valueHex := GetEnvVariable(key, defaultValue)
 
+	if valueHex == defaultValue {
+		return []byte(defaultValue)
+	}
+
 	value, err := hex.DecodeString(valueHex)
 	if err != nil {
 		panic(err)

@@ -2,26 +2,30 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
 
+	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 type childJobDispatchResult struct {
-	responseChannel *chan libOrch.FunctionResult
-	err             error
+	childJob *libOrch.ChildJob
+	err      error
 }
 
-func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.ChildJobDistribution) (*([](chan libOrch.FunctionResult)), error) {
+func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch.ChildJobDistribution) error {
 	unifiedDispatchResultCh := make(chan childJobDispatchResult)
 
-	childJobsCount := 0
+	childJobCount := 0
 
-	for location, jobDistribution := range childJobs {
-		for _, job := range jobDistribution.Jobs {
-			childJobsCount++
-			dispatchResultCh := dispatchChildJob(gs, jobDistribution.WorkerClient, job, location)
+	for location, jobDistribution := range *childJobs {
+		for _, childJob := range jobDistribution.ChildJobs {
+			dispatchResultCh := dispatchChildJob(gs, childJob, location)
+			childJobCount++
 
 			go func(dispatchCh chan childJobDispatchResult) {
 				for v := range dispatchCh {
@@ -32,70 +36,113 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.
 		}
 	}
 
-	responseChannels := []chan libOrch.FunctionResult{}
-
+	dispatchedChildJobs := []*libOrch.ChildJob{}
 	successFullDispatches := 0
 
+	startTime := time.Now()
 	for dispatchResult := range unifiedDispatchResultCh {
 		if dispatchResult.err != nil {
-			return nil, dispatchResult.err
+			return dispatchResult.err
 		}
 
-		if dispatchResult.responseChannel != nil {
-			responseChannels = append(responseChannels, *dispatchResult.responseChannel)
+		if dispatchResult.childJob != nil {
+			dispatchedChildJobs = append(dispatchedChildJobs, dispatchResult.childJob)
 		}
 
 		successFullDispatches++
 
-		if successFullDispatches == len(childJobs) {
+		if successFullDispatches == childJobCount {
 			break
 		}
 	}
 
-	return &responseChannels, nil
+	fmt.Printf("Dispatched all child jobs in %s\n", time.Since(startTime))
+
+	// Dispatch all child job info instantaneously after got all connections
+	for _, childJob := range dispatchedChildJobs {
+		go func(childJob *libOrch.ChildJob) error {
+			serialializedChildJob, err := json.Marshal(childJob)
+			if err != nil {
+				fmt.Printf("Error marshalling child job %s: %s", childJob.ChildJobId, err)
+			}
+
+			childJobEvent := lib.EventMessage{
+				Variant: lib.CHILD_JOB_INFO,
+				Data:    string(serialializedChildJob),
+			}
+
+			marshalledEvent, err := json.Marshal(childJobEvent)
+			if err != nil {
+				fmt.Printf("Error marshalling child job event %s: %s", childJob.ChildJobId, err)
+				return err
+			}
+
+			childJob.ConnWriteMutex.Lock()
+			err = childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEvent)
+			childJob.ConnWriteMutex.Unlock()
+			if err != nil {
+				fmt.Printf("Error sending child job info to worker %s: %s", childJob.ChildJobId, err)
+			}
+
+			return nil
+		}(childJob)
+	}
+
+	// Loop through childJobs and set WorkerConnection
+	for location, jobDistribution := range *childJobs {
+		for index, childJob := range jobDistribution.ChildJobs {
+			addedConnection := false
+
+			// Find the dispatched child job
+			for _, dispatchedChildJob := range dispatchedChildJobs {
+				if dispatchedChildJob.ChildJobId == childJob.ChildJobId {
+					addedConnection = true
+					(*childJobs)[location].ChildJobs[index].WorkerConnection = dispatchedChildJob.WorkerConnection
+					(*childJobs)[location].ChildJobs[index].ConnWriteMutex = dispatchedChildJob.ConnWriteMutex
+					(*childJobs)[location].ChildJobs[index].ConnReadMutex = dispatchedChildJob.ConnReadMutex
+					break
+				}
+			}
+
+			if !addedConnection {
+				return errors.New("could not find dispatched child job")
+			}
+		}
+	}
+
+	return nil
 }
 
-func dispatchChildJob(gs libOrch.BaseGlobalState, workerClient *redis.Client, job libOrch.ChildJob, location string) chan childJobDispatchResult {
+func dispatchChildJob(gs libOrch.BaseGlobalState, childJob *libOrch.ChildJob, location string) chan childJobDispatchResult {
 	dispatchResultCh := make(chan childJobDispatchResult)
 
 	// Convert options to json
 	go func() {
-		marshalledChildJob, err := json.Marshal(job)
+		// If we're in function mode, need to create a google cloud function call
+		startTime := time.Now()
+		conn, err := gs.FuncAuthClient().ExecuteService(gs, location)
 		if err != nil {
 			dispatchResultCh <- childJobDispatchResult{
-				err: err,
+				childJob: nil,
+				err:      err,
 			}
 
 			return
 		}
 
-		if gs.FuncMode() {
-			// If we're in function mode, need to create a google cloud function call
-			responseCh, err := gs.FuncAuthClient().ExecuteFunction(location, job)
-			if err != nil {
-				dispatchResultCh <- childJobDispatchResult{
-					err: err,
-				}
+		newChildJob := *childJob
+		newChildJob.WorkerConnection = conn
+		newChildJob.ConnWriteMutex = &sync.Mutex{}
+		newChildJob.ConnReadMutex = &sync.Mutex{}
 
-				return
-			}
-
-			fmt.Printf("Dispatched child job %s to function %s\n", job.ChildJobId, location)
-
-			dispatchResultCh <- childJobDispatchResult{
-				responseChannel: responseCh,
-			}
-
-			return
+		dispatchResultCh <- childJobDispatchResult{
+			childJob: &newChildJob,
+			err:      nil,
 		}
-		workerClient.HSet(gs.Ctx(), job.ChildJobId, "job", marshalledChildJob)
 
-		workerClient.SAdd(gs.Ctx(), "worker:executionHistory", job.ChildJobId)
-		workerClient.Publish(gs.Ctx(), "worker:execution", job.ChildJobId)
+		fmt.Println(("time taken to dispatch child job: " + time.Since(startTime).String()))
 
-		fmt.Printf("Dispatched child job %s to worker %s\n", job.ChildJobId, location)
-
-		dispatchResultCh <- childJobDispatchResult{}
+		fmt.Printf("Dispatched child job %s to function %s\n", childJob.ChildJobId, location)
 	}()
 
 	return dispatchResultCh

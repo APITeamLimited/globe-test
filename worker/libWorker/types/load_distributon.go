@@ -11,8 +11,8 @@ const (
 )
 
 type LoadZone struct {
-	Location string `json:"location"`
-	Fraction int    `json:"fraction"`
+	Location string  `json:"location"`
+	Fraction float64 `json:"fraction"`
 }
 
 type NullLoadDistribution struct {

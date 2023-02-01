@@ -23,7 +23,7 @@ import (
 
 func loadAndConfigureTest(
 	gs *globalState,
-	job libOrch.ChildJob,
+	job *libOrch.ChildJob,
 	workerInfo *libWorker.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) {
 	sourceName := job.SourceName
@@ -135,7 +135,7 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 }
 
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
-	gs *globalState, job libOrch.ChildJob,
+	gs *globalState, job *libOrch.ChildJob,
 ) (*workerLoadedAndConfiguredTest, error) {
 	// Options have already been determined by the orchestrator, just load them
 	consolidatedConfig := Config{

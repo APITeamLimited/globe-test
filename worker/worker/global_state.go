@@ -12,7 +12,7 @@ import (
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
@@ -62,7 +62,9 @@ type globalState struct {
 	logger         *logrus.Logger
 	fallbackLogger *logrus.Logger
 
-	client *redis.Client
+	conn           *websocket.Conn
+	connWriteMutex *sync.Mutex
+	connReadMutex  *sync.Mutex
 
 	workerId   string
 	jobId      string
@@ -72,6 +74,8 @@ type globalState struct {
 	funcModeEnabled bool
 	funcModeInfo    *lib.FuncModeInfo
 	messageQueue    *libWorker.MessageQueue
+
+	cancelFunc context.CancelFunc
 }
 
 var _ libWorker.BaseGlobalState = &globalState{}
@@ -83,28 +87,30 @@ var _ libWorker.BaseGlobalState = &globalState{}
 
 // Care is needed to prevent leaking system info to malicious actors.
 
-func newGlobalState(ctx context.Context, client *redis.Client, job libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo) *globalState {
+func newGlobalState(ctx context.Context, conn *websocket.Conn, job *libOrch.ChildJob, workerId string, funcModeInfo *lib.FuncModeInfo, connReadMutex, connWriteMutex *sync.Mutex) *globalState {
 	gs := &globalState{
-		ctx:             ctx,
-		fs:              afero.NewMemMapFs(),
-		getwd:           os.Getwd,
-		args:            []string{},
-		envVars:         make(map[string]string),
-		stdIn:           os.Stdin,
-		osExit:          os.Exit,
-		signalNotify:    signal.Notify,
-		signalStop:      signal.Stop,
-		workerId:        workerId,
-		client:          client,
-		jobId:           job.Id,
-		childJobId:      job.ChildJobId,
-		funcModeEnabled: funcModeInfo != nil,
-		funcModeInfo:    funcModeInfo,
+		ctx:            ctx,
+		fs:             afero.NewMemMapFs(),
+		getwd:          os.Getwd,
+		args:           []string{},
+		envVars:        make(map[string]string),
+		stdIn:          os.Stdin,
+		osExit:         os.Exit,
+		signalNotify:   signal.Notify,
+		signalStop:     signal.Stop,
+		workerId:       workerId,
+		conn:           conn,
+		connWriteMutex: connWriteMutex,
+		connReadMutex:  connReadMutex,
+		jobId:          job.Id,
+		childJobId:     job.ChildJobId,
+		funcModeInfo:   funcModeInfo,
 		messageQueue: &libWorker.MessageQueue{
 			Mutex:         sync.Mutex{},
 			QueueCount:    0,
 			NewQueueCount: make(chan int),
 		},
+		cancelFunc: func() {},
 	}
 
 	gs.stdOut = &consoleWriter{gs}
@@ -145,8 +151,16 @@ func (gs *globalState) Ctx() context.Context {
 	return gs.ctx
 }
 
-func (gs *globalState) Client() *redis.Client {
-	return gs.client
+func (gs *globalState) Conn() *websocket.Conn {
+	return gs.conn
+}
+
+func (gs *globalState) ConnWriteMutex() *sync.Mutex {
+	return gs.connWriteMutex
+}
+
+func (gs *globalState) ConnReadMutex() *sync.Mutex {
+	return gs.connReadMutex
 }
 
 func (gs *globalState) JobId() string {
@@ -179,4 +193,12 @@ func (gs *globalState) FuncModeInfo() *lib.FuncModeInfo {
 
 func (gs *globalState) MessageQueue() *libWorker.MessageQueue {
 	return gs.messageQueue
+}
+
+func (gs *globalState) GetRunAbortFunc() context.CancelFunc {
+	return gs.cancelFunc
+}
+
+func (gs *globalState) SetRunAbortFunc(cancelFunc context.CancelFunc) {
+	gs.cancelFunc = cancelFunc
 }

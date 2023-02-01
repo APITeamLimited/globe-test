@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 type (
@@ -28,7 +28,7 @@ type (
 	}
 
 	WorkerInfo struct {
-		Client            *redis.Client
+		Conn              *websocket.Conn
 		JobId             string
 		ChildJobId        string
 		ScopeId           string
@@ -71,58 +71,66 @@ type MessageQueue struct {
 }
 
 func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
-	go func() {
-		serializedMessage, err := serializeMessage(gs, message, messageType)
-		if err != nil {
-			fmt.Println("DispatchMessage: Error marshalling message", err)
-			return
-		}
+	// go func() {
+	// 	messageQueue := gs.MessageQueue()
 
-		messageQueue := gs.MessageQueue()
+	// 	isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
+	// 	if !isTerminal {
+	// 		messageQueue.Mutex.Lock()
+	// 		messageQueue.QueueCount++
+	// 		messageQueue.Mutex.Unlock()
 
-		isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
-		if !isTerminal {
-			messageQueue.Mutex.Lock()
-			messageQueue.QueueCount++
-			messageQueue.Mutex.Unlock()
+	// 		gs.ConnWriteMutex().Lock()
+	// 		gs.Conn().WriteJSON(formatMessage(gs, message, messageType))
+	// 		gs.ConnWriteMutex().Unlock()
 
-			err := gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), serializedMessage).Err()
-			if err != nil {
-				fmt.Println("DispatchMessage: Error publishing message", err)
-			}
+	// 		messageQueue.Mutex.Lock()
+	// 		messageQueue.QueueCount--
 
-			messageQueue.Mutex.Lock()
-			messageQueue.QueueCount--
+	// 		// Must unlock the mutex before sending the new count to the channel
+	// 		messageQueue.Mutex.Unlock()
+	// 		messageQueue.NewQueueCount <- messageQueue.QueueCount
 
-			// Must unlock the mutex before sending the new count to the channel
-			messageQueue.Mutex.Unlock()
-			messageQueue.NewQueueCount <- messageQueue.QueueCount
+	// 		return
+	// 	}
 
-			return
-		}
+	// 	messageQueue.Mutex.Lock()
+	// 	queueCount := messageQueue.QueueCount
+	// 	messageQueue.Mutex.Unlock()
 
-		messageQueue.Mutex.Lock()
-		queueCount := messageQueue.QueueCount
-		messageQueue.Mutex.Unlock()
+	// 	// If the message is terminal, we want to make sure that all messages are sent before we return
+	// 	if queueCount > 0 {
+	// 		for newCount := range messageQueue.NewQueueCount {
+	// 			if newCount == 0 {
+	// 				break
+	// 			}
+	// 		}
+	// 	}
 
-		// If the message is terminal, we want to make sure that all messages are sent before we return
-		if queueCount > 0 {
-			for newCount := range messageQueue.NewQueueCount {
-				if newCount == 0 {
-					break
-				}
-			}
-		}
+	// 	gs.ConnWriteMutex().Lock()
+	// 	gs.Conn().WriteJSON(formatMessage(gs, message, messageType))
+	// 	gs.ConnWriteMutex().Unlock()
+	// }()
 
-		err = gs.Client().Publish(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", gs.JobId()), serializedMessage).Err()
-		if err != nil {
-			fmt.Println("DispatchMessage: Error publishing message", err)
-		}
-	}()
+	// isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
+
+	// if isTerminal {
+	// 	time.Sleep(300 * time.Millisecond)
+	// }
+
+	serializedMessage, err := json.Marshal(formatMessage(gs, message, messageType))
+	if err != nil {
+		fmt.Println("Error serializing message: ", err.Error())
+		return
+	}
+
+	gs.ConnWriteMutex().Lock()
+	gs.Conn().WriteMessage(websocket.TextMessage, serializedMessage)
+	gs.ConnWriteMutex().Unlock()
 }
 
-func serializeMessage(gs BaseGlobalState, message string, messageType string) ([]byte, error) {
-	var messageStruct = Message{
+func formatMessage(gs BaseGlobalState, message string, messageType string) Message {
+	return Message{
 		JobId:       gs.JobId(),
 		ChildJobId:  gs.ChildJobId(),
 		Time:        time.Now(),
@@ -130,18 +138,10 @@ func serializeMessage(gs BaseGlobalState, message string, messageType string) ([
 		Message:     message,
 		MessageType: messageType,
 	}
-
-	messageJson, err := json.Marshal(messageStruct)
-	if err != nil {
-		return nil, err
-	}
-
-	return messageJson, nil
 }
 
 func UpdateStatus(gs BaseGlobalState, status string) {
 	if gs.GetWorkerStatus() != status {
-		gs.Client().HSet(gs.Ctx(), gs.ChildJobId(), "status", status)
 		DispatchMessage(gs, status, "STATUS")
 		gs.SetWorkerStatus(status)
 	}

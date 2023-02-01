@@ -33,14 +33,9 @@ type BaseGlobalState interface {
 	GetStatus() string
 	SetStatus(string)
 
-	GetChildJobStates() []WorkerState
-	SetChildJobState(workerId string, childJobId string, status string)
 	CreditsManager() *lib.CreditsManager
 	Standalone() bool
-	FuncMode() bool
-	FuncAuthClient() FunctionAuthClient
-
-	IndependentWorkerRedisHosts() bool
-
+	FuncAuthClient() RunAuthClient
+	LoadZones() []string
 	MessageQueue() *MessageQueue
 }

@@ -35,6 +35,13 @@ func GetCreditsClient(standalone bool) *redis.Client {
 		Addr:     fmt.Sprintf("%s:%s", clientHost, clientPort),
 		Username: "default",
 		Password: GetEnvVariable("CREDITS_REDIS_PASSWORD", ""),
+
+		DialTimeout:  20 * time.Second,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
+
+		MaxRetries:   20,
+		MinIdleConns: 5,
 	}
 
 	if isSecure {

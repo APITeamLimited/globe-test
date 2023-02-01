@@ -71,7 +71,7 @@ func (store *cachedMetricsStore) InitMetricsStore(childJobs map[string]libOrch.C
 
 	// Determine total number of child jobs
 	for _, childJob := range childJobs {
-		store.childJobCount += len(childJob.Jobs)
+		store.childJobCount += len(childJob.ChildJobs)
 	}
 
 	// This will never return an error
@@ -143,12 +143,12 @@ func (store *cachedMetricsStore) extendStoreIfRequired(wrappedFormattedSamples g
 	// Add load distribution locations
 	for location, childJobDistribution := range store.childJobs {
 		// Get number of child jobs for this location
-		numChildJobs := len(childJobDistribution.Jobs)
+		numChildJobs := len(childJobDistribution.ChildJobs)
 
 		store.collectedIntervals[newEndIndex].collectedMetrics.locations[location] = make([]locationSubJobs, 0, numChildJobs)
 
 		// Add sub jobs
-		for _, childJob := range childJobDistribution.Jobs {
+		for _, childJob := range childJobDistribution.ChildJobs {
 			store.collectedIntervals[newEndIndex].collectedMetrics.locations[location] = append(store.collectedIntervals[newEndIndex].collectedMetrics.locations[location], locationSubJobs{
 				childJobId:     childJob.ChildJobId,
 				wrappedMetrics: make([]wrappedMetric, 0),
@@ -417,6 +417,10 @@ func (store *cachedMetricsStore) cleanupIrretrievableMetrics() {
 	}
 
 	for _, index := range indexesToRemove {
-		store.collectedIntervals = append(store.collectedIntervals[:index], store.collectedIntervals[index+1:]...)
+		if index < len(store.collectedIntervals) {
+			store.collectedIntervals = append(store.collectedIntervals[:index], store.collectedIntervals[index+1:]...)
+		} else {
+			store.collectedIntervals = store.collectedIntervals[:index]
+		}
 	}
 }

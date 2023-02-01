@@ -81,7 +81,7 @@ func (mi *ModuleInstance) expectedStatuses(args ...goja.Value) *expectedStatuses
 // SetResponseCallback sets the responseCallback to the value provided. Supported values are
 // expectedStatuses object or a `null` which means that metrics shouldn't be tagged as failed and
 // `http_req_failed` should not be emitted - the behaviour previous to this
-func (c *Client) SetResponseCallback(val goja.Value) {
+func (c *Connection) SetResponseCallback(val goja.Value) {
 	if val != nil && !goja.IsNull(val) {
 		// This is done this way as ExportTo exports functions to empty structs without an error
 		if es, ok := val.Export().(*expectedStatuses); ok {

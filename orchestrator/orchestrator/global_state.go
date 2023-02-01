@@ -19,20 +19,19 @@ type (
 	}
 
 	globalState struct {
-		ctx                         context.Context
-		logger                      *logrus.Logger
-		client                      *redis.Client
-		jobId                       string
-		orchestratorId              string
-		metricsStore                libOrch.BaseMetricsStore
-		status                      string
-		childJobStates              []libOrch.WorkerState
-		creditsManager              *lib.CreditsManager
-		standalone                  bool
-		funcMode                    bool
-		funcAuthClient              libOrch.FunctionAuthClient
-		independentWorkerRedisHosts bool
-		messageQueue                *libOrch.MessageQueue
+		ctx            context.Context
+		logger         *logrus.Logger
+		client         *redis.Client
+		jobId          string
+		orchestratorId string
+		metricsStore   libOrch.BaseMetricsStore
+		status         string
+		childJobStates []libOrch.WorkerState
+		creditsManager *lib.CreditsManager
+		standalone     bool
+		funcAuthClient libOrch.RunAuthClient
+		messageQueue   *libOrch.MessageQueue
+		loadZones      []string
 	}
 )
 
@@ -40,22 +39,21 @@ var _ libOrch.BaseGlobalState = &globalState{}
 
 func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *libOrch.Job,
 	orchestratorId string, creditsClient *redis.Client, standalone bool,
-	funcAuthClient libOrch.FunctionAuthClient, funcMode, independentWorkerRedisHosts bool) *globalState {
+	funcAuthClient libOrch.RunAuthClient, loadZones []string) *globalState {
 	gs := &globalState{
-		ctx:                         ctx,
-		client:                      orchestratorClient,
-		jobId:                       job.Id,
-		orchestratorId:              orchestratorId,
-		childJobStates:              []libOrch.WorkerState{},
-		standalone:                  standalone,
-		funcAuthClient:              funcAuthClient,
-		funcMode:                    funcMode,
-		independentWorkerRedisHosts: independentWorkerRedisHosts,
+		ctx:            ctx,
+		client:         orchestratorClient,
+		jobId:          job.Id,
+		orchestratorId: orchestratorId,
+		childJobStates: []libOrch.WorkerState{},
+		standalone:     standalone,
+		funcAuthClient: funcAuthClient,
 		messageQueue: &libOrch.MessageQueue{
 			Mutex:         sync.Mutex{},
 			QueueCount:    0,
 			NewQueueCount: make(chan int),
 		},
+		loadZones: loadZones,
 	}
 
 	if creditsClient != nil && job.FuncModeInfo != nil {
@@ -133,32 +131,6 @@ func (g *globalState) SetStatus(status string) {
 	g.status = status
 }
 
-func (g *globalState) GetChildJobStates() []libOrch.WorkerState {
-	return g.childJobStates
-}
-
-func (g *globalState) SetChildJobState(workerId string, childJobId string, status string) {
-	foundCurrent := false
-
-	for i, childJobState := range g.childJobStates {
-		if childJobState.ChildJobId == childJobId {
-			if g.childJobStates[i].Status != status {
-				g.childJobStates[i].Status = status
-			}
-
-			foundCurrent = true
-			break
-		}
-	}
-
-	if !foundCurrent {
-		g.childJobStates = append(g.childJobStates, libOrch.WorkerState{
-			WorkerId: workerId,
-			Status:   status,
-		})
-	}
-}
-
 func (g *globalState) CreditsManager() *lib.CreditsManager {
 	return g.creditsManager
 }
@@ -167,18 +139,14 @@ func (g *globalState) Standalone() bool {
 	return g.standalone
 }
 
-func (g *globalState) FuncAuthClient() libOrch.FunctionAuthClient {
+func (g *globalState) FuncAuthClient() libOrch.RunAuthClient {
 	return g.funcAuthClient
-}
-
-func (g *globalState) FuncMode() bool {
-	return g.funcMode
-}
-
-func (g *globalState) IndependentWorkerRedisHosts() bool {
-	return g.independentWorkerRedisHosts
 }
 
 func (g *globalState) MessageQueue() *libOrch.MessageQueue {
 	return g.messageQueue
+}
+
+func (g *globalState) LoadZones() []string {
+	return g.loadZones
 }

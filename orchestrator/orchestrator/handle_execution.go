@@ -4,18 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 type locatedMesaage struct {
 	location string
-	msg      *redis.Message
+	msg      string
 }
 
 const (
@@ -24,16 +25,10 @@ const (
 	FUNC_ERROR_ABORT_CHANNEL  = "funcErrorAbort"
 	OUT_OF_TIME_ABORT_CHANNEL = "outOfTimeAbort"
 
-	unifiedRedis = "unified"
-
 	maxConsoleLogs = 100
 )
 
 var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "JOB_INFO", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
-
-type childJobIdStruct struct {
-	ChildJobId string `json:"childJobId"`
-}
 
 func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution) (string, error) {
 	libOrch.UpdateStatus(gs, "LOADING")
@@ -42,42 +37,31 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	jobUserUpdatesSubscription := gs.OrchestratorClient().Subscribe(gs.Ctx(), fmt.Sprintf("jobUserUpdates:%s:%s:%s", job.Scope.Variant, job.Scope.VariantTargetId, job.Id))
 	defer jobUserUpdatesSubscription.Close()
 
-	workerSubscriptions := make(map[string]*redis.PubSub)
+	err := dispatchChildJobs(gs, &childJobs)
+	if err != nil {
+		fmt.Println("Error dispatching child jobs: ", err)
+		return abortAndFailAll(gs, childJobs, fmt.Errorf("internal error occurred while dispatching child jobs: %s", err.Error()))
+	}
 
-	if gs.IndependentWorkerRedisHosts() {
-		for location, jobDistribution := range childJobs {
-			if jobDistribution.Jobs != nil && len(jobDistribution.Jobs) > 0 && workerSubscriptions[location] == nil {
-				workerSubscriptions[location] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
-				defer workerSubscriptions[location].Close()
+	defer func() {
+		for _, jobDistribution := range childJobs {
+			for _, childJob := range jobDistribution.ChildJobs {
+				childJob.ConnWriteMutex.Lock()
+				childJob.ConnReadMutex.Lock()
+				childJob.WorkerConnection.Close()
 			}
 		}
-	} else {
-		for _, jobDistribution := range childJobs {
-			// Only get first client as unified for whole job
-			workerSubscriptions[unifiedRedis] = jobDistribution.WorkerClient.Subscribe(gs.Ctx(), fmt.Sprintf("worker:executionUpdates:%s", job.Id))
-			defer workerSubscriptions[unifiedRedis].Close()
-			break
-		}
-	}
-
-	workerChannels := make(map[string]<-chan *redis.Message)
-	for location, subscription := range workerSubscriptions {
-		workerChannels[location] = subscription.Channel()
-	}
+	}()
 
 	// Check if workerSubscriptions is empty
-	if len(workerSubscriptions) == 0 {
+	if childJobCount(childJobs) == 0 {
 		libOrch.DispatchMessage(gs, "No child jobs were created", "MESSAGE")
 		return "SUCCESS", nil
 	}
 
-	unifiedChannel := make(chan locatedMesaage)
+	// Create channels for all the functiosn
 
-	functionChannels, err := dispatchChildJobs(gs, childJobs)
-	if err != nil {
-		fmt.Println("Error dispatching child jobs: ", err)
-		return abortAndFailAll(gs, childJobs, err)
-	}
+	unifiedChannel := make(chan locatedMesaage)
 
 	// race main thread with the context cancellation from job.maxTestDurationMinutes
 	go func() {
@@ -94,74 +78,50 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 		unifiedChannel <- locatedMesaage{
 			location: OUT_OF_TIME_ABORT_CHANNEL,
-			msg:      nil,
+			msg:      "",
 		}
 	}()
 
-	// Handle aborts on functionChannels
-	for _, channel := range *functionChannels {
-		go func(channel <-chan libOrch.FunctionResult) {
-			for msg := range channel {
-				if msg.Error != nil {
-					unifiedChannel <- locatedMesaage{
-						location: FUNC_ERROR_ABORT_CHANNEL,
-						msg:      nil,
+	for location, childJobDistribution := range childJobs {
+		for _, childJob := range childJobDistribution.ChildJobs {
+			go func(childJob *libOrch.ChildJob, location string) {
+				for {
+					childJob.ConnReadMutex.Lock()
+					messageKind, p, err := childJob.WorkerConnection.ReadMessage()
+
+					if messageKind == websocket.CloseMessage {
+						childJob.ConnReadMutex.Unlock()
+						return
 					}
-
-					fmt.Println(msg.Error)
-				} else if msg.Response.StatusCode != 200 {
-					unifiedChannel <- locatedMesaage{
-						location: FUNC_ERROR_ABORT_CHANNEL,
-						msg:      nil,
-					}
-				}
-			}
-		}(channel)
-	}
-
-	for location, channel := range workerChannels {
-		// Variable declaration here for locationLoop seems to be required to avoid
-		// capturing the loop variable error
-
-		go func(channel <-chan *redis.Message, location string) {
-			childJobIdToLocation := make(map[string]string)
-
-			if location == unifiedRedis {
-				for location, jobDistribution := range childJobs {
-					for _, job := range jobDistribution.Jobs {
-						childJobIdToLocation[job.ChildJobId] = location
-					}
-				}
-			}
-
-			actualLocation := location
-
-			for msg := range channel {
-				if location == unifiedRedis {
-					var childJobId childJobIdStruct
-					err := json.Unmarshal([]byte(msg.Payload), &childJobId)
 
 					if err != nil {
-						fmt.Println("Error unmarshalling childJobId", err)
+						fmt.Println("Error reading message: ", err)
+						if strings.Contains(err.Error(), "use of closed network connection") {
+							childJob.ConnReadMutex.Unlock()
+							return
+						}
+
+						// If websocket is closed, return
+						if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+							childJob.ConnReadMutex.Unlock()
+							return
+						}
+
+						childJob.ConnReadMutex.Unlock()
 						continue
 					}
 
-					actualLocation = childJobIdToLocation[childJobId.ChildJobId]
+					childJob.ConnReadMutex.Unlock()
 
-					if actualLocation == "" {
-						fmt.Println("Could not find location for childJobId", childJobId.ChildJobId)
-						continue
+					newMessage := locatedMesaage{
+						location: location,
+						msg:      string(p),
 					}
-				}
 
-				newMessage := locatedMesaage{
-					location: actualLocation,
-					msg:      msg,
+					unifiedChannel <- newMessage
 				}
-
-				unifiedChannel <- newMessage
-			}
-		}(channel, location)
+			}(childJob, location)
+		}
 	}
 
 	// Every second check credits
@@ -174,7 +134,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			if credits <= 0 {
 				unifiedChannel <- locatedMesaage{
 					location: NO_CREDITS_ABORT_CHANNEL,
-					msg:      nil,
+					msg:      "",
 				}
 			}
 		}
@@ -185,14 +145,14 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		for msg := range jobUserUpdatesSubscription.Channel() {
 			unifiedChannel <- locatedMesaage{
 				location: JOB_USER_UPDATES_CHANNEL,
-				msg:      msg,
+				msg:      msg.Payload,
 			}
 		}
 	}()
 
 	childJobCount := 0
 	for _, jobDistribution := range childJobs {
-		childJobCount += len(jobDistribution.Jobs)
+		childJobCount += len(jobDistribution.ChildJobs)
 	}
 
 	jobsInitialised := []string{}
@@ -211,78 +171,64 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	checkIfCanStart := func() {
 		jobsMutex.Lock()
-		defer jobsMutex.Unlock()
+		jobsInitialisedCount := len(jobsInitialised)
+		jobsMutex.Unlock()
 
-		if len(jobsInitialised) == childJobCount {
-			// Broadcast the start message to all child jobs
-
-			var startTime time.Time
-
-			if childJobCount == 1 {
-				startTime = time.Now()
-			} else {
-				// Set one second in the future to allow all workers to start
-				startTime = time.Now().Add(time.Second)
-			}
-
-			fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
-
-			if gs.GetStatus() == "FAILURE" {
-				// If the job has been cancelled, don't start it
-				return
-			}
-
-			for _, jobDistribution := range childJobs {
-				for _, job := range jobDistribution.Jobs {
-					fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", job.ChildJobId))
-					go jobDistribution.WorkerClient.Set(gs.Ctx(), fmt.Sprintf("%s:go:set", job.ChildJobId), startTime.Format(time.RFC3339), time.Minute)
-					go jobDistribution.WorkerClient.Publish(gs.Ctx(), fmt.Sprintf("%s:go", job.ChildJobId), startTime.Format(time.RFC3339))
-				}
-			}
-
-			libOrch.UpdateStatus(gs, "RUNNING")
+		if jobsInitialisedCount != childJobCount {
+			return
 		}
-	}
 
-	// Somtimes start message appears to be missed, so periodically poll for it
-	go func() {
-		for {
-			time.Sleep(200 * time.Second)
+		// Broadcast the start message to all child jobs
 
-			if gs.GetStatus() != "LOADING" {
-				return
-			}
+		var startTime time.Time
 
-			// Check statuses of all child jobs
-			for _, jobDistribution := range childJobs {
-				for _, childJob := range jobDistribution.Jobs {
-					status, err := jobDistribution.WorkerClient.HGet(gs.Ctx(), childJob.ChildJobId, "status").Result()
+		if childJobCount == 1 {
+			startTime = time.Now()
+		} else {
+			// Set one second in the future to allow all workers to start
+			startTime = time.Now().Add(time.Second)
+		}
+
+		fmt.Printf("Broadcasting start time %s to all child jobs", startTime.Format(time.RFC3339))
+
+		if gs.GetStatus() == "FAILURE" {
+			// If the job has been cancelled, don't start it
+			return
+		}
+
+		for _, jobDistribution := range childJobs {
+			for _, childJob := range jobDistribution.ChildJobs {
+				go func(childJob *libOrch.ChildJob) {
+					fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", childJob.ChildJobId))
+
+					eventMessage := lib.EventMessage{
+						Variant: lib.GO_MESSAGE_TYPE,
+						Data:    startTime.Format(time.RFC3339),
+					}
+
+					marshalledEventMessage, err := json.Marshal(eventMessage)
 					if err != nil {
-						// Check for nil
-						if err != redis.Nil {
-							fmt.Println("Error getting status", err)
-						}
-
-						continue
+						fmt.Printf("error marshalling start time to %s: %s\n", childJob.ChildJobId, err)
 					}
 
-					if status == "READY" {
-						jobsMutex.Lock()
-						jobsInitialised = append(jobsInitialised, childJob.ChildJobId)
-						jobsMutex.Unlock()
-
-						checkIfCanStart()
+					childJob.ConnWriteMutex.Lock()
+					err = childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEventMessage)
+					childJob.ConnWriteMutex.Unlock()
+					if err != nil {
+						fmt.Printf("error publishing start time to %s: %s\n", childJob.ChildJobId, err)
 					}
-				}
+				}(childJob)
 			}
 		}
-	}()
+
+		libOrch.UpdateStatus(gs, "RUNNING")
+	}
 
 	for locatedMessage := range unifiedChannel {
 		if locatedMessage.location == OUT_OF_TIME_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("max test duration exceeded"))
 		} else if locatedMessage.location == FUNC_ERROR_ABORT_CHANNEL {
-			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to worker error"))
+			return abortAndFailAll(gs, childJobs, errors.New(locatedMessage.msg))
 		} else if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to no credits"))
 		}
@@ -291,9 +237,9 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		if locatedMessage.location == JOB_USER_UPDATES_CHANNEL {
 			jobUserUpdate := lib.JobUserUpdate{}
 
-			err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &jobUserUpdate)
+			err := json.Unmarshal([]byte(locatedMessage.msg), &jobUserUpdate)
 			if err != nil {
-				fmt.Println("Error unmarshalling jobUserUpdate", err)
+				fmt.Println("Error unmarshalling jobUserUpdate", err, locatedMessage.msg)
 				continue
 			}
 
@@ -309,7 +255,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 		}
 
 		workerMessage := libOrch.WorkerMessage{}
-		err := json.Unmarshal([]byte(locatedMessage.msg.Payload), &workerMessage)
+		err := json.Unmarshal([]byte(locatedMessage.msg), &workerMessage)
 		if err != nil {
 			fmt.Println("Error unmarshalling workerMessage", err)
 			continue
@@ -317,8 +263,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 		if workerMessage.MessageType == "STATUS" {
 			fmt.Println("Received status message from", workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
-
-			gs.SetChildJobState(workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
 
 			if workerMessage.Message == "READY" {
 				// Check if the job has already been initialised
@@ -335,13 +279,12 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
-				jobsMutex.Unlock()
-
 				if !alreadyInitialised {
-					jobsMutex.Lock()
 					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
 					jobsMutex.Unlock()
 					checkIfCanStart()
+				} else {
+					jobsMutex.Unlock()
 				}
 
 			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
@@ -364,8 +307,6 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					}
 				}
 			}
-
-			// Sometimes errors don't stop the execution automatically so stop them here
 		} else if workerMessage.MessageType == "ERROR" {
 			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
 
@@ -422,12 +363,15 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			// Check if the message is a custom message
 			for _, messageType := range otherMessageTypes {
 				if messageType == workerMessage.MessageType {
+					if (messageType == "COLLECTION_VARIABLES" || messageType == "ENVIRONMENT_VARIABLES") && job.Options.ExecutionMode.Value != "httpSingle" {
+						break
+					}
 
 					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+
 					break
 				}
 			}
-
 		}
 	}
 
@@ -436,11 +380,21 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 }
 
 func findChildJob(childJobs map[string]libOrch.ChildJobDistribution, location string, childJobId string) *libOrch.ChildJob {
-	for _, childJob := range (childJobs)[location].Jobs {
+	for _, childJob := range (childJobs)[location].ChildJobs {
 		if childJob.ChildJobId == childJobId {
-			return &childJob
+			return childJob
 		}
 	}
 
 	return nil
+}
+
+func childJobCount(childJobs map[string]libOrch.ChildJobDistribution) int {
+	count := 0
+
+	for _, childJobDistribution := range childJobs {
+		count += len(childJobDistribution.ChildJobs)
+	}
+
+	return count
 }

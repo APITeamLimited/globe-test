@@ -38,7 +38,7 @@ type RootModule struct {
 type ModuleInstance struct {
 	vu            modules.VU
 	rootModule    *RootModule
-	defaultClient *Client
+	defaultClient *Connection
 	exports       *goja.Object
 }
 
@@ -69,7 +69,7 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	}
 	mi.defineConstants()
 
-	mi.defaultClient = &Client{
+	mi.defaultClient = &Connection{
 		// TODO: configure this from libWorker.Options and get rid of some of the
 		// things in the VU State struct that should be here. See
 		// https://github.com/grafana/k6/issues/2293
@@ -88,9 +88,9 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	mustExport("cookieJar", mi.getVUCookieJar)
 	mustExport("file", mi.file) // TODO: deprecate or refactor?
 
-	// TODO: refactor so the Client actually has better APIs and these are
+	// TODO: refactor so the Connection actually has better APIs and these are
 	// wrappers (facades) that convert the old k6 idiosyncratic APIs to the new
-	// proper Client ones that accept Request objects and don't suck
+	// proper Connection ones that accept Request objects and don't suck
 	mustExport("get", func(url goja.Value, args ...goja.Value) (*Response, error) {
 		// http.get(url, params) doesn't have a body argument, so we add undefined
 		// as the third argument to http.request(method, url, body, params)
@@ -115,8 +115,8 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	mustExport("expectedStatuses", mi.expectedStatuses) // TODO: refactor?
 
 	// TODO: actually expose the default client as k6/http.defaultClient when we
-	// have a better HTTP API (e.g. proper Client constructor, an actual Request
-	// object, custom Transport implementations you can pass the Client, etc.).
+	// have a better HTTP API (e.g. proper Connection constructor, an actual Request
+	// object, custom Transport implementations you can pass the Connection, etc.).
 	// This will allow us to find solutions to many of the issues with the
 	// current HTTP API that plague us:
 	// https://github.com/grafana/k6/issues?q=is%3Aopen+is%3Aissue+label%3Anew-http
@@ -128,7 +128,7 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 func (mi *ModuleInstance) Exports() modules.Exports {
 	return modules.Exports{
 		Default: mi.exports,
-		// TODO: add new HTTP APIs like Client, Request (see above comment in
+		// TODO: add new HTTP APIs like Connection, Request (see above comment in
 		// NewModuleInstance()), etc. as named exports?
 	}
 }
@@ -196,10 +196,10 @@ func (mi *ModuleInstance) URL(parts []string, pieces ...string) (httpext.URL, er
 	return httpext.NewURL(urlstr, name)
 }
 
-// Client represents a stand-alone HTTP client.
+// Connection represents a stand-alone HTTP client.
 //
 // TODO: move to its own file
-type Client struct {
+type Connection struct {
 	moduleInstance   *ModuleInstance
 	responseCallback func(int) bool
 }

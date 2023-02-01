@@ -9,8 +9,8 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func OutputConfig(options *libWorker.Options, funcMode, standalone bool) error {
-	localhost := !funcMode && !standalone
+func OutputConfig(options *libWorker.Options, standalone bool) error {
+	localhost := !standalone
 
 	if !options.OutputConfig.Valid && options.ExecutionMode.Value == types.HTTPMultipleExecutionMode {
 		options.OutputConfig = types.DefaultOutputConfig(localhost)

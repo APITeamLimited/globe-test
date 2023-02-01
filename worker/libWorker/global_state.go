@@ -2,9 +2,10 @@ package libWorker
 
 import (
 	"context"
+	"sync"
 
 	"github.com/APITeamLimited/globe-test/lib"
-	"github.com/APITeamLimited/redis/v9"
+	"github.com/gorilla/websocket"
 )
 
 type WorkerState struct {
@@ -14,8 +15,9 @@ type WorkerState struct {
 
 type BaseGlobalState interface {
 	Ctx() context.Context
-	// The orchestrator client
-	Client() *redis.Client
+	Conn() *websocket.Conn
+	ConnWriteMutex() *sync.Mutex
+	ConnReadMutex() *sync.Mutex
 	JobId() string
 	ChildJobId() string
 	WorkerId() string
@@ -24,4 +26,7 @@ type BaseGlobalState interface {
 	FuncModeEnabled() bool
 	FuncModeInfo() *lib.FuncModeInfo
 	MessageQueue() *MessageQueue
+
+	SetRunAbortFunc(cancelFunc context.CancelFunc)
+	GetRunAbortFunc() context.CancelFunc
 }
