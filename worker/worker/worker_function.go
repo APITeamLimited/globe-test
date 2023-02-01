@@ -94,5 +94,7 @@ func runWorker(w http.ResponseWriter, r *http.Request) {
 	conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	connWriteMutex.Unlock()
 
+	conn.Close()
+
 	fmt.Printf("Worker %s finished executing child job %s with success: %t\n", workerId, childJob.ChildJobId, successfullExecution)
 }

@@ -46,10 +46,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 	defer func() {
 		for _, jobDistribution := range childJobs {
 			for _, childJob := range jobDistribution.ChildJobs {
-				if childJob.WorkerConnection == nil {
-					continue
-				}
-
+				childJob.ConnWriteMutex.Lock()
+				childJob.ConnReadMutex.Lock()
 				childJob.WorkerConnection.Close()
 			}
 		}
@@ -200,24 +198,26 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 		for _, jobDistribution := range childJobs {
 			for _, childJob := range jobDistribution.ChildJobs {
-				fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", childJob.ChildJobId))
+				go func(childJob *libOrch.ChildJob) {
+					fmt.Println("Publishing start time to", fmt.Sprintf("%s:go", childJob.ChildJobId))
 
-				eventMessage := lib.EventMessage{
-					Variant: lib.GO_MESSAGE_TYPE,
-					Data:    startTime.Format(time.RFC3339),
-				}
+					eventMessage := lib.EventMessage{
+						Variant: lib.GO_MESSAGE_TYPE,
+						Data:    startTime.Format(time.RFC3339),
+					}
 
-				marshalledEventMessage, err := json.Marshal(eventMessage)
-				if err != nil {
-					fmt.Printf("error marshalling start time to %s: %s\n", childJob.ChildJobId, err)
-				}
+					marshalledEventMessage, err := json.Marshal(eventMessage)
+					if err != nil {
+						fmt.Printf("error marshalling start time to %s: %s\n", childJob.ChildJobId, err)
+					}
 
-				childJob.ConnWriteMutex.Lock()
-				err = childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEventMessage)
-				childJob.ConnWriteMutex.Unlock()
-				if err != nil {
-					fmt.Printf("error publishing start time to %s: %s\n", childJob.ChildJobId, err)
-				}
+					childJob.ConnWriteMutex.Lock()
+					err = childJob.WorkerConnection.WriteMessage(websocket.TextMessage, marshalledEventMessage)
+					childJob.ConnWriteMutex.Unlock()
+					if err != nil {
+						fmt.Printf("error publishing start time to %s: %s\n", childJob.ChildJobId, err)
+					}
+				}(childJob)
 			}
 		}
 

@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	run "cloud.google.com/go/run/apiv2"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	dnscache "go.mercari.io/go-dnscache"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 )
 
@@ -19,6 +22,7 @@ type RunAuthClient struct {
 	serviceAccount     []byte
 	serviceUrlOverride []string
 	loadZones          []string
+	resolver           *dnscache.Resolver
 }
 
 var _ = libOrch.RunAuthClient(&RunAuthClient{})
@@ -42,6 +46,16 @@ func CreateServicesClient(ctx context.Context, standalone bool, loadZones []stri
 		panic("Service account key not found")
 	}
 
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+
+	resolver, err := dnscache.New(10*time.Second, time.Minute, logger)
+	if err != nil {
+		panic(err)
+	}
+
 	runAuthClient := &RunAuthClient{
 		serviceClient:      serviceClient,
 		ctx:                ctx,
@@ -50,6 +64,7 @@ func CreateServicesClient(ctx context.Context, standalone bool, loadZones []stri
 		serviceAccount:     serviceAccount,
 		serviceUrlOverride: getServiceUrlOverrides(),
 		loadZones:          loadZones,
+		resolver:           resolver,
 	}
 
 	runAuthClient.startAutoRefreshLiveServices()

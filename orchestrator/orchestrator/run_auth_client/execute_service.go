@@ -1,19 +1,20 @@
 package run_auth_client
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/run/apiv2/runpb"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/gorilla/websocket"
+	dnscache "go.mercari.io/go-dnscache"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
 )
 
-func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, error) {
+func (config *RunAuthClient) ExecuteService(gs libOrch.BaseGlobalState, location string) (*websocket.Conn, error) {
 	config.liveServicesMutex.Lock()
 
 	var liveService *libOrch.LiveService
@@ -57,16 +58,16 @@ func (config *RunAuthClient) ExecuteService(location string) (*websocket.Conn, e
 		headers.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 	}
 
-	dialer := websocket.Dialer{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
+	// Create websocket dialer
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 30 * time.Second,
+		NetDialContext:   dnscache.DialFunc(config.resolver, nil),
 	}
 
-	// Connect to the websocket
 	conn, response, err := dialer.Dial(uri, headers)
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Println("failed to connect to websocket", err)
 		return nil, err
 	}
 

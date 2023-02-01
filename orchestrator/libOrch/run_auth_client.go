@@ -8,11 +8,12 @@ import (
 type LiveService struct {
 	Location string
 	Uri      string
-	State    runpb.Condition_State
+
+	State runpb.Condition_State
 }
 
 type RunAuthClient interface {
 	Services() []LiveService
-	ExecuteService(location string) (*websocket.Conn, error)
+	ExecuteService(gs BaseGlobalState, location string) (*websocket.Conn, error)
 	CheckServiceAvailability(location string) error
 }

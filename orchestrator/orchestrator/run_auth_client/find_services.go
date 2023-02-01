@@ -65,10 +65,15 @@ func (config *RunAuthClient) updateLiveServices() {
 
 			for i, liveService := range config.liveServices {
 				if liveService.Location == location {
+					isNewService = false
+
 					liveService.Uri = service.Uri
 					liveService.State = service.TerminalCondition.State
+
 					config.liveServices[i] = liveService
-					isNewService = false
+
+					config.resolver.LookupIP(config.ctx, service.Uri)
+
 					break
 				}
 			}
@@ -79,6 +84,8 @@ func (config *RunAuthClient) updateLiveServices() {
 					Uri:      service.Uri,
 					State:    service.TerminalCondition.State,
 				})
+
+				config.resolver.LookupIP(config.ctx, service.Uri)
 			}
 
 			config.liveServicesMutex.Unlock()

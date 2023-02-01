@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -38,6 +39,7 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch
 	dispatchedChildJobs := []*libOrch.ChildJob{}
 	successFullDispatches := 0
 
+	startTime := time.Now()
 	for dispatchResult := range unifiedDispatchResultCh {
 		if dispatchResult.err != nil {
 			return dispatchResult.err
@@ -53,6 +55,8 @@ func dispatchChildJobs(gs libOrch.BaseGlobalState, childJobs *map[string]libOrch
 			break
 		}
 	}
+
+	fmt.Printf("Dispatched all child jobs in %s\n", time.Since(startTime))
 
 	// Dispatch all child job info instantaneously after got all connections
 	for _, childJob := range dispatchedChildJobs {
@@ -115,7 +119,8 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, childJob *libOrch.ChildJob, lo
 	// Convert options to json
 	go func() {
 		// If we're in function mode, need to create a google cloud function call
-		conn, err := gs.FuncAuthClient().ExecuteService(location)
+		startTime := time.Now()
+		conn, err := gs.FuncAuthClient().ExecuteService(gs, location)
 		if err != nil {
 			dispatchResultCh <- childJobDispatchResult{
 				childJob: nil,
@@ -134,6 +139,8 @@ func dispatchChildJob(gs libOrch.BaseGlobalState, childJob *libOrch.ChildJob, lo
 			childJob: &newChildJob,
 			err:      nil,
 		}
+
+		fmt.Println(("time taken to dispatch child job: " + time.Since(startTime).String()))
 
 		fmt.Printf("Dispatched child job %s to function %s\n", childJob.ChildJobId, location)
 	}()
