@@ -17,21 +17,23 @@ import (
 func (config *RunAuthClient) ExecuteService(gs libOrch.BaseGlobalState, location string) (*websocket.Conn, error) {
 	config.liveServicesMutex.Lock()
 
-	var liveService *libOrch.LiveService
+	var liveService libOrch.LiveService
+	foundLiveService := false
 
 	// Find the service
 	for _, service := range config.liveServices {
 		if service.Location == location {
-			liveService = &service
+			liveService = service
+			foundLiveService = true
 			break
 		}
 	}
 
-	defer config.liveServicesMutex.Unlock()
+	config.liveServicesMutex.Unlock()
 
 	specificServiceOverride := getSpecificServiceOverride(config.serviceUrlOverride, location)
 
-	if liveService == nil && specificServiceOverride == "NO" {
+	if !foundLiveService && specificServiceOverride == "NO" {
 		return nil, fmt.Errorf("service at location %s not found", location)
 	}
 
@@ -143,7 +145,7 @@ func (config *RunAuthClient) CheckServiceAvailability(location string) error {
 	return nil
 }
 
-func determineAudience(liveService *libOrch.LiveService, serviceUrlOverride string) string {
+func determineAudience(liveService libOrch.LiveService, serviceUrlOverride string) string {
 	if serviceUrlOverride == "NO" {
 		fmt.Println("Using service url", liveService.Uri)
 		return liveService.Uri
@@ -152,7 +154,7 @@ func determineAudience(liveService *libOrch.LiveService, serviceUrlOverride stri
 	return serviceUrlOverride
 }
 
-func determineUri(liveService *libOrch.LiveService, serviceUrlOverride string) string {
+func determineUri(liveService libOrch.LiveService, serviceUrlOverride string) string {
 	if serviceUrlOverride == "NO" {
 		return replaceSchemeWithWs(liveService.Uri)
 	}
