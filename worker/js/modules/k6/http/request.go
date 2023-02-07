@@ -2,10 +2,8 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
-	"math"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -15,12 +13,9 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/bobesa/go-domain-util/domainutil"
 	"github.com/dop251/goja"
-	"golang.org/x/time/rate"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -30,8 +25,6 @@ var ErrHTTPForbiddenInInitContext = common.NewInitContextError("Making http requ
 // ErrBatchForbiddenInInitContext is used when batch was made in the init context
 var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in the init context is not supported")
 
-const unverifiedDomainLimit = 10
-
 func (c *Connection) getMethodClosure(method string) func(url goja.Value, args ...goja.Value) (*Response, error) {
 	return func(url goja.Value, args ...goja.Value) (*Response, error) {
 		return c.Request(method, url, args...)
@@ -40,102 +33,12 @@ func (c *Connection) getMethodClosure(method string) func(url goja.Value, args .
 
 // Rate limits the number of requests per second to a certain domain
 func (c *Connection) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
-	domain, err := getDomainFromURL(url)
+	err := c.moduleInstance.rootModule.workerInfo.DomainLimiter.WaitForLimiterGojaURL(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("internal error occured while waiting for domain limiter: %w", err)
 	}
-
-	if !c.moduleInstance.rootModule.workerInfo.Standalone {
-		return performRequest(c, method, url, args...)
-
-		// This code restricts to private IPs only on localhost
-		//
-		//		if c.moduleInstance.rootModule.isLocalIp[domain] == 0 {
-		//			isPrivate := lib.IsPrivateIPString(domain)
-		//
-		//			c.moduleInstance.rootModule.isLocalIpLock.Lock()
-		//
-		//			if isPrivate {
-		//				c.moduleInstance.rootModule.isLocalIp[domain] = IsPrivateIP
-		//			} else {
-		//				c.moduleInstance.rootModule.isLocalIp[domain] = IsPublicIP
-		//			}
-		//
-		//			c.moduleInstance.rootModule.isLocalIpLock.Unlock()
-		//		}
-		//
-		//		if c.moduleInstance.rootModule.isLocalIp[domain] == IsPrivateIP {
-		//			return performRequest(c, method, url, args...)
-		//		}
-		//
-		//return nil, errors.New("cannot make requests to non-local ips from agent")
-	}
-
-	if c.moduleInstance.rootModule.skipVerifiedDomainCheck {
-		return performRequest(c, method, url, args...)
-	}
-
-	c.moduleInstance.rootModule.domainLimitsLock.Lock()
-
-	if c.moduleInstance.rootModule.domainLimits[domain] == nil {
-		c.createDomainLimiter(domain)
-	}
-
-	limiter := c.moduleInstance.rootModule.domainLimits[domain]
-
-	// Wait for the limiter to allow the request
-	if err := limiter.Wait(context.Background()); err != nil {
-		return nil, err
-	}
-
-	c.moduleInstance.rootModule.domainLimitsLock.Unlock()
 
 	return performRequest(c, method, url, args...)
-}
-
-func getDomainFromURL(url interface{}) (string, error) {
-	if urlJSValue, ok := url.(goja.Value); ok {
-		url = urlJSValue.Export()
-	}
-	u, err := httpext.ToURL(url)
-	if err != nil {
-		return "", err
-	}
-
-	domain := domainutil.Domain(u.GetURL().Hostname())
-
-	if domain == "" {
-		// Try and get the ip instead
-		ip := u.GetURL().Hostname()
-
-		if ip == "" {
-			return "", errors.New("could not extract domain from url")
-		}
-
-		return ip, nil
-	}
-
-	return domain, nil
-}
-
-func (c *Connection) createDomainLimiter(domain string) {
-	// Check if domain is in verified domains
-	verified := false
-
-	for _, verifiedDomain := range c.moduleInstance.rootModule.workerInfo.VerifiedDomains {
-		if verifiedDomain == domain {
-			verified = true
-			break
-		}
-	}
-
-	limit := math.MaxFloat64
-	if !verified {
-		libWorker.DispatchMessage(*c.moduleInstance.rootModule.workerInfo.Gs, "UNVERIFIED_DOMAIN_THROTTLED", "MESSAGE")
-		limit = unverifiedDomainLimit * c.moduleInstance.rootModule.workerInfo.SubFraction
-	}
-
-	c.moduleInstance.rootModule.domainLimits[domain] = rate.NewLimiter(rate.Limit(limit), 1)
 }
 
 // Request makes an http request of the provided `method` and returns a corresponding response by
@@ -560,10 +463,12 @@ func (c *Connection) Batch(reqsV ...goja.Value) (interface{}, error) {
 	}
 
 	reqCount := len(batchReqs)
+
 	errs := httpext.MakeBatchRequests(
 		c.moduleInstance.vu.Context(), state, batchReqs, reqCount,
 		int(state.Options.Batch.Int64), int(state.Options.BatchPerHost.Int64),
 		c.processResponse,
+		c.moduleInstance.rootModule.workerInfo.DomainLimiter,
 	)
 
 	for i := 0; i < reqCount; i++ {

@@ -63,7 +63,7 @@ func (config *RunAuthClient) ExecuteService(gs libOrch.BaseGlobalState, location
 	// Create websocket dialer
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
-		HandshakeTimeout: 30 * time.Second,
+		HandshakeTimeout: time.Minute,
 		NetDialContext:   dnscache.DialFunc(config.resolver, nil),
 	}
 
@@ -85,7 +85,7 @@ func getSpecificServiceOverride(overrides []string, location string) string {
 		return "NO"
 	}
 
-	// Loop through WORKER_0_DISPLAY_NAME, WORKER_1_DISPLAY_NAME env variables till get location
+	// Loop through env variables till get location eg WORKER_0_DISPLAY_NAME, WORKER_1_DISPLAY_NAME
 	index := 0
 
 	for {

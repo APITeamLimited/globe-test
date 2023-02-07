@@ -247,6 +247,8 @@ func loadWorkerInfo(ctx context.Context,
 		Standalone:      standalone,
 	}
 
+	workerInfo.DomainLimiter = libWorker.CreateDomainLimiter(standalone, job.VerifiedDomains, workerInfo)
+
 	if gs.FuncModeInfo() != nil && creditsClient != nil {
 		workerInfo.CreditsManager = lib.CreateCreditsManager(ctx, job.Scope.Variant, job.Scope.VariantTargetId, creditsClient, *gs.FuncModeInfo())
 	}

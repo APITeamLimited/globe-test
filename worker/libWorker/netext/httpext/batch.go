@@ -29,6 +29,7 @@ func MakeBatchRequests(
 	requests []BatchParsedHTTPRequest,
 	reqCount, globalLimit, perHostLimit int,
 	processResponse func(*Response, ResponseType),
+	limiter *libWorker.DomainLimiter,
 ) <-chan error {
 	workers := globalLimit
 	if reqCount < workers {
@@ -41,6 +42,12 @@ func MakeBatchRequests(
 		if hl := perHostLimiter.Slot(req.URL.GetURL().Host); hl != nil {
 			hl.Begin()
 			defer hl.End()
+		}
+
+		err := limiter.WaitForLimiterURL(*req.URL.GetURL())
+		if err != nil {
+			result <- err
+			return
 		}
 
 		resp, err := MakeRequest(ctx, state, req.ParsedHTTPRequest)

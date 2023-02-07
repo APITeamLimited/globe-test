@@ -45,6 +45,7 @@ type (
 		SubFraction       float64
 		CreditsManager    *lib.CreditsManager
 		Standalone        bool
+		DomainLimiter     *DomainLimiter
 	}
 
 	MarkMessage struct {
@@ -122,6 +123,12 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 	if err != nil {
 		fmt.Println("Error serializing message: ", err.Error())
 		return
+	}
+
+	isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
+
+	if isTerminal {
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	gs.ConnWriteMutex().Lock()
