@@ -107,7 +107,7 @@ func handleDispatchMessage(gs BaseGlobalState, setFunc func(), isTerminal bool) 
 		messageQueue.Mutex.Unlock()
 
 		// Sleep for a bit to allow other messages to be sent
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		// If the message is terminal, we want to make sure that all messages are sent before we return
 		if queueCount > 0 {

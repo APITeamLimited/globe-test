@@ -63,7 +63,7 @@ func getSimpleBundle(tb testing.TB, filename, data string, workerInfo *libWorker
 		}
 	}
 
-	return NewBundle(
+	return NewBundleWorker(
 		getTestPreInitState(tb, logger, rtOpts),
 		&loader.SourceData{
 			URL:  &url.URL{Path: filename, Scheme: "file"},

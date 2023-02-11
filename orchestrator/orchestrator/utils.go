@@ -8,6 +8,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 )
 
@@ -31,8 +32,11 @@ func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId strin
 		return nil, fmt.Errorf("error unmarshalling job %s", jobId)
 	}
 
-	// Sensitive field, ensure it is nil
-	job.Options = nil
+	testData, err := libWorker.ExtractTestData(job.TestDataRaw)
+	if err != nil {
+		return nil, err
+	}
+	job.TestData = testData
 
 	return &job, nil
 }

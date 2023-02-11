@@ -25,10 +25,13 @@ import (
 // A Bundle is a self-contained bundle of scripts and resources.
 // You can use this to produce identical BundleInstance objects.
 type Bundle struct {
-	Filename *url.URL
-	Source   string
-	Program  *goja.Program
-	Options  libWorker.Options
+	RootFilename *url.URL
+
+	Filenames []*url.URL
+	Sources   []string
+	Programs  []*goja.Program
+
+	Options libWorker.Options
 
 	BaseInitContext *InitContext
 
@@ -36,7 +39,10 @@ type Bundle struct {
 	CompatibilityMode libWorker.CompatibilityMode // parsed value
 	registry          *workerMetrics.Registry
 
-	exports map[string]goja.Callable
+	exports map[string]map[string]goja.Callable
+
+	// Test data with intialized goja callables
+	initializedTestData libWorker.TestData
 }
 
 // A BundleInstance is a self-contained instance of a Bundle.
@@ -46,54 +52,84 @@ type BundleInstance struct {
 	// TODO: maybe just have a reference to the Bundle? or save and pass rtOpts?
 	env map[string]string
 
-	exports      map[string]goja.Callable
+	exports      map[string]map[string]goja.Callable
 	moduleVUImpl *moduleVUImpl
-	pgm          programWithSource
+	pgms         map[string]programWithSource
+
+	RootFilename *url.URL
 }
 
-// NewBundle creates a new bundle from a source file and a filesystem.
-func NewBundle(
-	piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo,
-) (*Bundle, error) {
-	return NewBundleUnsafe(piState, src, filesystems, workerInfo, false)
+// NewBundleWorker creates a new bundle from a source file and a filesystem.
+func NewBundleWorker(
+	piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData) (*Bundle, error) {
+	return NewBundle(piState, src, filesystems, workerInfo, false, testData)
 }
 
-func NewBundleUnsafe(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, unsafe bool) (*Bundle, error) {
+func NewBundle(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, isOrchestrator bool, testData *libWorker.TestData) (*Bundle, error) {
 	compatMode, err := libWorker.ValidateCompatibilityMode(piState.RuntimeOptions.CompatibilityMode.String)
 	if err != nil {
 		return nil, err
 	}
 
-	// Compile sources, both ES5 and ES6 are supported.
-	code := string(src.Data)
 	c := compiler.New(piState.Logger)
+
 	c.Options = compiler.Options{
 		CompatibilityMode: compatMode,
 		Strict:            true,
 		SourceMapLoader:   generateSourceMapLoader(piState.Logger, filesystems),
 	}
 
-	pgm, _, err := c.Compile(code, src.URL.String(), false)
-	if err != nil {
-		return nil, err
+	compiledPrograms := make(map[string]*goja.Program)
+
+	for _, src := range *src {
+		// Compile sources, both ES5 and ES6 are supported.
+		pgm, _, err := c.Compile(string(src.Data), src.URL.String(), false)
+		if err != nil {
+			return nil, err
+		}
+
+		compiledPrograms[src.URL.String()] = pgm
 	}
+
+	filenames := make([]*url.URL, len(*src))
+	sources := make([]string, len(*src))
+	programs := make([]*goja.Program, len(*src))
+
+	var rootFilename *url.URL
+
+	exports := make(map[string]map[string]goja.Callable)
+
+	for i, srcProgram := range *src {
+		if srcProgram.RootSource {
+			rootFilename = srcProgram.URL
+		}
+
+		filenames[i] = srcProgram.URL
+		sources[i] = string(srcProgram.Data)
+		programs[i] = compiledPrograms[srcProgram.URL.String()]
+
+		exports[srcProgram.URL.String()] = make(map[string]goja.Callable)
+	}
+
 	// Make a bundle, instantiate it into a throwaway VM to populate caches.
 	rt := goja.New()
 	bundle := Bundle{
-		Filename:          src.URL,
-		Source:            code,
-		Program:           pgm,
-		BaseInitContext:   NewInitContext(piState.Logger, rt, c, compatMode, filesystems, loader.Dir(src.URL), workerInfo),
-		RuntimeOptions:    piState.RuntimeOptions,
-		CompatibilityMode: compatMode,
-		exports:           make(map[string]goja.Callable),
-		registry:          piState.Registry,
+		RootFilename:        rootFilename,
+		Filenames:           filenames,
+		Sources:             sources,
+		Programs:            programs,
+		BaseInitContext:     NewInitContext(piState.Logger, rt, c, compatMode, filesystems, &filenames, workerInfo, testData.RootNode),
+		RuntimeOptions:      piState.RuntimeOptions,
+		CompatibilityMode:   compatMode,
+		exports:             exports,
+		registry:            piState.Registry,
+		initializedTestData: *testData,
 	}
-	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo, unsafe); err != nil {
+	if err = bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo, isOrchestrator); err != nil {
 		return nil, err
 	}
 
-	err = bundle.GetExports(piState.Logger, rt, true)
+	err = bundle.GetExports(piState.Logger, rt, isOrchestrator)
 	if err != nil {
 		return nil, err
 	}
@@ -102,48 +138,69 @@ func NewBundleUnsafe(piState *libWorker.TestPreInitState, src *loader.SourceData
 }
 
 // GetExports validates and extracts exported objects
-func (b *Bundle) GetExports(logger logrus.FieldLogger, rt *goja.Runtime, options bool) error {
-	pgm := b.BaseInitContext.programs[b.Filename.String()] // this is the main script and it's always present
-	exportsV := pgm.module.Get("exports")
-	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) {
-		return errors.New("exports must be an object")
-	}
-	exports := exportsV.ToObject(rt)
+func (b *Bundle) GetExports(logger logrus.FieldLogger, rt *goja.Runtime, isOrchestrator bool) error {
+	rootFilenameString := b.RootFilename.String()
 
-	for _, k := range exports.Keys() {
-		v := exports.Get(k)
-		if fn, ok := goja.AssertFunction(v); ok && k != consts.Options {
-			b.exports[k] = fn
-			continue
+	// Need to validate the exports of all scripts
+	for _, filename := range b.Filenames {
+		filenameString := filename.String()
+
+		pgm := b.BaseInitContext.programs[filenameString] // this is the main script and it's always present
+		exportsV := pgm.module.Get("exports")
+		if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) {
+			return errors.New("exports must be an object")
 		}
-		switch k {
-		case consts.Options:
-			if !options {
+		exports := exportsV.ToObject(rt)
+
+		for _, k := range exports.Keys() {
+			v := exports.Get(k)
+			if fn, ok := goja.AssertFunction(v); ok && k != consts.Options {
+				b.exports[filenameString][k] = fn
 				continue
 			}
-			data, err := json.Marshal(v.Export())
+			switch k {
+			case consts.Options:
+				if !isOrchestrator {
+					continue
+				}
+
+				// Don't need to validate options if not running the main script
+				if filenameString != rootFilenameString {
+					continue
+				}
+				data, err := json.Marshal(v.Export())
+				if err != nil {
+					return err
+				}
+				dec := json.NewDecoder(bytes.NewReader(data))
+				dec.DisallowUnknownFields()
+
+				// Options are being extracted here
+				if err := dec.Decode(&b.Options); err != nil {
+					if uerr := json.Unmarshal(data, &b.Options); uerr != nil {
+						return uerr
+					}
+					logger.WithError(err).Warn("There were unknown fields in the options exported in the script")
+				}
+			case consts.SetupFn:
+				return errors.New("exported 'setup' must be a function")
+			case consts.TeardownFn:
+				return errors.New("exported 'teardown' must be a function")
+			}
+		}
+
+		if len(b.exports) == 0 {
+			return errors.New("no exported functions in script")
+		}
+
+		if !isOrchestrator {
+			innerNode, err := libWorker.GetInnerNode(b.initializedTestData.RootNode, filenameString)
 			if err != nil {
 				return err
 			}
-			dec := json.NewDecoder(bytes.NewReader(data))
-			dec.DisallowUnknownFields()
 
-			// Options are being extracted here
-			if err := dec.Decode(&b.Options); err != nil {
-				if uerr := json.Unmarshal(data, &b.Options); uerr != nil {
-					return uerr
-				}
-				logger.WithError(err).Warn("There were unknown fields in the options exported in the script")
-			}
-		case consts.SetupFn:
-			return errors.New("exported 'setup' must be a function")
-		case consts.TeardownFn:
-			return errors.New("exported 'teardown' must be a function")
+			innerNode.RegisterExports(filenameString, b.exports[filenameString])
 		}
-	}
-
-	if len(b.exports) == 0 {
-		return errors.New("no exported functions in script")
 	}
 
 	return nil
@@ -160,72 +217,80 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID uint64, workerInfo 
 	}
 
 	rt := vuImpl.runtime
-	pgm := init.programs[b.Filename.String()] // this is the main script and it's always present
+
+	biExports := make(map[string]map[string]goja.Callable)
+	for _, filename := range b.Filenames {
+		biExports[filename.String()] = make(map[string]goja.Callable)
+	}
 
 	bi := &BundleInstance{
 		Runtime:      rt,
-		exports:      make(map[string]goja.Callable),
+		exports:      biExports,
 		env:          b.RuntimeOptions.Env,
 		moduleVUImpl: vuImpl,
-		pgm:          pgm,
+		pgms:         init.programs,
+		RootFilename: b.RootFilename,
+		//TestData:     workerInfo.TestData,
 	}
 
-	// Grab any exported functions that could be executed. These were
-	// already pre-validated in cmd.validateScenarioConfig(), just get them here.
-	exports := pgm.module.Get("exports").ToObject(rt)
+	var instErr error
 
-	for k := range b.exports {
-		fn, _ := goja.AssertFunction(exports.Get(k))
-		bi.exports[k] = fn
-	}
+	for filename, bundleFileExports := range b.exports {
+		// Grab any exported functions that could be executed. These were
+		// already pre-validated in cmd.validateScenarioConfig(), just get them here.
+		pgm := init.programs[filename]
 
-	// Disable js options as found in the orchestrator
+		moduleExports := pgm.module.Get("exports").ToObject(rt)
 
-	var jsOptionsObj *goja.Object = rt.NewObject()
-	err := exports.Set("options", jsOptionsObj)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't set exported options with merged values: %w", err)
-	}
+		for k := range bundleFileExports {
+			fn, _ := goja.AssertFunction(moduleExports.Get(k))
+			bi.exports[filename][k] = fn
+		}
 
-	/*jsOptions := exports.Get("options")
+		if filename != b.RootFilename.String() {
+			continue
+		}
 
-	var jsOptionsObj *goja.Object
-	if jsOptions == nil || goja.IsNull(jsOptions) || goja.IsUndefined(jsOptions) {
-		jsOptionsObj = rt.NewObject()
-		err := exports.Set("options", jsOptionsObj)
+		var jsOptionsObj *goja.Object = rt.NewObject()
+		err := moduleExports.Set("options", jsOptionsObj)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't set exported options with merged values: %w", err)
 		}
-	} else {
-		jsOptionsObj = jsOptions.ToObject(rt)
-	}*/
 
-	var instErr error
-	b.Options.ForEachSpecified("json", func(key string, val interface{}) {
-		if err := jsOptionsObj.Set(key, val); err != nil {
-			instErr = err
-		}
-	})
+		b.Options.ForEachSpecified("json", func(key string, val interface{}) {
+			if err := jsOptionsObj.Set(key, val); err != nil {
+				instErr = err
+			}
+		})
+	}
 
 	return bi, instErr
 }
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
-// In unsafe mode, the init stage is limited to 30ms, and the bundle is not allowed to use the console. This is used to make execution safer on orchestrator nodes.
-func (b *Bundle) initializeProgramObject(rt *goja.Runtime, init *InitContext) programWithSource {
-	pgm := programWithSource{
-		pgm:     b.Program,
-		src:     b.Source,
-		exports: rt.NewObject(),
-		module:  rt.NewObject(),
+// In isOrchestrator mode, the init stage is limited to 30ms, and the bundle is not allowed to use the console. This is used to make execution safer on orchestrator nodes.
+func (b *Bundle) initializeProgramObjects(rt *goja.Runtime, init *InitContext) []programWithSource {
+	programs := make([]programWithSource, len(b.Filenames))
+
+	for index, filename := range b.Filenames {
+		pgm := programWithSource{
+			pgm:     b.Programs[index],
+			src:     b.Sources[index],
+			srcPwd:  b.Filenames[index],
+			exports: rt.NewObject(),
+			module:  rt.NewObject(),
+		}
+		_ = pgm.module.Set("exports", pgm.exports)
+
+		init.programs[filename.String()] = pgm
+		programs[index] = pgm
 	}
-	_ = pgm.module.Set("exports", pgm.exports)
-	init.programs[b.Filename.String()] = pgm
-	return pgm
+
+	return programs
 }
 
-func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *libWorker.WorkerInfo, unsafe bool) (err error) {
+func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *InitContext, vuID uint64, workerInfo *libWorker.WorkerInfo, isOrchestrator bool) (err error) {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	rt.SetRandSource(common.NewRandSource())
 
@@ -236,7 +301,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	//rt.Set("__ENV", env)
 	rt.Set("__VU", vuID)
 
-	if !unsafe {
+	if !isOrchestrator {
 		_ = rt.Set("console", newConsole(logger))
 
 		if init.compatibilityMode == libWorker.CompatibilityModeExtended {
@@ -247,19 +312,21 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	initenv := &common.InitEnvironment{
 		Logger:      logger,
 		FileSystems: init.filesystems,
-		CWD:         init.pwd,
-		Registry:    b.registry,
-		WorkerInfo:  workerInfo,
+		// Believe this is for the root init so use the root CWD
+		CWD:        (*init.pwds)[0],
+		Registry:   b.registry,
+		WorkerInfo: workerInfo,
 	}
 
 	unbindInit := b.setInitGlobals(rt, init)
 	init.moduleVUImpl.ctx = context.Background()
 	init.moduleVUImpl.initEnv = initenv
 	init.moduleVUImpl.eventLoop = eventloop.New(init.moduleVUImpl)
-	pgm := b.initializeProgramObject(rt, init)
 
-	if unsafe {
-		time.AfterFunc(30*time.Millisecond, func() {
+	pgms := b.initializeProgramObjects(rt, init)
+
+	if isOrchestrator {
+		time.AfterFunc(50*time.Millisecond, func() {
 			rt.Interrupt("init stage timeout")
 		})
 	}
@@ -267,19 +334,23 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	// This is a temporary VU
 	err = common.RunWithPanicCatching(logger, rt, func() error {
 		return init.moduleVUImpl.eventLoop.Start(func() error {
-			// Actually run the compiled code
-			f, errRun := rt.RunProgram(b.Program)
+			for index, pgm := range pgms {
+				// Actually run the compiled code
+				f, errRun := rt.RunProgram(b.Programs[index])
 
-			if errRun != nil {
-				return errRun
-			}
-			if call, ok := goja.AssertFunction(f); ok {
-				if _, errRun = call(pgm.exports, pgm.module, pgm.exports); errRun != nil {
+				if errRun != nil {
 					return errRun
 				}
-				return nil
+				if call, ok := goja.AssertFunction(f); ok {
+					if _, errRun = call(pgm.exports, pgm.module, pgm.exports); errRun != nil {
+						return errRun
+					}
+					continue
+				}
+				panic("Somehow a commonjs main module is not wrapped in a function")
 			}
-			panic("Somehow a commonjs main module is not wrapped in a function")
+
+			return nil
 		})
 	})
 
@@ -290,12 +361,17 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		}
 		return err
 	}
-	exportsV := pgm.module.Get("exports")
-	if goja.IsNull(exportsV) {
-		return errors.New("exports must be an object")
+
+	for _, pgm := range pgms {
+		exportsV := pgm.module.Get("exports")
+
+		if goja.IsNull(exportsV) {
+			return errors.New("exports must be an object")
+		}
+		pgm.exports = exportsV.ToObject(rt)
+		init.programs[pgm.srcPwd.String()] = pgm
 	}
-	pgm.exports = exportsV.ToObject(rt)
-	init.programs[b.Filename.String()] = pgm
+
 	unbindInit()
 	init.moduleVUImpl.ctx = nil
 

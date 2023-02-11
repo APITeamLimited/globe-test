@@ -47,6 +47,7 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil {
+		fmt.Println("Error building testRunState", err)
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return false
 	}
@@ -240,7 +241,7 @@ func loadWorkerInfo(ctx context.Context,
 		OrchestratorId:  job.AssignedOrchestrator,
 		WorkerId:        workerId,
 		Ctx:             ctx,
-		WorkerOptions:   job.Options,
+		WorkerOptions:   job.ChildOptions,
 		Gs:              &gs,
 		VerifiedDomains: job.VerifiedDomains,
 		SubFraction:     job.SubFraction,
@@ -279,8 +280,7 @@ func loadWorkerInfo(ctx context.Context,
 		}
 	}
 
-	workerInfo.FinalRequest = job.FinalRequest
-	workerInfo.UnderlyingRequest = job.UnderlyingRequest
+	workerInfo.TestData = *job.TestData
 
 	return workerInfo
 }

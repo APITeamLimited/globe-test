@@ -38,13 +38,11 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 			json.Unmarshal(childOptions, &parsed)
 
 			zoneChildJobs[i] = &libOrch.ChildJob{
-				Job:               jobNoOptions,
-				ChildJobId:        uuid.NewString(),
-				Options:           orchOptions.DetermineChildDerivedOptions(loadZone, parsed, subFraction),
-				UnderlyingRequest: job.UnderlyingRequest,
-				FinalRequest:      job.FinalRequest,
-				SubFraction:       subFraction,
-				WorkerConnection:  nil,
+				Job:              jobNoOptions,
+				ChildJobId:       uuid.NewString(),
+				ChildOptions:     orchOptions.DetermineChildDerivedOptions(loadZone, parsed, subFraction),
+				SubFraction:      subFraction,
+				WorkerConnection: nil,
 			}
 		}
 

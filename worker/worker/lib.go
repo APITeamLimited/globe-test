@@ -46,14 +46,13 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 var _ io.Writer = &consoleWriter{}
 
 type workerLoadedTest struct {
-	sourceRootPath string
-	source         *loader.SourceData
-	fs             afero.Fs
-	pwd            string
-	fileSystems    map[string]afero.Fs
-	preInitState   *libWorker.TestPreInitState
-	initRunner     libWorker.Runner // TODO: rename to something more appropriate
-	keyLogger      io.Closer
+	fs           afero.Fs
+	pwd          string
+	fileSystems  map[string]afero.Fs
+	preInitState *libWorker.TestPreInitState
+	initRunner   libWorker.Runner // TODO: rename to something more appropriate
+	keyLogger    io.Closer
+	sourceData   *[]*loader.SourceData
 }
 
 // Config ...

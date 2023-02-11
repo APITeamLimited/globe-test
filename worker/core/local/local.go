@@ -52,6 +52,7 @@ func NewExecutionScheduler(trs *libWorker.TestRunState) (*ExecutionScheduler, er
 	maxDuration, _ := libWorker.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
 	executorConfigs := options.Scenarios.GetSortedConfigs()
+
 	executors := make([]libWorker.Executor, 0, len(executorConfigs))
 	// Only take executors which have work.
 	for _, sc := range executorConfigs {

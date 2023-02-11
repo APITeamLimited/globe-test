@@ -10,6 +10,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
+	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -74,13 +75,16 @@ func runWorker(w http.ResponseWriter, r *http.Request, standalone bool) {
 		}
 
 		if eventMessage.Variant == lib.CHILD_JOB_INFO {
-			err := json.Unmarshal([]byte(eventMessage.Data), &childJob)
+			childJobData, err := parseChildJobData(eventMessage.Data)
 			if err != nil {
 				fmt.Printf("Error unmarshalling child job: %s", err.Error())
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
 				return
 			}
+
+			childJob = childJobData
+
 			break
 		}
 	}
@@ -100,4 +104,21 @@ func runWorker(w http.ResponseWriter, r *http.Request, standalone bool) {
 	conn.Close()
 
 	fmt.Printf("Worker %s finished executing child job %s with success: %t\n", workerId, childJob.ChildJobId, successfullExecution)
+}
+
+func parseChildJobData(data string) (*libOrch.ChildJob, error) {
+	childJob := &libOrch.ChildJob{}
+
+	err := json.Unmarshal([]byte(data), &childJob)
+	if err != nil {
+		return nil, err
+	}
+
+	testData, err := libWorker.ExtractTestData(childJob.TestDataRaw)
+	if err != nil {
+		return nil, err
+	}
+	childJob.TestData = testData
+
+	return childJob, nil
 }

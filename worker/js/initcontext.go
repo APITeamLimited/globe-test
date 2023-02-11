@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
@@ -25,7 +23,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/js/modules/k6/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
-	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -33,6 +30,7 @@ import (
 
 type programWithSource struct {
 	pgm     *goja.Program
+	srcPwd  *url.URL
 	src     string
 	module  *goja.Object
 	exports *goja.Object
@@ -52,7 +50,7 @@ type InitContext struct {
 
 	// Filesystem to load files and scripts from with the map key being the scheme
 	filesystems map[string]afero.Fs
-	pwd         *url.URL
+	pwds        *[]*url.URL
 
 	// Cache of loaded programs and files.
 	programs map[string]programWithSource
@@ -67,11 +65,11 @@ type InitContext struct {
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
 	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode libWorker.CompatibilityMode,
-	filesystems map[string]afero.Fs, pwd *url.URL, workerInfo *libWorker.WorkerInfo) *InitContext {
+	filesystems map[string]afero.Fs, pwds *[]*url.URL, workerInfo *libWorker.WorkerInfo, rootNode libWorker.Node) *InitContext {
 	return &InitContext{
 		compiler:          c,
 		filesystems:       filesystems,
-		pwd:               pwd,
+		pwds:              pwds,
 		programs:          make(map[string]programWithSource),
 		compatibilityMode: compatMode,
 		logger:            logger,
@@ -96,7 +94,7 @@ func newBoundInitContext(base *InitContext, vuImpl *moduleVUImpl) *InitContext {
 	}
 	return &InitContext{
 		filesystems: base.filesystems,
-		pwd:         base.pwd,
+		pwds:        base.pwds,
 		compiler:    base.compiler,
 
 		programs:          programs,
@@ -220,60 +218,64 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) {
 }
 
 func (i *InitContext) requireFile(name string) (goja.Value, error) {
-	// Resolve the file path, push the target directory as pwd to make relative imports work.
-	pwd := i.pwd
-	fileURL, err := loader.Resolve(pwd, name)
-	if err != nil {
-		return nil, err
-	}
+	return nil, fmt.Errorf("globe test does not support files yet")
 
-	// First, check if we have a cached program already.
-	pgm, ok := i.programs[fileURL.String()]
-	if !ok || pgm.module == nil {
-		if filepath.IsAbs(name) && runtime.GOOS == "windows" {
-			i.logger.Warnf("'%s' was imported with an absolute path - this won't be cross-platform and won't work if"+
-				" you move the script between machines or run it with `k6 cloud`; if absolute paths are required,"+
-				" import them with the `file://` schema for slightly better compatibility",
-				name)
-		}
-		i.pwd = loader.Dir(fileURL)
-		defer func() { i.pwd = pwd }()
-		exports := i.moduleVUImpl.runtime.NewObject()
-		pgm.module = i.moduleVUImpl.runtime.NewObject()
-		_ = pgm.module.Set("exports", exports)
-
-		if pgm.pgm == nil {
-			// Load the sources; the loader takes care of remote loading, etc.
-			data, err := loader.Load(i.logger, i.filesystems, fileURL, name)
-			if err != nil {
-				return goja.Undefined(), err
-			}
-
-			pgm.src = string(data.Data)
-
-			// Compile the sources; this handles ES5 vs ES6 automatically.
-			pgm.pgm, err = i.compileImport(pgm.src, data.URL.String())
-			if err != nil {
-				return goja.Undefined(), err
-			}
-		}
-
-		i.programs[fileURL.String()] = pgm
-
-		// Run the program.
-		f, err := i.moduleVUImpl.runtime.RunProgram(pgm.pgm)
+	/*
+		// Resolve the file path, push the target directory as pwd to make relative imports work.
+		pwd := i.pwd
+		fileURL, err := loader.Resolve(pwd, name)
 		if err != nil {
-			delete(i.programs, fileURL.String())
-			return goja.Undefined(), err
+			return nil, err
 		}
-		if call, ok := goja.AssertFunction(f); ok {
-			if _, err = call(exports, pgm.module, exports); err != nil {
-				return nil, err
+
+		// First, check if we have a cached program already.
+		pgm, ok := i.programs[fileURL.String()]
+		if !ok || pgm.module == nil {
+			if filepath.IsAbs(name) && runtime.GOOS == "windows" {
+				i.logger.Warnf("'%s' was imported with an absolute path - this won't be cross-platform and won't work if"+
+					" you move the script between machines or run it with `k6 cloud`; if absolute paths are required,"+
+					" import them with the `file://` schema for slightly better compatibility",
+					name)
+			}
+			i.pwd = loader.Dir(fileURL)
+			defer func() { i.pwd = pwd }()
+			exports := i.moduleVUImpl.runtime.NewObject()
+			pgm.module = i.moduleVUImpl.runtime.NewObject()
+			_ = pgm.module.Set("exports", exports)
+
+			if pgm.pgm == nil {
+				// Load the sources; the loader takes care of remote loading, etc.
+				data, err := loader.Load(i.logger, i.filesystems, fileURL, name)
+				if err != nil {
+					return goja.Undefined(), err
+				}
+
+				pgm.src = string(data.Data)
+
+				// Compile the sources; this handles ES5 vs ES6 automatically.
+				pgm.pgm, err = i.compileImport(pgm.src, data.URL.String())
+				if err != nil {
+					return goja.Undefined(), err
+				}
+			}
+
+			i.programs[fileURL.String()] = pgm
+
+			// Run the program.
+			f, err := i.moduleVUImpl.runtime.RunProgram(pgm.pgm)
+			if err != nil {
+				delete(i.programs, fileURL.String())
+				return goja.Undefined(), err
+			}
+			if call, ok := goja.AssertFunction(f); ok {
+				if _, err = call(exports, pgm.module, exports); err != nil {
+					return nil, err
+				}
 			}
 		}
-	}
 
-	return pgm.module.Get("exports"), nil
+		return pgm.module.Get("exports"), nil
+	*/
 }
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) {
@@ -285,37 +287,41 @@ func (i *InitContext) compileImport(src, filename string) (*goja.Program, error)
 // contents of a file. If the second argument is "b" it returns an ArrayBuffer
 // instance, otherwise a string representation.
 func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) {
-	if i.moduleVUImpl.State() != nil {
-		return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
-	}
+	return nil, fmt.Errorf("globe test does not support files yet")
 
-	if filename == "" {
-		return nil, errors.New("open() can't be used with an empty filename")
-	}
+	/*
+		if i.moduleVUImpl.State() != nil {
+			return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
+		}
 
-	// Here IsAbs should be enough but unfortunately it doesn't handle absolute paths starting from
-	// the current drive on windows like `\users\noname\...`. Also it makes it more easy to test and
-	// will probably be need for archive execution under windows if always consider '/...' as an
-	// absolute path.
-	if filename[0] != '/' && filename[0] != '\\' && !filepath.IsAbs(filename) {
-		filename = filepath.Join(i.pwd.Path, filename)
-	}
-	filename = filepath.Clean(filename)
-	fs := i.filesystems["file"]
-	if filename[0:1] != afero.FilePathSeparator {
-		filename = afero.FilePathSeparator + filename
-	}
+		if filename == "" {
+			return nil, errors.New("open() can't be used with an empty filename")
+		}
 
-	data, err := readFile(fs, filename)
-	if err != nil {
-		return nil, err
-	}
+		// Here IsAbs should be enough but unfortunately it doesn't handle absolute paths starting from
+		// the current drive on windows like `\users\noname\...`. Also it makes it more easy to test and
+		// will probably be need for archive execution under windows if always consider '/...' as an
+		// absolute path.
+		if filename[0] != '/' && filename[0] != '\\' && !filepath.IsAbs(filename) {
+			filename = filepath.Join(i.pwd.Path, filename)
+		}
+		filename = filepath.Clean(filename)
+		fs := i.filesystems["file"]
+		if filename[0:1] != afero.FilePathSeparator {
+			filename = afero.FilePathSeparator + filename
+		}
 
-	if len(args) > 0 && args[0] == "b" {
-		ab := i.moduleVUImpl.runtime.NewArrayBuffer(data)
-		return i.moduleVUImpl.runtime.ToValue(&ab), nil
-	}
-	return i.moduleVUImpl.runtime.ToValue(string(data)), nil
+		data, err := readFile(fs, filename)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(args) > 0 && args[0] == "b" {
+			ab := i.moduleVUImpl.runtime.NewArrayBuffer(data)
+			return i.moduleVUImpl.runtime.ToValue(&ab), nil
+		}
+		return i.moduleVUImpl.runtime.ToValue(string(data)), nil
+	*/
 }
 
 func readFile(fileSystem afero.Fs, filename string) (data []byte, err error) {

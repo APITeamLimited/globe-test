@@ -14,37 +14,6 @@ import (
 )
 
 func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
-	source, sourceName, err := validateSource(job, gs)
-	if err != nil {
-		return nil, err
-	}
-
-	return compileAndGetOptions(source, sourceName, gs)
-}
-
-func validateSource(job libOrch.Job, gs libOrch.BaseGlobalState) (string, string, error) {
-	// Check job.SourceName is set
-	if job.SourceName == "" {
-		return "", "", errors.New("job.SourceName not set")
-	}
-
-	if len(job.SourceName) < 3 {
-		return "", "", errors.New("job.SourceName must be a .js file")
-	}
-
-	if job.SourceName[len(job.SourceName)-3:] != ".js" {
-		return "", "", errors.New("job.SourceName must be a .js file")
-	}
-
-	// Check source in options, if it is return it
-	if job.Source == "" {
-		return "", "", errors.New("source not set")
-	}
-
-	return job.Source, job.SourceName, nil
-}
-
-func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
 	runtimeOptions := libWorker.RuntimeOptions{
 		TestType:             null.StringFrom("js"),
 		IncludeSystemEnvVars: null.BoolFrom(false),
@@ -54,13 +23,13 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 		Env:                  make(map[string]string),
 	}
 
-	sourceData := &loader.SourceData{
-		Data: []byte(source),
-		URL:  &url.URL{Path: sourceName},
+	sourceData, err := loader.LoadTestData(job.TestData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load test data: %w", err)
 	}
 
-	filesytems := make(map[string]afero.Fs, 1)
-	filesytems["file"] = afero.NewMemMapFs()
+	filesystems := make(map[string]afero.Fs, 1)
+	filesystems["file"] = afero.NewMemMapFs()
 
 	// Pass orchestratorId as workerId, so that will dispatch as a worker message
 	orchestratorInfo := &libWorker.WorkerInfo{
@@ -81,9 +50,15 @@ func compileAndGetOptions(source string, sourceName string, gs libOrch.BaseGloba
 		BuiltinMetrics: nil,
 	}
 
-	bundle, err := js.NewBundleUnsafe(preInitState, sourceData, filesytems, orchestratorInfo, true)
+	bundle, err := js.NewBundle(preInitState, sourceData, filesystems, orchestratorInfo, true, job.TestData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse options: %w", err)
+		output := fmt.Sprintf("failed to parse options: %s", err.Error())
+		unescaped, err := url.PathUnescape(output)
+		if err != nil {
+			return nil, errors.New(output)
+		}
+
+		return nil, errors.New(unescaped)
 	}
 
 	// Get the options export frrom the exports

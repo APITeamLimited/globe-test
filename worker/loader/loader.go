@@ -23,6 +23,10 @@ import (
 type SourceData struct {
 	Data []byte
 	URL  *url.URL
+	// RootSource is the primary script that is being executed
+	RootSource bool
+	// Sourceid is the ID of the node that this source data belongs to
+	SourceId string
 }
 
 type loaderFunc func(logger logrus.FieldLogger, path string, parts []string) (string, error)
@@ -181,8 +185,6 @@ func Load(
 	}
 
 	data, err := afero.ReadFile(filesystems[scheme], pathOnFs)
-
-	fmt.Println("data", string(data))
 
 	if err == nil {
 		return &SourceData{URL: moduleSpecifier, Data: data}, nil

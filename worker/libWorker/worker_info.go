@@ -28,24 +28,23 @@ type (
 	}
 
 	WorkerInfo struct {
-		Conn              *websocket.Conn
-		JobId             string
-		ChildJobId        string
-		ScopeId           string
-		OrchestratorId    string
-		WorkerId          string
-		Ctx               context.Context
-		Environment       *Environment
-		Collection        *Collection
-		WorkerOptions     Options
-		FinalRequest      map[string]interface{}
-		UnderlyingRequest map[string]interface{}
-		Gs                *BaseGlobalState
-		VerifiedDomains   []string
-		SubFraction       float64
-		CreditsManager    *lib.CreditsManager
-		Standalone        bool
-		DomainLimiter     *DomainLimiter
+		Conn            *websocket.Conn
+		JobId           string
+		ChildJobId      string
+		ScopeId         string
+		OrchestratorId  string
+		WorkerId        string
+		Ctx             context.Context
+		Environment     *Environment
+		Collection      *Collection
+		WorkerOptions   Options
+		TestData        TestData
+		Gs              *BaseGlobalState
+		VerifiedDomains []string
+		SubFraction     float64
+		CreditsManager  *lib.CreditsManager
+		Standalone      bool
+		DomainLimiter   *DomainLimiter
 	}
 
 	MarkMessage struct {

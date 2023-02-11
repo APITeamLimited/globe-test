@@ -100,8 +100,8 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, runAuthClient, loadZones)
 
 	options, optionsErr := options.DetermineRuntimeOptions(*job, gs)
-	job.Options = options
 
+	job.Options = options
 	if optionsErr != nil {
 		libOrch.HandleError(gs, optionsErr)
 		// Continue as need to delete job

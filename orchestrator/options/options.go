@@ -1,7 +1,6 @@
 package options
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -20,15 +19,15 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 	}
 
 	// TODO: Check if MetricSamplesBufferSize config option is needed
-	options.MetricSamplesBufferSize = null.Int{
-		NullInt64: sql.NullInt64{
-			Int64: 0,
-			Valid: false,
-		},
-	}
+	// options.MetricSamplesBufferSize = null.Int{
+	// 	NullInt64: sql.NullInt64{
+	// 		Int64: 0,
+	// 		Valid: false,
+	// 	},
+	// }
 
 	// Prevent the user from accessing internal ip ranges
-	localhostIPNets := generateBannedIPNets(gs)
+	localhostIPNets := getBannedIPNets(gs)
 
 	// validate the options
 
@@ -57,6 +56,11 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 	}
 
 	err = validators.MinIterationDuration(options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validators.SetupTimeout(options)
 	if err != nil {
 		return nil, err
 	}

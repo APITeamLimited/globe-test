@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -58,8 +59,8 @@ type Runner struct {
 }
 
 // New returns a new Runner for the provided source
-func New(piState *libWorker.TestPreInitState, src *loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo) (*Runner, error) {
-	b, err := NewBundle(piState, src, filesystems, workerInfo)
+func New(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData) (*Runner, error) {
+	b, err := NewBundleWorker(piState, src, filesystems, workerInfo, testData)
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +214,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 		Tags:           libWorker.NewTagMap(copyStringMap(vu.Runner.Bundle.Options.RunTags)),
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.preInitState.BuiltinMetrics,
+		CurrentNode:    r.Bundle.initializedTestData.RootNode,
 	}
 	vu.moduleVUImpl.state = vu.state
 	_ = vu.Runtime.Set("console", vu.Console)
@@ -305,7 +307,7 @@ func (r *Runner) GetOptions() libWorker.Options {
 // IsExecutable returns whether the given name is an exported and
 // executable function in the script.
 func (r *Runner) IsExecutable(name string) bool {
-	_, exists := r.Bundle.exports[name]
+	_, exists := r.Bundle.exports[r.Bundle.RootFilename.String()][name]
 	return exists
 }
 
@@ -433,6 +435,7 @@ func (r *Runner) runPart(
 // getTimeoutFor returns the timeout duration for given special script function.
 func (r *Runner) getTimeoutFor(stage string) time.Duration {
 	d := time.Duration(0)
+
 	switch stage {
 	case consts.SetupFn:
 		return r.Bundle.Options.SetupTimeout.TimeDuration()
@@ -594,7 +597,7 @@ func (u *ActiveVU) RunOnce() error {
 		}
 	}
 
-	fn, ok := u.exports[u.Exec]
+	fn, ok := u.exports[u.RootFilename.String()][u.Exec]
 	if !ok {
 		// Shouldn't happen; this is validated in cmd.validateScenarioConfig()
 		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
@@ -608,7 +611,7 @@ func (u *ActiveVU) RunOnce() error {
 	ctx, cancel := context.WithCancel(u.RunContext)
 	defer cancel()
 	u.moduleVUImpl.ctx = ctx
-	// Call the exported function.
+
 	_, isFullIteration, totalTime, err := u.runFn(ctx, true, fn, cancel, u.setupData)
 	if err != nil {
 		var x *goja.InterruptedError
@@ -636,7 +639,7 @@ func (u *ActiveVU) RunOnce() error {
 }
 
 func (u *VU) getExported(name string) goja.Value {
-	return u.BundleInstance.pgm.module.Get("exports").ToObject(u.Runtime).Get(name)
+	return u.BundleInstance.pgms[u.RootFilename.String()].module.Get("exports").ToObject(u.Runtime).Get(name)
 }
 
 // if isDefault is true, cancel also needs to be provided and it should cancel the provided context
@@ -663,7 +666,7 @@ func (u *VU) runFn(
 	}
 	err = common.RunWithPanicCatching(u.state.Logger, u.Runtime, func() error {
 		return u.moduleVUImpl.eventLoop.Start(func() (err error) {
-			v, err = fn(goja.Undefined(), args...) // Actually run the JS script
+			v, err = fn(goja.Undefined(), args...) // Actually run the exported goja function.
 			return err
 		})
 	})
@@ -727,7 +730,17 @@ func (s *scriptException) Error() string {
 }
 
 func (s *scriptException) StackTrace() string {
-	return s.inner.String()
+	inner := s.inner.String()
+
+	// Remove "\tat native\n" from end of stacktrace if it's there
+	inner = strings.TrimSuffix(inner, "\tat native\n")
+
+	escaped, err := url.PathUnescape(inner)
+	if err != nil {
+		return inner
+	}
+
+	return escaped
 }
 
 func (s *scriptException) Unwrap() error {

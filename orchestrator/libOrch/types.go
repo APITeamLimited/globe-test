@@ -10,15 +10,6 @@ import (
 )
 
 type (
-	Distribution struct {
-		LoadZone string `json:"loadZone"`
-		Percent  int    `json:"percent"`
-	}
-
-	APITeamOptions struct {
-		Distribution `json:"distribution"`
-	}
-
 	EnvironmentContext struct {
 		Variables []libWorker.KeyValueItem `json:"variables"`
 		Name      string                   `json:"name"`
@@ -30,21 +21,22 @@ type (
 	}
 
 	Job struct {
-		Id                     string                 `json:"id"`
-		Source                 string                 `json:"source"`
-		SourceName             string                 `json:"sourceName"`
-		EnvironmentContext     *EnvironmentContext    `json:"environmentContext"`
-		CollectionContext      *CollectionContext     `json:"collectionContext"`
-		UnderlyingRequest      map[string]interface{} `json:"underlyingRequest"`
-		FinalRequest           map[string]interface{} `json:"finalRequest"`
-		AssignedOrchestrator   string                 `json:"assignedOrchestrator"`
-		Scope                  Scope                  `json:"scope"`
-		Options                *libWorker.Options     `json:"options"`
-		VerifiedDomains        []string               `json:"verifiedDomains"`
-		FuncModeInfo           *lib.FuncModeInfo      `json:"funcModeInfo"`
-		PermittedLoadZones     []string               `json:"permittedLoadZones"`
-		MaxTestDurationMinutes int64                  `json:"maxTestDurationMinutes"`
-		MaxSimulatedUsers      int64                  `json:"maxSimulatedUsers"`
+		Id string `json:"id"`
+
+		EnvironmentContext *EnvironmentContext `json:"environmentContext"`
+		CollectionContext  *CollectionContext  `json:"collectionContext"`
+
+		AssignedOrchestrator string                 `json:"assignedOrchestrator"`
+		Scope                Scope                  `json:"scope"`
+		Options              *libWorker.Options     `json:"options"`
+		VerifiedDomains      []string               `json:"verifiedDomains"`
+		TestDataRaw          map[string]interface{} `json:"testData"`
+		TestData             *libWorker.TestData    `json:"-"`
+
+		FuncModeInfo           *lib.FuncModeInfo `json:"funcModeInfo"`
+		PermittedLoadZones     []string          `json:"permittedLoadZones"`
+		MaxTestDurationMinutes int64             `json:"maxTestDurationMinutes"`
+		MaxSimulatedUsers      int64             `json:"maxSimulatedUsers"`
 	}
 
 	Scope struct {
@@ -54,14 +46,12 @@ type (
 
 	ChildJob struct {
 		Job
-		ChildJobId        string                 `json:"childJobId"`
-		Options           libWorker.Options      `json:"options"`
-		UnderlyingRequest map[string]interface{} `json:"underlyingRequest"`
-		FinalRequest      map[string]interface{} `json:"finalRequest"`
-		SubFraction       float64                `json:"subFraction"`
-		WorkerConnection  *websocket.Conn
-		ConnWriteMutex    *sync.Mutex
-		ConnReadMutex     *sync.Mutex
+		ChildJobId       string            `json:"childJobId"`
+		ChildOptions     libWorker.Options `json:"childOptions"`
+		SubFraction      float64           `json:"subFraction"`
+		WorkerConnection *websocket.Conn
+		ConnWriteMutex   *sync.Mutex
+		ConnReadMutex    *sync.Mutex
 	}
 
 	ChildJobDistribution struct {
@@ -98,16 +88,6 @@ type (
 	MarkMessage struct {
 		Mark    string      `json:"mark"`
 		Message interface{} `json:"message"`
-	}
-
-	WorkerConnections struct {
-		Connections       map[string]*NamedConnection
-		DefaultConnection *NamedConnection
-	}
-
-	NamedConnection struct {
-		Name       string
-		Connection *websocket.Conn
 	}
 
 	LocalhostFile struct {

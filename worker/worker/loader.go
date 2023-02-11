@@ -5,9 +5,6 @@ package worker
 import (
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
@@ -26,39 +23,13 @@ func loadAndConfigureTest(
 	job *libOrch.ChildJob,
 	workerInfo *libWorker.WorkerInfo,
 ) (*workerLoadedAndConfiguredTest, error) {
-	sourceName := job.SourceName
-
-	if sourceName == "" {
-		return nil, fmt.Errorf("sourceName not found on job, this is probably a bug")
-	}
-
-	stringSource := job.Source
-
-	if stringSource == "" {
-		return nil, fmt.Errorf("source not found on job, this is probably a bug")
-	}
-
-	source := &loader.SourceData{
-		URL:  &url.URL{Path: sourceName},
-		Data: []byte(stringSource),
-	}
-
-	filesystems := map[string]afero.Fs{
-		"file": afero.NewMemMapFs(),
-	}
-
-	f, err := afero.TempFile(filesystems["file"], "", sourceName)
+	sourceData, err := loader.LoadTestData(job.TestData)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = f.Write([]byte(stringSource))
-	if err != nil {
-		return nil, err
-	}
-
-	// Store the source in the filesystem
-	sourceRootPath := sourceName
+	filesystems := make(map[string]afero.Fs, 1)
+	filesystems["file"] = afero.NewMemMapFs()
 
 	// For now runtime options are constant for all tests
 	// TODO: make this configurable
@@ -82,52 +53,26 @@ func loadAndConfigureTest(
 	}
 
 	test := &workerLoadedTest{
-		sourceRootPath: sourceRootPath,
-		source:         source,
-		fs:             gs.fs,
-		pwd:            "",
-		fileSystems:    filesystems,
-		preInitState:   preInitState,
+		fs:           gs.fs,
+		pwd:          "",
+		fileSystems:  filesystems,
+		preInitState: preInitState,
+		sourceData:   sourceData,
 	}
 
-	gs.logger.Debugf("Initializing k6 runner for '%s' (%s)...", sourceRootPath)
-	if err := test.initializeFirstRunner(gs, workerInfo); err != nil {
-		return nil, fmt.Errorf("could not initialize '%s': %w", sourceRootPath, err)
+	if err := test.initializeFirstRunner(gs, workerInfo, job); err != nil {
+		return nil, fmt.Errorf("could not initialize first runner: %w", err)
 	}
 	gs.logger.Debug("Runner successfully initialized!")
 
 	return test.consolidateDeriveAndValidateConfig(gs, job)
 }
 
-func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo) error {
-	testPath := lt.source.URL.String()
-	logger := gs.logger.WithField("test_path", testPath)
-
-	if lt.preInitState.RuntimeOptions.KeyWriter.Valid {
-
-		logger.Warnf("SSLKEYLOGFILE was specified, logging TLS connection keys to '%s'...",
-			lt.preInitState.RuntimeOptions.KeyWriter.String)
-		keylogFilename := lt.preInitState.RuntimeOptions.KeyWriter.String
-		// if path is absolute - no point doing anything
-		if !filepath.IsAbs(keylogFilename) {
-			// filepath.Abs could be used but it will get the pwd from `os` package instead of what is in lt.pwd
-			// this is against our general approach of not using `os` directly and makes testing harder
-			keylogFilename = filepath.Join(lt.pwd, keylogFilename)
-		}
-		f, err := lt.fs.OpenFile(keylogFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
-		if err != nil {
-			return fmt.Errorf("couldn't get absolute path for keylog file: %w", err)
-		}
-		lt.keyLogger = f
-		lt.preInitState.KeyLogger = &consoleWriter{
-			gs,
-		}
-	}
-
-	runner, err := js.New(lt.preInitState, lt.source, lt.fileSystems, workerInfo)
+func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo, job *libOrch.ChildJob) error {
+	runner, err := js.New(lt.preInitState, lt.sourceData, lt.fileSystems, workerInfo, job.TestData)
 	// TODO: should we use common.UnwrapGojaInterruptedError() here?
 	if err != nil {
-		return fmt.Errorf("could not load JS test '%s': %w", testPath, err)
+		return fmt.Errorf("could not load JS test: %w", err)
 	}
 	lt.initRunner = runner
 	return nil
@@ -137,9 +82,9 @@ func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *l
 func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	gs *globalState, job *libOrch.ChildJob,
 ) (*workerLoadedAndConfiguredTest, error) {
-	// Options have already been determined by the orchestrator, just load them
+	// ChildOptions have already been determined by the orchestrator, just load them
 	consolidatedConfig := Config{
-		Options: job.Options,
+		Options: job.ChildOptions,
 	}
 
 	// Parse the thresholds, only if the --no-threshold flag is not set.
@@ -173,6 +118,7 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 func deriveAndValidateConfig(
 	conf Config, isExecutable func(string) bool,
 ) (result Config, err error) {
+	// Don't modify this, need to write to the original config
 	result = conf
 	err = validateConfig(result, isExecutable)
 	return result, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
@@ -190,6 +136,15 @@ func validateConfig(conf Config, isExecutable func(string) bool) error {
 	return consolidateErrorMessage(errList, "There were problems with the specified script configuration:")
 }
 
+func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
+	execFn := conf.GetExec()
+	if !isExecutable(execFn) {
+		fmt.Println("asdasdasdasmdaskdasd", execFn)
+		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
+	}
+	return nil
+}
+
 func consolidateErrorMessage(errList []error, title string) error {
 	if len(errList) == 0 {
 		return nil
@@ -201,12 +156,4 @@ func consolidateErrorMessage(errList []error, title string) error {
 	}
 
 	return errors.New(strings.Join(errMsgParts, "\n"))
-}
-
-func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
-	execFn := conf.GetExec()
-	if !isExecutable(execFn) {
-		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
-	}
-	return nil
 }

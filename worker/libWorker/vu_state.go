@@ -70,6 +70,9 @@ type State struct {
 	// unique globally across k6 instances (taking into account execution
 	// segments).
 	GetScenarioGlobalVUIter func() uint64
+
+	// Gets the current node that the vu is executing
+	CurrentNode Node
 }
 
 // CloneTags makes a copy of the tags map and returns it.
