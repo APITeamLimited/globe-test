@@ -3,7 +3,6 @@ package lifecycle
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/APITeamLimited/globe-test/worker/js/common"
@@ -197,7 +196,6 @@ func (mi *LifecycleInstance) Exports() modules.Exports {
 
 func (mi *LifecycleInstance) markResponse(responseObject goja.Value) {
 	// Get golang value from goja object
-	fmt.Println("Marking response", responseObject, *mi.vu.InitEnv().WorkerInfo)
 	workerInfo := *mi.vu.InitEnv().WorkerInfo
 	rt := mi.vu.Runtime()
 

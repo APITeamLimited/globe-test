@@ -24,17 +24,11 @@ type Output struct {
 
 	flushCount          int
 	flushIncrementMutex sync.Mutex
-
-	// In case 2 sets of metrics are sent in the same flush, we need to know if
-	// we've already received the vu count so it can be added to the next flush
-	// instead
-	// 	vuMetrics1 *SampleEnvelope
-	// 	vuMetrics2 *SampleEnvelope
 }
 
-type WrappedFormattedSamples struct {
-	SampleEnvelopes []SampleEnvelope `json:"samples"`
-	FlushCount      int              `json:"flush_count"`
+type FormattedSamples struct {
+	Samples    []workerMetrics.Sample `json:"samples" protobuf:"bytes,1"`
+	FlushCount int                    `json:"flushCount" protobuf:"varint,2"`
 }
 
 func New(gs libWorker.BaseGlobalState) (output.Output, error) {
@@ -83,68 +77,49 @@ func (o *Output) flushMetrics() {
 	defer func() {
 		o.flushIncrementMutex.Lock()
 		o.flushCount++
-
-		// if o.vuMetrics2 != nil {
-		// 	o.vuMetrics1 = o.vuMetrics2
-		// 	o.vuMetrics2 = nil
-		// } else {
-		// 	o.vuMetrics1 = nil
-		// }
-
 		o.flushIncrementMutex.Unlock()
 	}()
 
-	samples := o.GetBufferedSamples()
-	var count int
+	sampleContainers := o.GetBufferedSamples()
 
-	formattedSamples := make([]SampleEnvelope, 0)
+	samples := make([]workerMetrics.Sample, 0)
+	count := 0
 
-	for _, sc := range samples {
-		samples := sc.GetSamples()
+	for _, sc := range sampleContainers {
+		samples = append(samples, sc.GetSamples()...)
 		count += len(samples)
-		for _, sample := range samples {
-			wrapped := wrapSample(sample)
-
-			formattedSamples = append(formattedSamples, wrapped)
-		}
 	}
 
-	// Get vu count from formattedSamples
-	/*var foundVus *SampleEnvelope
-	for _, sample := range formattedSamples {
-		if sample.Metric.Name == "vus" {
-			foundVus = &sample
-		}
-	}
-
-	// If formattedSamples contains vus and vuMetrics is nil, set vuMetrics to
-
-	if o.vuMetrics1 == nil && foundVus != nil {
-		o.vuMetrics1 = foundVus
-	} else if o.vuMetrics1 != nil && foundVus != nil {
-		o.vuMetrics2 = foundVus
-
-		// Remove the vus from formattedSamples
-		for i, sample := range formattedSamples {
-			if sample.Metric.Name == "vus" {
-				formattedSamples = append(formattedSamples[:i], formattedSamples[i+1:]...)
-				break
-			}
-		}
-	} else if foundVus == nil && o.vuMetrics1 != nil {
-		// Add the vuMetrics to formattedSamples
-		formattedSamples = append(formattedSamples, *o.vuMetrics1)
-	}*/
-
-	marshalledWrappedSamples, err := json.Marshal(WrappedFormattedSamples{
-		SampleEnvelopes: aggregateSampleEnvelopes(formattedSamples),
-		FlushCount:      o.flushCount,
+	marshalledSamples, err := json.Marshal(FormattedSamples{
+		Samples:    samples,
+		FlushCount: o.flushCount,
 	})
 
 	if err != nil {
 		libWorker.HandleError(o.gs, err)
 		return
 	}
+	//fmt.Print("\n\n\n\n")
 
-	libWorker.DispatchMessage(o.gs, string(marshalledWrappedSamples), "METRICS")
+	if o.flushCount == 15 {
+		fmt.Println((string(marshalledSamples)))
+	}
+
+	//printSize(marshalledSamples)
+	libWorker.DispatchMessage(o.gs, string(marshalledSamples), "METRICS")
+}
+
+func printSize(butes []byte) {
+	// Check if b, kb or mb
+
+	if len(butes) > 1000000 {
+		fmt.Printf("%f mb", float64(len(butes))/1000000)
+		return
+
+	} else if len(butes) > 1000 {
+		fmt.Printf("%f kb", float64(len(butes))/1000)
+		return
+	}
+
+	fmt.Printf("%d bytes", len(butes))
 }

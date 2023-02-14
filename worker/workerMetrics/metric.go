@@ -11,15 +11,15 @@ import (
 
 // A Metric defines the shape of a set of data.
 type Metric struct {
-	Name     string     `json:"name"`
-	Type     MetricType `json:"type"`
-	Contains ValueType  `json:"contains"`
+	Name     string     `json:"name" protobuf:"string,1"`
+	Type     MetricType `json:"type" protobuf:"bytes,2"`
+	Contains ValueType  `json:"contains" protobuf:"bytes,3"`
 
 	// TODO: decouple the metrics from the sinks and thresholds... have them
 	// linked, but not in the same struct?
-	Tainted    null.Bool    `json:"tainted"`
-	Thresholds Thresholds   `json:"thresholds"`
-	Submetrics []*Submetric `json:"submetrics"`
+	Tainted    null.Bool    `json:"tainted" protobuf:"bytes,4"`
+	Thresholds Thresholds   `json:"thresholds" protobuf:"bytes,5"`
+	Submetrics []*Submetric `json:"submetrics" protobuf:"bytes,6"`
 	Sub        *Submetric   `json:"-"`
 	Sink       Sink         `json:"-"`
 	Observed   bool         `json:"-"`
@@ -66,8 +66,8 @@ func newMetric(name string, mt MetricType, vt ...ValueType) *Metric {
 
 // A Submetric represents a filtered dataset based on a parent metric.
 type Submetric struct {
-	Name   string      `json:"name"`
-	Suffix string      `json:"suffix"` // TODO: rename?
+	Name   string      `json:"name" protobuf:"string,1"`
+	Suffix string      `json:"suffix" protobuf:"string,2"` // TODO: rename?
 	Tags   *SampleTags `json:"tags"`
 
 	Metric *Metric `json:"-"`

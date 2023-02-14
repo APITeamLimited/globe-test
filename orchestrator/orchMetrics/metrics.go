@@ -103,7 +103,7 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 
 	// fmt.Printf("Time to decompress %v\n", time.Since(startTime))
 
-	var wrappedFormattedSamples globetest.WrappedFormattedSamples
+	var wrappedFormattedSamples globetest.FormattedSamples
 	err := json.Unmarshal([]byte(message.Message), &wrappedFormattedSamples)
 	if err != nil {
 		fmt.Printf("Error unmarshalling while adding message: %v", err)
@@ -125,7 +125,7 @@ func (store *cachedMetricsStore) AddMessage(message libOrch.WorkerMessage, worke
 }
 
 // Each flush count is a new set of metrics, and the array is extended to accommodate
-func (store *cachedMetricsStore) extendStoreIfRequired(wrappedFormattedSamples globetest.WrappedFormattedSamples) {
+func (store *cachedMetricsStore) extendStoreIfRequired(wrappedFormattedSamples globetest.FormattedSamples) {
 	// Check last item in array
 	if !(len(store.collectedIntervals) == 0 || store.collectedIntervals[len(store.collectedIntervals)-1].flushCount != wrappedFormattedSamples.FlushCount) {
 		return
@@ -158,7 +158,7 @@ func (store *cachedMetricsStore) extendStoreIfRequired(wrappedFormattedSamples g
 	}
 }
 
-func (store *cachedMetricsStore) addSamplesToStore(wrappedFormattedSamples globetest.WrappedFormattedSamples, workerLocation string, childJobId string, subfraction float64) {
+func (store *cachedMetricsStore) addSamplesToStore(wrappedFormattedSamples globetest.FormattedSamples, workerLocation string, childJobId string, subfraction float64) {
 	// Find the correct interval
 	for i := len(store.collectedIntervals) - 1; i >= 0; i-- {
 		if store.collectedIntervals[i].flushCount == wrappedFormattedSamples.FlushCount {
@@ -168,14 +168,14 @@ func (store *cachedMetricsStore) addSamplesToStore(wrappedFormattedSamples globe
 					// Add the samples
 					locationSubJob := &store.collectedIntervals[i].collectedMetrics.locations[workerLocation][j]
 
-					for _, sampleEnvelope := range wrappedFormattedSamples.SampleEnvelopes {
+					for _, sample := range wrappedFormattedSamples.Samples {
 						locationSubJob.wrappedMetrics = append(locationSubJob.wrappedMetrics, wrappedMetric{
 							metric: metric{
-								Contains: sampleEnvelope.Metric.Contains.String(),
-								Type:     sampleEnvelope.Metric.Type,
-								Value:    sampleEnvelope.Data.Value,
+								Contains: sample.Metric.Contains.String(),
+								Type:     sample.Metric.Type,
+								Value:    sample.Value,
 							},
-							name:        sampleEnvelope.Metric.Name,
+							name:        sample.Metric.Name,
 							location:    workerLocation,
 							subFraction: subfraction,
 							childJobId:  childJobId,
