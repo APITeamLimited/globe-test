@@ -38,10 +38,11 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 		return nil, err
 	}
 
-	err = validators.BatchPerHost(options)
-	if err != nil {
-		return nil, err
-	}
+	// Not used
+	// err = validators.BatchPerHost(options)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	if options.Duration.Valid {
 		err = validators.Duration(options, job)
@@ -70,7 +71,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 		return nil, err
 	}
 
-	err = validators.ExecutionMode(options)
+	err = validators.ExecutionMode(options, job.TestData.RootNode.GetVariant())
 	if err != nil {
 		return nil, err
 	}

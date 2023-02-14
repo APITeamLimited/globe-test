@@ -45,6 +45,7 @@ func (c *Connection) Request(method string, url goja.Value, args ...goja.Value) 
 // taking goja.Values as arguments
 func performRequest(c *Connection, method string, url goja.Value, args ...goja.Value) (*Response, error) {
 	state := c.moduleInstance.vu.State()
+
 	if state == nil {
 		return nil, ErrHTTPForbiddenInInitContext
 	}

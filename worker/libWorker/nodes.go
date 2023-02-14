@@ -27,6 +27,8 @@ type (
 		// Map of script name to goja.Callable
 		RegisterExports(filename string, exports map[string]goja.Callable) error
 		GetScripts() map[string]map[string]goja.Callable
+		// Cached value of batched requests
+		// GetBatchedRequests(rt *goja.Runtime) [][]goja.Value
 	}
 
 	SourceScript struct {
@@ -51,31 +53,40 @@ type (
 		Name         string                 `json:"name"`
 		FinalRequest map[string]interface{} `json:"finalRequest"`
 		Scripts      []SourceScript         `json:"scripts"`
+		batchCache   [][]goja.Value         `json:"-"`
 	}
 
 	GroupNode struct {
-		Variant  string         `json:"variant"` // group
-		Id       string         `json:"id"`
-		Name     string         `json:"name"`
-		Scripts  []SourceScript `json:"script"`
-		Children []Node         `json:"children"`
+		Variant    string         `json:"variant"` // group
+		Id         string         `json:"id"`
+		Name       string         `json:"name"`
+		Scripts    []SourceScript `json:"script"`
+		Children   []Node         `json:"children"`
+		batchCache [][]goja.Value `json:"-"`
+	}
+
+	CompilerOptions struct {
+		MultipleScripts bool `json:"multipleScripts"`
 	}
 
 	TestData struct {
-		RootNode   Node         `json:"rootNode"`
-		RootScript SourceScript `json:"rootScript"`
+		RootNode        Node            `json:"rootNode"`
+		RootScript      SourceScript    `json:"rootScript"`
+		CompilerOptions CompilerOptions `json:"compilerOptions"`
 	}
 )
 
 func ExtractTestData(rawTestData map[string]interface{}) (*TestData, error) {
-	testData := TestData{}
+	compilerOptions := CompilerOptions{}
 
-	if rootNode, ok := rawTestData["rootNode"]; ok {
-		if node, err := extractNode(rootNode.(map[string]interface{})); err != nil {
-			return &testData, err
-		} else {
-			testData.RootNode = node
+	if rawCompilerOptions, ok := rawTestData["compilerOptions"]; ok {
+		if multipleScripts, ok := rawCompilerOptions.(map[string]interface{})["multipleScripts"]; ok {
+			compilerOptions.MultipleScripts = multipleScripts.(bool)
 		}
+	}
+
+	testData := TestData{
+		CompilerOptions: compilerOptions,
 	}
 
 	if rootScript, ok := rawTestData["rootScript"]; ok {
@@ -87,13 +98,25 @@ func ExtractTestData(rawTestData map[string]interface{}) (*TestData, error) {
 		return &testData, errors.New("rootScript not found")
 	}
 
+	if rootNode, ok := rawTestData["rootNode"]; ok {
+		if node, err := extractNode(rootNode.(map[string]interface{}), true, testData.CompilerOptions.MultipleScripts, testData.RootScript.Name); err != nil {
+			return &testData, err
+		} else if node != nil {
+			testData.RootNode = node
+		}
+	}
+
 	return &testData, nil
 }
 
-func extractNode(rawNode map[string]interface{}) (Node, error) {
+func extractNode(rawNode map[string]interface{}, topLevel, multipleScripts bool, rootScriptName string) (Node, error) {
 	if variant, ok := rawNode["variant"]; ok {
 		switch variant {
 		case "standaloneScript":
+			if !multipleScripts && !topLevel {
+				return nil, nil
+			}
+
 			standaloneScriptNode := StandaloneScriptNode{
 				Variant: "standaloneScript",
 				Id:      rawNode["id"].(string),
@@ -110,10 +133,16 @@ func extractNode(rawNode map[string]interface{}) (Node, error) {
 
 			if rawScripts, ok := rawNode["scripts"]; ok {
 				for _, rawScript := range rawScripts.([]interface{}) {
-					parsedScripts = append(parsedScripts, SourceScript{
+					script := SourceScript{
 						Name:     rawScript.(map[string]interface{})["name"].(string),
 						Contents: rawScript.(map[string]interface{})["contents"].(string),
-					})
+					}
+
+					if multipleScripts {
+						parsedScripts = append(parsedScripts, script)
+					} else if topLevel && script.Name == rootScriptName {
+						parsedScripts = append(parsedScripts, script)
+					}
 				}
 			} else {
 				return nil, errors.New("no scripts found")
@@ -133,10 +162,16 @@ func extractNode(rawNode map[string]interface{}) (Node, error) {
 
 			if rawScripts, ok := rawNode["scripts"]; ok {
 				for _, rawScript := range rawScripts.([]interface{}) {
-					parsedScripts = append(parsedScripts, SourceScript{
+					script := SourceScript{
 						Name:     rawScript.(map[string]interface{})["name"].(string),
 						Contents: rawScript.(map[string]interface{})["contents"].(string),
-					})
+					}
+
+					if multipleScripts {
+						parsedScripts = append(parsedScripts, script)
+					} else if topLevel && script.Name == rootScriptName {
+						parsedScripts = append(parsedScripts, script)
+					}
 				}
 			} else {
 				return nil, errors.New("no scripts found")
@@ -146,7 +181,7 @@ func extractNode(rawNode map[string]interface{}) (Node, error) {
 
 			if rawChildren, ok := rawNode["children"]; ok {
 				for _, rawChild := range rawChildren.([]interface{}) {
-					if child, err := extractNode(rawChild.(map[string]interface{})); err != nil {
+					if child, err := extractNode(rawChild.(map[string]interface{}), false, multipleScripts, rootScriptName); err != nil {
 						return nil, err
 					} else {
 						children = append(children, child)
@@ -214,6 +249,11 @@ func (n *StandaloneScriptNode) GetScripts() map[string]map[string]goja.Callable 
 	return exports
 }
 
+func (n *StandaloneScriptNode) GetBatchedRequests(_ *goja.Runtime) [][]goja.Value {
+	// Can't batch standalone scripts
+	return [][]goja.Value{}
+}
+
 func (n *HTTPRequestNode) GetVariant() string {
 	return n.Variant
 }
@@ -262,6 +302,23 @@ func (n *HTTPRequestNode) GetScripts() map[string]map[string]goja.Callable {
 
 	return exports
 }
+
+// func (n *HTTPRequestNode) GetBatchedRequests(rt *goja.Runtime) [][]goja.Value {
+// 	if n.batchCache != nil {
+// 		return n.batchCache
+// 	}
+
+// 	n.batchCache = [][]goja.Value{
+// 		{
+// 			rt.ToValue(n.FinalRequest["method"]),
+// 			rt.ToValue(n.FinalRequest["url"]),
+// 			rt.ToValue(n.FinalRequest["headers"]),
+// 			rt.ToValue(n.FinalRequest["params"]),
+// 		},
+// 	}
+
+// 	return n.batchCache
+// }
 
 func (n *GroupNode) GetVariant() string {
 	return n.Variant
@@ -312,9 +369,29 @@ func (n *GroupNode) GetScripts() map[string]map[string]goja.Callable {
 	return exports
 }
 
+// func (n *GroupNode) GetBatchedRequests(rt *goja.Runtime) [][]goja.Value {
+// 	if n.batchCache != nil {
+// 		return n.batchCache
+// 	}
+
+// 	n.batchCache = [][]goja.Value{}
+
+// 	for _, child := range n.Children {
+// 		n.batchCache = append(n.batchCache, child.GetBatchedRequests(rt)...)
+// 	}
+
+// 	return n.batchCache
+// }
+
 func GetInnerNode(parentNode Node, path string) (Node, error) {
+	// Unescape path
+	escapedPath, err := url.QueryUnescape(path)
+	if err != nil {
+		return nil, err
+	}
+
 	// Split path at slash
-	parts := strings.Split(path, "/")
+	parts := strings.Split(escapedPath, "/")
 
 	// Find first part in node
 
@@ -322,13 +399,13 @@ func GetInnerNode(parentNode Node, path string) (Node, error) {
 
 	if parentNodeVariant == HTTPRequestVariant {
 		if len(parts) > 2 {
-			return nil, fmt.Errorf("path %s not found on node %s, variant %s", path, parentNode.GetId(), parentNode.GetVariant())
+			return nil, fmt.Errorf("path %s not found on node %s, variant %s", escapedPath, parentNode.GetId(), parentNode.GetVariant())
 		}
 
 		return parentNode, nil
 	} else if parentNodeVariant == StandaloneScriptVariant {
 		if len(parts) > 2 {
-			return nil, fmt.Errorf("path %s not found on node %s, variant %s", path, parentNode.GetId(), parentNode.GetVariant())
+			return nil, fmt.Errorf("path %s not found on node %s, variant %s", escapedPath, parentNode.GetId(), parentNode.GetVariant())
 		}
 
 		return parentNode, nil
@@ -344,7 +421,7 @@ func GetInnerNode(parentNode Node, path string) (Node, error) {
 			}
 		}
 
-		return nil, fmt.Errorf("path %s not found on node %s, variant %s", path, parentNode.GetId(), parentNode.GetVariant())
+		return nil, fmt.Errorf("path %s not found on node %s, variant %s", escapedPath, parentNode.GetId(), parentNode.GetVariant())
 	}
 	return nil, fmt.Errorf("unknown node variant: %s", parentNodeVariant)
 

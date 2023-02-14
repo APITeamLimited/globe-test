@@ -71,53 +71,6 @@ type MessageQueue struct {
 }
 
 func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
-	// go func() {
-	// 	messageQueue := gs.MessageQueue()
-
-	// 	isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
-	// 	if !isTerminal {
-	// 		messageQueue.Mutex.Lock()
-	// 		messageQueue.QueueCount++
-	// 		messageQueue.Mutex.Unlock()
-
-	// 		gs.ConnWriteMutex().Lock()
-	// 		gs.Conn().WriteJSON(formatMessage(gs, message, messageType))
-	// 		gs.ConnWriteMutex().Unlock()
-
-	// 		messageQueue.Mutex.Lock()
-	// 		messageQueue.QueueCount--
-
-	// 		// Must unlock the mutex before sending the new count to the channel
-	// 		messageQueue.Mutex.Unlock()
-	// 		messageQueue.NewQueueCount <- messageQueue.QueueCount
-
-	// 		return
-	// 	}
-
-	// 	messageQueue.Mutex.Lock()
-	// 	queueCount := messageQueue.QueueCount
-	// 	messageQueue.Mutex.Unlock()
-
-	// 	// If the message is terminal, we want to make sure that all messages are sent before we return
-	// 	if queueCount > 0 {
-	// 		for newCount := range messageQueue.NewQueueCount {
-	// 			if newCount == 0 {
-	// 				break
-	// 			}
-	// 		}
-	// 	}
-
-	// 	gs.ConnWriteMutex().Lock()
-	// 	gs.Conn().WriteJSON(formatMessage(gs, message, messageType))
-	// 	gs.ConnWriteMutex().Unlock()
-	// }()
-
-	// isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
-
-	// if isTerminal {
-	// 	time.Sleep(300 * time.Millisecond)
-	// }
-
 	serializedMessage, err := json.Marshal(formatMessage(gs, message, messageType))
 	if err != nil {
 		fmt.Println("Error serializing message: ", err.Error())

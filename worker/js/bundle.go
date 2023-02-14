@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -81,14 +82,48 @@ func NewBundle(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, f
 
 	compiledPrograms := make(map[string]*goja.Program)
 
-	for _, src := range *src {
-		// Compile sources, both ES5 and ES6 are supported.
-		pgm, _, err := c.Compile(string(src.Data), src.URL.String(), false)
-		if err != nil {
-			return nil, err
-		}
+	var compileErr error
+	compileLockMutex := &sync.Mutex{}
 
-		compiledPrograms[src.URL.String()] = pgm
+	resultCountChan := make(chan int, len(*src))
+
+	for _, src := range *src {
+		go func(src *loader.SourceData) {
+			defer func() {
+				resultCountChan <- 1
+			}()
+
+			srcCompiler := compiler.New(piState.Logger)
+
+			srcCompiler.Options = compiler.Options{
+				CompatibilityMode: compatMode,
+				Strict:            true,
+				SourceMapLoader:   generateSourceMapLoader(piState.Logger, filesystems),
+			}
+
+			// Compile sources, both ES5 and ES6 are supported.
+			pgm, _, err := c.Compile(string(src.Data), src.URL.String(), false)
+
+			compileLockMutex.Lock()
+			defer compileLockMutex.Unlock()
+
+			if err != nil {
+				if compileErr == nil {
+					compileErr = err
+				}
+				return
+			}
+
+			compiledPrograms[src.URL.String()] = pgm
+		}(src)
+	}
+
+	for i := 0; i < len(*src); i++ {
+		<-resultCountChan
+	}
+
+	if compileErr != nil {
+		return nil, compileErr
 	}
 
 	filenames := make([]*url.URL, len(*src))

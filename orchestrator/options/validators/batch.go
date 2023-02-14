@@ -6,7 +6,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
-const maxBatchSize = 20
+const maxBatchSize = 50
 
 func Batch(options *libWorker.Options) error {
 	// Ensure that the batch size is not too large

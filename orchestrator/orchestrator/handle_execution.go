@@ -28,7 +28,7 @@ const (
 	maxConsoleLogs = 100
 )
 
-var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "JOB_INFO", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
+var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
 
 func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution) (string, error) {
 	libOrch.UpdateStatus(gs, "LOADING")

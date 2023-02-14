@@ -14,7 +14,6 @@ import (
 
 func fetchJob(ctx context.Context, orchestratorClient *redis.Client, jobId string) (*libOrch.Job, error) {
 	jobRaw, err := orchestratorClient.HGet(ctx, jobId, "job").Result()
-
 	if err != nil {
 		return nil, err
 	}

@@ -95,6 +95,25 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 		return
 	}
 
+	// HSetNX assignedOrchestrator to the orchestratorId
+	assignmentResult, err := orchestratorClient.HSetNX(ctx, job.Id, "assignedOrchestrator", orchestratorId).Result()
+
+	// If result is 0, orchestrator is already assigned
+	if !assignmentResult {
+		executionList.mutex.Unlock()
+		return
+	}
+
+	// If there was an error, return
+	if err != nil {
+		fmt.Println("Error assigning orchestrator to job:", err)
+		executionList.mutex.Unlock()
+		return
+	}
+
+	executionList.addJob(job)
+	defer executionList.removeJob(job.Id)
+
 	executionList.mutex.Unlock()
 
 	gs := NewGlobalState(ctx, orchestratorClient, job, orchestratorId, creditsClient, standalone, runAuthClient, loadZones)
@@ -111,27 +130,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 		libOrch.HandleError(gs, fmt.Errorf("job options are nil"))
 	}
 
-	// Check execution capacity again, bearing in mind options
-	executionList.mutex.Lock()
-	if !executionList.checkExecutionCapacity(options) {
-		executionList.mutex.Unlock()
-		return
-	}
-
-	// HSetNX assignedOrchestrator to the orchestratorId
-	assignmentResult, err := orchestratorClient.HSetNX(ctx, job.Id, "assignedOrchestrator", orchestratorId).Result()
-
-	// If result is 0, orchestrator is already assigned
-	if !assignmentResult {
-		executionList.mutex.Unlock()
-		return
-	}
-
-	if err != nil {
-		executionList.mutex.Unlock()
-		return
-	}
-
 	// We got the job and have confirmed capacity for it
 
 	// Check got credits
@@ -140,7 +138,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 
 		if credits == 0 {
 			libOrch.HandleError(gs, fmt.Errorf("no credits available"))
-			executionList.mutex.Unlock()
 			return
 		}
 
@@ -148,10 +145,6 @@ func checkIfCanExecute(ctx context.Context, orchestratorClient *redis.Client,
 	}
 
 	job.AssignedOrchestrator = orchestratorId
-
-	executionList.addJob(job)
-	executionList.mutex.Unlock()
-	defer executionList.removeJob(job.Id)
 
 	fmt.Println("Assigned job:", job.Id)
 

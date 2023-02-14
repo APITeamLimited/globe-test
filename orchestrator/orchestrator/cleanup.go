@@ -20,16 +20,9 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 	// Clean up worker
 	// Set job in orchestrator redis
 
-	marshalledJobInfo, err := json.Marshal(job)
-	if err != nil {
-		return err
-	}
-
-	libOrch.DispatchMessage(gs, string(marshalledJobInfo), "JOB_INFO")
-
 	// Store results in MongoDB
 	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)
-
+	var err error
 	var jobBucket *gridfs.Bucket
 	if gs.Standalone() {
 		jobBucket, err = gridfs.NewBucket(storeMongoDB, options.GridFSBucket().SetName(bucketName))

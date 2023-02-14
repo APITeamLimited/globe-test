@@ -8,9 +8,14 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-func ExecutionMode(options *libWorker.Options) error {
+func ExecutionMode(options *libWorker.Options, rootNodeVariant string) error {
 	if !options.ExecutionMode.Valid {
-		return errors.New("the option executionMode must be specified")
+		// If the execution mode is not set, we default to httpSingle if the root node variant is httpSingle
+		if rootNodeVariant == libWorker.HTTPRequestVariant {
+			options.ExecutionMode = types.NewNullExecutionMode(types.HTTPSingleExecutionMode, true)
+		} else {
+			options.ExecutionMode = types.NewNullExecutionMode(types.HTTPMultipleExecutionMode, true)
+		}
 	}
 
 	if options.ExecutionMode.Value == types.HTTPSingleExecutionMode {
