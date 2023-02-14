@@ -13,12 +13,10 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/executor"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
 // ExecutionScheduler is the local implementation of libWorker.ExecutionScheduler
 type ExecutionScheduler struct {
-	initProgress    *pb.ProgressBar
 	executorConfigs []libWorker.ExecutorConfig // sorted by (startTime, ID)
 	executors       []libWorker.Executor       // sorted by (startTime, ID), excludes executors with no work
 	executionPlan   []libWorker.ExecutionStep
@@ -80,7 +78,6 @@ func NewExecutionScheduler(trs *libWorker.TestRunState) (*ExecutionScheduler, er
 	}
 
 	return &ExecutionScheduler{
-		initProgress:    pb.New(pb.WithConstLeft("Init")),
 		executors:       executors,
 		executorConfigs: executorConfigs,
 		executionPlan:   executionPlan,
@@ -119,13 +116,6 @@ func (e *ExecutionScheduler) GetExecutorConfigs() []libWorker.ExecutorConfig {
 	return e.executorConfigs
 }
 
-// GetInitProgressBar returns the progress bar associated with the Init
-// function. After the Init is done, it is "hijacked" to display real-time
-// execution statistics as a text bar.
-func (e *ExecutionScheduler) GetInitProgressBar() *pb.ProgressBar {
-	return e.initProgress
-}
-
 // GetExecutionPlan is a helper method so users of the local execution scheduler
 // don't have to calculate the execution plan again.
 func (e *ExecutionScheduler) GetExecutionPlan() []libWorker.ExecutionStep {
@@ -148,26 +138,6 @@ func (e *ExecutionScheduler) initVU(
 
 	logger.Debugf("Initialized VU #%d", vuIDGlobal)
 	return vu, nil
-}
-
-// getRunStats is a helper function that can be used as the execution
-// scheduler's progressbar substitute (i.e. hijack).
-func (e *ExecutionScheduler) getRunStats() string {
-	status := "running"
-	if e.state.IsPaused() {
-		status = "paused"
-	}
-	if e.state.HasStarted() {
-		dur := e.state.GetCurrentTestRunDuration()
-		status = fmt.Sprintf("%s (%s)", status, pb.GetFixedLengthDuration(dur, e.maxDuration))
-	}
-
-	vusFmt := pb.GetFixedLengthIntFormat(int64(e.maxPossibleVUs))
-	return fmt.Sprintf(
-		"%s, "+vusFmt+"/"+vusFmt+" VUs, %d complete and %d interrupted iterations",
-		status, e.state.GetCurrentlyActiveVUsCount(), e.state.GetInitializedVUsCount(),
-		e.state.GetFullIterationCount(), e.state.GetPartialIterationCount(),
-	)
 }
 
 func (e *ExecutionScheduler) initVUsConcurrently(
@@ -270,14 +240,6 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- workerM
 	doneInits := e.initVUsConcurrently(subctx, samplesOut, vusToInitialize, runtime.GOMAXPROCS(0), logger, workerInfo)
 
 	initializedVUs := new(uint64)
-	vusFmt := pb.GetFixedLengthIntFormat(int64(vusToInitialize))
-	e.initProgress.Modify(
-		pb.WithProgress(func() (float64, []string) {
-			doneVUs := atomic.LoadUint64(initializedVUs)
-			right := fmt.Sprintf(vusFmt+"/%d VUs initialized", doneVUs, vusToInitialize)
-			return float64(doneVUs) / float64(vusToInitialize), []string{right}
-		}),
-	)
 
 	for vuNum := uint64(0); vuNum < vusToInitialize; vuNum++ {
 		select {
@@ -328,19 +290,9 @@ func (e *ExecutionScheduler) runExecutor(
 		"type":      executorConfig.GetType(),
 		"startTime": executorStartTime,
 	})
-	executorProgress := executor.GetProgress()
 
 	// Check if we have to wait before starting the actual executor execution
 	if executorStartTime > 0 {
-		startTime := time.Now()
-		executorProgress.Modify(
-			pb.WithStatus(pb.Waiting),
-			pb.WithProgress(func() (float64, []string) {
-				remWait := (executorStartTime - time.Since(startTime))
-				return 0, []string{"waiting", pb.GetFixedLengthDuration(remWait, executorStartTime)}
-			}),
-		)
-
 		executorLogger.Debugf("Waiting for executor start time...")
 		select {
 		case <-runCtx.Done():
@@ -351,10 +303,6 @@ func (e *ExecutionScheduler) runExecutor(
 		}
 	}
 
-	executorProgress.Modify(
-		pb.WithStatus(pb.Running),
-		pb.WithConstProgress(0, "started"),
-	)
 	executorLogger.Debugf("Starting executor")
 	err := executor.Run(runCtx, engineOut, workerInfo) // executor should handle context cancel itself
 	if err == nil {
@@ -377,7 +325,6 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 
 	executorsCount := len(e.executors)
 	logger := e.state.Test.Logger.WithField("phase", "local-execution-scheduler-run")
-	e.initProgress.Modify(pb.WithConstLeft("Run"))
 	var interrupted bool
 	defer func() {
 		e.state.MarkEnded()
@@ -389,7 +336,6 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	if e.state.IsPaused() {
 		logger.Debug("Execution is paused, waiting for resume or interrupt...")
 		e.state.SetExecutionStatus(libWorker.ExecutionStatusPausedBeforeRun)
-		e.initProgress.Modify(pb.WithConstProgress(1, "paused"))
 		select {
 		case <-e.state.ResumeNotify():
 			// continue
@@ -399,7 +345,6 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	}
 
 	e.state.MarkStarted()
-	e.initProgress.Modify(pb.WithConstProgress(1, "running"))
 
 	logger.WithFields(logrus.Fields{"executorsCount": executorsCount}).Debugf("Start of test run")
 
@@ -413,13 +358,11 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	if !e.state.Test.Options.NoSetup.Bool {
 		logger.Debug("Running setup()")
 		e.state.SetExecutionStatus(libWorker.ExecutionStatusSetup)
-		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
 		if err := e.state.Test.Runner.Setup(runSubCtx, engineOut, workerInfo); err != nil {
 			logger.WithField("error", err).Debug("setup() aborted by error")
 			return err
 		}
 	}
-	e.initProgress.Modify(pb.WithHijack(e.getRunStats))
 
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
@@ -449,7 +392,6 @@ func (e *ExecutionScheduler) Run(globalCtx, runCtx context.Context, engineOut ch
 	if !e.state.Test.Options.NoTeardown.Bool {
 		logger.Debug("Running teardown()")
 		e.state.SetExecutionStatus(libWorker.ExecutionStatusTeardown)
-		e.initProgress.Modify(pb.WithConstProgress(1, "teardown()"))
 
 		// We run teardown() with the global context, so it isn't interrupted by
 		// aborts caused by thresholds or even Ctrl+C (unless used twice).

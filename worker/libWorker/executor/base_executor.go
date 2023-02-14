@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +20,6 @@ type BaseExecutor struct {
 	iterSegIndexMx *sync.Mutex
 	iterSegIndex   *libWorker.SegmentedIndex
 	logger         *logrus.Entry
-	progress       *pb.ProgressBar
 }
 
 // NewBaseExecutor returns an initialized BaseExecutor
@@ -33,10 +31,6 @@ func NewBaseExecutor(config libWorker.ExecutorConfig, es *libWorker.ExecutionSta
 		logger:         logger,
 		iterSegIndexMx: new(sync.Mutex),
 		iterSegIndex:   segIdx,
-		progress: pb.New(
-			pb.WithLeft(config.GetName),
-			pb.WithLogger(logger),
-		),
 	}
 }
 
@@ -62,11 +56,6 @@ func (bs *BaseExecutor) GetConfig() libWorker.ExecutorConfig {
 // GetLogger returns the executor logger entry.
 func (bs *BaseExecutor) GetLogger() *logrus.Entry {
 	return bs.logger
-}
-
-// GetProgress just returns the progressbar pointer.
-func (bs *BaseExecutor) GetProgress() *pb.ProgressBar {
-	return bs.progress
 }
 
 // getMetricTags returns a tag set that can be used to emit metrics by the

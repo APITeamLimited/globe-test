@@ -14,7 +14,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
 const rampingArrivalRateType = "ramping-arrival-rate"
@@ -314,8 +313,6 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	// TODO: refactor and simplify
 	timeUnit := varr.config.TimeUnit.TimeDuration()
 	startArrivalRate := getScaledArrivalRate(segment, varr.config.StartRate.Int64, timeUnit)
-	maxUnscaledRate := getStagesUnscaledMaxTarget(varr.config.StartRate.Int64, varr.config.Stages)
-	maxArrivalRatePerSec, _ := getArrivalRatePerSec(getScaledArrivalRate(segment, maxUnscaledRate, timeUnit)).Float64()
 	startTickerPeriod := getTickerPeriod(startArrivalRate)
 
 	// Make sure the log and the progress bar have accurate information
@@ -345,46 +342,12 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 
 	activeVUsCount := uint64(0)
 	tickerPeriod := int64(startTickerPeriod.Duration)
-	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
-	itersFmt := pb.GetFixedLengthFloatFormat(maxArrivalRatePerSec, 2) + " iters/s"
 
-	progressFn := func() (float64, []string) {
-		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
-		currentTickerPeriod := atomic.LoadInt64(&tickerPeriod)
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			vusPool.Running(), currActiveVUs)
-
-		itersPerSec := 0.0
-		if currentTickerPeriod > 0 {
-			itersPerSec = float64(time.Second) / float64(currentTickerPeriod)
-		}
-		progIters := fmt.Sprintf(itersFmt, itersPerSec)
-
-		right := []string{progVUs, duration.String(), progIters}
-
-		spent := time.Since(startTime)
-		if spent > duration {
-			return 1, right
-		}
-
-		spentDuration := pb.GetFixedLengthDuration(spent, duration)
-		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
-		right[1] = progDur
-
-		return math.Min(1, float64(spent)/float64(duration)), right
-	}
-
-	varr.progress.Modify(pb.WithProgress(progressFn))
 	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
-		Name:       varr.config.Name,
-		Executor:   varr.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
+		Name:      varr.config.Name,
+		Executor:  varr.config.Type,
+		StartTime: startTime,
 	})
-	go func() {
-		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &varr, progressFn)
-		close(waitOnProgressChannel)
-	}()
 
 	returnVU := func(u libWorker.InitializedVU) {
 		varr.executionState.ReturnVU(u, true)

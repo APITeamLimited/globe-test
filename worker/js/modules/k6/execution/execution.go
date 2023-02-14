@@ -103,10 +103,6 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) {
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now#return_value
 			return getScenarioState().StartTime.UnixNano() / int64(time.Millisecond)
 		},
-		"progress": func() interface{} {
-			p, _ := getScenarioState().ProgressFn()
-			return p
-		},
 		"iterationInInstance": func() interface{} {
 			if vuState.GetScenarioLocalVUIter == nil {
 				common.Throw(rt, errRunInInitContext)

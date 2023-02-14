@@ -12,7 +12,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
 const constantVUsType = "constant-vus"
@@ -139,29 +138,11 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.S
 		logrus.Fields{"vus": numVUs, "duration": duration, "type": clv.config.GetType()},
 	).Debug("Starting executor run...")
 
-	progressFn := func() (float64, []string) {
-		spent := time.Since(startTime)
-		right := []string{fmt.Sprintf("%d VUs", numVUs)}
-		if spent > duration {
-			right = append(right, duration.String())
-			return 1, right
-		}
-		right = append(right, fmt.Sprintf("%s/%s",
-			pb.GetFixedLengthDuration(spent, duration), duration))
-		return float64(spent) / float64(duration), right
-	}
-	clv.progress.Modify(pb.WithProgress(progressFn))
 	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
-		Name:       clv.config.Name,
-		Executor:   clv.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
+		Name:      clv.config.Name,
+		Executor:  clv.config.Type,
+		StartTime: startTime,
 	})
-
-	go func() {
-		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, clv, progressFn)
-		close(waitOnProgressChannel)
-	}()
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup{}

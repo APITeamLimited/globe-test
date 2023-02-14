@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/pb"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
@@ -104,7 +103,6 @@ type ExecutorConfig interface {
 type ScenarioState struct {
 	Name, Executor string
 	StartTime      time.Time
-	ProgressFn     func() (float64, []string)
 }
 
 // InitVUFunc is just a shorthand so we don't have to type the function
@@ -115,7 +113,6 @@ type InitVUFunc func(context.Context, *logrus.Entry, *WorkerInfo) (InitializedVU
 type Executor interface {
 	GetConfig() ExecutorConfig
 
-	GetProgress() *pb.ProgressBar
 	GetLogger() *logrus.Entry
 
 	Init(ctx context.Context) error

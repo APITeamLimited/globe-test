@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
 const constantArrivalRateType = "constant-arrival-rate"
@@ -201,7 +199,6 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	// TODO: refactor and simplify
 	arrivalRate := getScaledArrivalRate(car.et.Segment, car.config.Rate.Int64, car.config.TimeUnit.TimeDuration())
 	tickerPeriod := getTickerPeriod(arrivalRate).TimeDuration()
-	arrivalRatePerSec, _ := getArrivalRatePerSec(arrivalRate).Float64()
 
 	// Make sure the log and the progress bar have accurate information
 	car.logger.WithFields(logrus.Fields{
@@ -231,39 +228,11 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	}()
 	activeVUsCount := uint64(0)
 
-	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
-	progIters := fmt.Sprintf(
-		pb.GetFixedLengthFloatFormat(arrivalRatePerSec, 2)+" iters/s", arrivalRatePerSec)
-	progressFn := func() (float64, []string) {
-		spent := time.Since(startTime)
-		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			vusPool.Running(), currActiveVUs)
-
-		right := []string{progVUs, duration.String(), progIters}
-
-		if spent > duration {
-			return 1, right
-		}
-
-		spentDuration := pb.GetFixedLengthDuration(spent, duration)
-		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
-		right[1] = progDur
-
-		return math.Min(1, float64(spent)/float64(duration)), right
-	}
-	car.progress.Modify(pb.WithProgress(progressFn))
 	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
-		Name:       car.config.Name,
-		Executor:   car.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
+		Name:      car.config.Name,
+		Executor:  car.config.Type,
+		StartTime: startTime,
 	})
-
-	go func() {
-		trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
-		close(waitOnProgressChannel)
-	}()
 
 	returnVU := func(u libWorker.InitializedVU) {
 		car.executionState.ReturnVU(u, true)

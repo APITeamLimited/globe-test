@@ -14,7 +14,6 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
-	"github.com/APITeamLimited/globe-test/worker/pb"
 )
 
 const rampingVUsType = "ramping-vus"
@@ -502,7 +501,7 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- workerMetrics.SampleCon
 		return fmt.Errorf("%s expected graceful end offset at %s to be final", vlv.config.GetName(), maxDuration)
 	}
 	waitOnProgressChannel := make(chan struct{})
-	startTime, maxDurationCtx, regularDurationCtx, cancel := getDurationContexts(
+	startTime, maxDurationCtx, _, cancel := getDurationContexts(
 		ctx, regularDuration, maxDuration-regularDuration,
 	)
 	defer func() {
@@ -529,18 +528,12 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- workerMetrics.SampleCon
 		runIteration:   getIterationRunner(vlv.executionState, vlv.logger),
 	}
 
-	progressFn := runState.makeProgressFn(regularDuration)
 	maxDurationCtx = libWorker.WithScenarioState(maxDurationCtx, &libWorker.ScenarioState{
-		Name:       vlv.config.Name,
-		Executor:   vlv.config.Type,
-		StartTime:  runState.started,
-		ProgressFn: progressFn,
+		Name:      vlv.config.Name,
+		Executor:  vlv.config.Type,
+		StartTime: runState.started,
 	})
-	vlv.progress.Modify(pb.WithProgress(progressFn))
-	go func() {
-		trackProgress(ctx, maxDurationCtx, regularDurationCtx, vlv, progressFn)
-		close(waitOnProgressChannel)
-	}()
+
 	defer runState.wg.Wait()
 	// this will populate stopped VUs and run runLoopsIfPossible on each VU
 	// handle in a new goroutine
@@ -575,22 +568,6 @@ type rampingVUsRunState struct {
 	wg             sync.WaitGroup
 
 	runIteration func(context.Context, libWorker.ActiveVU) bool // a helper closure function that runs a single iteration
-}
-
-func (rs *rampingVUsRunState) makeProgressFn(regular time.Duration) (progressFn func() (float64, []string)) {
-	vusFmt := pb.GetFixedLengthIntFormat(int64(rs.maxVUs))
-	regularDuration := pb.GetFixedLengthDuration(regular, regular)
-
-	return func() (float64, []string) {
-		spent := time.Since(rs.started)
-		cur := atomic.LoadInt64(rs.activeVUsCount)
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs", cur, rs.maxVUs)
-		if spent > regular {
-			return 1, []string{progVUs, regular.String()}
-		}
-		status := pb.GetFixedLengthDuration(spent, regular) + "/" + regularDuration
-		return float64(spent) / float64(regular), []string{progVUs, status}
-	}
 }
 
 func (rs *rampingVUsRunState) runLoopsIfPossible(ctx context.Context, cancel func()) {
