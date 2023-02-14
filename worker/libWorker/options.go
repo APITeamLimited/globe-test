@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"gopkg.in/guregu/null.v3"
 )

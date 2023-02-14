@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/httpext"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/dop251/goja"
 	"gopkg.in/guregu/null.v3"
 )

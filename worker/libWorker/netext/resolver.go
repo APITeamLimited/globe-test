@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/lib/types"
 )
 
 // MultiResolver returns all IP addresses for the given host.

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 func ExecutionMode(options *libWorker.Options, rootNodeVariant string) error {

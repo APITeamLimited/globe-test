@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 const constantVUsType = "constant-vus"

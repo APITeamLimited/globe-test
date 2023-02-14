@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 const maxDurationMinutesDefault int64 = 50

@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 func sumStagesDuration(stages []Stage) (result time.Duration) {

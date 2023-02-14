@@ -1,8 +1,8 @@
 package options
 
 import (
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"gopkg.in/guregu/null.v3"
 )
 

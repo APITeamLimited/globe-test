@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/worker/js/common"
@@ -30,7 +31,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 )
 

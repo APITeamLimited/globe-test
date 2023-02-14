@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/netext/grpcext"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 
 	"github.com/dop251/goja"

@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"github.com/APITeamLimited/globe-test/lib/types"
 )
 
 // Separator for group IDs.

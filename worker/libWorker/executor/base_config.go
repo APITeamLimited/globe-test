@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/APITeamLimited/globe-test/lib/types"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
-	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
 // DefaultGracefulStopValue is the graceful top value for all executors, unless
