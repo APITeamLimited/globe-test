@@ -1,7 +1,6 @@
 package output
 
 import (
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
@@ -52,16 +51,6 @@ func (om *Manager) stopOutputs(upToID int) {
 	for i := 0; i < upToID; i++ {
 		if err := om.outputs[i].Stop(); err != nil {
 			om.logger.WithError(err).Errorf("Stopping output %d failed", i)
-		}
-	}
-}
-
-// SetRunStatus checks which outputs implement the WithRunStatusUpdates
-// interface and sets the provided RunStatus to them.
-func (om *Manager) SetRunStatus(status libWorker.RunStatus) {
-	for _, out := range om.outputs {
-		if statUpdOut, ok := out.(WithRunStatusUpdates); ok {
-			statUpdOut.SetRunStatus(status)
 		}
 	}
 }

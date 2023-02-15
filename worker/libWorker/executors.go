@@ -61,12 +61,6 @@ type ExecutorConfig interface {
 	GetStartTime() time.Duration
 	GetGracefulStop() time.Duration
 
-	// This is used to validate whether a particular script can run in the cloud
-	// or, in the future, in the native k6 distributed execution. Currently only
-	// the externally-controlled executor should return false.
-	IsDistributable() bool
-
-	GetEnv() map[string]string
 	// Allows us to get the non-default function the executor should run, if it
 	// has been specified.
 	//
@@ -93,9 +87,6 @@ type ExecutorConfig interface {
 	// Scales load options for child jobs proportionately based on their subFraction
 	// Should not modify the original options
 	ScaleOptions(subFraction float64) ExecutorConfig
-
-	// Estimated credits required to run the executor
-	//GetEstimatedRequiredCredits() float64
 }
 
 // ScenarioState holds runtime scenario information returned by the k6/execution

@@ -1,5 +1,3 @@
-// Custom loader for execution from redis
-
 package worker
 
 import (
@@ -7,15 +5,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/APITeamLimited/globe-test/errext"
+	"github.com/APITeamLimited/globe-test/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/js"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/errext"
-	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
-	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/spf13/afero"
-	"gopkg.in/guregu/null.v3"
 )
 
 func loadAndConfigureTest(
@@ -31,23 +28,11 @@ func loadAndConfigureTest(
 	filesystems := make(map[string]afero.Fs, 1)
 	filesystems["file"] = afero.NewMemMapFs()
 
-	// For now runtime options are constant for all tests
-	// TODO: make this configurable
-	runtimeOptions := libWorker.RuntimeOptions{
-		TestType:             null.StringFrom(testTypeJS),
-		IncludeSystemEnvVars: null.BoolFrom(false),
-		CompatibilityMode:    null.StringFrom("extended"),
-		NoThresholds:         null.BoolFrom(false),
-		SummaryExport:        null.StringFrom(""),
-		Env:                  make(map[string]string),
-	}
-
 	registry := workerMetrics.NewRegistry()
 
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.logger,
-		RuntimeOptions: runtimeOptions,
 		Registry:       registry,
 		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
 	}
@@ -87,20 +72,15 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 		Options: job.ChildOptions,
 	}
 
-	// Parse the thresholds, only if the --no-threshold flag is not set.
-	// If parsing the threshold expressions failed, consider it as an
-	// invalid configuration error.
-	if !lt.preInitState.RuntimeOptions.NoThresholds.Bool {
-		for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds {
-			err := thresholdsDefinition.Parse()
-			if err != nil {
-				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-			}
+	for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds {
+		err := thresholdsDefinition.Parse()
+		if err != nil {
+			return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+		}
 
-			err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
-			if err != nil {
-				return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-			}
+		err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
+		if err != nil {
+			return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
 		}
 	}
 

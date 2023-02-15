@@ -9,8 +9,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/APITeamLimited/globe-test/errext"
 	"github.com/APITeamLimited/globe-test/lib/types"
-	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 )
 
@@ -234,7 +234,6 @@ func getVUActivationParams(
 		RunContext:               ctx,
 		Scenario:                 conf.Name,
 		Exec:                     conf.GetExec(),
-		Env:                      conf.GetEnv(),
 		Tags:                     conf.GetTags(),
 		DeactivateCallback:       deactivateCallback,
 		GetNextIterationCounters: nextIterationCounters,

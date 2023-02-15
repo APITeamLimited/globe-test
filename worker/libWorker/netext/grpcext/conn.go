@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/APITeamLimited/globe-test/worker/js/modules"
+	"github.com/APITeamLimited/globe-test/js/modules"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 

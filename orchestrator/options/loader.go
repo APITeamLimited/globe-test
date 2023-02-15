@@ -5,24 +5,14 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/APITeamLimited/globe-test/js"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/spf13/afero"
-	"gopkg.in/guregu/null.v3"
 )
 
 func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker.Options, error) {
-	runtimeOptions := libWorker.RuntimeOptions{
-		TestType:             null.StringFrom("js"),
-		IncludeSystemEnvVars: null.BoolFrom(false),
-		CompatibilityMode:    null.StringFrom("extended"),
-		NoThresholds:         null.BoolFrom(false),
-		SummaryExport:        null.StringFrom(""),
-		Env:                  make(map[string]string),
-	}
-
 	sourceData, err := loader.LoadTestData(job.TestData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load test data: %w", err)
@@ -45,7 +35,6 @@ func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.Logger(),
-		RuntimeOptions: runtimeOptions,
 		Registry:       nil,
 		BuiltinMetrics: nil,
 	}

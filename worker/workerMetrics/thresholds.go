@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/errext"
+	"github.com/APITeamLimited/globe-test/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/lib/types"
-	"github.com/APITeamLimited/globe-test/worker/errext"
-	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
 )
 
 // Threshold is a representation of a single threshold for a single metric

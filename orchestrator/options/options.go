@@ -1,6 +1,7 @@
 package options
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib/types"
@@ -18,13 +19,13 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 		return nil, err
 	}
 
-	// TODO: Check if MetricSamplesBufferSize config option is needed
-	// options.MetricSamplesBufferSize = null.Int{
-	// 	NullInt64: sql.NullInt64{
-	// 		Int64: 0,
-	// 		Valid: false,
-	// 	},
-	// }
+	// TODO: Check if this is needed
+	options.MetricSamplesBufferSize = null.Int{
+		NullInt64: sql.NullInt64{
+			Int64: 10,
+			Valid: false,
+		},
+	}
 
 	// Prevent the user from accessing internal ip ranges
 	localhostIPNets := getBannedIPNets(gs)
@@ -37,12 +38,6 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 	if err != nil {
 		return nil, err
 	}
-
-	// Not used
-	// err = validators.BatchPerHost(options)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	if options.Duration.Valid {
 		err = validators.Duration(options, job)

@@ -14,7 +14,7 @@ import (
 // This is the highest level function with global state
 // Avoids use of credits as this will cause undesired side effects
 func manageExecution(gs *globalState, orchestratorClient *redis.Client, job libOrch.Job,
-	orchestratorId string, executionList *ExecutionList, storeMongoDB *mongo.Database, optionsErr error) bool {
+	orchestratorId string, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
 
 	healthy := optionsErr == nil

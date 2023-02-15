@@ -4,7 +4,6 @@
 package output
 
 import (
-	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
@@ -16,10 +15,6 @@ import (
 // N.B: All outputs should have non-blocking AddMetricSamples() methods and
 // should spawn their own goroutine to flush metrics asynchronously.
 type Output interface {
-	// Returns a human-readable description of the output that will be shown in
-	// `k6 run`. For extensions it probably should include the version as well.
-	Description() string
-
 	// Start is called before the Engine tries to use the output and should be
 	// used for any long initialization tasks, as well as for starting a
 	// goroutine to asynchronously flush metrics to the output.
@@ -49,12 +44,6 @@ type WithThresholds interface {
 type WithTestRunStop interface {
 	Output
 	SetTestRunStopCallback(func(error))
-}
-
-// WithRunStatusUpdates means the output can receive test run status updates.
-type WithRunStatusUpdates interface {
-	Output
-	SetRunStatus(latestStatus libWorker.RunStatus)
 }
 
 // WithBuiltinMetrics means the output can receive the builtin workerMetrics.

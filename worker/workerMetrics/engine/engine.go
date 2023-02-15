@@ -42,11 +42,9 @@ func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) {
 		ObservedMetrics: make(map[string]*workerMetrics.Metric),
 	}
 
-	if !me.es.Test.RuntimeOptions.NoThresholds.Bool {
-		err := me.initSubMetricsAndThresholds()
-		if err != nil {
-			return nil, err
-		}
+	err := me.initSubMetricsAndThresholds()
+	if err != nil {
+		return nil, err
 	}
 
 	return me, nil
@@ -129,13 +127,6 @@ func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) {
 func (me *MetricsEngine) initSubMetricsAndThresholds() error {
 	for metricName, thresholds := range me.es.Test.Options.Thresholds {
 		metric, err := me.getThresholdMetricOrSubmetric(metricName)
-
-		if me.es.Test.RuntimeOptions.NoThresholds.Bool {
-			if err != nil {
-				me.logger.WithError(err).Warnf("Invalid metric '%s' in threshold definitions", metricName)
-			}
-			continue
-		}
 
 		if err != nil {
 			return fmt.Errorf("invalid metric '%s' in threshold definitions: %w", metricName, err)

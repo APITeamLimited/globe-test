@@ -10,8 +10,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-
-	"github.com/APITeamLimited/globe-test/worker/libWorker/fsext"
 )
 
 // ReadSource Reads a source file from any supported destination.
@@ -24,7 +22,7 @@ func ReadSource(
 			return nil, err
 		}
 		// TODO: don't do it in this way ...
-		err = afero.WriteFile(filesystems["file"].(fsext.CacheLayerGetter).GetCachingFs(), "/-", data, 0o644)
+		err = afero.WriteFile(filesystems["file"], "/-", data, 0o644)
 		if err != nil {
 			return nil, fmt.Errorf("caching data read from -: %w", err)
 		}

@@ -41,10 +41,6 @@ func New(gs libWorker.BaseGlobalState) (output.Output, error) {
 	}, nil
 }
 
-func (o *Output) Description() string {
-	return fmt.Sprintf("GlobeTest output for job %s", o.gs.JobId())
-}
-
 func (o *Output) Start() error {
 	pf, err := output.NewPeriodicFlusher(flushPeriod, o.flushMetrics)
 	if err != nil {
@@ -99,13 +95,8 @@ func (o *Output) flushMetrics() {
 		libWorker.HandleError(o.gs, err)
 		return
 	}
-	//fmt.Print("\n\n\n\n")
 
-	if o.flushCount == 15 {
-		fmt.Println((string(marshalledSamples)))
-	}
-
-	//printSize(marshalledSamples)
+	printSize(marshalledSamples)
 	libWorker.DispatchMessage(o.gs, string(marshalledSamples), "METRICS")
 }
 

@@ -81,27 +81,6 @@ const MaxTimeToWaitForPlannedVU = 400 * time.Millisecond
 // MaxTimeToWaitForPlannedVU before we actually return an error.
 const MaxRetriesGetPlannedVU = 5
 
-// ExecutionStatus is similar to RunStatus, but more fine grained and concerns
-// only local execution.
-//
-//go:generate enumer -type=ExecutionStatus -trimprefix ExecutionStatus -output execution_status_gen.go
-type ExecutionStatus uint32
-
-// Possible execution status values
-const (
-	ExecutionStatusCreated ExecutionStatus = iota
-	ExecutionStatusInitVUs
-	ExecutionStatusInitExecutors
-	ExecutionStatusInitDone
-	ExecutionStatusPausedBeforeRun
-	ExecutionStatusStarted
-	ExecutionStatusSetup
-	ExecutionStatusRunning
-	ExecutionStatusTeardown
-	ExecutionStatusEnded
-	ExecutionStatusInterrupted
-)
-
 // ExecutionState contains a few different things:
 //   - Some convenience items, that are needed by all executors, like the
 //     execution segment and the unique VU ID generator. By keeping those here,
@@ -362,19 +341,6 @@ func (es *ExecutionState) AddInterruptedIterations(count uint64) uint64 {
 	return atomic.AddUint64(es.interruptedIterationsCount, count)
 }
 
-// SetExecutionStatus changes the current execution status to the supplied value
-// and returns the current value.
-func (es *ExecutionState) SetExecutionStatus(newStatus ExecutionStatus) (oldStatus ExecutionStatus) {
-	return ExecutionStatus(atomic.SwapUint32(es.executionStatus, uint32(newStatus)))
-}
-
-// GetCurrentExecutionStatus returns the current execution status. Don't use
-// this for synchronization unless you've made the k6 behavior somewhat
-// predictable with options like --paused.
-func (es *ExecutionState) GetCurrentExecutionStatus() ExecutionStatus {
-	return ExecutionStatus(atomic.LoadUint32(es.executionStatus))
-}
-
 // MarkStarted saves the current timestamp as the test start time.
 //
 // CAUTION: Calling MarkStarted() a second time for the same execution state will
@@ -383,7 +349,6 @@ func (es *ExecutionState) MarkStarted() {
 	if !atomic.CompareAndSwapInt64(es.startTime, 0, time.Now().UnixNano()) {
 		panic("the execution scheduler was started a second time")
 	}
-	es.SetExecutionStatus(ExecutionStatusStarted)
 }
 
 // MarkEnded saves the current timestamp as the test end time.
@@ -394,7 +359,6 @@ func (es *ExecutionState) MarkEnded() {
 	if !atomic.CompareAndSwapInt64(es.endTime, 0, time.Now().UnixNano()) {
 		panic("the execution scheduler was stopped a second time")
 	}
-	es.SetExecutionStatus(ExecutionStatusEnded)
 }
 
 // HasStarted returns true if the test has actually started executing.

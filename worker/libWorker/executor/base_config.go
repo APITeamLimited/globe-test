@@ -26,7 +26,6 @@ type BaseConfig struct {
 	Type         string             `json:"executor"`
 	StartTime    types.NullDuration `json:"startTime"`
 	GracefulStop types.NullDuration `json:"gracefulStop"`
-	Env          map[string]string  `json:"env"`
 	Exec         null.String        `json:"exec"` // function name, externally validated
 	Tags         map[string]string  `json:"tags"`
 
@@ -94,12 +93,6 @@ func (bc BaseConfig) GetGracefulStop() time.Duration {
 	return bc.GracefulStop.TimeDuration()
 }
 
-// GetEnv returns any specific environment key=value pairs that
-// are configured for the executor.
-func (bc BaseConfig) GetEnv() map[string]string {
-	return bc.Env
-}
-
 // GetExec returns the configured custom exec value, if any.
 func (bc BaseConfig) GetExec() string {
 	exec := bc.Exec.ValueOrZero()
@@ -112,12 +105,6 @@ func (bc BaseConfig) GetExec() string {
 // GetTags returns any custom tags configured for the executor.
 func (bc BaseConfig) GetTags() map[string]string {
 	return bc.Tags
-}
-
-// IsDistributable returns true since by default all executors could be run in
-// a distributed manner.
-func (bc BaseConfig) IsDistributable() bool {
-	return true
 }
 
 // getBaseInfo is a helper method for the "parent" String methods.

@@ -18,6 +18,7 @@ type BaseGlobalState interface {
 	Conn() *websocket.Conn
 	ConnWriteMutex() *sync.Mutex
 	ConnReadMutex() *sync.Mutex
+
 	JobId() string
 	ChildJobId() string
 	WorkerId() string

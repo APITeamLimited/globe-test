@@ -16,13 +16,11 @@ require (
 	github.com/jhump/protoreflect v1.10.3
 	github.com/klauspost/compress v1.15.7
 	github.com/mailru/easyjson v0.7.7
-	github.com/mccutchen/go-httpbin v1.1.2-0.20190116014521-c5cb2f4802fa
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/afero v1.1.2
-	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/gjson v1.14.1
 	go.mercari.io/go-dnscache v0.0.0-20220124075326-2701c2ab5df5
 	go.mongodb.org/mongo-driver v1.10.2
@@ -51,8 +49,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
@@ -65,13 +61,11 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230124163310-31e0e69b6fc2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/bobesa/go-domain-util v0.0.0-20190911083921-4033b5f7dd89
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4-0.20211119122758-180fcef48034+incompatible
 	github.com/tidwall/match v1.1.1 // indirect
