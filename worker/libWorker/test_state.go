@@ -1,15 +1,14 @@
 package libWorker
 
 import (
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/sirupsen/logrus"
 )
 
 // TestPreInitState contains all of the state that can be gathered and built
 // before the test run is initialized.
 type TestPreInitState struct {
-	Registry       *workerMetrics.Registry
-	BuiltinMetrics *workerMetrics.BuiltinMetrics
+	BuiltinMetrics *metrics.BuiltinMetrics
 
 	Logger *logrus.Logger
 }

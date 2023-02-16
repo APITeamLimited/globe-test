@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/js/common"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/dop251/goja"
 )
 
@@ -22,32 +22,32 @@ var summaryWrapperLambdaCode string //nolint:gochecknoglobals
 
 // TODO: figure out something saner... refactor the sinks and how we deal with
 // metrics in general... so much pain and misery... :sob:
-func metricValueGetter(summaryTrendStats []string) func(workerMetrics.Sink, time.Duration) map[string]float64 {
-	trendResolvers, err := workerMetrics.GetResolversForTrendColumns(summaryTrendStats)
+func metricValueGetter(summaryTrendStats []string) func(metrics.Sink, time.Duration) map[string]float64 {
+	trendResolvers, err := metrics.GetResolversForTrendColumns(summaryTrendStats)
 	if err != nil {
 		panic(err.Error()) // this should have been validated already
 	}
 
-	return func(sink workerMetrics.Sink, t time.Duration) (result map[string]float64) {
+	return func(sink metrics.Sink, t time.Duration) (result map[string]float64) {
 		sink.Calc()
 
 		switch sink := sink.(type) {
-		case *workerMetrics.CounterSink:
+		case *metrics.CounterSink:
 			result = sink.Format(t)
 			rate := 0.0
 			if t > 0 {
 				rate = sink.Value / (float64(t) / float64(time.Second))
 			}
 			result["rate"] = rate
-		case *workerMetrics.GaugeSink:
+		case *metrics.GaugeSink:
 			result = sink.Format(t)
 			result["min"] = sink.Min
 			result["max"] = sink.Max
-		case *workerMetrics.RateSink:
+		case *metrics.RateSink:
 			result = sink.Format(t)
 			result["passes"] = float64(sink.Trues)
 			result["fails"] = float64(sink.Total - sink.Trues)
-		case *workerMetrics.TrendSink:
+		case *metrics.TrendSink:
 			result = make(map[string]float64, len(summaryTrendStats))
 			for _, col := range summaryTrendStats {
 				result[col] = trendResolvers[col](sink)

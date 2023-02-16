@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -60,16 +60,16 @@ func (bs *BaseExecutor) GetLogger() *logrus.Entry {
 
 // getMetricTags returns a tag set that can be used to emit metrics by the
 // executor. The VU ID is optional.
-func (bs *BaseExecutor) getMetricTags(vuID *uint64) *workerMetrics.SampleTags {
+func (bs *BaseExecutor) getMetricTags(vuID *uint64) *metrics.SampleTags {
 	tags := make(map[string]string, len(bs.executionState.Test.Options.RunTags))
 	for k, v := range bs.executionState.Test.Options.RunTags {
 		tags[k] = v
 	}
-	if bs.executionState.Test.Options.SystemTags.Has(workerMetrics.TagScenario) {
+	if bs.executionState.Test.Options.SystemTags.Has(metrics.TagScenario) {
 		tags["scenario"] = bs.config.GetName()
 	}
-	if vuID != nil && bs.executionState.Test.Options.SystemTags.Has(workerMetrics.TagVU) {
+	if vuID != nil && bs.executionState.Test.Options.SystemTags.Has(metrics.TagVU) {
 		tags["vu"] = strconv.FormatUint(*vuID, 10)
 	}
-	return workerMetrics.IntoSampleTags(&tags)
+	return metrics.IntoSampleTags(&tags)
 }

@@ -35,11 +35,10 @@ func getCompiledOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libWorker
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.Logger(),
-		Registry:       nil,
 		BuiltinMetrics: nil,
 	}
 
-	bundle, err := js.NewBundle(preInitState, sourceData, filesystems, orchestratorInfo, true, job.TestData)
+	bundle, err := js.NewBundle(preInitState, sourceData, filesystems, orchestratorInfo, true, job.TestData, nil)
 	if err != nil {
 		output := fmt.Sprintf("failed to parse options: %s", err.Error())
 		unescaped, err := url.PathUnescape(output)

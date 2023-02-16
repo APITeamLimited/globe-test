@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/Azure/go-ntlmssp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
@@ -96,13 +96,13 @@ func updateK6Response(k6Response *Response, finishedReq *finishedRequest) {
 		k6Response.RemotePort = remotePort
 	}
 	k6Response.Timings = ResponseTimings{
-		Duration:       workerMetrics.D(trail.Duration),
-		Blocked:        workerMetrics.D(trail.Blocked),
-		Connecting:     workerMetrics.D(trail.Connecting),
-		TLSHandshaking: workerMetrics.D(trail.TLSHandshaking),
-		Sending:        workerMetrics.D(trail.Sending),
-		Waiting:        workerMetrics.D(trail.Waiting),
-		Receiving:      workerMetrics.D(trail.Receiving),
+		Duration:       metrics.D(trail.Duration),
+		Blocked:        metrics.D(trail.Blocked),
+		Connecting:     metrics.D(trail.Connecting),
+		TLSHandshaking: metrics.D(trail.TLSHandshaking),
+		Sending:        metrics.D(trail.Sending),
+		Waiting:        metrics.D(trail.Waiting),
+		Receiving:      metrics.D(trail.Receiving),
 	}
 }
 
@@ -174,7 +174,7 @@ func MakeRequest(ctx context.Context, state *libWorker.State, preq *ParsedHTTPRe
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand,
 	// and the Name was generated from a tagged template string (via http.url).
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(workerMetrics.TagName) &&
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(metrics.TagName) &&
 		preq.URL.Name != "" && preq.URL.Name != preq.URL.Clean() {
 		tags["name"] = preq.URL.Name
 	}

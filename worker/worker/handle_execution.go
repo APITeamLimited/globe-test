@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -68,16 +67,6 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 
 	// Test starts here
 
-	// Don't know if these can be removed easily without unexpected side effects
-
-	// We prepare a bunch of contexts:
-	//  - The runCtx is cancelled as soon as the Engine's run() lambda finishes,
-	//    and can trigger things like the usage report and end of test summary.
-	//    Crucially, metrics processing by the Engine will still work after this
-	//    context is cancelled!
-	//  - The globalCtx is cancelled only after we're completely done with the
-	//    test execution, so that the Engine  can start winding down its metrics
-	//    processing.
 	globalCtx, globalCancel := context.WithCancel(ctx)
 	defer globalCancel()
 	runCtx, runCancel := context.WithCancel(globalCtx)
@@ -101,27 +90,12 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 		return false
 	}
 
-	// Create all outputs.
-	outputs, err := createOutputs(gs)
-	if err != nil {
-		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
-		return false
-	}
-
 	// Create the engine.
-	engine, err := core.NewEngine(testRunState, execScheduler, outputs)
+	engine, err := core.NewEngine(testRunState, execScheduler, test.proxyRegistry.GetSamplesChan())
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating engine %s", err.Error()))
 		return false
 	}
-
-	// We do this here so we can get any output URLs below.
-	err = engine.OutputManager.StartOutputs()
-	if err != nil {
-		libWorker.HandleStringError(gs, fmt.Sprintf("Error starting outputs %s", err.Error()))
-		return false
-	}
-	defer engine.OutputManager.StopOutputs()
 
 	// Initialize the engine
 	engineRun, _, err := engine.Init(globalCtx, runCtx, workerInfo)
@@ -134,6 +108,8 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 
 	// Start the test run
 	libWorker.UpdateStatus(gs, "RUNNING")
+
+	test.proxyRegistry.Start()
 
 	go func() {
 		for msg := range eventChannels.childUpdatesChannel {
@@ -165,15 +141,7 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 
 	runCancel()
 
-	executionState := execScheduler.GetState()
-
-	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary{
-		Metrics:         engine.MetricsEngine.ObservedMetrics,
-		RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
-		TestRunDuration: executionState.GetCurrentTestRunDuration(),
-	})
-	engine.MetricsEngine.MetricsLock.Unlock()
+	test.proxyRegistry.Stop()
 
 	// Retrive collection and environment variables
 	if workerInfo.Collection != nil {
@@ -196,22 +164,16 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 		}
 	}
 
-	if err == nil {
-		libWorker.DispatchMessage(gs, string(marshalledMetrics), "SUMMARY_METRICS")
-	} else {
-		libWorker.HandleError(gs, err)
-	}
-
 	libWorker.UpdateStatus(gs, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
 	if interrupt != nil {
 		return false
 	}
-	if engine.IsTainted() {
-		libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
-		return false
-	}
+	// if engine.IsTainted() {
+	// 	libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
+	// 	return false
+	// }
 
 	return true
 }
@@ -238,7 +200,6 @@ func loadWorkerInfo(ctx context.Context,
 		Conn:            conn,
 		JobId:           job.Id,
 		ChildJobId:      job.ChildJobId,
-		OrchestratorId:  job.AssignedOrchestrator,
 		WorkerId:        workerId,
 		Ctx:             ctx,
 		WorkerOptions:   job.ChildOptions,

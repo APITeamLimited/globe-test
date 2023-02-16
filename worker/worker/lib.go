@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
+	proxy_registry "github.com/APITeamLimited/globe-test/metrics/proxy"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/spf13/afero"
@@ -46,13 +47,14 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 var _ io.Writer = &consoleWriter{}
 
 type workerLoadedTest struct {
-	fs           afero.Fs
-	pwd          string
-	fileSystems  map[string]afero.Fs
-	preInitState *libWorker.TestPreInitState
-	initRunner   libWorker.Runner // TODO: rename to something more appropriate
-	keyLogger    io.Closer
-	sourceData   *[]*loader.SourceData
+	fs            afero.Fs
+	pwd           string
+	fileSystems   map[string]afero.Fs
+	preInitState  *libWorker.TestPreInitState
+	initRunner    libWorker.Runner // TODO: rename to something more appropriate
+	keyLogger     io.Closer
+	sourceData    *[]*loader.SourceData
+	proxyRegistry *proxy_registry.ProxyRegistry
 }
 
 // Config ...

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/APITeamLimited/globe-test/lib/types"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/orchestrator/options/validators"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -97,7 +97,7 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 
 func applyDefault(options *libWorker.Options) libWorker.Options {
 	if options.SystemTags == nil {
-		options.SystemTags = &workerMetrics.DefaultSystemTagSet
+		options.SystemTags = &metrics.DefaultSystemTagSet
 	}
 	if options.SummaryTrendStats == nil {
 		options.SummaryTrendStats = libWorker.DefaultSummaryTrendStats

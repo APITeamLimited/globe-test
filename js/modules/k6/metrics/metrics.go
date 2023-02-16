@@ -12,27 +12,27 @@ import (
 
 	"github.com/APITeamLimited/globe-test/js/common"
 	"github.com/APITeamLimited/globe-test/js/modules"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 )
 
 type Metric struct {
-	metric *workerMetrics.Metric
+	metric *metrics.Metric
 	vu     modules.VU
 }
 
 // ErrMetricsAddInInitContext is error returned when adding to metric is done in the init context
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
-func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t workerMetrics.MetricType) (*goja.Object, error) {
+func (mi *ModuleInstance) InstantiateMetric(call goja.ConstructorCall, t metrics.MetricType) (*goja.Object, error) {
 	initEnv := mi.vu.InitEnv()
 	if initEnv == nil {
 		return nil, errors.New("metrics must be declared in the init context")
 	}
 	rt := mi.vu.Runtime()
 	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) {
-		valueType := workerMetrics.Default
+		valueType := metrics.Default
 		if len(isTime) > 0 && isTime[0] {
-			valueType = workerMetrics.Time
+			valueType = metrics.Time
 		}
 		m, err := initEnv.Registry.NewMetric(name, t, valueType)
 		if err != nil {
@@ -116,8 +116,8 @@ func (m Metric) add(v goja.Value, addTags goja.Value) (bool, error) {
 		}
 	}
 
-	sample := workerMetrics.Sample{Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: workerMetrics.IntoSampleTags(&tags)}
-	workerMetrics.PushIfNotDone(m.vu.Context(), state.Samples, sample)
+	sample := metrics.Sample{Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: metrics.IntoSampleTags(&tags)}
+	metrics.PushIfNotDone(m.vu.Context(), state.Samples, sample)
 	return true, nil
 }
 
@@ -159,7 +159,7 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 
 // XCounter is a counter constructor
 func (mi *ModuleInstance) XCounter(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
-	v, err := mi.newMetric(call, workerMetrics.Counter)
+	v, err := mi.InstantiateMetric(call, metrics.Counter)
 	if err != nil {
 		common.Throw(rt, err)
 	}
@@ -168,7 +168,7 @@ func (mi *ModuleInstance) XCounter(call goja.ConstructorCall, rt *goja.Runtime) 
 
 // XGauge is a gauge constructor
 func (mi *ModuleInstance) XGauge(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
-	v, err := mi.newMetric(call, workerMetrics.Gauge)
+	v, err := mi.InstantiateMetric(call, metrics.Gauge)
 	if err != nil {
 		common.Throw(rt, err)
 	}
@@ -177,7 +177,7 @@ func (mi *ModuleInstance) XGauge(call goja.ConstructorCall, rt *goja.Runtime) *g
 
 // XTrend is a trend constructor
 func (mi *ModuleInstance) XTrend(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
-	v, err := mi.newMetric(call, workerMetrics.Trend)
+	v, err := mi.InstantiateMetric(call, metrics.Trend)
 	if err != nil {
 		common.Throw(rt, err)
 	}
@@ -186,7 +186,7 @@ func (mi *ModuleInstance) XTrend(call goja.ConstructorCall, rt *goja.Runtime) *g
 
 // XRate is a rate constructor
 func (mi *ModuleInstance) XRate(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object {
-	v, err := mi.newMetric(call, workerMetrics.Rate)
+	v, err := mi.InstantiateMetric(call, metrics.Rate)
 	if err != nil {
 		common.Throw(rt, err)
 	}

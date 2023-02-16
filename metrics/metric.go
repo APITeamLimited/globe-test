@@ -1,4 +1,4 @@
-package workerMetrics
+package metrics
 
 import (
 	"errors"
@@ -35,8 +35,8 @@ func (m *Metric) Sample(t time.Time, tags *SampleTags, value float64) Sample {
 	}
 }
 
-// newMetric instantiates a new Metric
-func newMetric(name string, mt MetricType, vt ...ValueType) *Metric {
+// InstantiateMetric instantiates a new Metric
+func InstantiateMetric(name string, mt MetricType, vt ...ValueType) *Metric {
 	valueType := Default
 	if len(vt) > 0 {
 		valueType = vt[0]
@@ -113,7 +113,7 @@ func (m *Metric) AddSubmetric(keyValues string) (*Submetric, error) {
 		Tags:   tags,
 		Parent: m,
 	}
-	subMetricMetric := newMetric(subMetric.Name, m.Type, m.Contains)
+	subMetricMetric := InstantiateMetric(subMetric.Name, m.Type, m.Contains)
 	subMetricMetric.Sub = subMetric // sigh
 	subMetric.Metric = subMetricMetric
 

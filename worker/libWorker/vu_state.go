@@ -8,7 +8,7 @@ import (
 	"net/http/cookiejar"
 	"sync"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/oxtoacart/bpool"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -21,14 +21,14 @@ type DialContexter interface {
 
 // State provides the volatile state for a VU.
 type State struct {
-	// Global options and built-in workerMetrics.
+	// Global options and built-in metrics.
 	//
 	// TODO: remove them from here, the built-in metrics and the script options
 	// are not part of a VU's unique "state", they are global and the same for
 	// all VUs. Figure out how to thread them some other way, e.g. through the
 	// TestPreInitState. The Samples channel might also benefit from that...
 	Options        Options
-	BuiltinMetrics *workerMetrics.BuiltinMetrics
+	BuiltinMetrics *metrics.BuiltinMetrics
 
 	// Logger. Avoid using the global logger.
 	// TODO: change to logrus.FieldLogger when there is time to fix all the tests
@@ -50,7 +50,7 @@ type State struct {
 	RPSLimit *rate.Limiter
 
 	// Sample channel, possibly buffered
-	Samples chan<- workerMetrics.SampleContainer
+	Samples chan<- metrics.SampleContainer
 
 	// Buffer pool; use instead of allocating fresh buffers when possible.
 	// TODO: maybe use https://golang.org/pkg/sync/#Pool ?

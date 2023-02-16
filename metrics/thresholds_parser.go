@@ -1,4 +1,4 @@
-package workerMetrics
+package metrics
 
 import (
 	"fmt"

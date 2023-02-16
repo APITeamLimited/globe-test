@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -121,7 +121,7 @@ var _ libWorker.Executor = &ConstantVUs{}
 
 // Run constantly loops through as many iterations as possible on a fixed number
 // of VUs for the specified duration.
-func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
+func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	numVUs := clv.config.GetVUs(clv.executionState.ExecutionTuple)
 	duration := clv.config.Duration.TimeDuration()
 	gracefulStop := clv.config.GetGracefulStop()

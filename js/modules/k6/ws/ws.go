@@ -19,7 +19,7 @@ import (
 	"github.com/APITeamLimited/globe-test/js/common"
 	"github.com/APITeamLimited/globe-test/js/modules"
 	httpModule "github.com/APITeamLimited/globe-test/js/modules/k6/http"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 )
 
 type (
@@ -75,9 +75,9 @@ type Socket struct {
 	pingSendTimestamps map[string]time.Time
 	pingSendCounter    int
 
-	sampleTags     *workerMetrics.SampleTags
-	samplesOutput  chan<- workerMetrics.SampleContainer
-	builtinMetrics *workerMetrics.BuiltinMetrics
+	sampleTags     *metrics.SampleTags
+	samplesOutput  chan<- metrics.SampleContainer
+	builtinMetrics *metrics.BuiltinMetrics
 }
 
 type WSHTTPResponse struct {
@@ -195,7 +195,7 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) {
 
 	}
 
-	if state.Options.SystemTags.Has(workerMetrics.TagURL) {
+	if state.Options.SystemTags.Has(metrics.TagURL) {
 		tags["url"] = url
 	}
 
@@ -223,20 +223,20 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) {
 	start := time.Now()
 	conn, httpResponse, connErr := wsd.DialContext(ctx, url, header)
 	connectionEnd := time.Now()
-	connectionDuration := workerMetrics.D(connectionEnd.Sub(start))
+	connectionDuration := metrics.D(connectionEnd.Sub(start))
 
-	if state.Options.SystemTags.Has(workerMetrics.TagIP) && conn.RemoteAddr() != nil {
+	if state.Options.SystemTags.Has(metrics.TagIP) && conn.RemoteAddr() != nil {
 		if ip, _, err := net.SplitHostPort(conn.RemoteAddr().String()); err == nil {
 			tags["ip"] = ip
 		}
 	}
 
 	if httpResponse != nil {
-		if state.Options.SystemTags.Has(workerMetrics.TagStatus) {
+		if state.Options.SystemTags.Has(metrics.TagStatus) {
 			tags["status"] = strconv.Itoa(httpResponse.StatusCode)
 		}
 
-		if state.Options.SystemTags.Has(workerMetrics.TagSubproto) {
+		if state.Options.SystemTags.Has(metrics.TagSubproto) {
 			tags["subproto"] = httpResponse.Header.Get("Sec-WebSocket-Protocol")
 		}
 	}
@@ -250,12 +250,12 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) {
 		scheduled:          make(chan goja.Callable),
 		done:               make(chan struct{}),
 		samplesOutput:      state.Samples,
-		sampleTags:         workerMetrics.IntoSampleTags(&tags),
+		sampleTags:         metrics.IntoSampleTags(&tags),
 		builtinMetrics:     state.BuiltinMetrics,
 	}
 
-	workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.ConnectedSamples{
-		Samples: []workerMetrics.Sample{
+	metrics.PushIfNotDone(ctx, state.Samples, metrics.ConnectedSamples{
+		Samples: []metrics.Sample{
 			{Metric: state.BuiltinMetrics.WSSessions, Time: start, Tags: socket.sampleTags, Value: 1},
 			{Metric: state.BuiltinMetrics.WSConnecting, Time: start, Tags: socket.sampleTags, Value: connectionDuration},
 		},
@@ -315,9 +315,9 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) {
 	defer func() {
 		socket.Close() // just in case
 		end := time.Now()
-		sessionDuration := workerMetrics.D(end.Sub(start))
+		sessionDuration := metrics.D(end.Sub(start))
 
-		workerMetrics.PushIfNotDone(ctx, state.Samples, workerMetrics.Sample{
+		metrics.PushIfNotDone(ctx, state.Samples, metrics.Sample{
 			Metric: socket.builtinMetrics.WSSessionDuration,
 			Tags:   socket.sampleTags,
 			Time:   start,
@@ -345,7 +345,7 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) {
 			socket.handleEvent("pong")
 
 		case msg := <-readDataChan:
-			workerMetrics.PushIfNotDone(ctx, socket.samplesOutput, workerMetrics.Sample{
+			metrics.PushIfNotDone(ctx, socket.samplesOutput, metrics.Sample{
 				Metric: socket.builtinMetrics.WSMessagesReceived,
 				Time:   time.Now(),
 				Tags:   socket.sampleTags,
@@ -405,7 +405,7 @@ func (s *Socket) Send(message string) {
 		s.handleEvent("error", s.rt.ToValue(err))
 	}
 
-	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample{
+	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample{
 		Metric: s.builtinMetrics.WSMessagesSent,
 		Time:   time.Now(),
 		Tags:   s.sampleTags,
@@ -435,7 +435,7 @@ func (s *Socket) SendBinary(message goja.Value) {
 		common.Throw(s.rt, fmt.Errorf("expected ArrayBuffer as argument, received: %s", jsType))
 	}
 
-	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample{
+	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample{
 		Metric: s.builtinMetrics.WSMessagesSent,
 		Time:   time.Now(),
 		Tags:   s.sampleTags,
@@ -468,11 +468,11 @@ func (s *Socket) trackPong(pingID string) {
 	}
 	pingTimestamp := s.pingSendTimestamps[pingID]
 
-	workerMetrics.PushIfNotDone(s.ctx, s.samplesOutput, workerMetrics.Sample{
+	metrics.PushIfNotDone(s.ctx, s.samplesOutput, metrics.Sample{
 		Metric: s.builtinMetrics.WSPing,
 		Time:   pongTimestamp,
 		Tags:   s.sampleTags,
-		Value:  workerMetrics.D(pongTimestamp.Sub(pingTimestamp)),
+		Value:  metrics.D(pongTimestamp.Sub(pingTimestamp)),
 	})
 }
 

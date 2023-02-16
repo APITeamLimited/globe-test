@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/metrics"
+	"github.com/APITeamLimited/globe-test/metrics/engine"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/guregu/null.v3"
 )
 
 type (
@@ -24,7 +27,7 @@ type (
 		client         *redis.Client
 		jobId          string
 		orchestratorId string
-		metricsStore   libOrch.BaseMetricsStore
+		metricsStore   metrics.Registry
 		status         string
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
@@ -32,6 +35,9 @@ type (
 		funcAuthClient libOrch.RunAuthClient
 		messageQueue   *libOrch.MessageQueue
 		loadZones      []string
+		registry       *metrics.Registry
+		metricsEngine  *engine.MetricsEngine
+		startTime      null.Time
 	}
 )
 
@@ -54,6 +60,10 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 			NewQueueCount: make(chan int),
 		},
 		loadZones: loadZones,
+		registry:  metrics.NewRegistry(),
+
+		// Haven't started yet so set to false
+		startTime: null.NewTime(time.Now(), false),
 	}
 
 	if creditsClient != nil && job.FuncModeInfo != nil {
@@ -66,8 +76,6 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.InfoLevel,
 	}
-
-	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
 
 	return gs
 }
@@ -119,15 +127,15 @@ func (g *globalState) OrchestratorId() string {
 	return g.orchestratorId
 }
 
-func (g *globalState) MetricsStore() *libOrch.BaseMetricsStore {
-	return &g.metricsStore
-}
-
 func (g *globalState) GetStatus() string {
 	return g.status
 }
 
 func (g *globalState) SetStatus(status string) {
+	if status == "RUNNING" {
+		g.startTime = null.NewTime(time.Now(), true)
+	}
+
 	g.status = status
 }
 
@@ -149,4 +157,12 @@ func (g *globalState) MessageQueue() *libOrch.MessageQueue {
 
 func (g *globalState) LoadZones() []string {
 	return g.loadZones
+}
+
+func (g *globalState) GetCurrentTestRunDuration() time.Duration {
+	if g.startTime.Valid == false {
+		return 0
+	}
+
+	return time.Since(g.startTime.Time)
 }

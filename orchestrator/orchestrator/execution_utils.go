@@ -65,3 +65,37 @@ func abortAndFailAll(gs libOrch.BaseGlobalState, childJobs map[string]libOrch.Ch
 
 	return "FAILURE", err
 }
+
+func findChildJob(childJobs map[string]libOrch.ChildJobDistribution, location string, childJobId string) *libOrch.ChildJob {
+	for _, childJob := range (childJobs)[location].ChildJobs {
+		if childJob.ChildJobId == childJobId {
+			return childJob
+		}
+	}
+
+	return nil
+}
+
+func childJobCount(childJobs map[string]libOrch.ChildJobDistribution) int {
+	count := 0
+
+	for _, childJobDistribution := range childJobs {
+		count += len(childJobDistribution.ChildJobs)
+	}
+
+	return count
+}
+
+func closeChildConnections(childJobs map[string]libOrch.ChildJobDistribution) {
+	for _, jobDistribution := range childJobs {
+		for _, childJob := range jobDistribution.ChildJobs {
+			if childJob.WorkerConnection == nil {
+				continue
+			}
+
+			childJob.ConnWriteMutex.Lock()
+			childJob.ConnReadMutex.Lock()
+			childJob.WorkerConnection.Close()
+		}
+	}
+}

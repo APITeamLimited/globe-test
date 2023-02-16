@@ -3,6 +3,7 @@ package libOrch
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/redis/v9"
@@ -29,7 +30,6 @@ type BaseGlobalState interface {
 	OrchestratorClient() *redis.Client
 	JobId() string
 	OrchestratorId() string
-	MetricsStore() *BaseMetricsStore
 	GetStatus() string
 	SetStatus(string)
 
@@ -38,4 +38,6 @@ type BaseGlobalState interface {
 	FuncAuthClient() RunAuthClient
 	LoadZones() []string
 	MessageQueue() *MessageQueue
+
+	GetCurrentTestRunDuration() time.Duration
 }

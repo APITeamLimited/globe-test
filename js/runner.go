@@ -16,7 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
+	proxy_registry "github.com/APITeamLimited/globe-test/metrics/proxy"
 	"github.com/dop251/goja"
 	"github.com/oxtoacart/bpool"
 	"github.com/spf13/afero"
@@ -59,8 +60,9 @@ type Runner struct {
 }
 
 // New returns a new Runner for the provided source
-func New(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData) (*Runner, error) {
-	b, err := NewBundleWorker(piState, src, filesystems, workerInfo, testData)
+func New(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs,
+	workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData, proxyRegistry *proxy_registry.ProxyRegistry) (*Runner, error) {
+	b, err := NewBundleWorker(piState, src, filesystems, workerInfo, testData, proxyRegistry)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ func New(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesys
 }
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (libWorker.InitializedVU, error) {
 	vu, err := r.newVU(idLocal, idGlobal, samplesOut, workerInfo)
 	if err != nil {
 		return nil, err
@@ -101,7 +103,7 @@ func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics
 }
 
 //nolint:funlen
-func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) {
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (*VU, error) {
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate(r.preInitState.Logger, idLocal, workerInfo)
 	if err != nil {
@@ -246,7 +248,7 @@ func forceHTTP1() bool {
 }
 
 // Setup runs the setup function if there is one and sets the setupData to the returned value
-func (r *Runner) Setup(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
+func (r *Runner) Setup(ctx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	setupCtx, setupCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.SetupFn))
 	defer setupCancel()
 
@@ -279,7 +281,7 @@ func (r *Runner) SetSetupData(data []byte) {
 }
 
 // Teardown runs the teardown function if there is one.
-func (r *Runner) Teardown(ctx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
+func (r *Runner) Teardown(ctx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	teardownCtx, teardownCancel := context.WithTimeout(ctx, r.getTimeoutFor(consts.TeardownFn))
 	defer teardownCancel()
 
@@ -384,7 +386,7 @@ func parseTTL(ttlS string) (time.Duration, error) {
 // interrupted if the context expires. No error is returned if the part does not exist.
 func (r *Runner) runPart(
 	ctx context.Context,
-	out chan<- workerMetrics.SampleContainer,
+	out chan<- metrics.SampleContainer,
 	name string,
 	workerInfo *libWorker.WorkerInfo,
 	arg interface{},
@@ -411,7 +413,7 @@ func (r *Runner) runPart(
 		return goja.Undefined(), err
 	}
 
-	if r.Bundle.Options.SystemTags.Has(workerMetrics.TagGroup) {
+	if r.Bundle.Options.SystemTags.Has(metrics.TagGroup) {
 		vu.state.Tags.Set("group", group.Path)
 	}
 	vu.state.Group = group
@@ -440,8 +442,6 @@ func (r *Runner) getTimeoutFor(stage string) time.Duration {
 		return r.Bundle.Options.SetupTimeout.TimeDuration()
 	case consts.TeardownFn:
 		return r.Bundle.Options.TeardownTimeout.TimeDuration()
-	case consts.HandleSummaryFn:
-		return 2 * time.Minute // TODO: make configurable
 	}
 	return d
 }
@@ -461,7 +461,7 @@ type VU struct {
 	Console *console
 	BPool   *bpool.BufferPool
 
-	Samples chan<- workerMetrics.SampleContainer
+	Samples chan<- metrics.SampleContainer
 
 	setupData goja.Value
 
@@ -506,16 +506,16 @@ func (u *VU) Activate(params *libWorker.VUActivationParams) libWorker.ActiveVU {
 	for k, v := range params.Tags {
 		u.state.Tags.Set(k, v)
 	}
-	if opts.SystemTags.Has(workerMetrics.TagVU) {
+	if opts.SystemTags.Has(metrics.TagVU) {
 		u.state.Tags.Set("vu", strconv.FormatUint(u.ID, 10))
 	}
-	if opts.SystemTags.Has(workerMetrics.TagIter) {
+	if opts.SystemTags.Has(metrics.TagIter) {
 		u.state.Tags.Set("iter", strconv.FormatInt(u.iteration, 10))
 	}
-	if opts.SystemTags.Has(workerMetrics.TagGroup) {
+	if opts.SystemTags.Has(metrics.TagGroup) {
 		u.state.Tags.Set("group", u.state.Group.Path)
 	}
-	if opts.SystemTags.Has(workerMetrics.TagScenario) {
+	if opts.SystemTags.Has(metrics.TagScenario) {
 		u.state.Tags.Set("scenario", params.Scenario)
 	}
 
@@ -644,7 +644,7 @@ func (u *VU) runFn(
 	}
 
 	opts := &u.Runner.Bundle.Options
-	if opts.SystemTags.Has(workerMetrics.TagIter) {
+	if opts.SystemTags.Has(metrics.TagIter) {
 		u.state.Tags.Set("iter", strconv.FormatInt(u.state.Iteration, 10))
 	}
 
@@ -681,7 +681,7 @@ func (u *VU) runFn(
 		u.Transport.CloseIdleConnections()
 	}
 
-	sampleTags := workerMetrics.NewSampleTags(u.state.CloneTags())
+	sampleTags := metrics.NewSampleTags(u.state.CloneTags())
 	u.state.Samples <- u.Dialer.GetTrail(
 		startTime, endTime, isFullIteration, isDefault, sampleTags, u.Runner.preInitState.BuiltinMetrics)
 

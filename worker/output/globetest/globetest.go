@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/output"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 const flushPeriod = 1000 * time.Millisecond
@@ -20,15 +20,15 @@ type Output struct {
 
 	gs          libWorker.BaseGlobalState
 	seenMetrics map[string]struct{}
-	thresholds  map[string]workerMetrics.Thresholds
+	thresholds  map[string]metrics.Thresholds
 
 	flushCount          int
 	flushIncrementMutex sync.Mutex
 }
 
 type FormattedSamples struct {
-	Samples    []workerMetrics.Sample `json:"samples" protobuf:"bytes,1"`
-	FlushCount int                    `json:"flushCount" protobuf:"varint,2"`
+	Samples    []metrics.Sample `json:"samples" protobuf:"bytes,1"`
+	FlushCount int              `json:"flushCount" protobuf:"varint,2"`
 }
 
 func New(gs libWorker.BaseGlobalState) (output.Output, error) {
@@ -59,11 +59,11 @@ func (o *Output) Stop() error {
 }
 
 // SetThresholds receives the thresholds before the output is Start()-ed.
-func (o *Output) SetThresholds(thresholds map[string]workerMetrics.Thresholds) {
+func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
 	if len(thresholds) == 0 {
 		return
 	}
-	o.thresholds = make(map[string]workerMetrics.Thresholds, len(thresholds))
+	o.thresholds = make(map[string]metrics.Thresholds, len(thresholds))
 	for name, t := range thresholds {
 		o.thresholds[name] = t
 	}
@@ -78,7 +78,7 @@ func (o *Output) flushMetrics() {
 
 	sampleContainers := o.GetBufferedSamples()
 
-	samples := make([]workerMetrics.Sample, 0)
+	samples := make([]metrics.Sample, 0)
 	count := 0
 
 	for _, sc := range sampleContainers {

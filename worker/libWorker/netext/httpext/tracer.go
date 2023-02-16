@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -35,43 +35,43 @@ type Trail struct {
 
 	Failed null.Bool
 	// Populated by SaveSamples()
-	Tags    *workerMetrics.SampleTags
-	Samples []workerMetrics.Sample
+	Tags    *metrics.SampleTags
+	Samples []metrics.Sample
 }
 
 // SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
-func (tr *Trail) SaveSamples(builtinMetrics *workerMetrics.BuiltinMetrics, tags *workerMetrics.SampleTags) {
+func (tr *Trail) SaveSamples(builtinMetrics *metrics.BuiltinMetrics, tags *metrics.SampleTags) {
 	tr.Tags = tags
-	tr.Samples = make([]workerMetrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
-	tr.Samples = append(tr.Samples, []workerMetrics.Sample{
+	tr.Samples = make([]metrics.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
+	tr.Samples = append(tr.Samples, []metrics.Sample{
 		{Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1},
-		{Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Duration)},
-		{Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Blocked)},
-		{Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Connecting)},
-		{Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.TLSHandshaking)},
-		{Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Sending)},
-		{Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Waiting)},
-		{Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: workerMetrics.D(tr.Receiving)},
+		{Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Duration)},
+		{Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Blocked)},
+		{Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Connecting)},
+		{Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.TLSHandshaking)},
+		{Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Sending)},
+		{Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Waiting)},
+		{Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: metrics.D(tr.Receiving)},
 	}...)
 }
 
-// GetSamples implements the workerMetrics.SampleContainer interface.
-func (tr *Trail) GetSamples() []workerMetrics.Sample {
+// GetSamples implements the metrics.SampleContainer interface.
+func (tr *Trail) GetSamples() []metrics.Sample {
 	return tr.Samples
 }
 
-// GetTags implements the workerMetrics.ConnectedSampleContainer interface.
-func (tr *Trail) GetTags() *workerMetrics.SampleTags {
+// GetTags implements the metrics.ConnectedSampleContainer interface.
+func (tr *Trail) GetTags() *metrics.SampleTags {
 	return tr.Tags
 }
 
-// GetTime implements the workerMetrics.ConnectedSampleContainer interface.
+// GetTime implements the metrics.ConnectedSampleContainer interface.
 func (tr *Trail) GetTime() time.Time {
 	return tr.EndTime
 }
 
 // Ensure that interfaces are implemented correctly
-var _ workerMetrics.ConnectedSampleContainer = &Trail{}
+var _ metrics.ConnectedSampleContainer = &Trail{}
 
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to

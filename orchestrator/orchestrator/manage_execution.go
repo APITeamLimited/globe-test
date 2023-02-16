@@ -3,7 +3,12 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/APITeamLimited/globe-test/errext"
+	"github.com/APITeamLimited/globe-test/errext/exitcodes"
+	"github.com/APITeamLimited/globe-test/metrics"
+	"github.com/APITeamLimited/globe-test/metrics/engine"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/redis/v9"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,7 +18,7 @@ import (
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 // This is the highest level function with global state
 // Avoids use of credits as this will cause undesired side effects
-func manageExecution(gs *globalState, orchestratorClient *redis.Client, job libOrch.Job,
+func manageExecution(gs libOrch.BaseGlobalState, orchestratorClient *redis.Client, job libOrch.Job,
 	orchestratorId string, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
 
@@ -33,21 +38,48 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, job libO
 		}
 
 		libOrch.DispatchMessage(gs, string(marshalledOptions), "OPTIONS")
+	}
 
-		(*gs.MetricsStore()).InitMetricsStore(childJobs)
-		defer (*gs.MetricsStore()).Cleanup()
+	registry := metrics.NewRegistry()
+	metrics.RegisterBuiltinMetrics(registry)
+
+	for metricName, thresholdsDefinition := range job.Options.Thresholds {
+		err := thresholdsDefinition.Parse()
+		if err != nil {
+			libOrch.HandleError(gs, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig))
+			healthy = false
+		}
+
+		// TODO: move this to the orcj
+		err = thresholdsDefinition.Validate(metricName, registry)
+		if err != nil {
+			libOrch.HandleError(gs, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig))
+			healthy = false
+		}
+	}
+
+	metricsEngine, err := engine.NewMetricsEngine(job.Options, gs.Logger(), registry, func() time.Duration {
+		return gs.GetCurrentTestRunDuration()
+	})
+	if err != nil {
+		libOrch.HandleError(gs, err)
+		healthy = false
 	}
 
 	// Run the job
 
 	result := "FAILURE"
 
+	metricsEngine.Start()
+
 	if healthy {
-		result, err = handleExecution(gs, job, childJobs)
+		result, err = handleExecution(gs, job, childJobs, registry)
 		if err != nil {
 			libOrch.HandleError(gs, err)
 		}
 	}
+
+	metricsEngine.Stop()
 
 	libOrch.UpdateStatus(gs, result)
 
@@ -80,7 +112,7 @@ func manageExecution(gs *globalState, orchestratorClient *redis.Client, job libO
 	return healthy
 }
 
-func metricsStoreReceipt(gs *globalState) (*primitive.ObjectID, error) {
+func metricsStoreReceipt(gs libOrch.BaseGlobalState) (*primitive.ObjectID, error) {
 	if !gs.Standalone() {
 		return nil, nil
 	}
@@ -102,7 +134,7 @@ func metricsStoreReceipt(gs *globalState) (*primitive.ObjectID, error) {
 	return &metricsStoreReceipt, nil
 }
 
-func globeTestLogsStoreReceipt(gs *globalState) (*primitive.ObjectID, error) {
+func globeTestLogsStoreReceipt(gs libOrch.BaseGlobalState) (*primitive.ObjectID, error) {
 	globeTestLogsReceipt := primitive.NewObjectID()
 	globeTestLogsReceiptMessage := &libOrch.MarkMessage{
 		Mark:    "GlobeTestLogsStoreReceipt",

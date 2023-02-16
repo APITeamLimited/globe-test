@@ -1,7 +1,7 @@
 package output
 
 import (
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,7 +59,7 @@ func (om *Manager) stopOutputs(upToID int) {
 // current Engine. It needs to be replaced with the full metric pump.
 //
 // TODO: refactor
-func (om *Manager) AddMetricSamples(sampleContainers []workerMetrics.SampleContainer) {
+func (om *Manager) AddMetricSamples(sampleContainers []metrics.SampleContainer) {
 	if len(sampleContainers) == 0 {
 		return
 	}

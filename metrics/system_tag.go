@@ -1,4 +1,4 @@
-package workerMetrics
+package metrics
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 )
 
 // SystemTagSet is a bitmask that is used to keep track
-// which system tags should be included with which workerMetrics.
+// which system tags should be included with which metrics.
 //go:generate enumer -type=SystemTagSet -transform=snake -trimprefix=Tag -output system_tag_set_gen.go
 type SystemTagSet uint32
 

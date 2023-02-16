@@ -3,26 +3,34 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/APITeamLimited/globe-test/metrics"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/output"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
+)
+
+const (
+	thresholdsRate = 2 * time.Second
 )
 
 // MetricsEngine is the internal metrics engine that k6 uses to keep track of
 // aggregated metric sample values. They are used to generate the end-of-test
 // summary and to evaluate the test thresholds.
 type MetricsEngine struct {
-	es     *libWorker.ExecutionState
-	logger logrus.FieldLogger
+	getCurrentTestRunDuration func() time.Duration
+
+	options  *libWorker.Options
+	logger   logrus.FieldLogger
+	registry *metrics.Registry
 
 	// These can be both top-level metrics or sub-metrics
-	metricsWithThresholds []*workerMetrics.Metric
+	metricsWithThresholds []*metrics.Metric
 
 	// TODO: completely refactor:
 	//   - make these private,
@@ -30,16 +38,18 @@ type MetricsEngine struct {
 	//   - have one lock per metric instead of a a global one, when
 	//     the metrics are decoupled from their types
 	MetricsLock     sync.Mutex
-	ObservedMetrics map[string]*workerMetrics.Metric
+	ObservedMetrics map[string]*metrics.Metric
 }
 
 // NewMetricsEngine creates a new metrics Engine with the given parameters.
-func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) {
+func NewMetricsEngine(options *libWorker.Options, logger *logrus.Logger,
+	registry *metrics.Registry, getCurrentTestRunDuration func() time.Duration) (*MetricsEngine, error) {
 	me := &MetricsEngine{
-		es:     es,
-		logger: es.Test.Logger.WithField("component", "metrics-engine"),
+		options:  options,
+		logger:   logger.WithField("component", "metrics-engine"),
+		registry: registry,
 
-		ObservedMetrics: make(map[string]*workerMetrics.Metric),
+		ObservedMetrics: make(map[string]*metrics.Metric),
 	}
 
 	err := me.initSubMetricsAndThresholds()
@@ -50,20 +60,11 @@ func NewMetricsEngine(es *libWorker.ExecutionState) (*MetricsEngine, error) {
 	return me, nil
 }
 
-// GetIngester returns a pseudo-Output that uses the given metric samples to
-// update the engine's inner state.
-func (me *MetricsEngine) GetIngester() output.Output {
-	return &outputIngester{
-		logger:        me.logger.WithField("component", "metrics-engine-ingester"),
-		metricsEngine: me,
-	}
-}
-
-func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*workerMetrics.Metric, error) {
+func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Metric, error) {
 	// TODO: replace with strings.Cut after Go 1.18
 	nameParts := strings.SplitN(name, "{", 2)
 
-	metric := me.es.Test.Registry.Get(nameParts[0])
+	metric := me.registry.Get(nameParts[0])
 	if metric == nil {
 		return nil, fmt.Errorf("metric '%s' does not exist in the script", nameParts[0])
 	}
@@ -117,7 +118,7 @@ func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*workerMetr
 	return sm.Metric, nil
 }
 
-func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) {
+func (me *MetricsEngine) markObserved(metric *metrics.Metric) {
 	if !metric.Observed {
 		metric.Observed = true
 		me.ObservedMetrics[metric.Name] = metric
@@ -125,7 +126,7 @@ func (me *MetricsEngine) markObserved(metric *workerMetrics.Metric) {
 }
 
 func (me *MetricsEngine) initSubMetricsAndThresholds() error {
-	for metricName, thresholds := range me.es.Test.Options.Thresholds {
+	for metricName, thresholds := range me.options.Thresholds {
 		metric, err := me.getThresholdMetricOrSubmetric(metricName)
 
 		if err != nil {
@@ -146,7 +147,7 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error {
 
 	// TODO: refactor out of here when https://github.com/grafana/k6/issues/1321
 	// lands and there is a better way to enable a metric with tag
-	if me.es.Test.Options.SystemTags.Has(workerMetrics.TagExpectedResponse) {
+	if me.options.SystemTags.Has(metrics.TagExpectedResponse) {
 		_, err := me.getThresholdMetricOrSubmetric("http_req_duration{expected_response:true}")
 		if err != nil {
 			return err // shouldn't happen, but ¯\_(ツ)_/¯
@@ -163,7 +164,7 @@ func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTa
 	me.MetricsLock.Lock()
 	defer me.MetricsLock.Unlock()
 
-	t := me.es.GetCurrentTestRunDuration()
+	t := me.getCurrentTestRunDuration()
 
 	for _, m := range me.metricsWithThresholds {
 		// If either the metric has no thresholds defined, or its sinks
@@ -191,4 +192,77 @@ func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTa
 	}
 
 	return thresholdsTainted, shouldAbort
+}
+
+// processMetrics process the execution's metrics samples as they are collected.
+// The processing of samples happens at a fixed rate defined by the `collectRate`
+// constant.
+//
+// The `processMetricsAfterRun` channel argument is used by the caller to signal
+// that the test run is finished, no more metric samples will be produced, and that
+// the metrics samples remaining in the pipeline should be should be processed.
+func (e *MetricsEngine) processMetrics(globalCtx context.Context, processMetricsAfterRun chan struct{}) {
+	sampleContainers := []metrics.SampleContainer{}
+
+	defer func() {
+		// Process any remaining metrics in the pipeline, by this point Run()
+		// has already finished and nothing else should be producing metrics.
+		e.logger.Debug("Metrics processing winding down...")
+
+		close(e.Samples)
+		for sc := range e.Samples {
+			sampleContainers = append(sampleContainers, sc)
+		}
+		e.OutputManager.AddMetricSamples(sampleContainers)
+
+		// Process the thresholds one final time
+		thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds(false)
+		e.thresholdsTaintedLock.Lock()
+		e.thresholdsTainted = thresholdsTainted
+		e.thresholdsTaintedLock.Unlock()
+	}()
+
+	ticker := time.NewTicker(collectRate)
+	defer ticker.Stop()
+
+	e.logger.Debug("Metrics processing started...")
+	processSamples := func() {
+		if len(sampleContainers) > 0 {
+			e.OutputManager.AddMetricSamples(sampleContainers)
+			// Make the new container with the same size as the previous
+			// one, assuming that we produce roughly the same amount of
+			// metrics data between ticks...
+			sampleContainers = make([]metrics.SampleContainer, 0, cap(sampleContainers))
+		}
+	}
+	for {
+		select {
+		case <-ticker.C:
+			processSamples()
+		case <-processMetricsAfterRun:
+		getCachedMetrics:
+			for {
+				select {
+				case sc := <-e.Samples:
+					sampleContainers = append(sampleContainers, sc)
+				default:
+					break getCachedMetrics
+				}
+			}
+			processSamples()
+			// Ensure the ingester flushes any buffered metrics
+			_ = e.ingester.Stop()
+			thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds(false)
+			e.thresholdsTaintedLock.Lock()
+			e.thresholdsTainted = thresholdsTainted
+			e.thresholdsTaintedLock.Unlock()
+
+			processMetricsAfterRun <- struct{}{}
+
+		case sc := <-e.Samples:
+			sampleContainers = append(sampleContainers, sc)
+		case <-globalCtx.Done():
+			return
+		}
+	}
 }

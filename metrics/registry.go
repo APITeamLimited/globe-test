@@ -1,4 +1,4 @@
-package workerMetrics
+package metrics
 
 import (
 	"fmt"
@@ -34,12 +34,12 @@ func (r *Registry) NewMetric(name string, typ MetricType, t ...ValueType) (*Metr
 	defer r.l.Unlock()
 
 	if !checkName(name) {
-		return nil, fmt.Errorf("Invalid metric name: '%s'", name) //nolint:golint,stylecheck
+		return nil, fmt.Errorf("invalid metric name: '%s'", name) //nolint:golint,stylecheck
 	}
 	oldMetric, ok := r.metrics[name]
 
 	if !ok {
-		m := newMetric(name, typ, t...)
+		m := InstantiateMetric(name, typ, t...)
 		r.metrics[name] = m
 		return m, nil
 	}

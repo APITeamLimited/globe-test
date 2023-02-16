@@ -1,4 +1,4 @@
-package workerMetrics
+package metrics
 
 const (
 	VUsName               = "vus" //nolint:revive

@@ -8,10 +8,10 @@ import (
 	"github.com/APITeamLimited/globe-test/errext"
 	"github.com/APITeamLimited/globe-test/errext/exitcodes"
 	"github.com/APITeamLimited/globe-test/js"
+	proxy_registry "github.com/APITeamLimited/globe-test/metrics/proxy"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 	"github.com/spf13/afero"
 )
 
@@ -28,33 +28,32 @@ func loadAndConfigureTest(
 	filesystems := make(map[string]afero.Fs, 1)
 	filesystems["file"] = afero.NewMemMapFs()
 
-	registry := workerMetrics.NewRegistry()
+	registry := proxy_registry.NewProxyRegistry(job.Options.MetricSamplesBufferSize, gs)
 
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.logger,
-		Registry:       registry,
-		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: proxy_registry.RegisterBuiltinMetrics(registry),
 	}
 
 	test := &workerLoadedTest{
-		fs:           gs.fs,
-		pwd:          "",
-		fileSystems:  filesystems,
-		preInitState: preInitState,
-		sourceData:   sourceData,
+		fs:            gs.fs,
+		pwd:           "",
+		fileSystems:   filesystems,
+		preInitState:  preInitState,
+		sourceData:    sourceData,
+		proxyRegistry: registry,
 	}
 
 	if err := test.initializeFirstRunner(gs, workerInfo, job); err != nil {
 		return nil, fmt.Errorf("could not initialize first runner: %w", err)
 	}
-	gs.logger.Debug("Runner successfully initialized!")
 
 	return test.consolidateDeriveAndValidateConfig(gs, job)
 }
 
 func (lt *workerLoadedTest) initializeFirstRunner(gs *globalState, workerInfo *libWorker.WorkerInfo, job *libOrch.ChildJob) error {
-	runner, err := js.New(lt.preInitState, lt.sourceData, lt.fileSystems, workerInfo, job.TestData)
+	runner, err := js.New(lt.preInitState, lt.sourceData, lt.fileSystems, workerInfo, job.TestData, lt.proxyRegistry)
 	// TODO: should we use common.UnwrapGojaInterruptedError() here?
 	if err != nil {
 		return fmt.Errorf("could not load JS test: %w", err)
@@ -70,18 +69,6 @@ func (lt *workerLoadedTest) consolidateDeriveAndValidateConfig(
 	// ChildOptions have already been determined by the orchestrator, just load them
 	consolidatedConfig := Config{
 		Options: job.ChildOptions,
-	}
-
-	for metricName, thresholdsDefinition := range consolidatedConfig.Options.Thresholds {
-		err := thresholdsDefinition.Parse()
-		if err != nil {
-			return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-		}
-
-		err = thresholdsDefinition.Validate(metricName, lt.preInitState.Registry)
-		if err != nil {
-			return nil, errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
-		}
 	}
 
 	derivedConfig, err := deriveAndValidateConfig(consolidatedConfig, lt.initRunner.IsExecutable)
@@ -119,7 +106,6 @@ func validateConfig(conf Config, isExecutable func(string) bool) error {
 func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
 	execFn := conf.GetExec()
 	if !isExecutable(execFn) {
-		fmt.Println("asdasdasdasmdaskdasd", execFn)
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
 	}
 	return nil

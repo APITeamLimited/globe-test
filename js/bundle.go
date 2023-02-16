@@ -17,10 +17,10 @@ import (
 	"github.com/APITeamLimited/globe-test/js/common"
 	"github.com/APITeamLimited/globe-test/js/compiler"
 	"github.com/APITeamLimited/globe-test/js/eventloop"
+	proxy_registry "github.com/APITeamLimited/globe-test/metrics/proxy"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/consts"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
 )
 
 // A Bundle is a self-contained bundle of scripts and resources.
@@ -36,7 +36,7 @@ type Bundle struct {
 
 	BaseInitContext *InitContext
 
-	registry *workerMetrics.Registry
+	registry *proxy_registry.ProxyRegistry
 
 	exports map[string]map[string]goja.Callable
 
@@ -60,11 +60,11 @@ type BundleInstance struct {
 
 // NewBundleWorker creates a new bundle from a source file and a filesystem.
 func NewBundleWorker(
-	piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData) (*Bundle, error) {
-	return NewBundle(piState, src, filesystems, workerInfo, false, testData)
+	piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, testData *libWorker.TestData, proxyRegistry *proxy_registry.ProxyRegistry) (*Bundle, error) {
+	return NewBundle(piState, src, filesystems, workerInfo, false, testData, proxyRegistry)
 }
 
-func NewBundle(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, isOrchestrator bool, testData *libWorker.TestData) (*Bundle, error) {
+func NewBundle(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, filesystems map[string]afero.Fs, workerInfo *libWorker.WorkerInfo, isOrchestrator bool, testData *libWorker.TestData, proxyRegistry *proxy_registry.ProxyRegistry) (*Bundle, error) {
 	c := compiler.New(piState.Logger)
 
 	c.Options = compiler.Options{
@@ -146,7 +146,7 @@ func NewBundle(piState *libWorker.TestPreInitState, src *[]*loader.SourceData, f
 		Programs:            programs,
 		BaseInitContext:     NewInitContext(piState.Logger, rt, c, filesystems, &filenames, workerInfo, testData.RootNode),
 		exports:             exports,
-		registry:            piState.Registry,
+		registry:            proxyRegistry,
 		initializedTestData: *testData,
 	}
 	if err := bundle.instantiate(piState.Logger, rt, bundle.BaseInitContext, 0, workerInfo, isOrchestrator); err != nil {

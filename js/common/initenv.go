@@ -4,8 +4,7 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
-
+	proxy_registry "github.com/APITeamLimited/globe-test/metrics/proxy"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -17,7 +16,7 @@ type InitEnvironment struct {
 	Logger      logrus.FieldLogger
 	FileSystems map[string]afero.Fs
 	CWD         *url.URL
-	Registry    *workerMetrics.Registry
+	Registry    *proxy_registry.ProxyRegistry
 	WorkerInfo  *libWorker.WorkerInfo
 	// TODO: add RuntimeOptions and other properties, goja sources, etc.
 	// ideally, we should leave this as the only data structure necessary for

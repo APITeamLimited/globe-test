@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/APITeamLimited/globe-test/lib";
+
+message EventMessage {
+    enum Variant {
+        JOB_INFO = 0;
+        CHILD_JOB_INFO = 1;
+        GO_MESSAGE_TYPE = 2;
+        CHILD_USER_UPDATE = 3;
+    }
+
+    Variant variant = 1;
+
+    bytes data = 2;
+}
