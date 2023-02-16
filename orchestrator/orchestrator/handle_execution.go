@@ -240,42 +240,42 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			continue
 		}
 
-		workerMessage := libOrch.WorkerMessage{}
-		err := json.Unmarshal([]byte(locatedMessage.msg), &workerMessage)
+		wm := libOrch.WorkerMessage{}
+		err := json.Unmarshal([]byte(locatedMessage.msg), &wm)
 		if err != nil {
-			fmt.Println("Error unmarshalling workerMessage", err)
+			fmt.Println("Error unmarshalling wm", err)
 			continue
 		}
 
-		if workerMessage.MessageType == "STATUS" {
-			fmt.Println("Received status message from", workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message)
+		if wm.MessageType == "STATUS" {
+			fmt.Println("Received status message from", wm.WorkerId, wm.ChildJobId, wm.Message)
 
-			if workerMessage.Message == "READY" {
+			if wm.Message == "READY" {
 				// Check if the job has already been initialised
 
 				alreadyInitialised := false
 
 				jobsMutex.Lock()
 				for _, initialisedJob := range jobsInitialised {
-					if initialisedJob == workerMessage.ChildJobId {
+					if initialisedJob == wm.ChildJobId {
 						alreadyInitialised = true
 						break
 					}
 				}
 
-				fmt.Println("Job", workerMessage.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
+				fmt.Println("Job", wm.ChildJobId, "is ready", "alreadyInitialised:", alreadyInitialised, "new jobs count:", len(jobsInitialised)+1, "childJobCount:", childJobCount)
 
 				if !alreadyInitialised {
-					jobsInitialised = append(jobsInitialised, workerMessage.ChildJobId)
+					jobsInitialised = append(jobsInitialised, wm.ChildJobId)
 					jobsMutex.Unlock()
 					checkIfCanStart()
 				} else {
 					jobsMutex.Unlock()
 				}
 
-			} else if workerMessage.Message == "SUCCESS" || workerMessage.Message == "FAILURE" {
+			} else if wm.Message == "SUCCESS" || wm.Message == "FAILURE" {
 				resolutionMutex.Lock()
-				if workerMessage.Message == "SUCCESS" {
+				if wm.Message == "SUCCESS" {
 					successCount++
 				} else {
 					failureCount++
@@ -293,8 +293,8 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					}
 				}
 			}
-		} else if workerMessage.MessageType == "ERROR" {
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+		} else if wm.MessageType == "ERROR" {
+			libOrch.DispatchWorkerMessage(gs, wm.WorkerId, wm.ChildJobId, wm.Message, wm.MessageType)
 
 			resolutionMutex.Lock()
 			failureCount++
@@ -304,14 +304,14 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				// All jobs have finished
 				return abortAndFailAll(gs, childJobs, nil)
 			}
-		} else if workerMessage.MessageType == "METRICS" {
-			childJob := findChildJob(childJobs, locatedMessage.location, workerMessage.ChildJobId)
+		} else if wm.MessageType == "METRICS" {
+			childJob := findChildJob(childJobs, locatedMessage.location, wm.ChildJobId)
 			if childJob == nil {
-				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", workerMessage.ChildJobId))
+				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", wm.ChildJobId))
 			}
 
-			registry.AddMessage(workerMessage, locatedMessage.location, childJob.SubFraction)
-		} else if workerMessage.MessageType == "CONSOLE" {
+			registry.AddMessage(wm, locatedMessage.location, childJob.SubFraction)
+		} else if wm.MessageType == "CONSOLE" {
 			consoleLogCountMutex.Lock()
 
 			if consoleLogCount >= maxConsoleLogs {
@@ -319,7 +319,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 					sentMaxLogsReached = true
 					consoleLogCountMutex.Unlock()
 
-					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, "MAX_CONSOLE_LOGS_REACHED", "MESSAGE")
+					libOrch.DispatchWorkerMessage(gs, wm.WorkerId, wm.ChildJobId, "MAX_CONSOLE_LOGS_REACHED", "MESSAGE")
 				} else {
 					consoleLogCountMutex.Unlock()
 				}
@@ -330,16 +330,16 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			consoleLogCount++
 			consoleLogCountMutex.Unlock()
 
-			libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+			libOrch.DispatchWorkerMessage(gs, wm.WorkerId, wm.ChildJobId, wm.Message, wm.MessageType)
 		} else {
 			// Check if the message is a custom message
 			for _, messageType := range otherMessageTypes {
-				if messageType == workerMessage.MessageType {
+				if messageType == wm.MessageType {
 					if (messageType == "COLLECTION_VARIABLES" || messageType == "ENVIRONMENT_VARIABLES") && job.Options.ExecutionMode.Value != "httpSingle" {
 						break
 					}
 
-					libOrch.DispatchWorkerMessage(gs, workerMessage.WorkerId, workerMessage.ChildJobId, workerMessage.Message, workerMessage.MessageType)
+					libOrch.DispatchWorkerMessage(gs, wm.WorkerId, wm.ChildJobId, wm.Message, wm.MessageType)
 
 					break
 				}

@@ -16,8 +16,6 @@ import (
 )
 
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
-// This is the highest level function with global state
-// Avoids use of credits as this will cause undesired side effects
 func manageExecution(gs libOrch.BaseGlobalState, orchestratorClient *redis.Client, job libOrch.Job,
 	orchestratorId string, storeMongoDB *mongo.Database, optionsErr error) bool {
 	// Setup the job
