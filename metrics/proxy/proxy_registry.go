@@ -19,6 +19,7 @@ const proxyFlushInterval = 1 * time.Second
 type ProxyRegistry struct {
 	gs          libWorker.BaseGlobalState
 	metrics     map[string]*metrics.Metric
+	samples     []metrics.Sample
 	l           sync.RWMutex
 	samplesChan chan metrics.SampleContainer
 	ticker      *time.Ticker
@@ -47,12 +48,13 @@ func (r *ProxyRegistry) Start() {
 		for sample := range r.samplesChan {
 			r.l.Lock()
 			metrics := sample.GetSamples()
-			for _, s := range metrics {
-				m, ok := r.metrics[s.Metric.Name]
 
+			r.samples = append(r.samples, metrics...)
+
+			for _, s := range metrics {
 				// Assign the metric if it's not already registered
-				if !ok {
-					m = s.Metric
+				if _, ok := r.metrics[s.Metric.Name]; !ok {
+					m := s.Metric
 					r.metrics[s.Metric.Name] = m
 				}
 			}
@@ -83,10 +85,12 @@ func (r *ProxyRegistry) flush() {
 	r.l.RLock()
 	defer r.l.RUnlock()
 
-	marshalledMetrics, err := json.Marshal(r.metrics)
+	marshalledMetrics, err := json.Marshal(r.samples)
 	if err != nil {
 		panic(err)
 	}
+
+	r.samples = make([]metrics.Sample, 0)
 
 	libWorker.DispatchMessage(r.gs, string(marshalledMetrics), "METRICS")
 
@@ -99,7 +103,7 @@ func (r *ProxyRegistry) NewMetric(name string, typ metrics.MetricType, t ...metr
 	defer r.l.Unlock()
 
 	if !checkName(name) {
-		return nil, fmt.Errorf("Invalid metric name: '%s'", name) //nolint:golint,stylecheck
+		return nil, fmt.Errorf("invalid metric name: '%s'", name)
 	}
 	oldMetric, ok := r.metrics[name]
 
@@ -129,6 +133,7 @@ func (r *ProxyRegistry) MustNewMetric(name string, typ metrics.MetricType, t ...
 	return m
 }
 
+// THis may be required for some built in functionality on workers
 func RegisterBuiltinMetrics(registry *ProxyRegistry) *metrics.BuiltinMetrics {
 	return &metrics.BuiltinMetrics{
 		VUs:               registry.MustNewMetric(metrics.VUsName, metrics.Gauge),

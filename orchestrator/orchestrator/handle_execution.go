@@ -310,7 +310,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 				return abortAndFailAll(gs, childJobs, fmt.Errorf("could not find child job with id %s to add metrics to", wm.ChildJobId))
 			}
 
-			registry.AddMessage(wm, locatedMessage.location, childJob.SubFraction)
+			registry.AddMessage(wm, childJob)
 		} else if wm.MessageType == "CONSOLE" {
 			consoleLogCountMutex.Lock()
 

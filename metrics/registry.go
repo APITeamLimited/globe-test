@@ -1,8 +1,10 @@
 package metrics
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"runtime/metrics"
 	"sync"
 )
 
@@ -25,6 +27,29 @@ var compileNameRegex = regexp.MustCompile(nameRegexString)
 
 func checkName(name string) bool {
 	return compileNameRegex.Match([]byte(name))
+}
+
+// Adds remote worker samples
+func (r *Registry) AddSamples(rawMessage string) error {
+	samples := []metrics.Sample{}
+
+	err := json.Unmarshal([]byte(rawMessage), &samples)
+	if err != nil {
+		return err
+	}
+
+	r.l.Lock()
+	for _, sample := range samples {
+
+		metrics := sample.GetSamples()
+
+		// Assign the metric if it's not already registered
+		if _, ok := r.metrics[sample.Metric.Name]; !ok {
+			m := sample.Metric
+			r.metrics[sample.Metric.Name] = m
+		}
+	}
+	r.l.Unlock()
 }
 
 // NewMetric returns new metric registered to this registry

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	thresholdsRate = 2 * time.Second
+	thresholdsCheckInterval = 2 * time.Second
 )
 
 // MetricsEngine is the internal metrics engine that k6 uses to keep track of
@@ -39,6 +39,9 @@ type MetricsEngine struct {
 	//     the metrics are decoupled from their types
 	MetricsLock     sync.Mutex
 	ObservedMetrics map[string]*metrics.Metric
+
+	threasholdTicker   *time.Ticker
+	thresholdAbortChan chan struct{}
 }
 
 // NewMetricsEngine creates a new metrics Engine with the given parameters.
@@ -61,7 +64,6 @@ func NewMetricsEngine(options *libWorker.Options, logger *logrus.Logger,
 }
 
 func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Metric, error) {
-	// TODO: replace with strings.Cut after Go 1.18
 	nameParts := strings.SplitN(name, "{", 2)
 
 	metric := me.registry.Get(nameParts[0])
@@ -84,35 +86,6 @@ func (me *MetricsEngine) getThresholdMetricOrSubmetric(name string) (*metrics.Me
 	if sm.Metric.Observed {
 		// Do not repeat warnings for the same sub-metrics
 		return sm.Metric, nil
-	}
-
-	// TODO: reword these from "will be deprecated" to "were deprecated" and
-	// maybe make them errors, not warnings, when we introduce un-indexable tags
-
-	if _, ok := sm.Tags.Get("url"); ok {
-		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'url' metric tag, "+
-			"are deprecated and will not be supported in future k6 releases. "+
-			"To prevent breaking changes and reduce bugs, use the 'name' metric tag instead, see"+
-			"URL grouping (https://k6.io/docs/using-k6/http-requests/#url-grouping) for more information.", name,
-		)
-	}
-
-	if _, ok := sm.Tags.Get("error"); ok {
-		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'error' metric tag, "+
-			"are deprecated and will not be supported in future k6 releases. "+
-			"To prevent breaking changes and reduce bugs, use the 'error_code' metric tag instead", name,
-		)
-	}
-	if _, ok := sm.Tags.Get("vu"); ok {
-		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'vu' metric tag, "+
-			"are deprecated and will not be supported in future k6 releases.", name,
-		)
-	}
-
-	if _, ok := sm.Tags.Get("iter"); ok {
-		me.logger.Warnf("Thresholds like '%s', based on the high-cardinality 'iter' metric tag, "+
-			"are deprecated and will not be supported in future k6 releases.", name,
-		)
 	}
 
 	return sm.Metric, nil
@@ -158,9 +131,7 @@ func (me *MetricsEngine) initSubMetricsAndThresholds() error {
 }
 
 // EvaluateThresholds processes all of the thresholds.
-//
-// TODO: refactor, make private, optimize
-func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTainted, shouldAbort bool) {
+func (me *MetricsEngine) evaluateThresholds(ignoreEmptySinks bool) (thresholdsTainted, shouldAbort bool) {
 	me.MetricsLock.Lock()
 	defer me.MetricsLock.Unlock()
 
@@ -194,6 +165,29 @@ func (me *MetricsEngine) EvaluateThresholds(ignoreEmptySinks bool) (thresholdsTa
 	return thresholdsTainted, shouldAbort
 }
 
+func (me *MetricsEngine) Start() {
+	me.thresholdAbortChan = make(chan struct{})
+	me.threasholdTicker = time.NewTicker(thresholdsCheckInterval)
+
+	go func() {
+		// MAKE sure to listen to ticker close
+		for {
+			select {
+			case <-me.thresholdAbortChan:
+				threasholdsTainted, shouldAbort := me.evaluateThresholds(true)
+
+				if shouldAbort && threasholdsTainted {
+					me.thresholdAbortChan <- struct{}{}
+				}
+			}
+		}
+	}()
+}
+
+func (me *MetricsEngine) Stop() {
+	me.threasholdTicker.Stop()
+}
+
 // processMetrics process the execution's metrics samples as they are collected.
 // The processing of samples happens at a fixed rate defined by the `collectRate`
 // constant.
@@ -225,7 +219,6 @@ func (e *MetricsEngine) processMetrics(globalCtx context.Context, processMetrics
 	ticker := time.NewTicker(collectRate)
 	defer ticker.Stop()
 
-	e.logger.Debug("Metrics processing started...")
 	processSamples := func() {
 		if len(sampleContainers) > 0 {
 			e.OutputManager.AddMetricSamples(sampleContainers)

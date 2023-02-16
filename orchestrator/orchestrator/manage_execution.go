@@ -18,8 +18,6 @@ import (
 // Over-arching function that manages the execution of a job and handles its state and lifecycle
 func manageExecution(gs libOrch.BaseGlobalState, orchestratorClient *redis.Client, job libOrch.Job,
 	orchestratorId string, storeMongoDB *mongo.Database, optionsErr error) bool {
-	// Setup the job
-
 	healthy := optionsErr == nil
 
 	childJobs, err := determineChildJobs(healthy, job, job.Options)
@@ -67,17 +65,14 @@ func manageExecution(gs libOrch.BaseGlobalState, orchestratorClient *redis.Clien
 	// Run the job
 
 	result := "FAILURE"
-
-	metricsEngine.Start()
-
 	if healthy {
+		metricsEngine.Start()
 		result, err = handleExecution(gs, job, childJobs, registry)
 		if err != nil {
 			libOrch.HandleError(gs, err)
 		}
+		metricsEngine.Stop()
 	}
-
-	metricsEngine.Stop()
 
 	libOrch.UpdateStatus(gs, result)
 

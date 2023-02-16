@@ -60,14 +60,14 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 		}
 	}
 
-	channel := make(chan error)
+	errorChannel := make(chan error)
 
 	go func() {
 		// Convert logs to JSON and set in bucket
 		globeTestLogsMarshalled, err := json.Marshal(globeTestLogs)
 		if err != nil {
 			// Can't alert client here, as the client has already been cleaned up
-			channel <- fmt.Errorf("error marshalling logs: %s", err.Error())
+			errorChannel <- fmt.Errorf("error marshalling logs: %s", err.Error())
 			return
 		}
 
@@ -77,7 +77,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 			err = libOrch.SetInBucket(jobBucket, globeTestLogsFilename, globeTestLogsMarshalled, "application/json", globeTestLogsReceipt)
 			if err != nil {
 				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				errorChannel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
 				return
 			}
 		} else {
@@ -91,21 +91,21 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 			marshalledLocalhostFile, err := json.Marshal(localhostFile)
 			if err != nil {
 				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				errorChannel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
 				return
 			}
 
 			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
 		}
 
-		channel <- nil
+		errorChannel <- nil
 	}()
 
 	go func() {
 		// Convert metrics to JSON and set in bucket
 		metricsMarshalled, err := json.Marshal(metrics)
 		if err != nil {
-			channel <- fmt.Errorf("error marshalling metrics: %s", err.Error())
+			errorChannel <- fmt.Errorf("error marshalling metrics: %s", err.Error())
 			return
 		}
 
@@ -114,7 +114,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 		if gs.Standalone() {
 			err = libOrch.SetInBucket(jobBucket, metricsFilename, metricsMarshalled, "application/json", metricsStoreReceipt)
 			if err != nil {
-				channel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
+				errorChannel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
 				return
 			}
 		} else {
@@ -128,18 +128,18 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 			marshalledLocalhostFile, err := json.Marshal(localhostFile)
 			if err != nil {
 				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
+				errorChannel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
 				return
 			}
 
 			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
 		}
 
-		channel <- nil
+		errorChannel <- nil
 	}()
 
 	for i := 0; i < 2; i++ {
-		err := <-channel
+		err := <-errorChannel
 		if err != nil {
 			return err
 		}
