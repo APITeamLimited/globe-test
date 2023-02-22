@@ -78,7 +78,6 @@ func DispatchMessage(gs BaseGlobalState, message string, messageType string) {
 	}
 
 	isTerminal := messageType == "STATUS" && (message == "FAILURE" || message == "SUCCESS")
-
 	if isTerminal {
 		time.Sleep(200 * time.Millisecond)
 	}

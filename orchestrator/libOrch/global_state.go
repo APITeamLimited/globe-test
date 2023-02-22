@@ -29,7 +29,7 @@ type BaseGlobalState interface {
 	OrchestratorClient() *redis.Client
 	JobId() string
 	OrchestratorId() string
-	MetricsStore() *BaseMetricsStore
+	MetricsStore() BaseAggregator
 	GetStatus() string
 	SetStatus(string)
 

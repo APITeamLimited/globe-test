@@ -13,11 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type clientOptions struct {
-	redisOptions *redis.Options
-	displayName  string
-}
-
 func getOrchestratorClient(standalone bool) *redis.Client {
 	if !standalone {
 		return redis.NewClient(&redis.Options{

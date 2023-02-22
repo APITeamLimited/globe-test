@@ -42,6 +42,7 @@ func determineChildJobs(healthy bool, job libOrch.Job, options *libWorker.Option
 				ChildJobId:       uuid.NewString(),
 				ChildOptions:     orchOptions.DetermineChildDerivedOptions(loadZone, parsed, subFraction),
 				SubFraction:      subFraction,
+				Location:         loadZone.Location,
 				WorkerConnection: nil,
 			}
 		}

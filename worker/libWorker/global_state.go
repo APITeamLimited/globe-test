@@ -29,4 +29,6 @@ type BaseGlobalState interface {
 
 	SetRunAbortFunc(cancelFunc context.CancelFunc)
 	GetRunAbortFunc() context.CancelFunc
+
+	GetLoggerChannel() chan map[string]interface{}
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/APITeamLimited/globe-test/js"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
 	"github.com/spf13/afero"

@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
@@ -491,7 +491,7 @@ func (vlv *RampingVUs) Init(_ context.Context) error {
 
 // Run constantly loops through as many iterations as possible on a variable
 // number of VUs for the specified stages.
-func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
+func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) error {
 	regularDuration, isFinal := libWorker.GetEndOffset(vlv.rawSteps)
 	if !isFinal {
 		return fmt.Errorf("%s expected raw end offset at %s to be final", vlv.config.GetName(), regularDuration)
@@ -500,14 +500,10 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- workerMetrics.SampleCon
 	if !isFinal {
 		return fmt.Errorf("%s expected graceful end offset at %s to be final", vlv.config.GetName(), maxDuration)
 	}
-	waitOnProgressChannel := make(chan struct{})
 	startTime, maxDurationCtx, _, cancel := getDurationContexts(
 		ctx, regularDuration, maxDuration-regularDuration,
 	)
-	defer func() {
-		cancel()
-		<-waitOnProgressChannel
-	}()
+	defer cancel()
 
 	maxVUs := libWorker.GetMaxPlannedVUs(vlv.gracefulSteps)
 

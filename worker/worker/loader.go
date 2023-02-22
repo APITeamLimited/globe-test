@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/APITeamLimited/globe-test/js"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
-	"github.com/APITeamLimited/globe-test/worker/js"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/loader"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 )
@@ -42,14 +42,14 @@ func loadAndConfigureTest(
 		Env:                  make(map[string]string),
 	}
 
-	registry := workerMetrics.NewRegistry()
+	registry := metrics.NewRegistry()
 
 	preInitState := &libWorker.TestPreInitState{
 		// These gs will need to be changed as on the cloud
 		Logger:         gs.logger,
 		RuntimeOptions: runtimeOptions,
 		Registry:       registry,
-		BuiltinMetrics: workerMetrics.RegisterBuiltinMetrics(registry),
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	}
 
 	test := &workerLoadedTest{

@@ -1,25 +1,26 @@
 package orchestrator
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/aggregator"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/protobuf/proto"
 )
 
-/*
-Cleans up the worker and orchestrator clients, storing all results in storeMongo
-*/
-func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution, storeMongoDB *mongo.Database,
-	scope libOrch.Scope, globeTestLogsReceipt *primitive.ObjectID, metricsStoreReceipt *primitive.ObjectID) error {
-	// Clean up worker
-	// Set job in orchestrator redis
+var TEST_INFO_KEYS = []string{"INTERVAL", "CONSOLE"}
 
+// Cleans up the worker and orchestrator clients, storing all results in storeMongo
+func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution, storeMongoDB *mongo.Database,
+	scope libOrch.Scope, testInfoStoreReceipt *primitive.ObjectID) error {
 	// Store results in MongoDB
 	bucketName := fmt.Sprintf("%s:%s", scope.Variant, scope.VariantTargetId)
 	var err error
@@ -38,8 +39,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 		return err
 	}
 
-	var globeTestLogs []libOrch.OrchestratorOrWorkerMessage
-	var metrics []libOrch.OrchestratorOrWorkerMessage
+	var testData []libOrch.OrchestratorOrWorkerMessage
 
 	for _, value := range unparsedMessages {
 		// Declare here else fields will be inherited from previous iteration
@@ -51,98 +51,45 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 			continue
 		}
 
-		if message.MessageType == "METRICS" {
-			metrics = append(metrics, message)
-		} else if message.MessageType == "COLLECTION_VARIABLES" || message.MessageType == "ENVIRONMENT_VARIABLES" {
-			continue
-		} else {
-			globeTestLogs = append(globeTestLogs, message)
+		if lib.StringInSlice(TEST_INFO_KEYS, message.MessageType) {
+			testData = append(testData, message)
 		}
 	}
 
-	channel := make(chan error)
+	postTestInfo, err := aggregator.DeterminePostTestInfo(gs, &testData)
+	if err != nil {
+		return fmt.Errorf("error determining post test info: %s", err.Error())
+	}
 
-	go func() {
-		// Convert logs to JSON and set in bucket
-		globeTestLogsMarshalled, err := json.Marshal(globeTestLogs)
+	encodedBytes, err := proto.Marshal(postTestInfo)
+	if err != nil {
+		return fmt.Errorf("error marshalling post test info: %s", err.Error())
+	}
+
+	filename := fmt.Sprintf("GlobeTest:%s:postTestInfo", job.Id)
+
+	if gs.Standalone() {
+		err = libOrch.SetInBucket(jobBucket, filename, encodedBytes, "application/protobuf", testInfoStoreReceipt)
 		if err != nil {
 			// Can't alert client here, as the client has already been cleaned up
-			channel <- fmt.Errorf("error marshalling logs: %s", err.Error())
-			return
+			return fmt.Errorf("error setting logs in bucket: %s", err.Error())
+		}
+	} else {
+		// TODO
+		localhostFile := libOrch.LocalhostFile{
+			FileName: filename,
+			Contents: base64.StdEncoding.EncodeToString(encodedBytes),
+			Kind:     "TEST_INFO",
 		}
 
-		globeTestLogsFilename := fmt.Sprintf("GlobeTest:%s:messages.json", job.Id)
-
-		if gs.Standalone() {
-			err = libOrch.SetInBucket(jobBucket, globeTestLogsFilename, globeTestLogsMarshalled, "application/json", globeTestLogsReceipt)
-			if err != nil {
-				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
-				return
-			}
-		} else {
-			// TODO
-			localhostFile := libOrch.LocalhostFile{
-				FileName: globeTestLogsFilename,
-				Contents: string(globeTestLogsMarshalled),
-				Kind:     "GLOBETEST_LOGS",
-			}
-
-			marshalledLocalhostFile, err := json.Marshal(localhostFile)
-			if err != nil {
-				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
-				return
-			}
-
-			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
-		}
-
-		channel <- nil
-	}()
-
-	go func() {
-		// Convert metrics to JSON and set in bucket
-		metricsMarshalled, err := json.Marshal(metrics)
+		marshalledLocalhostFile, err := json.Marshal(localhostFile)
 		if err != nil {
-			channel <- fmt.Errorf("error marshalling metrics: %s", err.Error())
-			return
+			// Can't alert client here, as the client has already been cleaned up
+			return fmt.Errorf("error setting logs in bucket: %s", err.Error())
+
 		}
 
-		metricsFilename := fmt.Sprintf("GlobeTest:%s:metrics.json", job.Id)
-
-		if gs.Standalone() {
-			err = libOrch.SetInBucket(jobBucket, metricsFilename, metricsMarshalled, "application/json", metricsStoreReceipt)
-			if err != nil {
-				channel <- fmt.Errorf("error setting metrics in bucket: %s", err.Error())
-				return
-			}
-		} else {
-			// TODO
-			localhostFile := libOrch.LocalhostFile{
-				FileName: metricsFilename,
-				Contents: string(metricsMarshalled),
-				Kind:     "GLOBETEST_METRICS",
-			}
-
-			marshalledLocalhostFile, err := json.Marshal(localhostFile)
-			if err != nil {
-				// Can't alert client here, as the client has already been cleaned up
-				channel <- fmt.Errorf("error setting logs in bucket: %s", err.Error())
-				return
-			}
-
-			libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
-		}
-
-		channel <- nil
-	}()
-
-	for i := 0; i < 2; i++ {
-		err := <-channel
-		if err != nil {
-			return err
-		}
+		libOrch.DispatchMessage(gs, string(marshalledLocalhostFile), "LOCALHOST_FILE")
 	}
 
 	// Clean up orchestrator

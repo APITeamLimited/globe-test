@@ -2,7 +2,7 @@ package output
 
 import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,7 +70,7 @@ func (om *Manager) SetRunStatus(status libWorker.RunStatus) {
 // current Engine. It needs to be replaced with the full metric pump.
 //
 // TODO: refactor
-func (om *Manager) AddMetricSamples(sampleContainers []workerMetrics.SampleContainer) {
+func (om *Manager) AddMetricSamples(sampleContainers []metrics.SampleContainer) {
 	if len(sampleContainers) == 0 {
 		return
 	}

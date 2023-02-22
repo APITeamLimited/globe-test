@@ -113,8 +113,15 @@ func newGlobalState(ctx context.Context, conn *websocket.Conn, job *libOrch.Chil
 		cancelFunc: func() {},
 	}
 
-	gs.stdOut = &consoleWriter{gs}
-	gs.stdErr = &consoleWriter{gs}
+	loggerChannel := make(chan map[string]interface{}, 100)
+
+	cw := &consoleWriter{
+		gs,
+		loggerChannel,
+	}
+
+	gs.stdOut = cw
+	gs.stdErr = cw
 
 	gs.logger = &logrus.Logger{
 		Out:       gs.stdOut,
@@ -201,4 +208,8 @@ func (gs *globalState) GetRunAbortFunc() context.CancelFunc {
 
 func (gs *globalState) SetRunAbortFunc(cancelFunc context.CancelFunc) {
 	gs.cancelFunc = cancelFunc
+}
+
+func (gs *globalState) GetLoggerChannel() chan map[string]interface{} {
+	return gs.stdOut.loggerChannel
 }

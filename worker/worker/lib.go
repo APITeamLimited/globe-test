@@ -11,6 +11,8 @@ import (
 
 type consoleWriter struct {
 	gs libWorker.BaseGlobalState
+
+	loggerChannel chan map[string]interface{}
 }
 
 func (w *consoleWriter) Write(p []byte) (n int, err error) {
@@ -19,7 +21,6 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	// Intercept the write message so can assess log errors parse json
 	parsed := make(map[string]interface{})
 	if err := json.Unmarshal(p, &parsed); err != nil {
-
 		return origLen, err
 	}
 
@@ -27,6 +28,8 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 	if parsed["level"] == "debug" {
 		return origLen, err
 	}
+
+	w.loggerChannel <- parsed
 
 	// Check message level, if error then log error
 	if parsed["level"] == "error" {
@@ -37,8 +40,6 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) {
 		}
 		return
 	}
-
-	libWorker.DispatchMessage(w.gs, string(p), "CONSOLE")
 
 	return origLen, err
 }

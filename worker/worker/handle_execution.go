@@ -3,18 +3,17 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/APITeamLimited/globe-test/js/common"
 	"github.com/APITeamLimited/globe-test/lib"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
 	"github.com/APITeamLimited/globe-test/worker/core"
 	"github.com/APITeamLimited/globe-test/worker/core/local"
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/errext/exitcodes"
-	"github.com/APITeamLimited/globe-test/worker/js/common"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/gorilla/websocket"
@@ -28,6 +27,8 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	workerId string, creditsClient *redis.Client, standalone bool, connReadMutex, connWriteMutex *sync.Mutex) bool {
 	gs := newGlobalState(ctx, conn, job, workerId, job.FuncModeInfo, connReadMutex, connWriteMutex)
 	eventChannels := getEventChannels(gs)
+	defer close(eventChannels.goMessageChannel)
+	defer close(eventChannels.childUpdatesChannel)
 
 	// Prestart-abort callback is for when not yet running but the test is aborted
 	preAbortChannel := make(chan bool)
@@ -47,7 +48,6 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	// Write the full options back to the Runner.
 	testRunState, err := test.buildTestRunState(test.derivedConfig.Options)
 	if err != nil {
-		fmt.Println("Error building testRunState", err)
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error building testRunState %s", err.Error()))
 		return false
 	}
@@ -83,7 +83,13 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	runCtx, runCancel := context.WithCancel(globalCtx)
 	defer runCancel()
 
-	gs.SetRunAbortFunc(runCancel)
+	gs.SetRunAbortFunc(func() {
+		runCancel()
+
+		time.Sleep(1 * time.Second)
+
+		globalCancel()
+	})
 
 	// Regularly deduct credits
 	workerInfo.CreditsManager.StartMonitoringCredits(func() {
@@ -102,7 +108,7 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	}
 
 	// Create all outputs.
-	outputs, err := createOutputs(gs)
+	outputs, err := createOutputs(gs, job.Location)
 	if err != nil {
 		libWorker.HandleStringError(gs, fmt.Sprintf("Error creating outputs %s", err.Error()))
 		return false
@@ -205,11 +211,8 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 	libWorker.UpdateStatus(gs, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
+
 	if interrupt != nil {
-		return false
-	}
-	if engine.IsTainted() {
-		libWorker.HandleError(gs, errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed))
 		return false
 	}
 

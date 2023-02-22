@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/APITeamLimited/globe-test/lib"
+	"github.com/APITeamLimited/globe-test/orchestrator/aggregator"
 	"github.com/APITeamLimited/globe-test/orchestrator/libOrch"
-	"github.com/APITeamLimited/globe-test/orchestrator/orchMetrics"
 	"github.com/APITeamLimited/redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -24,7 +24,7 @@ type (
 		client         *redis.Client
 		jobId          string
 		orchestratorId string
-		metricsStore   libOrch.BaseMetricsStore
+		metricsStore   libOrch.BaseAggregator
 		status         string
 		childJobStates []libOrch.WorkerState
 		creditsManager *lib.CreditsManager
@@ -67,7 +67,7 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 		Level:     logrus.InfoLevel,
 	}
 
-	gs.metricsStore = orchMetrics.NewCachedMetricsStore(gs)
+	gs.metricsStore = aggregator.NewCachedMetricsStore(gs)
 
 	return gs
 }
@@ -119,8 +119,8 @@ func (g *globalState) OrchestratorId() string {
 	return g.orchestratorId
 }
 
-func (g *globalState) MetricsStore() *libOrch.BaseMetricsStore {
-	return &g.metricsStore
+func (g *globalState) MetricsStore() libOrch.BaseAggregator {
+	return g.metricsStore
 }
 
 func (g *globalState) GetStatus() string {

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -303,7 +303,7 @@ func noNegativeSqrt(f float64) float64 {
 // and things like all of the TODOs below in one place only.
 //
 //nolint:funlen,cyclop
-func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerMetrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
+func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- metrics.SampleContainer, workerInfo *libWorker.WorkerInfo) (err error) {
 	segment := varr.executionState.ExecutionTuple.Segment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
@@ -324,7 +324,6 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 	activeVUsWg := &sync.WaitGroup{}
 
 	returnedVUs := make(chan struct{})
-	waitOnProgressChannel := make(chan struct{})
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 
 	vusPool := newActiveVUPool()
@@ -337,7 +336,6 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 		vusPool.Close()
 		cancel()
 		activeVUsWg.Wait()
-		<-waitOnProgressChannel
 	}()
 
 	activeVUsCount := uint64(0)
@@ -431,7 +429,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- workerM
 		// Since there aren't any free VUs available, consider this iteration
 		// dropped - we aren't going to try to recover it, but
 
-		workerMetrics.PushIfNotDone(parentCtx, out, droppedIterationMetric.Sample(time.Now(), metricTags, 1))
+		metrics.PushIfNotDone(parentCtx, out, droppedIterationMetric.Sample(time.Now(), metricTags, 1))
 
 		// We'll try to start allocating another VU in the background,
 		// non-blockingly, if we have remainingUnplannedVUs...

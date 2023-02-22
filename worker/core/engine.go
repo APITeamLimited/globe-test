@@ -8,15 +8,14 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/errext"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics/engine"
 	"github.com/APITeamLimited/globe-test/worker/output"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics/engine"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	collectRate    = 50 * time.Millisecond
-	thresholdsRate = 2 * time.Second
+	collectRate = 1000 * time.Millisecond
 )
 
 // The Engine is the beating heart of k6.
@@ -43,11 +42,7 @@ type Engine struct {
 	stopOnce sync.Once
 	stopChan chan struct{}
 
-	Samples chan workerMetrics.SampleContainer
-
-	// Are thresholds tainted?
-	thresholdsTaintedLock sync.Mutex
-	thresholdsTainted     bool
+	Samples chan metrics.SampleContainer
 }
 
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
@@ -60,7 +55,7 @@ func NewEngine(testState *libWorker.TestRunState, ex libWorker.ExecutionSchedule
 		ExecutionScheduler: ex,
 
 		runtimeOptions: testState.RuntimeOptions,
-		Samples:        make(chan workerMetrics.SampleContainer, testState.Options.MetricSamplesBufferSize.Int64),
+		Samples:        make(chan metrics.SampleContainer, testState.Options.MetricSamplesBufferSize.Int64),
 		stopChan:       make(chan struct{}),
 		logger:         testState.Logger.WithField("component", "engine"),
 	}
@@ -197,33 +192,6 @@ func (e *Engine) startBackgroundProcesses(
 		}
 	}()
 
-	// Run thresholds, if not disabled.
-	if !e.runtimeOptions.NoThresholds.Bool {
-		processes.Add(1)
-		go func() {
-			defer processes.Done()
-			defer e.logger.Debug("Engine: Thresholds terminated")
-			ticker := time.NewTicker(thresholdsRate)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ticker.C:
-					thresholdsTainted, shouldAbort := e.MetricsEngine.EvaluateThresholds(true)
-					e.thresholdsTaintedLock.Lock()
-					e.thresholdsTainted = thresholdsTainted
-					e.thresholdsTaintedLock.Unlock()
-					if shouldAbort {
-						close(thresholdAbortChan)
-						return
-					}
-				case <-runCtx.Done():
-					return
-				}
-			}
-		}()
-	}
-
 	return processes.Wait
 }
 
@@ -235,11 +203,11 @@ func (e *Engine) startBackgroundProcesses(
 // that the test run is finished, no more metric samples will be produced, and that
 // the metrics samples remaining in the pipeline should be should be processed.
 func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRun chan struct{}) {
-	sampleContainers := []workerMetrics.SampleContainer{}
+	sampleContainers := []metrics.SampleContainer{}
 
 	defer func() {
 		// Process any remaining metrics in the pipeline, by this point Run()
-		// has already finished and nothing else should be producing workerMetrics.
+		// has already finished and nothing else should be producing metrics.
 		e.logger.Debug("Metrics processing winding down...")
 
 		close(e.Samples)
@@ -247,14 +215,6 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			sampleContainers = append(sampleContainers, sc)
 		}
 		e.OutputManager.AddMetricSamples(sampleContainers)
-
-		if !e.runtimeOptions.NoThresholds.Bool {
-			// Process the thresholds one final time
-			thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds(false)
-			e.thresholdsTaintedLock.Lock()
-			e.thresholdsTainted = thresholdsTainted
-			e.thresholdsTaintedLock.Unlock()
-		}
 	}()
 
 	ticker := time.NewTicker(collectRate)
@@ -267,7 +227,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			// Make the new container with the same size as the previous
 			// one, assuming that we produce roughly the same amount of
 			// metrics data between ticks...
-			sampleContainers = make([]workerMetrics.SampleContainer, 0, cap(sampleContainers))
+			sampleContainers = make([]metrics.SampleContainer, 0, cap(sampleContainers))
 		}
 	}
 	for {
@@ -286,14 +246,6 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			}
 			e.logger.Debug("Processing metrics and thresholds after the test run has ended...")
 			processSamples()
-			if !e.runtimeOptions.NoThresholds.Bool {
-				// Ensure the ingester flushes any buffered metrics
-				_ = e.ingester.Stop()
-				thresholdsTainted, _ := e.MetricsEngine.EvaluateThresholds(false)
-				e.thresholdsTaintedLock.Lock()
-				e.thresholdsTainted = thresholdsTainted
-				e.thresholdsTaintedLock.Unlock()
-			}
 			processMetricsAfterRun <- struct{}{}
 
 		case sc := <-e.Samples:
@@ -302,12 +254,6 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 			return
 		}
 	}
-}
-
-func (e *Engine) IsTainted() bool {
-	e.thresholdsTaintedLock.Lock()
-	defer e.thresholdsTaintedLock.Unlock()
-	return e.thresholdsTainted
 }
 
 // Stop closes a signal channel, forcing a running Engine to return

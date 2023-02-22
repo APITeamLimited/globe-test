@@ -6,6 +6,7 @@ import (
 
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
+	"gopkg.in/guregu/null.v3"
 )
 
 func ExecutionMode(options *libWorker.Options, rootNodeVariant string) error {
@@ -26,6 +27,9 @@ func ExecutionMode(options *libWorker.Options, rootNodeVariant string) error {
 		} else if options.Scenarios != nil {
 			return errors.New("cannot use executionMode 'httpSingle' with scenarios")
 		}
+
+		options.VUs = null.NewInt(1, true)
+		options.Iterations = null.NewInt(1, true)
 
 		return nil
 	} else if options.ExecutionMode.Value == types.HTTPMultipleExecutionMode {

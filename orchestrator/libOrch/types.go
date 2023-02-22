@@ -49,6 +49,7 @@ type (
 		ChildJobId       string            `json:"childJobId"`
 		ChildOptions     libWorker.Options `json:"childOptions"`
 		SubFraction      float64           `json:"subFraction"`
+		Location         string            `json:"location"`
 		WorkerConnection *websocket.Conn
 		ConnWriteMutex   *sync.Mutex
 		ConnReadMutex    *sync.Mutex

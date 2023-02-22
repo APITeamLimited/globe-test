@@ -86,9 +86,13 @@ func testStartChannel(gs libWorker.BaseGlobalState, eventChannels eventChannels,
 		}
 	}()
 
-	// Listen for abort command from orchestrator
+	// Listen for abort command from orchestrator and handle job updates
 	go func() {
 		for msg := range eventChannels.childUpdatesChannel {
+			if status != WAITING {
+				return
+			}
+
 			var updateMessage = JobUserUpdate{}
 			if err := json.Unmarshal([]byte(msg), &updateMessage); err != nil {
 				libWorker.HandleStringError(gs, fmt.Sprintf("Error unmarshalling abort message: %s", err.Error()))
@@ -98,17 +102,14 @@ func testStartChannel(gs libWorker.BaseGlobalState, eventChannels eventChannels,
 			if updateMessage.UpdateType == "CANCEL" {
 				fmt.Println("Aborting child job due to a request from the orchestrator")
 
-				statusMutex.Lock()
-
-				if status == WAITING {
-					startChan <- nil
-
-					statusMutex.Unlock()
-					status = FAILED
-				} else {
-					statusMutex.Unlock()
-					return
+				if gs.GetRunAbortFunc() != nil {
+					gs.GetRunAbortFunc()()
 				}
+
+				statusMutex.Lock()
+				startChan <- nil
+				statusMutex.Unlock()
+				status = FAILED
 			}
 		}
 	}()

@@ -5,7 +5,7 @@ package output
 
 import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
 // TODO: make v2 with buffered channels?
@@ -16,10 +16,6 @@ import (
 // N.B: All outputs should have non-blocking AddMetricSamples() methods and
 // should spawn their own goroutine to flush metrics asynchronously.
 type Output interface {
-	// Returns a human-readable description of the output that will be shown in
-	// `k6 run`. For extensions it probably should include the version as well.
-	Description() string
-
 	// Start is called before the Engine tries to use the output and should be
 	// used for any long initialization tasks, as well as for starting a
 	// goroutine to asynchronously flush metrics to the output.
@@ -29,7 +25,7 @@ type Output interface {
 	// method is never called concurrently, so do not do anything blocking here
 	// that might take a long time. Preferably, just use the SampleBuffer or
 	// something like it to buffer metrics until they are flushed.
-	AddMetricSamples(samples []workerMetrics.SampleContainer)
+	AddMetricSamples(samples []metrics.SampleContainer)
 
 	// Flush all remaining metrics and finalize the test run.
 	Stop() error
@@ -39,7 +35,7 @@ type Output interface {
 // thresholds before it can be started.
 type WithThresholds interface {
 	Output
-	SetThresholds(map[string]workerMetrics.Thresholds)
+	SetThresholds(map[string]metrics.Thresholds)
 }
 
 // WithTestRunStop is an output that can stop the Engine mid-test, interrupting
@@ -57,8 +53,8 @@ type WithRunStatusUpdates interface {
 	SetRunStatus(latestStatus libWorker.RunStatus)
 }
 
-// WithBuiltinMetrics means the output can receive the builtin workerMetrics.
+// WithBuiltinMetrics means the output can receive the builtin metrics.
 type WithBuiltinMetrics interface {
 	Output
-	SetBuiltinMetrics(builtinMetrics *workerMetrics.BuiltinMetrics)
+	SetBuiltinMetrics(builtinMetrics *metrics.BuiltinMetrics)
 }

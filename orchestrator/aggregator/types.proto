@@ -1,0 +1,54 @@
+// To generate go code from proto file using protoc, run the following command:
+// protoc --go_out=. --experimental_allow_proto3_optional types.proto
+
+syntax = "proto3";
+
+option go_package=".";
+
+import "google/protobuf/timestamp.proto";
+
+message Sink {
+    map<string, double> labels = 1;
+};
+
+message Interval {
+    int32 period = 1;
+
+    // map<metric name, value> location name is included here
+    map<string, Sink> sinks = 2;
+};
+
+message ConsoleMessage {
+    string message = 1;
+    string level = 2;
+    google.protobuf.Timestamp first_occurred = 3;
+    google.protobuf.Timestamp last_occurred = 4;
+    // map<location, times occured>
+    map<string, int32> count = 5;
+};
+
+message Threshold { 
+    string source = 1;
+    optional bool abort_on_fail = 2;
+    optional string delay_abort_eval = 3;
+}
+
+// TestInfo is the root data structure for the data stored in the database.
+message TestInfo {
+    repeated Interval intervals = 1;
+    Interval summary = 2;
+    repeated ConsoleMessage console_messages = 3;
+    repeated Threshold thresholds = 4;
+};
+
+message DataPoint {
+    oneof data {
+        Interval interval = 1;
+        ConsoleMessage console_message = 2;
+        Threshold threshold = 3;
+    }
+}
+
+message StreamedData {
+    repeated DataPoint data_points = 1;
+}

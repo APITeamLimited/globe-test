@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/APITeamLimited/globe-test/worker/workerMetrics"
+	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -116,7 +116,7 @@ type Executor interface {
 	GetLogger() *logrus.Entry
 
 	Init(ctx context.Context) error
-	Run(ctx context.Context, engineOut chan<- workerMetrics.SampleContainer, workerInfo *WorkerInfo) error
+	Run(ctx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *WorkerInfo) error
 }
 
 // PausableExecutor should be implemented by the executors that can be paused
