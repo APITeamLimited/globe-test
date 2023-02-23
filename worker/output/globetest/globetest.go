@@ -2,6 +2,7 @@ package globetest
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/metrics"
 	"github.com/APITeamLimited/globe-test/worker/output"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -28,7 +28,6 @@ type Output struct {
 	location string
 
 	seenMetrics map[string]struct{}
-	thresholds  map[string]metrics.Thresholds
 
 	flushCount          int
 	flushIncrementMutex sync.Mutex
@@ -74,31 +73,7 @@ func (o *Output) Start() error {
 	}
 	o.periodicFlusher = pf
 
-	go func() {
-		for log := range o.gs.GetLoggerChannel() {
-			level := log["level"].(string)
-
-			var msg string
-
-			if log["error"] != nil {
-				msg = log["error"].(string)
-			} else {
-				msg = log["msg"].(string)
-			}
-
-			consoleMessage := &aggregator.ConsoleMessage{
-				Message: msg,
-				Level:   level,
-				Count: map[string]int32{
-					o.location: 1,
-				},
-				FirstOccurred: timestamppb.New(time.Now()),
-				LastOccurred:  timestamppb.New(time.Now()),
-			}
-
-			o.addConsoleMessage(consoleMessage)
-		}
-	}()
+	go o.listenOnLoggerChannel()
 
 	return nil
 }
@@ -106,17 +81,6 @@ func (o *Output) Start() error {
 func (o *Output) Stop() error {
 	o.periodicFlusher.Stop()
 	return nil
-}
-
-// SetThresholds receives the thresholds before the output is Start()-ed.
-func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
-	if len(thresholds) == 0 {
-		return
-	}
-	o.thresholds = make(map[string]metrics.Thresholds, len(thresholds))
-	for name, t := range thresholds {
-		o.thresholds[name] = t
-	}
 }
 
 func (o *Output) flushMetrics() {
@@ -167,7 +131,14 @@ func (o *Output) flushMetrics() {
 	}
 
 	for metricName, metric := range flushMetrics {
+		sinkType, err := getSinkType(metric.Sink)
+		if err != nil {
+			libWorker.HandleError(o.gs, err)
+			return
+		}
+
 		interval.Sinks[metricName] = &aggregator.Sink{
+			Type:   sinkType,
 			Labels: metric.Sink.Format(timeSinceStart),
 		}
 	}
@@ -190,4 +161,21 @@ func (o *Output) flushMetrics() {
 	}
 
 	libWorker.DispatchMessage(o.gs, base64.StdEncoding.EncodeToString(encodedBytes), "INTERVAL")
+}
+
+func getSinkType(sink metrics.Sink) (aggregator.SinkType, error) {
+	switch sink.(type) {
+	case *metrics.CounterSink:
+		return aggregator.SinkType_Counter, nil
+	case *metrics.GaugeSink:
+		return aggregator.SinkType_Gauge, nil
+	case *metrics.TrendSink:
+		return aggregator.SinkType_Trend, nil
+	case *metrics.RateSink:
+		return aggregator.SinkType_Rate, nil
+	default:
+		// Incorrect sink type being returned here but faster than using a
+		// custom struct to return nil and an error
+		return aggregator.SinkType_Counter, errors.New("unknown sink type")
+	}
 }

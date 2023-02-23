@@ -9,6 +9,20 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Listens for status updates and can automatically abort the job
+func listenForOrchestratorErrors(gs libOrch.BaseGlobalState, unifiedChannel chan locatedMesaage) {
+	for message := range gs.StatusUpdatesChannel() {
+		if message == "FAILED" || message == "SUCCESS" {
+			unifiedChannel <- locatedMesaage{
+				location: OTHER_FAILURE_ABORT_CHANNEL,
+				msg:      "",
+			}
+
+			return
+		}
+	}
+}
+
 // Automatically aborts the job if it takes too long
 func abortIfMaxDurationExceeded(gs libOrch.BaseGlobalState, job libOrch.Job, unifiedChannel chan locatedMesaage) {
 	if job.MaxTestDurationMinutes == 0 {

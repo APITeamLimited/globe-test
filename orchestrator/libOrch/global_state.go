@@ -38,4 +38,6 @@ type BaseGlobalState interface {
 	FuncAuthClient() RunAuthClient
 	LoadZones() []string
 	MessageQueue() *MessageQueue
+
+	StatusUpdatesChannel() chan string
 }

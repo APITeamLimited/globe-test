@@ -13,7 +13,7 @@ func DeterminePostTestInfo(gs libOrch.BaseGlobalState, messages *[]libOrch.Orche
 	testInfo := TestInfo{
 		Intervals:       make([]*Interval, 0),
 		ConsoleMessages: make([]*ConsoleMessage, 0),
-		Thresholds:      make([]*Threshold, 0),
+		Thresholds:      getFinalThresolds(gs),
 	}
 
 	for _, message := range *messages {
@@ -50,11 +50,6 @@ func DeterminePostTestInfo(gs libOrch.BaseGlobalState, messages *[]libOrch.Orche
 		}
 	}
 
-	// Todo get thresholds
-	//testInfo.Thresholds = gs.MetricsStore().GetThresholds()
-
-	// Sort intervals by Period
-
 	sortIntervalsByPeriod(testInfo.Intervals)
 
 	return &testInfo, nil
@@ -64,4 +59,22 @@ func sortIntervalsByPeriod(intervals []*Interval) {
 	sort.SliceStable(intervals, func(i, j int) bool {
 		return intervals[i].Period < intervals[j].Period
 	})
+}
+
+func getFinalThresolds(gs libOrch.BaseGlobalState) []*Threshold {
+	thresholds := gs.MetricsStore().GetThresholds()
+	finalThresholds := make([]*Threshold, 0, len(thresholds))
+
+	for metricName, metricThresholds := range thresholds {
+		for _, threshold := range metricThresholds.Thresholds {
+			finalThresholds = append(finalThresholds, &Threshold{
+				Metric:         metricName,
+				Source:         threshold.Source,
+				AbortOnFail:    &threshold.AbortOnFail,
+				DelayAbortEval: &threshold.Parsed.AbortGracePeriodSource,
+			})
+		}
+	}
+
+	return finalThresholds
 }

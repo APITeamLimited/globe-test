@@ -18,10 +18,11 @@ type locatedMesaage struct {
 }
 
 const (
-	JOB_USER_UPDATES_CHANNEL  = "jobUserUpdates"
-	NO_CREDITS_ABORT_CHANNEL  = "noCreditsAbort"
-	FUNC_ERROR_ABORT_CHANNEL  = "funcErrorAbort"
-	OUT_OF_TIME_ABORT_CHANNEL = "outOfTimeAbort"
+	JOB_USER_UPDATES_CHANNEL    = "jobUserUpdates"
+	NO_CREDITS_ABORT_CHANNEL    = "noCreditsAbort"
+	FUNC_ERROR_ABORT_CHANNEL    = "funcErrorAbort"
+	OUT_OF_TIME_ABORT_CHANNEL   = "outOfTimeAbort"
+	OTHER_FAILURE_ABORT_CHANNEL = "otherFailureAbort"
 )
 
 var otherMessageTypes = []string{"MESSAGE", "MARK", "OPTIONS", "COLLECTION_VARIABLES", "ENVIRONMENT_VARIABLES", "LOCALHOST_FILE"}
@@ -48,6 +49,7 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 
 	unifiedChannel := make(chan locatedMesaage)
 
+	go listenForOrchestratorErrors(gs, unifiedChannel)
 	go abortIfMaxDurationExceeded(gs, job, unifiedChannel)
 	go checkCreditsPeriodically(gs, unifiedChannel)
 	go listenForJobUserUpdates(gs, jobUserUpdatesSubscription, unifiedChannel)
@@ -123,6 +125,9 @@ func handleExecution(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[
 			return abortAndFailAll(gs, childJobs, errors.New(locatedMessage.msg))
 		} else if locatedMessage.location == NO_CREDITS_ABORT_CHANNEL {
 			return abortAndFailAll(gs, childJobs, errors.New("aborting job due to no credits"))
+		} else if locatedMessage.location == OTHER_FAILURE_ABORT_CHANNEL {
+			// The error has already been logged so we can just return without logging it again
+			return abortAndFailAll(gs, childJobs, nil)
 		}
 
 		// Handle user updates separately

@@ -7,8 +7,16 @@ option go_package=".";
 
 import "google/protobuf/timestamp.proto";
 
+enum SinkType {
+    Counter = 0;
+    Gauge = 1;
+    Trend = 2;
+    Rate = 3;
+}
+
 message Sink {
-    map<string, double> labels = 1;
+    SinkType type = 1;
+    map<string, double> labels = 2;
 };
 
 message Interval {
@@ -29,8 +37,9 @@ message ConsoleMessage {
 
 message Threshold { 
     string source = 1;
-    optional bool abort_on_fail = 2;
-    optional string delay_abort_eval = 3;
+    string metric = 2;
+    optional bool abort_on_fail = 3;
+    optional string delay_abort_eval = 4;
 }
 
 // TestInfo is the root data structure for the data stored in the database.

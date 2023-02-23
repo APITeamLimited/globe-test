@@ -19,19 +19,20 @@ type (
 	}
 
 	globalState struct {
-		ctx            context.Context
-		logger         *logrus.Logger
-		client         *redis.Client
-		jobId          string
-		orchestratorId string
-		metricsStore   libOrch.BaseAggregator
-		status         string
-		childJobStates []libOrch.WorkerState
-		creditsManager *lib.CreditsManager
-		standalone     bool
-		funcAuthClient libOrch.RunAuthClient
-		messageQueue   *libOrch.MessageQueue
-		loadZones      []string
+		ctx                  context.Context
+		logger               *logrus.Logger
+		client               *redis.Client
+		jobId                string
+		orchestratorId       string
+		metricsStore         libOrch.BaseAggregator
+		status               string
+		childJobStates       []libOrch.WorkerState
+		creditsManager       *lib.CreditsManager
+		standalone           bool
+		funcAuthClient       libOrch.RunAuthClient
+		messageQueue         *libOrch.MessageQueue
+		loadZones            []string
+		statusUpdatesChannel chan string
 	}
 )
 
@@ -53,7 +54,8 @@ func NewGlobalState(ctx context.Context, orchestratorClient *redis.Client, job *
 			QueueCount:    0,
 			NewQueueCount: make(chan int),
 		},
-		loadZones: loadZones,
+		loadZones:            loadZones,
+		statusUpdatesChannel: make(chan string, 10),
 	}
 
 	if creditsClient != nil && job.FuncModeInfo != nil {
@@ -149,4 +151,8 @@ func (g *globalState) MessageQueue() *libOrch.MessageQueue {
 
 func (g *globalState) LoadZones() []string {
 	return g.loadZones
+}
+
+func (g *globalState) StatusUpdatesChannel() chan string {
+	return g.statusUpdatesChannel
 }

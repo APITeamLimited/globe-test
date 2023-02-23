@@ -27,6 +27,9 @@ type thresholdExpression struct {
 
 	// Value holds the value parsed from the threshold expression.
 	Value float64
+
+	// Source holds the original AbortGracePeriodSource expression.
+	AbortGracePeriodSource string
 }
 
 // SinkKey computes the key used to index a thresholdExpression in the engine's sinks.
@@ -93,10 +96,11 @@ func parseThresholdExpression(input string) (*thresholdExpression, error) {
 	}
 
 	condition := &thresholdExpression{
-		AggregationMethod: parsedMethod,
-		AggregationValue:  parsedMethodValue,
-		Operator:          operator,
-		Value:             parsedValue,
+		AggregationMethod:      parsedMethod,
+		AggregationValue:       parsedMethodValue,
+		Operator:               operator,
+		Value:                  parsedValue,
+		AbortGracePeriodSource: input,
 	}
 
 	return condition, nil

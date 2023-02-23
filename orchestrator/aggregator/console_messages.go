@@ -78,7 +78,7 @@ func (aggregator *aggregator) addConsoleMessage(consoleMessage *ConsoleMessage, 
 			return nil
 		}
 
-		aggregator.consoleMessageHashes = append(aggregator.consoleMessageHashes, ConsoleMessageHash(consoleMessage))
+		aggregator.consoleMessageHashes = append(aggregator.consoleMessageHashes, consoleMessageHash(consoleMessage))
 
 		targetMessage := consoleMessage
 
@@ -129,7 +129,7 @@ func (aggregator *aggregator) flushConsoleMessages() error {
 	return nil
 }
 
-func ConsoleMessageHash(message *ConsoleMessage) string {
+func consoleMessageHash(message *ConsoleMessage) string {
 	// Create hash for message.msg + message.level
 	h := fnv.New32a()
 	h.Write([]byte(message.Message))

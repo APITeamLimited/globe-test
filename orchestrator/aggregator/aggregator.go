@@ -39,7 +39,11 @@ type aggregator struct {
 
 	previousIntervals []*Interval
 
-	thresholds               map[string]metrics.Thresholds
+	thresholds map[string]metrics.Thresholds
+
+	// Its easier to compare the thresholds hash to the previous one than storing the thresholds
+	previousThresholdsHash uint32
+
 	evaluateThresholdsTicker *time.Ticker
 	thresholdsMutex          sync.Mutex
 	thresholdStartTime       *time.Time
@@ -117,6 +121,11 @@ func (aggregator *aggregator) StartThresholdEvaluation() {
 			aggregator.evaluateThresholds()
 		}
 	}()
+
+	err := aggregator.sendInitialThresholds(aggregator.thresholds)
+	if err != nil {
+		libOrch.HandleError(aggregator.gs, fmt.Errorf("error sending initial thresholds: %v", err))
+	}
 }
 
 func (aggregator *aggregator) StopAndCleanup() {

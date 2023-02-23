@@ -2,10 +2,12 @@ package globetest
 
 import (
 	"encoding/base64"
+	"time"
 
 	"github.com/APITeamLimited/globe-test/orchestrator/aggregator"
 	"github.com/APITeamLimited/globe-test/worker/libWorker"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (o *Output) addConsoleMessage(consoleMessage *aggregator.ConsoleMessage) error {
@@ -38,9 +40,9 @@ func (o *Output) addConsoleMessage(consoleMessage *aggregator.ConsoleMessage) er
 	}
 
 	if !alreadySeen {
-		if len(o.consoleMessages) >= aggregator.MaxUniqueConsoleLogs+1 {
-			// The max console logs message is sent frrom the orchestrator, so we don't need to send it here
-			// Just make sure limit is breached slightly to ensure message is sent
+		// The max console logs message is sent frrom the orchestrator, so we don't need to send it here
+		// Just make sure limit is breached slightly to ensure message is sent
+		if len(o.consoleMessages) > aggregator.MaxUniqueConsoleLogs+1 {
 			return nil
 		}
 
@@ -48,6 +50,32 @@ func (o *Output) addConsoleMessage(consoleMessage *aggregator.ConsoleMessage) er
 	}
 
 	return nil
+}
+
+func (o *Output) listenOnLoggerChannel() {
+	for log := range o.gs.GetLoggerChannel() {
+		level := log["level"].(string)
+
+		var msg string
+
+		if log["error"] != nil {
+			msg = log["error"].(string)
+		} else {
+			msg = log["msg"].(string)
+		}
+
+		consoleMessage := &aggregator.ConsoleMessage{
+			Message: msg,
+			Level:   level,
+			Count: map[string]int32{
+				o.location: 1,
+			},
+			FirstOccurred: timestamppb.New(time.Now()),
+			LastOccurred:  timestamppb.New(time.Now()),
+		}
+
+		o.addConsoleMessage(consoleMessage)
+	}
 }
 
 func (o *Output) flushConsoleMessages() error {

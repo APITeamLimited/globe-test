@@ -89,6 +89,7 @@ func (aggregator *aggregator) sendIntervalsIfAggregated(periodIntervals *periodI
 		subFraction += iwsf.subFraction
 	}
 
+	// If the subfractions do not add up to 1, then we cannot aggregate and send the intervals
 	if subFraction-1 > 0.0000001 {
 		return nil
 	}
@@ -112,6 +113,8 @@ func (aggregator *aggregator) sendIntervalsIfAggregated(periodIntervals *periodI
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("Sending aggregated intervals")
 
 	libOrch.DispatchMessage(aggregator.gs, base64.StdEncoding.EncodeToString(encodedBytes), "INTERVAL")
 

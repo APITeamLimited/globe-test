@@ -128,12 +128,16 @@ func UpdateStatus(gs BaseGlobalState, status string) {
 		gs.SetStatus(status)
 		DispatchMessage(gs, status, "STATUS")
 	}
+
+	gs.StatusUpdatesChannel() <- status
 }
 
 func UpdateStatusNoSet(gs BaseGlobalState, status string) {
 	if gs.GetStatus() != status {
 		DispatchMessageNoSet(gs, status, "STATUS")
 	}
+
+	gs.StatusUpdatesChannel() <- status
 }
 
 func HandleStringError(gs BaseGlobalState, errString string) {

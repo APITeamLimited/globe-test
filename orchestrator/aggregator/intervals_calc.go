@@ -3,8 +3,6 @@ package aggregator
 import (
 	"fmt"
 	"regexp"
-
-	"github.com/APITeamLimited/globe-test/lib"
 )
 
 // Aggregates intervals and corrects rates
@@ -98,6 +96,7 @@ func combinePeriodIntervals(iwsfs []*intervalWithSubfraction, sinkPrefix string)
 			aggregatedSink, ok := newIwsf.interval.Sinks[prefixedName]
 			if !ok {
 				aggregatedSink = &Sink{
+					Type:   sink.Type,
 					Labels: make(map[string]float64, len(sink.Labels)),
 				}
 
@@ -110,7 +109,7 @@ func combinePeriodIntervals(iwsfs []*intervalWithSubfraction, sinkPrefix string)
 					aggregatedValue = 0
 				}
 
-				newValue, err := combineSinkValues(key, aggregatedValue, aggregatedSubfraction, value, iwf.subFraction)
+				newValue, err := combineSinkValues(sink.Type, key, aggregatedValue, aggregatedSubfraction, value, iwf.subFraction)
 				if err != nil {
 					// Unknown sink key, just ignore it as not critical
 					continue
@@ -126,35 +125,60 @@ func combinePeriodIntervals(iwsfs []*intervalWithSubfraction, sinkPrefix string)
 	return &newIwsf, nil
 }
 
-var (
-	sumKeys         = []string{"count", "rate"}
-	meanKeys        = []string{"avg", "med"}
-	percentileRegex = regexp.MustCompile(`p\([1-9][0-9]?|100\)`)
-)
+var percentileRegex = regexp.MustCompile(`p\([1-9][0-9]?|100\)`)
 
 // Combines sink values from multiple intervals
-func combineSinkValues(key string, value1, fraction1, value2, fraction2 float64) (float64, error) {
-	// If the key is a sum key, then we can just add the values
-	if lib.StringInSlice(sumKeys, key) {
-		return value1 + value2, nil
-	} else if lib.StringInSlice(meanKeys, key) || percentileRegex.MatchString(key) {
-		return ((value1 * fraction1) + (value2 * fraction2)) / (fraction1 + fraction2), nil
-	} else if key == "max" {
-		if value1 > value2 {
+func combineSinkValues(sinkType SinkType, key string, value1, fraction1, value2, fraction2 float64) (float64, error) {
+	switch sinkType {
+	case SinkType_Counter:
+		switch key {
+		case "count":
+			return value1 + value2, nil
+		case "rate":
+			// Rate keys just return the original value for now, they are calculated using the previous interval
 			return value1, nil
-		} else {
-			return value2, nil
+		default:
+			return 0, fmt.Errorf("unknown key in counter sink: '%s'", key)
 		}
-	} else if key == "min" {
-		if value1 < value2 {
-			return value1, nil
-		} else {
-			return value2, nil
+	case SinkType_Rate:
+		switch key {
+		case "rate":
+			// Return mean of the rates
+			return ((value1 * fraction1) + (value2 * fraction2)) / (fraction1 + fraction2), nil
+		default:
+			return 0, fmt.Errorf("unknown key in rate sink: '%s'", key)
 		}
-	} else {
-		// Unknown key just ignore it
-		return 0, fmt.Errorf("Unknown key: '%s'" + key)
+	case SinkType_Trend:
+		switch key {
+		case "avg", "med":
+			return ((value1 * fraction1) + (value2 * fraction2)) / (fraction1 + fraction2), nil
+		case "max":
+			if value1 > value2 {
+				return value1, nil
+			}
+			return value2, nil
+		case "min":
+			if value1 < value2 {
+				return value1, nil
+			}
+			return value2, nil
+		default:
+			if percentileRegex.MatchString(key) {
+				return ((value1 * fraction1) + (value2 * fraction2)) / (fraction1 + fraction2), nil
+			}
+			return 0, fmt.Errorf("unknown key in trend sink: '%s'", key)
+		}
+	case SinkType_Gauge:
+		switch key {
+		case "value":
+			// Gauge just returns the latest value
+			return value2, nil
+		default:
+			return 0, fmt.Errorf("unknown key in gauge sink: '%s'", key)
+		}
 	}
+
+	return 0, fmt.Errorf("unknown sink type: '%s'", sinkType.String())
 }
 
 // Correct rates, look through and find rates in unified sinks, if found, look up in the previous interval
@@ -184,29 +208,38 @@ func (aggregator *aggregator) correctIntervalRates(interval *Interval) *Interval
 		return interval
 	}
 
-	// Correct rates in sinks
+	// Correct rates in counter sinks
 	for sinkName, sink := range interval.Sinks {
-		for label := range sink.Labels {
-			if label == "rate" {
-				previousSink, ok := previousInterval.Sinks[sinkName]
-				if !ok {
-					continue
-				}
-
-				previousCount, ok := previousSink.Labels["count"]
-				if !ok {
-					continue
-				}
-
-				currentCount, ok := sink.Labels["count"]
-				if !ok {
-					continue
-				}
-
-				// These periods have a second difference, so no need to divide by the period
-				sink.Labels[label] = (currentCount - previousCount)
-			}
+		if sink.Type != SinkType_Counter {
+			continue
 		}
+
+		if _, ok := sink.Labels["rate"]; !ok {
+			continue
+		}
+
+		previousSink, previousSinkExists := previousInterval.Sinks[sinkName]
+		if !previousSinkExists {
+			// Set rate to current count
+			if count, ok := sink.Labels["count"]; ok {
+				sink.Labels["rate"] = count
+			}
+
+			continue
+		}
+
+		previousCount, ok := previousSink.Labels["count"]
+		if !ok {
+			continue
+		}
+
+		currentCount, ok := sink.Labels["count"]
+		if !ok {
+			continue
+		}
+
+		// These periods have a second difference, so no need to divide by the period
+		sink.Labels["rate"] = currentCount - previousCount
 	}
 
 	return interval
