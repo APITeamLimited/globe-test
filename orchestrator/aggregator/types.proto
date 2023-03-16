@@ -31,7 +31,7 @@ message ConsoleMessage {
     string level = 2;
     google.protobuf.Timestamp first_occurred = 3;
     google.protobuf.Timestamp last_occurred = 4;
-    // map<location, times occured>
+    // map<location, times occurred>
     map<string, int32> count = 5;
 };
 
@@ -48,6 +48,8 @@ message TestInfo {
     Interval summary = 2;
     repeated ConsoleMessage console_messages = 3;
     repeated Threshold thresholds = 4;
+    // Things such as limit alerts, etc. that are not console messages
+    repeated string messages = 5;
 };
 
 message DataPoint {

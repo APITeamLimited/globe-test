@@ -31,6 +31,11 @@ func AggregateConsoleMessages(consoleMessages []*ConsoleMessage) []*ConsoleMessa
 		}
 
 		if !found {
+			// If no console message count, add it
+			if consoleMessage.Count == nil {
+				consoleMessage.Count = make(map[string]int32)
+			}
+
 			aggregateMessages = append(aggregateMessages, consoleMessage)
 		}
 	}

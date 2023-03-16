@@ -9,6 +9,11 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/metrics"
 )
 
+const (
+	consoleMessagesFlushPeriod = 5 * time.Second
+	thresholdFlushPeriod       = 5 * time.Second
+)
+
 type intervalWithSubfraction struct {
 	subFraction float64
 	location    string
@@ -31,11 +36,12 @@ type aggregator struct {
 	lastIntervalCleanupAt time.Time
 	intervalsMutex        sync.Mutex
 
-	consoleMessageHashes  []string
-	consoleMessages       []*ConsoleMessage
-	consoleMessagesTicker *time.Ticker
-	sentMaxLogsMessage    bool
-	consoleMutex          sync.Mutex
+	consoleMessageHashes    []string
+	consoleMessageHashCount int
+	consoleMessages         []*ConsoleMessage
+	consoleMessagesTicker   *time.Ticker
+	sentMaxLogsMessage      bool
+	consoleMutex            sync.Mutex
 
 	previousIntervals []*Interval
 
@@ -91,7 +97,7 @@ func (aggregator *aggregator) StartConsoleLogging() {
 	aggregator.consoleMutex.Lock()
 	defer aggregator.consoleMutex.Unlock()
 
-	aggregator.consoleMessagesTicker = time.NewTicker(1 * time.Second)
+	aggregator.consoleMessagesTicker = time.NewTicker(consoleMessagesFlushPeriod)
 
 	go func() {
 		for range aggregator.consoleMessagesTicker.C {
@@ -114,7 +120,7 @@ func (aggregator *aggregator) StartThresholdEvaluation() {
 	timeStart := time.Now()
 
 	aggregator.thresholdStartTime = &timeStart
-	aggregator.evaluateThresholdsTicker = time.NewTicker(2 * time.Second)
+	aggregator.evaluateThresholdsTicker = time.NewTicker(thresholdFlushPeriod)
 
 	go func() {
 		for range aggregator.evaluateThresholdsTicker.C {

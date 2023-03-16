@@ -44,6 +44,11 @@ func DetermineRuntimeOptions(job libOrch.Job, gs libOrch.BaseGlobalState) (*libW
 	// 	return nil, err
 	// }
 
+	err = validators.Thresholds(options)
+	if err != nil {
+		return nil, err
+	}
+
 	if options.Duration.Valid {
 		err = validators.Duration(options, job)
 		if err != nil {

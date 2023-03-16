@@ -13,7 +13,10 @@ import (
 	"github.com/APITeamLimited/redis/v9"
 )
 
-const OUT_OF_CREDITS_MESSAGE = "out of credits"
+const (
+	OUT_OF_CREDITS_MESSAGE = "out of credits"
+	creditsCapturePeriod   = 5 * time.Second
+)
 
 func GetCreditsClient(standalone bool) *redis.Client {
 	if !standalone {
@@ -103,7 +106,7 @@ func CreateCreditsManager(ctx context.Context, variant string, variantTargetId s
 		creditsClient:    creditsClient,
 		freeCreditsName:  fmt.Sprintf("%s:%s:freeCredits", variant, variantTargetId),
 		paidCreditsName:  fmt.Sprintf("%s:%s:paidCredits", variant, variantTargetId),
-		captureTicker:    time.NewTicker(1 * time.Second),
+		captureTicker:    time.NewTicker(creditsCapturePeriod),
 		creditsMutex:     sync.Mutex{},
 		isCapturingMutex: sync.Mutex{},
 		funcModeInfo:     funcModeInfo,

@@ -120,16 +120,6 @@ type Thresholds struct {
 	Sinked     map[string]float64
 }
 
-// NewThresholds returns Thresholds objects representing the provided source strings
-func NewThresholds(sources []string) Thresholds {
-	tcs := make([]thresholdConfig, len(sources))
-	for i, source := range sources {
-		tcs[i].Threshold = source
-	}
-
-	return newThresholdsWithConfig(tcs)
-}
-
 func newThresholdsWithConfig(configs []thresholdConfig) Thresholds {
 	thresholds := make([]*Threshold, len(configs))
 	sinked := make(map[string]float64)

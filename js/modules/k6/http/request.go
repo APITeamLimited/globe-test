@@ -35,7 +35,7 @@ func (c *Connection) getMethodClosure(method string) func(url goja.Value, args .
 func (c *Connection) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) {
 	err := c.moduleInstance.rootModule.workerInfo.DomainLimiter.WaitForLimiterGojaURL(url)
 	if err != nil {
-		return nil, fmt.Errorf("internal error occured while waiting for domain limiter: %w", err)
+		return nil, fmt.Errorf("internal error occurred while waiting for domain limiter: %w", err)
 	}
 
 	return performRequest(c, method, url, args...)

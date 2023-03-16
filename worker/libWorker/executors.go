@@ -13,9 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: remove globals and use some type of explicit dependency injection?
-//
-//nolint:gochecknoglobals
 var (
 	executorConfigTypesMutex   sync.RWMutex
 	executorConfigConstructors = make(map[string]ExecutorConfigConstructor)
@@ -61,11 +58,6 @@ type ExecutorConfig interface {
 	GetStartTime() time.Duration
 	GetGracefulStop() time.Duration
 
-	// This is used to validate whether a particular script can run in the cloud
-	// or, in the future, in the native k6 distributed execution. Currently only
-	// the externally-controlled executor should return false.
-	IsDistributable() bool
-
 	GetEnv() map[string]string
 	// Allows us to get the non-default function the executor should run, if it
 	// has been specified.
@@ -90,8 +82,7 @@ type ExecutorConfig interface {
 	// Returns theoretical maximum vus that will be used by the executor
 	GetMaxExecutorVUs() int64
 
-	// Scales load options for child jobs proportionately based on their subFraction
-	// Should not modify the original options
+	// Returns a copy of a ExecutorConfig with its  load options for child jobs scaled proportionately based a subFraction
 	ScaleOptions(subFraction float64) ExecutorConfig
 
 	// Estimated credits required to run the executor
@@ -112,8 +103,6 @@ type InitVUFunc func(context.Context, *logrus.Entry, *WorkerInfo) (InitializedVU
 // Executor is the interface all executors should implement
 type Executor interface {
 	GetConfig() ExecutorConfig
-
-	GetLogger() *logrus.Entry
 
 	Init(ctx context.Context) error
 	Run(ctx context.Context, engineOut chan<- metrics.SampleContainer, workerInfo *WorkerInfo) error

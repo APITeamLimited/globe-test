@@ -171,16 +171,6 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 
 	runCancel()
 
-	executionState := execScheduler.GetState()
-
-	engine.MetricsEngine.MetricsLock.Lock() // TODO: refactor so this is not needed
-	marshalledMetrics, err := test.initRunner.RetrieveMetricsJSON(globalCtx, &libWorker.Summary{
-		Metrics:         engine.MetricsEngine.ObservedMetrics,
-		RootGroup:       execScheduler.GetRunner().GetDefaultGroup(),
-		TestRunDuration: executionState.GetCurrentTestRunDuration(),
-	})
-	engine.MetricsEngine.MetricsLock.Unlock()
-
 	// Retrive collection and environment variables
 	if workerInfo.Collection != nil {
 		collectionVariables, err := json.Marshal(workerInfo.Collection.Variables)
@@ -202,21 +192,11 @@ func handleExecution(ctx context.Context, conn *websocket.Conn, job *libOrch.Chi
 		}
 	}
 
-	if err == nil {
-		libWorker.DispatchMessage(gs, string(marshalledMetrics), "SUMMARY_METRICS")
-	} else {
-		libWorker.HandleError(gs, err)
-	}
-
 	libWorker.UpdateStatus(gs, "SUCCESS")
 
 	globalCancel() // signal the Engine that it should wind down
 
-	if interrupt != nil {
-		return false
-	}
-
-	return true
+	return interrupt == nil
 }
 
 func (lct *workerLoadedAndConfiguredTest) buildTestRunState(

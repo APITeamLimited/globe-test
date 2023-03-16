@@ -73,12 +73,13 @@ func (aggregator *aggregator) addConsoleMessage(consoleMessage *ConsoleMessage, 
 	}
 
 	if !alreadySeen {
-		if len(aggregator.consoleMessages) >= MaxUniqueConsoleLogs {
+		if aggregator.consoleMessageHashCount >= MaxUniqueConsoleLogs {
 			aggregator.sendMaxConsoleLogsReached()
 			return nil
 		}
 
 		aggregator.consoleMessageHashes = append(aggregator.consoleMessageHashes, consoleMessageHash(consoleMessage))
+		aggregator.consoleMessageHashCount++
 
 		targetMessage := consoleMessage
 
@@ -101,12 +102,14 @@ func (aggregator *aggregator) flushConsoleMessages() error {
 	aggregator.consoleMutex.Lock()
 	defer aggregator.consoleMutex.Unlock()
 
-	if len(aggregator.consoleMessages) == 0 {
+	consoleMessageCount := len(aggregator.consoleMessages)
+
+	if consoleMessageCount == 0 {
 		return nil
 	}
 
 	streamedData := &StreamedData{
-		DataPoints: make([]*DataPoint, len(aggregator.consoleMessages)),
+		DataPoints: make([]*DataPoint, consoleMessageCount),
 	}
 
 	for i, message := range aggregator.consoleMessages {
@@ -124,7 +127,9 @@ func (aggregator *aggregator) flushConsoleMessages() error {
 
 	libOrch.DispatchMessage(aggregator.gs, base64.StdEncoding.EncodeToString(encodedBytes), "CONSOLE")
 
-	aggregator.consoleMessages = make([]*ConsoleMessage, 0)
+	for _, cm := range aggregator.consoleMessages {
+		cm.Count = make(map[string]int32)
+	}
 
 	return nil
 }

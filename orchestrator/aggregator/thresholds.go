@@ -37,7 +37,8 @@ func (aggregator *aggregator) evaluateThresholds() {
 
 		sink, ok := mostRecentInterval.Sinks[sinkName]
 		if !ok {
-			libOrch.HandleError(aggregator.gs, fmt.Errorf("could not find sink %s, make sure it is specified correctly", sinkName))
+			// Haven't found the sink, so we can't evaluate thresholds for it.
+			continue
 		}
 
 		// If either the metric has no thresholds defined, or its sinks

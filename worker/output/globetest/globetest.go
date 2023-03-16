@@ -16,7 +16,7 @@ import (
 
 const (
 	uniqueOutputLimit = 10000
-	flushPeriod       = 1000 * time.Millisecond
+	flushPeriod       = 6000 * time.Millisecond
 )
 
 type Output struct {
@@ -29,14 +29,14 @@ type Output struct {
 
 	seenMetrics map[string]struct{}
 
-	flushCount          int
-	flushIncrementMutex sync.Mutex
+	flushCount int
+	flushMutex sync.Mutex
 
-	uniqueConsoleMessages []string
-	consoleMessages       []*aggregator.ConsoleMessage
-	consoleMutex          sync.Mutex
+	consoleMessageCount int
+	addedSinceLastFlush bool
 
-	startTime time.Time
+	consoleMessages []*aggregator.ConsoleMessage
+	consoleMutex    sync.Mutex
 }
 
 type FormattedSamples struct {
@@ -51,19 +51,15 @@ func New(gs libWorker.BaseGlobalState, location string) (output.Output, error) {
 
 		seenMetrics: make(map[string]struct{}),
 
-		flushCount:          0,
-		flushIncrementMutex: sync.Mutex{},
+		flushMutex: sync.Mutex{},
 
-		uniqueConsoleMessages: make([]string, 0),
-		consoleMessages:       make([]*aggregator.ConsoleMessage, 0),
-		consoleMutex:          sync.Mutex{},
+		consoleMessages: make([]*aggregator.ConsoleMessage, 0),
+		consoleMutex:    sync.Mutex{},
 	}, nil
 
 }
 
 func (o *Output) Start() error {
-	o.startTime = time.Now()
-
 	pf, err := output.NewPeriodicFlusher(flushPeriod, func() {
 		o.flushMetrics()
 		o.flushConsoleMessages()
@@ -84,13 +80,14 @@ func (o *Output) Stop() error {
 }
 
 func (o *Output) flushMetrics() {
+	o.flushMutex.Lock()
+
 	defer func() {
-		o.flushIncrementMutex.Lock()
 		o.flushCount++
-		o.flushIncrementMutex.Unlock()
+		o.flushMutex.Unlock()
 	}()
 
-	flushMetrics := make(map[string]metrics.Metric)
+	flushedMetrics := make(map[string]metrics.Metric)
 
 	var metricName string
 
@@ -111,26 +108,24 @@ func (o *Output) flushMetrics() {
 			metricName = fmt.Sprintf("%s::%s::%s", sample.Metric.Name, tag, value)
 		}
 
-		if _, ok := flushMetrics[metricName]; !ok {
+		if _, ok := flushedMetrics[metricName]; !ok {
 			metric := *sample.Metric
 			metric.Name = metricName
-			flushMetrics[metricName] = metric
+			flushedMetrics[metricName] = metric
 		}
 
 		// Add sample to sink
-		flushMetrics[metricName].Sink.Add(sample)
+		flushedMetrics[metricName].Sink.Add(sample)
 
 		outputCount++
 	}
 
-	timeSinceStart := time.Since(o.startTime)
-
 	interval := aggregator.Interval{
 		Period: int32(o.flushCount),
-		Sinks:  make(map[string]*aggregator.Sink, len(flushMetrics)),
+		Sinks:  make(map[string]*aggregator.Sink, len(flushedMetrics)),
 	}
 
-	for metricName, metric := range flushMetrics {
+	for metricName, metric := range flushedMetrics {
 		sinkType, err := getSinkType(metric.Sink)
 		if err != nil {
 			libWorker.HandleError(o.gs, err)
@@ -139,7 +134,7 @@ func (o *Output) flushMetrics() {
 
 		interval.Sinks[metricName] = &aggregator.Sink{
 			Type:   sinkType,
-			Labels: metric.Sink.Format(timeSinceStart),
+			Labels: metric.Sink.Format(),
 		}
 	}
 

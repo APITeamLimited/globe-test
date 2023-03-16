@@ -40,10 +40,15 @@ func (aggregator *aggregator) AddInterval(message libOrch.WorkerMessage, locatio
 		return errors.New("failed to add interval to aggregator, data point not an interval")
 	}
 
+	intervalRatesApplied, err := calculateSinkRates(interval.Interval)
+	if err != nil {
+		return err
+	}
+
 	aggregator.intervalsMutex.Lock()
 	defer aggregator.intervalsMutex.Unlock()
 
-	err = aggregator.addIntervalToStore(interval.Interval, location, subFraction)
+	err = aggregator.addIntervalToStore(intervalRatesApplied, location, subFraction)
 	if err != nil {
 		return err
 	}
@@ -113,8 +118,6 @@ func (aggregator *aggregator) sendIntervalsIfAggregated(periodIntervals *periodI
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Sending aggregated intervals")
 
 	libOrch.DispatchMessage(aggregator.gs, base64.StdEncoding.EncodeToString(encodedBytes), "INTERVAL")
 

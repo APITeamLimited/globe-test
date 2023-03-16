@@ -75,10 +75,6 @@ type Runner interface {
 	// Returns whether the given name is an exported and executable
 	// function in the script.
 	IsExecutable(string) bool
-
-	//HandleSummary(context.Context, *Summary) (map[string]io.Reader, error)
-
-	RetrieveMetricsJSON(context.Context, *Summary) ([]byte, error)
 }
 
 // Summary contains all of the data the summary handler gets.

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	collectRate = 1000 * time.Millisecond
+	collectRate = 6000 * time.Millisecond
 )
 
 // The Engine is the beating heart of k6.

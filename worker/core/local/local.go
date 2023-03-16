@@ -200,7 +200,7 @@ func (e *ExecutionScheduler) emitVUsAndVUsMax(ctx context.Context, out chan<- me
 		metrics.PushIfNotDone(ctx, out, samples)
 	}
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(6 * time.Second)
 	go func() {
 		defer func() {
 			ticker.Stop()

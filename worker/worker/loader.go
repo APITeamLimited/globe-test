@@ -139,7 +139,6 @@ func validateConfig(conf Config, isExecutable func(string) bool) error {
 func validateScenarioConfig(conf libWorker.ExecutorConfig, isExecutable func(string) bool) error {
 	execFn := conf.GetExec()
 	if !isExecutable(execFn) {
-		fmt.Println("asdasdasdasmdaskdasd", execFn)
 		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
 	}
 	return nil

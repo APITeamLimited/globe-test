@@ -16,10 +16,10 @@ var (
 )
 
 type Sink interface {
-	Add(s Sample)                              // Add a sample to the sink.
-	Calc()                                     // Make final calculations.
-	Format(t time.Duration) map[string]float64 // Data for thresholds.
-	IsEmpty() bool                             // Check if the Sink is empty.
+	Add(s Sample)               // Add a sample to the sink.
+	Calc()                      // Make final calculations.
+	Format() map[string]float64 // Data for thresholds.
+	IsEmpty() bool              // Check if the Sink is empty.
 }
 
 type CounterSink struct {
@@ -39,10 +39,11 @@ func (c *CounterSink) IsEmpty() bool { return c.First.IsZero() }
 
 func (c *CounterSink) Calc() {}
 
-func (c *CounterSink) Format(t time.Duration) map[string]float64 {
+func (c *CounterSink) Format() map[string]float64 {
 	return map[string]float64{
 		"count": c.Value,
-		"rate":  c.Value / (float64(t) / float64(time.Second)),
+
+		// Can calculate rate client side
 	}
 }
 
@@ -68,7 +69,7 @@ func (g *GaugeSink) Add(s Sample) {
 
 func (g *GaugeSink) Calc() {}
 
-func (g *GaugeSink) Format(t time.Duration) map[string]float64 {
+func (g *GaugeSink) Format() map[string]float64 {
 	return map[string]float64{"value": g.Value}
 }
 
@@ -111,12 +112,20 @@ func (t *TrendSink) P(pct float64) float64 {
 		// If percentile falls on a value in Values slice, we return that value.
 		// If percentile does not fall on a value in Values slice, we calculate (linear interpolation)
 		// the value that would fall at percentile, given the values above and below that percentile.
+
 		t.Calc()
-		i := pct * (float64(t.Count) - 1.0)
-		j := t.Values[int(math.Floor(i))]
-		k := t.Values[int(math.Ceil(i))]
-		f := i - math.Floor(i)
-		return j + (k-j)*f
+
+		n := float64(len(t.Values))
+		rank := pct * (n - 1.0)
+		lo := math.Floor(rank)
+		hi := math.Ceil(rank)
+		if lo == hi {
+			// p falls on exactly one value in Values slice
+			return t.Values[int(rank)]
+		}
+		loValue := t.Values[int(lo)]
+		hiValue := t.Values[int(hi)]
+		return loValue + (hiValue-loValue)*(rank-lo)/(hi-lo)
 	}
 }
 
@@ -136,7 +145,7 @@ func (t *TrendSink) Calc() {
 	}
 }
 
-func (t *TrendSink) Format(tt time.Duration) map[string]float64 {
+func (t *TrendSink) Format() map[string]float64 {
 	t.Calc()
 	// TODO: respect the summaryTrendStats for REST API
 	return map[string]float64{
@@ -166,13 +175,17 @@ func (r *RateSink) Add(s Sample) {
 
 func (r RateSink) Calc() {}
 
-func (r RateSink) Format(t time.Duration) map[string]float64 {
+func (r RateSink) Format() map[string]float64 {
 	var rate float64
 	if r.Total > 0 {
 		rate = float64(r.Trues) / float64(r.Total)
 	}
 
-	return map[string]float64{"rate": rate}
+	return map[string]float64{
+		"rate":  rate,
+		"pass":  float64(r.Trues),
+		"total": float64(r.Total),
+	}
 }
 
 type DummySink map[string]float64
@@ -186,6 +199,6 @@ func (d DummySink) Add(s Sample) {
 
 func (d DummySink) Calc() {}
 
-func (d DummySink) Format(t time.Duration) map[string]float64 {
+func (d DummySink) Format() map[string]float64 {
 	return map[string]float64(d)
 }

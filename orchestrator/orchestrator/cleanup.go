@@ -16,8 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var TEST_INFO_KEYS = []string{"INTERVAL", "CONSOLE"}
-
 // Cleans up the worker and orchestrator clients, storing all results in storeMongo
 func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]libOrch.ChildJobDistribution, storeMongoDB *mongo.Database,
 	scope libOrch.Scope, testInfoStoreReceipt *primitive.ObjectID) error {
@@ -51,7 +49,7 @@ func cleanup(gs libOrch.BaseGlobalState, job libOrch.Job, childJobs map[string]l
 			continue
 		}
 
-		if lib.StringInSlice(TEST_INFO_KEYS, message.MessageType) {
+		if lib.StringInSlice(aggregator.TEST_INFO_KEYS, message.MessageType) {
 			testData = append(testData, message)
 		}
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/APITeamLimited/globe-test/worker/libWorker/types"
 )
 
-const minIterationDurationMilliseconds = 1000
+const minIterationDurationMilliseconds = 0
 
 func MinIterationDuration(options *libWorker.Options) error {
 	// Ensure that user duration is within the allowed range

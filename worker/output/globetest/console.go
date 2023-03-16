@@ -14,6 +14,8 @@ func (o *Output) addConsoleMessage(consoleMessage *aggregator.ConsoleMessage) er
 	o.consoleMutex.Lock()
 	defer o.consoleMutex.Unlock()
 
+	o.addedSinceLastFlush = true
+
 	// Check if message and level
 	alreadySeen := false
 	for _, seenMessage := range o.consoleMessages {
@@ -42,11 +44,12 @@ func (o *Output) addConsoleMessage(consoleMessage *aggregator.ConsoleMessage) er
 	if !alreadySeen {
 		// The max console logs message is sent frrom the orchestrator, so we don't need to send it here
 		// Just make sure limit is breached slightly to ensure message is sent
-		if len(o.consoleMessages) > aggregator.MaxUniqueConsoleLogs+1 {
+		if o.consoleMessageCount > aggregator.MaxUniqueConsoleLogs+1 {
 			return nil
 		}
 
 		o.consoleMessages = append(o.consoleMessages, consoleMessage)
+		o.consoleMessageCount++
 	}
 
 	return nil
@@ -82,7 +85,7 @@ func (o *Output) flushConsoleMessages() error {
 	o.consoleMutex.Lock()
 	defer o.consoleMutex.Unlock()
 
-	if len(o.consoleMessages) == 0 {
+	if !o.addedSinceLastFlush {
 		return nil
 	}
 
@@ -105,7 +108,9 @@ func (o *Output) flushConsoleMessages() error {
 
 	libWorker.DispatchMessage(o.gs, base64.StdEncoding.EncodeToString(encodedBytes), "CONSOLE")
 
-	o.consoleMessages = make([]*aggregator.ConsoleMessage, 0)
+	for _, cm := range o.consoleMessages {
+		cm.Count = make(map[string]int32)
+	}
 
 	return nil
 }

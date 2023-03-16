@@ -311,11 +311,6 @@ func (r *Runner) IsExecutable(name string) bool {
 	return exists
 }
 
-func (r *Runner) RetrieveMetricsJSON(ctx context.Context, summary *libWorker.Summary) ([]byte, error) {
-	summaryDataForJS := summarizeMetricsToObject(summary, r.Bundle.Options, r.setupData)
-	return json.Marshal(summaryDataForJS["metrics"])
-}
-
 func (r *Runner) SetOptions(opts libWorker.Options) error {
 	r.Bundle.Options = opts
 	r.RPSLimit = nil

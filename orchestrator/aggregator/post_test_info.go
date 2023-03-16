@@ -9,44 +9,38 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var TEST_INFO_KEYS = []string{"INTERVAL", "CONSOLE", "MESSAGE"}
+
 func DeterminePostTestInfo(gs libOrch.BaseGlobalState, messages *[]libOrch.OrchestratorOrWorkerMessage) (*TestInfo, error) {
 	testInfo := TestInfo{
 		Intervals:       make([]*Interval, 0),
 		ConsoleMessages: make([]*ConsoleMessage, 0),
 		Thresholds:      getFinalThresolds(gs),
+		Messages:        make([]string, 0),
 	}
 
 	for _, message := range *messages {
-		if message.MessageType == "INTERVAL" {
-			interval := Interval{}
-
+		if message.MessageType == "INTERVAL" || message.MessageType == "CONSOLE" {
+			streamedData := StreamedData{}
 			messageBytes, err := base64.StdEncoding.DecodeString(message.Message)
 			if err != nil {
-				fmt.Printf("Error decoding interval message during post test cleanup: %v", err)
-				return nil, err
+				return nil, fmt.Errorf("error decoding message bytes: %s", err.Error())
 			}
 
-			err = proto.Unmarshal(messageBytes, &interval)
+			err = proto.Unmarshal(messageBytes, &streamedData)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error unmarshalling message bytes: %s", err.Error())
 			}
 
-			testInfo.Intervals = append(testInfo.Intervals, &interval)
-		} else if message.MessageType == "CONSOLE" {
-			consoleMessage := ConsoleMessage{}
-
-			messageBytes, err := base64.StdEncoding.DecodeString(message.Message)
-			if err != nil {
-				fmt.Printf("Error decoding message: %v", err)
-				return nil, err
+			for _, dataPoint := range streamedData.DataPoints {
+				if consoleMessage, ok := dataPoint.Data.(*DataPoint_ConsoleMessage); ok {
+					testInfo.ConsoleMessages = AggregateConsoleMessages(append(testInfo.ConsoleMessages, consoleMessage.ConsoleMessage))
+				} else if interval, ok := dataPoint.Data.(*DataPoint_Interval); ok {
+					testInfo.Intervals = append(testInfo.Intervals, interval.Interval)
+				}
 			}
-
-			err = proto.Unmarshal(messageBytes, &consoleMessage)
-			if err != nil {
-				return nil, err
-			}
-
-			testInfo.ConsoleMessages = AggregateConsoleMessages(append(testInfo.ConsoleMessages, &consoleMessage))
+		} else if message.MessageType == "MESSAGE" {
+			testInfo.Messages = append(testInfo.Messages, message.Message)
 		}
 	}
 

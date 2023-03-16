@@ -66,7 +66,7 @@ func (aggregator *aggregator) aggregateIntervals(iwsfs []*intervalWithSubfractio
 		}
 	}
 
-	return aggregator.correctIntervalRates(&unifiedInterval), nil
+	return &unifiedInterval, nil
 }
 
 // Combines intervals frrom the same period into a single interval
@@ -134,14 +134,13 @@ func combineSinkValues(sinkType SinkType, key string, value1, fraction1, value2,
 		switch key {
 		case "count":
 			return value1 + value2, nil
-		case "rate":
-			// Rate keys just return the original value for now, they are calculated using the previous interval
-			return value1, nil
 		default:
 			return 0, fmt.Errorf("unknown key in counter sink: '%s'", key)
 		}
 	case SinkType_Rate:
 		switch key {
+		case "pass", "total":
+			return value1 + value2, nil
 		case "rate":
 			// Return mean of the rates
 			return ((value1 * fraction1) + (value2 * fraction2)) / (fraction1 + fraction2), nil
@@ -181,66 +180,24 @@ func combineSinkValues(sinkType SinkType, key string, value1, fraction1, value2,
 	return 0, fmt.Errorf("unknown sink type: '%s'", sinkType.String())
 }
 
-// Correct rates, look through and find rates in unified sinks, if found, look up in the previous interval
-// then calculate rate based on the previous interval's value and the current interval's value
-func (aggregator *aggregator) correctIntervalRates(interval *Interval) *Interval {
-	defer func() {
-		// Add interval to previous intervals and remove the first added interval if there are more than intervalMaxLagPeriods
-		aggregator.previousIntervals = append(aggregator.previousIntervals, interval)
-		if len(aggregator.previousIntervals) > intervalMaxLagPeriods {
-			aggregator.previousIntervals = aggregator.previousIntervals[1:]
-		}
-	}()
-
-	// Determine if period exists in previous intervals
-	var previousInterval *Interval
-	previousPeriod := interval.Period - 1
-
-	for _, iwsf := range aggregator.previousIntervals {
-		if iwsf.Period == previousPeriod {
-			previousInterval = iwsf
-			break
-		}
-	}
-
-	if previousInterval == nil {
-		// Rates are best guess if the period doesn't exist in previous intervals
-		return interval
-	}
-
-	// Correct rates in counter sinks
-	for sinkName, sink := range interval.Sinks {
-		if sink.Type != SinkType_Counter {
+func calculateSinkRates(interval *Interval) (*Interval, error) {
+	for _, sink := range interval.Sinks {
+		if sink.Type != SinkType_Rate {
 			continue
 		}
 
-		if _, ok := sink.Labels["rate"]; !ok {
-			continue
-		}
-
-		previousSink, previousSinkExists := previousInterval.Sinks[sinkName]
-		if !previousSinkExists {
-			// Set rate to current count
-			if count, ok := sink.Labels["count"]; ok {
-				sink.Labels["rate"] = count
-			}
-
-			continue
-		}
-
-		previousCount, ok := previousSink.Labels["count"]
+		pass, ok := sink.Labels["pass"]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("missing 'pass' label in rate sink")
 		}
 
-		currentCount, ok := sink.Labels["count"]
+		total, ok := sink.Labels["total"]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("missing 'total' label in rate sink")
 		}
 
-		// These periods have a second difference, so no need to divide by the period
-		sink.Labels["rate"] = currentCount - previousCount
+		sink.Labels["rate"] = pass / total
 	}
 
-	return interval
+	return interval, nil
 }
